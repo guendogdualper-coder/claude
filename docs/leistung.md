@@ -454,3 +454,233 @@ darunter alter Code mit dichteren Pollen). Skripte: `scratchpad/flacker/` (`run.
 
 Tests: `node --check` aller js-Dateien; s73 (12 Wege) ohne Fehler; s72 2D und `D3=1 s72_noshot` ohne Seitenfehler (in 3D
 `mons: 0` in der Arena – genauso mit dem unveränderten 14.65-Stand, also Zeitverhalten unter SwiftShader); td8781 69 OK.
+## Flimmern am Handy („weißes Blinzeln alle 10–30 s, manchmal weiße oder schwarze Flecken“)
+
+
+### Messung
+
+Playwright + Chromium mit Software-Grafik (SwiftShader), echtes Spiel. Handy: iPhone 13 und Pixel 7 quer (Touch,
+2,625–3-fache Dichte, Grafik „mittel“), PC: 960×540 bis 1920×1080 („hoch“/„ultra“). Zwei Arten von Läufen:
+
+- **Zustandsläufe** (echte Zeit, Prozessor über CDP 4-fach gedrosselt, automatische Grafikanpassung an, 3D-Zeichnen
+  abgeschaltet, damit das Spiel in Echtzeit läuft): je Bild Nebel (near/far/Farbe), Himmel, Licht (Himmel/Sonne),
+  `screenFlash`, `WZ.flash`, Größe und Pixelverhältnis der Zeichenflächen, Qualitätsstufe, Lastschutz, Programme,
+  Texturen, Blöcke, Überblendung, Kontextverlust; dazu jede Größenänderung der beiden Zeichenflächen (mit der Angabe,
+  ob sie innerhalb eines Spielbildes geschah), `flashScreen`/`warpFade`/`v3ApplyGraphics`/`setSize`-Aufrufe mit
+  Aufrufer. 4 267 Bilder über 4,5 min: Kazehana, Donnerklamm, Seelenhain, Nebelküste, Himmelsterrassen; stehen,
+  laufen, kämpfen, Tag → Nacht → Tag.
+- **Bildläufe** mit virtueller Uhr (jedes Bild rückt die Zeit um genau 33,3 ms vor – das Spiel läuft wie auf einem
+  Gerät mit 30 Bildern/s, egal wie langsam die Software-Grafik ist): nach jedem `render()` 3D- und 2D-Ebene samt
+  CSS-Hintergrund und Überblendung auf 320×180 verkleinert, mittlere Helligkeit, fast weiße/schwarze Anteile und
+  kurzzeitige helle/dunkle Flecken (Bildpunkt in Bild n deutlich heller/dunkler als in n−1 und n+1); daneben
+  CDP-Screencast des fertig zusammengesetzten Browserbilds (HTML eingeschlossen). Ein Lauf auf dem PC suchte NaN- und
+  Unendlich-Werte in allen Fragment-Shadern (jeder Shader färbt solche Bildpunkte in einer eigenen Kennfarbe, volle
+  Auflösung ausgelesen).
+
+Skripte und Daten: `scratchpad/flimmern/` (`run.js`, `probe*.js`, `bilder.py`, `zustand.py`, `screencast.py`,
+`tafel2.py`, `groesse.js`).
+
+
+### Ursachen (mit Beleg)
+
+1. **Gewitterblitz der Donnerklamm (`WZ.flash`, wahrzeichen.js) – das „weiße Blinzeln“.** In der Klammfeste und
+   überall in der Donnerklamm, wo eine Felsnadel mit Blitzableiter näher als 38 Einheiten steht, schlägt alle
+   2,6–7,1 s ein Blitz ein (unterwegs, je nach Abstand zu den Nadeln, seltener – das passt zu „alle 10, 20, 30 s“).
+   Seit 14.91 hellte er nur noch „sanft“ auf: Himmelslicht +0,35, Sonne +0,15. Gemessen (Klammfeste, iPhone,
+   30 Bilder/s): **6 Einschläge in 24,6 s (Abstände 4,2 / 3,0 / 2,7 / 3,8 / 4,0 s), jedes Mal springt das ganze
+   Bild in einem einzigen Bild um +35 bis +38 Helligkeitsstufen (+31–34 %) nach oben** (Himmelslicht 0,56 → 0,91,
+   Sonne 0,72 → 0,87) und klingt über rund 8 Bilder (0,27 s) wieder ab. Genau das sieht aus wie ein weißes Blinzeln.
+2. **Vorwärmen der Effekt-Shader (`v3WarmFx`, drei-fx.js) dunkelte ein Bild lang alles ab.** 1,2 s nach jedem
+   Spielstart (auch nach jedem Neuladen und Neustart der Grafik) zeichnet `v3WarmFx` jede Effektart einmal zur Probe.
+   Die Probe des Gewitters (sturmgericht.js) hinterließ ihren Lichtwunsch „Szene abdunkeln“ für das nächste Bild:
+   Himmelslicht 0,62 → 0,54, Sonne 0,95 → 0,77, **das ganze Bild ein Bild lang −19 bis −29 Helligkeitsstufen**
+   (gemessen in Kazehana und in der Klammfeste, jeweils Bild 37). Ein Bild davor blieb außerdem das Bündel der
+   Effekt-Streifen (`FXB3_STRIP`) der Probe sichtbar: weiße Bögen und Ringe neben der Figur (Bild 36, bis 450
+   kurzzeitig helle Bildpunkte von 57 600).
+3. **Größenwechsel außerhalb eines Spielbildes.** Wird die Größe einer Zeichenfläche gesetzt, ist sie bis zum
+   nächsten gezeichneten Bild leer. `resizeRenderer`/`v3Resize` liefen auch aus Zeitgebern (`checkViewSize` nach
+   `resizeSoon`: Drehen, Tastatur, Rückkehr aus dem Hintergrund, `focusout`), beim Ändern der Einstellungen, beim
+   Drehen ins Querformat (`qualityRestore`) und nach einem Grafik-Neustart. Gemessen: Fenstergröße und Grafikstufe
+   geändert – **vorher 14 von 14 Größenwechseln außerhalb eines Bildes**, im 30er-Takt bleibt die leere Fläche dann
+   bis zu zwei Bildschirmtakte stehen (schwarz bzw. der hellblaue CSS-Hintergrund `#9ec8e0` der 3D-Fläche, der
+   auch bei verlorenem Grafikkontext zu sehen ist).
+4. **Bildschirmblitze (`flashScreen`).** Bis 14 % Deckkraft in hellen Farben, auch bei Angriffen der Bosse
+   (Nova, Brüllen, Vernichtung, Viertelschlag, Erwachen) und beim Gewitter-Einschlag alter Mitspieler
+   (`SG3_L.sky`: Himmelslicht bis ×1,66). Im Kampf der Messläufe selbst kamen nur Rang-Blitze unter der Schwelle
+   (0,14 < 0,2) vor, sie zeichneten nichts.
+
+Unauffällig (gemessen, keine Sprünge): Nebel (siehe unten), Tag/Nacht (weich über 60 s), Gebietsstimmung (weich,
+höchstens 5 Helligkeitsstufen je Bild direkt nach einem Kartenwechsel hinter der dunklen Überblendung), die
+automatische Grafikanpassung am Handy (60 → 30 Bilder/s nach 38 s, Schatten aus nach 116 s, Auflösung 2 → 1,5
+nach 139 s – alles innerhalb eines Bildes, kein Sprung), Lastschutz, neue Shader-Programme, Blockbau, Texturen
+(alle im Spiel erzeugt, keine nachladenden Bilder), Kontextverlust (kam nicht vor). Kurzzeitige Flecken bei
+ruhender Kamera: außer dem Abdunkeln aus Punkt 2 höchstens 50 von 57 600 Bildpunkten (Treffer und Funken im Kampf).
+
+
+### Nebel: nicht die Ursache, bleibt drin
+
+Der Spieler hatte gesagt: „Wenn es am Nebel liegt, Nebel ganz raus.“ Er liegt nicht daran. Je Bild mitgeschrieben
+(4 135 Bildpaare des Zustandslaufs ohne Kartenwechsel und Tag/Nacht-Umschaltung): Nebelanfang höchstens 1,33 %,
+Nebelende höchstens 1,40 % und Nebelfarbe höchstens 5,3 Helligkeitsstufen Änderung von einem Bild zum nächsten –
+und das nur in den Sekunden nach einem Kartenwechsel, wo die Stimmung weich zur neuen Gegend gleitet. Im ganzen
+Bildlauf in Kazehana (1 310 Bildpaare) änderte sich der Nebel überhaupt nicht. Kein einziger Helligkeitssprung fiel
+mit einer Nebeländerung zusammen. Der Nebel trägt dagegen den Kartenrand (Dunst der fernen Landschaft in
+`kartenrand.js`, Horizont in `drei-fx.js`, Wasser) – ohne ihn gäbe es harte Kanten am Ende der Sichtweite. Darum
+bleiben Nebel und die Einstellung „Nebel“ unverändert.
+
+
+### Änderungen
+
+- `js/wahrzeichen.js` – Gewitter: Der Blitz hellt das Licht der Szene nicht mehr auf (`WZ.flash` klingt nur noch
+  ab, ohne Himmels- oder Sonnenlicht zu ändern); der Schein am Einschlag ist kleiner und blasser (3 → 1,8 Einheiten,
+  Deckkraft 0,7). Der Blitz selbst bleibt sichtbar.
+- `js/drei-fx.js` – `v3WarmFx` verwirft nach dem Vorwärmen die Lichtwünsche der Probe-Effekte (`SG3_L`, `FLM3_L`)
+  und blendet auch das Streifen-Bündel (`FXB3_STRIP.mesh`) der Probe aus.
+- `js/sturmgericht.js` – Einschlag ohne Aufhellen der Szene (`sky` entfällt), nur das Abdunkeln beim Aufziehen bleibt.
+- `js/zeichnen.js`, `js/drei-kern.js`, `js/spiel.js` – `resizeRenderer`/`v3Resize` setzen Größen nur noch innerhalb
+  eines Spielbildes (`renderer.inFrame`, gesetzt in `frame`), Aufrufe von außerhalb merken nur `resizeDue` vor; das
+  nächste Bild setzt die Größe und zeichnet sofort.
+- `css/style.css` – Hintergrund der 3D-Fläche dunkel (`#12100c` wie die App) statt hellblau: Fehlt einmal ein Bild
+  (Kontextverlust, Neustart der Grafik), blitzt es nicht hell auf.
+- `js/effekte.js` – Bildschirmschein nur noch als schwacher Farbton: höchstens 6 % Deckkraft (vorher 14 %), helle
+  und weiße Farben höchstens 3 %, Stärke `peak × 0,15` (vorher × 0,3). Ein Stufenaufstieg (0,55, `#fff0c8`) hellt
+  das Bild damit um höchstens 3 % zur Farbe hin auf statt 14 %.
+- `js/gegner.js`, `js/endboss.js`, `js/hoellenthron.js`, `js/instanzen.js` – kein Bildschirmblitz mehr bei Angriffen
+  und beim Erwachen von Bossen (nur eigenes Tun darf aufhellen; die Angriffe haben ihre eigenen Ringe, Säulen und
+  Beben). Belohnungs-Momente (Boss besiegt, legendäre Beute, Stufenaufstieg) bleiben als schwacher Farbton.
+
+Höchste Deckkraft des Bildschirmscheins (vorher → nachher): Stufenaufstieg `#fff0c8` 0,55: 14 % → 3 %;
+Donnerkeile (eigen, weiß) 0,4: 12 % → 3 %; Ulti-Einschlag weiß 0,3: 9 % → 3 %; farbige Fertigkeit 0,25: 7,5 % →
+3,8 %; Endboss besiegt (gold) 0,5: 14 % → 6 %; Boss-Nova/-Brüllen/-Viertelschlag: 9–14 % → keiner.
+
+### Messung nachher
+
+| Lauf (Bildlauf, 30 Bilder/s) | Bilder | Sprünge des ganzen Bildes (> 6 Stufen von Bild zu Bild) | kurze Ausreißer (1–3 Bilder, > 3) |
+|---|---|---|---|
+| iPhone, Klammfeste, stehen/laufen, **vorher** | 739 | 19 (6 Gewitter-Einschläge je +35…+38 und ihr Abklingen, 2 × Vorwärmen) | 1 (Bild 37, −19) |
+| dasselbe **nachher** (3 Einschläge im Lauf) | 490 | 0 – Helligkeit beim Einschlag 118,7 → 118,6 | 0 |
+| iPhone, Kazehana, stehen/laufen/kämpfen/Nacht, **vorher** | 1 312 | 1 außer Nacht-Umschaltung (Bild 37, −29) | 1 |
+| Kazehana **nachher** | 501 + 158 | 1 (Bild 376: −16, zehn dunkle Golems erscheinen auf einmal – bleibt so, kein Blinken) | 0 |
+| Pixel 7, 2D, Kazehana/Donnerklamm, vorher / nachher | 757 / 773 | nur im Kampf durch eigene Fertigkeitseffekte (2 / 1) | 0 / 0 |
+| Größenwechsel der Zeichenflächen außerhalb eines Bildes (Fenster und Grafikstufe geändert) | – | vorher 14 von 14, nachher 0 von 14 | – |
+
+Kurzzeitige helle Flecken bei ruhender Kamera, 1,2 s nach dem Start: vorher 99–450 Bildpunkte (weiße Bögen),
+nachher höchstens 24.
+
+Bildtafeln (Zeile = ein Ereignis, Spalten = Bilder davor/danach mit Helligkeit):
+`scratchpad/flimmern/tafel-gewitter-vorher-nachher.png`, `scratchpad/flimmern/tafel-start-vorher-nachher.png`.
+
+### NaN und Unendlich in Shadern (schwarze/weiße Flecken)
+
+Zwei Läufe am PC (960×540, „Hoch“, Kazehana und Seelenhain, laufen, kämpfen, Nacht; 553 und 481 Bilder), alle 44
+Fragment-Shader überwacht, volle Auflösung je Bild ausgelesen; im zweiten Lauf war der Schutz aus 14.94 (NaN → Schwarz
+in `fog_fragment`, grafik-plus.js) abgeschaltet, damit er nichts verdeckt. **Ergebnis: kein einziger NaN- oder
+Unendlich-Bildpunkt.** Die weißen Flecken in den Aufnahmen waren die Bögen aus dem Vorwärmen (siehe Ursache 2) und
+Funken eigener Fertigkeiten; schwarze Flecken traten nicht auf. Der Schutz aus 14.94 bleibt.
+
+### Offen / nicht prüfbar
+
+- Gemessen nur mit Software-Grafik (SwiftShader) in Chromium, nicht auf echter iPhone-/Android-GPU und nicht in
+  Safari/WKWebView. Treiberfehler, Speicherdruck bis zum Kontextverlust und Eigenheiten des iOS-Zusammensetzers
+  (Ebenen, die kurz ohne Inhalt gezeigt werden) lassen sich so nicht nachstellen. Für diese Fälle ist der Hintergrund
+  der 3D-Fläche jetzt dunkel und Größenwechsel geschehen nur noch direkt vor dem Zeichnen.
+- Ungenaue Rechnung in Shadern (NaN/Unendlich) kann auf echten Grafikkarten andere Stellen treffen als in SwiftShader.
+
+## Handy wird warm („nach einer halben Stunde so heiß, dass eine Warnung kommt“)
+
+Wärme ist Arbeit je Sekunde (Prozessor und Grafikkarte), nicht je Bild. Gemessen mit `scratchpad/flimmern/waerme.js`:
+virtuelle Uhr mit fester Bildschirmrate (Pixel 7: 120 Hz, PC: 60 Hz), Hauptthread 4-fach gedrosselt (Handy), je
+Spielsekunde: gezeichnete Bilder, rAF-Aufrufe, Rechenzeit im Spieltakt (echte Uhr, Grafikkarte vor jedem
+Bild abgewartet, damit sie nicht mitzählt), Zeichenaufrufe, Dreiecke, Bildpunkte der 3D-Fläche, der Schattenkarte und
+der 2D-Ebene. Ablauf je Lauf: Kazehana, je 3 s stehen, laufen, kämpfen (Monster, alle 1,2 s eine Fertigkeit),
+Inventar offen, Stillstand (20 s ohne Eingabe, nachgestellt). Einstellungen wie neu installiert.
+
+### Was vorher lief
+
+- **Bildrate:** Am Handy hieß „Auto“ 60 Bilder/s, solange das Gerät sie hielt (seit 14.98); „Max“ lief so schnell wie
+  der Bildschirm – auf 90/120-Hz-Handys 90/120 Bilder/s. Fenster, große Karte und Stillstand liefen mit voller
+  Bildrate weiter. Der Bildschirmtakt selbst (rAF) läuft auf 120-Hz-Handys immer mit 120/s, das Spiel überspringt
+  die zu vielen Takte gleich am Anfang von `frame`.
+- **Auflösung:** „Mittel“ zeichnete die 3D-Welt am Handy mit Dichte 2 (iPhone 13: 1688×780, Pixel 7: 1726×720 –
+  krumm hochskaliert 1,5- bzw. 1,31-fach), „Hoch/Ultra“ bis 3.
+- **Schattenkarte:** jedes Bild neu (1024² bei Mittel, 2048² bei Hoch), obwohl nur die Figuren Schatten werfen.
+- Kein Wärmeschutz: Die Anpassung (adaptQuality) griff erst, wenn das Handy die Bildrate nicht mehr schaffte – also
+  erst, wenn es schon heiß war und gedrosselt hatte.
+
+### Änderungen
+
+- **Neue Einstellung „Leistung“** (Grafik): *Akku schonen* (Handy-Standard), *Ausgewogen*, *Maximal* (PC-Standard,
+  wie bisher). `js/waermeschutz.js` (neu), `js/optionen.js` (`opts.leistung`, Umstellung `optsVer` 5: am Handy
+  „Bildrate: Max“ einmalig auf „Auto“, damit „Leistung“ greift; wer „Leistung“ wählt, bekommt „Bildrate: Auto“).
+  | | Akku schonen | Ausgewogen | Maximal |
+  |---|---|---|---|
+  | Bildrate „Auto“ Handy | 30 | 40 (= 30 bei 60 Hz, 40 bei 120 Hz, 45 bei 90 Hz) | 60 (bisher) |
+  | Bildrate „Auto“ PC | 30 | 60 | unbegrenzt (bisher) |
+  | Fenster/große Karte offen, Stillstand (20 s keine Eingabe, Figur steht, kein Kampf) | 20 | 30 | voll |
+  | Auflösung 3D am Handy | halbe Gerätedichte ab 2,6-fach (iPhone 1,5, Pixel 7 1,31 – genau doppelt hochskaliert), sonst höchstens 2 | höchstens 2 | wie Grafikstufe |
+  | Schattenkarte | jedes 2. Bild | jedes Bild | jedes Bild |
+- `js/spiel.js` – `frameCap` fragt `leistungCap`; `capInterval` rechnet die Grenze auf ganze Bildschirmtakte
+  (geschätzt aus den rAF-Abständen, `quality.vsync`), `js/zeichnen.js` `adaptQuality` misst dagegen (sonst hielte es
+  „40 auf 60 Hz = 33 ms“ für Ruckeln).
+- `js/drei-kern.js` – `v3RenderScene`: Schattenkarte bei „Akku schonen“ nur jedes zweite Bild
+  (`shadowMap.autoUpdate = false`, `needsUpdate` jedes 2. Bild; fehlt die Karte, sofort).
+- **Wärmeschutz** (`heatProbe`/`heatStep`, nur Handy): alle 10 s eine kleine Rechenprobe (stellt sich in der ersten
+  Minute auf ≥ 4 ms ein, Safari misst nur auf 1 ms genau); je Minute der Median aus 6 Proben; Grundwert = schnellste
+  Minute ab der zweiten. Ab 5 Minuten Spielzeit: zwei Minuten hintereinander ≥ 40 % langsamer → eine Stufe sparen:
+  Nachbearbeitung (Plus) → Schatten → Auflösung −20 % → Bildrate 30 → 24 (auf 60 Hz gleichmäßig 20). Einmal im
+  Chat: „Das Gerät wird warm: Die Grafik spart jetzt etwas Leistung.“ Getestet mit künstlicher Drosselung über CDP
+  (Faktor 2,5): drei Stufen nacheinander, im kühlen Lauf keine.
+- **Akku** (Chrome/Android): ≤ 20 % ohne Ladekabel → wie „Akku schonen“, einmal im Chat „Akku fast leer: Das Spiel
+  spart jetzt Strom.“ (Safari verrät den Akku nicht.)
+- **Hintergrund:** Ist die App verdeckt, stehen Bildschleife (rAF) und Musik ohnehin (vorhandene Behandlung in
+  `musik.js`/`nativ.js`); die Rechenprobe pausiert dann ebenfalls.
+
+### Messung vorher/nachher
+
+Pixel 7 quer (120-Hz-Bildschirm, Dichte 2,625), Grafik „Mittel“, alle Einstellungen wie neu installiert (vorher
+Bildrate „Auto“, nachher zusätzlich „Leistung: Akku schonen“), Hauptthread 4-fach gedrosselt, Kazehana. Je Lage
+2 Spielsekunden gemittelt (die erste Sekunde jeder Lage nicht gezählt):
+
+| Lage | Bilder/s | rAF/s | Rechenzeit ms/s | Aufrufe/s | Dreiecke/s (Mio.) | 3D-Bildpunkte/s (Mio.) | Schattenkarte Bp/s (Mio.) | 2D-Ebene Bp/s (Mio.) | 3D-Größe |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---|
+| stehen | 60 → 30 | 120 → 120 | 2574 → 1116 | 6900 → 3246 | 30.8 → 14.8 | 74.6 → 16.0 | 62.9 → 15.7 | 74.6 → 37.3 | 1726x720 → 1130x471 |
+| laufen | 60 → 30 | 120 → 120 | 3285 → 1338 | 5935 → 2816 | 31.2 → 15.1 | 73.9 → 16.0 | 62.4 → 15.7 | 73.9 → 37.3 | 1726x720 → 1130x471 |
+| kämpfen | 60 → 30 | 120 → 120 | 3458 → 1861 | 6960 → 3308 | 26.5 → 12.9 | 74.6 → 16.0 | 62.9 → 15.7 | 74.6 → 37.3 | 1726x720 → 1130x471 |
+| Inventar offen | 60 → 20 | 120 → 120 | 2482 → 826 | 6960 → 2220 | 26.5 → 8.6 | 74.6 → 10.6 | 62.9 → 10.5 | 74.6 → 24.9 | 1726x720 → 1130x471 |
+| Stillstand (20 s ohne Eingabe) | 60 → 20 | 120 → 120 | 1945 → 1327 | 6900 → 2280 | 26.5 → 8.8 | 74.6 → 10.6 | 62.9 → 10.5 | 74.6 → 24.9 | 1726x720 → 1130x471 |
+| **Mittel der Lagen** | 60 → 26 (43 %) | 120 → 120 (100 %) | 2749 → 1294 (47 %) | 6731 → 2774 (41 %) | 28.3 → 12.1 (43 %) | 74.4 → 13.8 (19 %) | 62.8 → 13.6 (22 %) | 74.4 → 32.3 (43 %) | |
+
+- **Arbeit je Sekunde mehr als halbiert:** Rechenzeit im Spieltakt auf 47 %, Zeichenaufrufe auf 41 %, Dreiecke auf
+  43 %, Bildpunkte der 3D-Welt auf 19 %, Schattenkarte auf 22 %, 2D-Ebene auf 43 % (Mittel der Lagen). Im Kampf
+  sinkt die Rechenzeit am wenigsten (auf 54 %), weil Treffer, Effekte und Monster je Spielsekunde gleich viel Logik
+  brauchen, egal wie oft gezeichnet wird.
+- Die Rechenzeit ist unter SwiftShader und bei hoher Last der Maschine (andere Messläufe parallel) gestreut; die
+  Zähler (Bilder, Aufrufe, Dreiecke, Bildpunkte) sind exakt.
+- rAF bleibt bei 120/s; übersprungene Takte kehren in `frame` sofort zurück, ihre Zeit ist in der Rechenzeit enthalten.
+- **iPhone 13** (60 Hz, Dichte 3) nicht eigens gemessen (Maschine ausgelastet); dieselbe Szene: vorher 60 Bilder/s
+  mit 1688×780, nachher 30 (Fenster/Stillstand 20) mit 1266×585 – 3D-Bildpunkte je Sekunde 79,0 → 22,2 Mio.
+  (28 %), Bilder und damit Aufrufe/Dreiecke/Rechenzeit je Sekunde auf die Hälfte (in Ruhe ein Drittel).
+- **PC:** Standard „Maximal“ und „Bildrate: Max“ wie bisher; geprüft, dass Bildrate (unbegrenzt), Auflösung und
+  Schattenkarte (jedes Bild) unverändert sind. Wer am Laptop „Akku schonen“ wählt, bekommt 30 Bilder/s (20 in Ruhe)
+  und die Schattenkarte jedes zweite Bild.
+
+### Bewusst nicht gemacht / offen
+
+- Die 2D-Ebene über der 3D-Welt (Namen, Balken, Zahlen) bleibt mit Dichte 2 scharf; sie ist am Handy damit größer
+  als die 3D-Fläche bei „Akku schonen“. Kleinere Dichte würde die Schrift sichtbar unscharf machen.
+- Der Bildschirmtakt (rAF) läuft auf 120-Hz-Handys weiter mit 120 Aufrufen/s; übersprungene Aufrufe kosten wenig
+  (siehe Messung). Ein eigener Zeitgeber statt rAF riskiert ungleichmäßige Bilder.
+- Nicht auf echten Geräten gemessen: keine Temperatur, kein Akkuverbrauch, keine echte GPU-Zeit (SwiftShader rechnet
+  auf dem Prozessor). Die Zahlen sind Arbeit je Spielsekunde (Bilder, Bildpunkte, Zeichenaufrufe, Dreiecke,
+  Rechenzeit im Spieltakt bei 4-facher Drosselung); die Wärme folgt ihnen, aber nicht linear. Ob der Wärmeschutz
+  auf einem echten iPhone früh genug greift (iOS drosselt teils stufenlos), ist ungeprüft; ebenso, ob iOS den
+  Hauptthread bei wenig Last auf sparsame Kerne legt (dann würde die Rechenprobe langsamer, ohne dass das Gerät heiß
+  ist – die Folge wäre nur, dass früher gespart wird).
+
+### Neue Texte (nur Deutsch, zum Übersetzen)
+
+- Einstellung „Leistung“ mit den Stufen „Akku schonen“, „Ausgewogen“, „Maximal“ und dem Hinweis (Handy/PC je eigener
+  Wortlaut, `optionen.js`).
+- Geänderter Hinweis bei „Bildrate“: „Auto: so viele Bilder, wie die Einstellung „Leistung“ vorsieht (ist das Gerät zu
+  langsam, gleichmäßig 30). Max: …“
+- Chat: „Das Gerät wird warm: Die Grafik spart jetzt etwas Leistung.“ und „Akku fast leer: Das Spiel spart jetzt Strom.“

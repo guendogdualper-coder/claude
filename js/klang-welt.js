@@ -1279,7 +1279,9 @@ const snd = {
     }
     const H = (kind && HIT_FILE[kind]) || ['hieb_schwert', 1];
     const id = crit && !/pfeil|magie/.test(H[0]) ? 'krit' : H[0];
-    const played = sfxFiles.play(id, { ...pos, vol: crit ? 0.9 : own ? 0.75 : 0.4, rate: id === 'krit' ? 1 : H[1], fromPeak: 0.05, grp: 'hit' });
+    // Krieger mit Klingenbogen (seit 15.52): eigene, im Rechner erzeugte Hiebe, der letzte Kombo-Schlag wuchtiger (klingenbogen.js)
+    const kbH = !!kind && typeof kbImpactSnd === 'function' && kbImpactSnd(m, kind, crit, pos);
+    const played = kbH || sfxFiles.play(id, { ...pos, vol: crit ? 0.9 : own ? 0.75 : 0.4, rate: id === 'krit' ? 1 : H[1], fromPeak: 0.05, grp: 'hit' });
     if (!played) this.player('hit', { ...pos, vol: 0.55, rate: 0.9 + Math.random() * 0.2 });
     else if (crit && id !== 'krit') sfxFiles.play('krit', { ...pos, vol: 0.45, fromPeak: 0.04, grp: 'hit2' });
     // Stoff: Knochen, Stein, Rüstung (nur Nahkampf; Rüstung jedes zweite Mal)
@@ -1294,7 +1296,9 @@ const snd = {
     const kind = weaponKindOf(p);
     const mine = p === game.player;
     const S = SWING_FILE[kind];
-    if (!(hit && S && sfxFiles.ready(HIT_FILE[kind][0]))) {
+    // Klingenbogen (seit 15.52): Zischen der eigenen Hiebe, mit Treffer trägt der Hieb am Ziel den Klang (klingenbogen.js)
+    const kb = typeof kbSwingSnd === 'function' && kbSwingSnd(p, hit);
+    if (!kb && !(hit && S && sfxFiles.ready(HIT_FILE[kind][0]))) {
       const key = kind === 'dagger' ? 'whoosh_l' : kind === 'greatsword' || kind === 'greataxe' || kind === 'scythe' ? 'whoosh_h' : 'whoosh_m';
       if (!(S && sfxFiles.play(S[0], { x: p.x, y: p.y, vol: mine ? 0.42 : 0.26, rate: S[1], vary: 0.07, grp: 'swing' }))) {
         this.player(key, { x: p.x, y: p.y, vol: mine ? 0.42 : 0.28, rate: 0.92 + Math.random() * 0.16 });

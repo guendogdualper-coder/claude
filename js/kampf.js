@@ -334,7 +334,8 @@ function pickTarget(range) {
     // Fokus bleibt (seit 13.41): Ist das gewählte Ziel außer Reichweite, wird kein anderes Monster gewählt –
     // der Angriff geht in seine Richtung. Erst wenn es sehr weit weg ist, sucht das Spiel ein neues Ziel.
     // Seit 13.85 gilt das nur für bewusst gewählte Ziele; ein Auto-Ziel wechselt zum nächsten Monster in Reichweite.
-    if (manual && dist(p, t) < 900) {
+    // Das Ziel eines laufenden Auto-Angriffs (autoangriff.js) bleibt es auf jede Entfernung, solange er läuft.
+    if (manual && (dist(p, t) < 900 || (typeof autoAttackHolds === 'function' && autoAttackHolds(t)))) {
       faceTowards(t.x, t.y);
       return null;
     }
@@ -1055,9 +1056,11 @@ function basicTick(p) {
     // seit 14.32: Pfeile schneller (BOW_ARROW) und mit Ziel etwas länger unterwegs, damit sie ein Ziel, das beim Loslassen
     // in Reichweite war und wegläuft, noch einholen (vorher verfiel der Pfeil nach 460 und traf fliehende Ziele nie)
     const arrow = basic.style === 'arrow';
-    const spd = arrow ? BOW_ARROW.speed : 480;
-    spawnProjectile({ owner: 'player', x: p.x, y: p.y, target, dir: target ? null : { ...p.facing }, speed: spd, range: basic.range + 60 + (arrow && target ? spd * BOW_ARROW.chase : 0), mul: ar ? ar.mul : 1, color: col, radius: 5, style: basic.style, el: basic.el, basic: true, arrow: ar ? ar.sort : undefined,
-      // seit 14.17: Pfeile mit Ziel fliegen durch alle anderen Monster und treffen nur das Ziel (focusOnly)
+    const spd = arrow ? BOW_ARROW.speed : CASTER_SHOT.speed;
+    const chase = target ? spd * (arrow ? BOW_ARROW.chase : CASTER_SHOT.chase) : 0;
+    spawnProjectile({ owner: 'player', x: p.x, y: p.y, target, dir: target ? null : { ...p.facing }, speed: spd, range: basic.range + 60 + chase, mul: ar ? ar.mul : 1, color: col, radius: 5, style: basic.style, el: basic.el, basic: true, arrow: ar ? ar.sort : undefined,
+      // seit 14.17: Pfeile mit Ziel fliegen durch alle anderen Monster und treffen nur das Ziel (focusOnly); die Schüsse
+      // der Zauberer tun das beim Fokus (bewusst gewähltes Ziel) ebenso – spawnProjectile setzt es dort selbst
       focusOnly: basic.style === 'arrow',
       // Blitzmagier (seit 15.48): kleiner Funkeneinschlag am Getroffenen (magier-neu.js)
       afterHit: basic.el === 'blitz' && typeof blitzShotHit === 'function' ? blitzShotHit : undefined });
@@ -1084,7 +1087,17 @@ function skillManaPerSec(sk, p = game.player) {
 // Abklingzeit einer Fertigkeit (seit 13.87 eine Stelle für Spiel und Infofeld): fest je Fertigkeit, weder Stufe,
 // Rang noch Angriffstempo verkürzen sie. Dazu kommt bei den Zauberern die globale Abklingzeit (GCD_TIME, applyGcd).
 // Die Uhr läuft in Spielzeit: Trefferstopps (hitStop, je kritischem Treffer 0,06 s) halten sie kurz an.
-function skillCooldown(sk) {
+// Rang-Boni (docs/rang-boni.md) dürfen sie verkürzen: sk.rb mit cooldown (rankSk, spieler.js). Ohne lvl gilt die Stufe
+// der eigenen Figur.
+function skillCooldown(sk, lvl) {
+  if (sk && Array.isArray(sk.rb) && typeof rankSk === 'function') {
+    const p = game.player;
+    if (lvl == null && p && p.skillLevels && typeof classSkills === 'function') {
+      const i = classSkills(p).indexOf(sk.base || sk);
+      if (i >= 0) lvl = p.skillLevels[i];
+    }
+    if (lvl != null) return rankSk(sk.base || sk, lvl).cooldown;
+  }
   return sk.cooldown;
 }
 // Beschreibung mit Werten der Stufe (seit 13.87): {dauer} im Text wird zur echten Dauer (skillDuration),
@@ -1169,10 +1182,10 @@ function useSkill(i) {
     return;
   }
   // eine andere Fertigkeit bricht das Zaubern ab (Feuerball, seit 11.5)
-  if (p.mcast && p.mcast.sk !== sk) mageCastCancel(p, '');
+  if (p.mcast && (p.mcast.sk.base || p.mcast.sk) !== sk) mageCastCancel(p, '');
   // eine andere Fertigkeit beendet den Eisstrahl
   if (p.channel) {
-    if (p.channel.sk === sk) return;
+    if ((p.channel.sk.base || p.channel.sk) === sk) return;
     stopChannel(p);
   }
   if ((sk.kind === 'angriff' || sk.kind === 'fluch') && inVillage(p.x, p.y) && !duelFighting()) {
@@ -1196,7 +1209,9 @@ function useSkill(i) {
   const rank = skillRank(lvl);
   // Angriff aus der Tarnung: alle Treffer dieser Fertigkeit × nextHitMul (seit 13.85 ×2) (Buffs wie die Tarnung selbst zählen nicht)
   const sMul = sk.kind === 'angriff' ? stealthCastBegin(p) : 1;
-  const ok = withRank(rank, () => SKILL_TYPES[sk.type](sk, dmgScale(lvl) * (game.stats.skillDmg || 1) * sMul, lvl));
+  // Rang-Boni (docs/rang-boni.md): die Fertigkeit wirkt mit den Werten ihres Rangs (rankSk, spieler.js; ohne sk.rb das Original)
+  const rsk = typeof rankSk === 'function' ? rankSk(sk, lvl) : sk;
+  const ok = withRank(rank, () => SKILL_TYPES[sk.type](rsk, dmgScale(lvl) * (game.stats.skillDmg || 1) * sMul, lvl));
   if (ok === false) {
     if (sMul > 1) { p.nextHitMul = sMul; p.stealthCast = 0; p.stealthCrit = false; }
     return;
@@ -1367,7 +1382,9 @@ function startAim(i, sk) {
   // (zu weit weg oder im Dorf); Rechtsklick oder Esc bricht ab
   if (hyp(pt.x - p.x, pt.y - p.y) > aimReach(sk)) clampAim();
   // aimR (seit 13.85): eigene Kreisgröße für Sprünge und Schritte (Landeplatz statt Wirkungsfläche)
-  game.aim.fx = addEffect({ type: 'aim', follow: pt, ox: 0, oy: 0, r: sk.aimR || sk.radius || 30, dur: AIM_TIMEOUT + 1, color: AIM_OK });
+  // Rang-Boni (docs/rang-boni.md): der Kreis zeigt die Fläche des Rangs (z. B. größere Gewitterwolke)
+  const rs = typeof rankSk === 'function' && i !== ULT_BAR && p.skillLevels ? rankSk(sk, p.skillLevels[i]) : sk;
+  game.aim.fx = addEffect({ type: 'aim', follow: pt, ox: 0, oy: 0, r: rs.aimR || rs.radius || 30, dur: AIM_TIMEOUT + 1, color: AIM_OK });
   // seit 13.64: feiner Kreis um die Figur zeigt die Reichweite (Bild in frostgefaengnis.js)
   game.aim.rangeFx = addEffect({ type: 'aimrange', ground: true, follow: p, ox: 0, oy: 0, r: aimReach(sk), dur: AIM_TIMEOUT + 1 });
   aimCheck();
@@ -2157,6 +2174,10 @@ function dashStep(dt) {
 // Pfeile des Bogen-Grundangriffs (seit 14.32): Tempo in px/s (vorher 620) und wie lange (s) ein Pfeil mit Ziel über
 // seine Reichweite hinaus einem fliehenden Ziel nachfliegen darf
 const BOW_ARROW = { speed: 760, chase: 0.4 };
+// Grundangriff der Zauberer (Magier, Schamane, Nekromant mit Stab, seit dem Fokus-Update): mit Ziel darf der Schuss so
+// lange (s) über seine Reichweite hinaus einem fliehenden Ziel nachfliegen – mit der größeren Reichweite ist er länger
+// unterwegs, und ein Ziel am Rand, das beim Loslassen in Reichweite war, soll ihn nicht mehr einfach überholen
+const CASTER_SHOT = { speed: 480, chase: 0.25 };
 
 // Pfeile und Mauern (seit 14.32): Geschosse mit style 'arrow' (Bogen, Falkenpfeil, Durchschuss, Pfeile der Monster)
 // fliegen nicht durch Mauern, Häuser, Palisaden, Säulen, Höhlenwände und den Felsrand – dieselben festen Hindernisse,
@@ -2212,6 +2233,22 @@ function spawnProjectile(o) {
   // Monster, die davor stehen (etwa die Welle eines Seelensteins), lassen es durch. Vorher fing das erste Monster auf
   // dem Weg den Grundangriff der Zauberer und Steingeschoss/Eiskugel ab, obwohl der Fokus auf dem Stein lag.
   if (o.owner === 'player' && o.target && !o.pierce && !o.turn && targetIsManual(o.target)) o.focusOnly = true;
+  // Ebenso ohne Ziel (der Fokus steht knapp außer Reichweite, die Figur schaut zu ihm): Grundangriff und gezielte Zauber
+  // fliegen in seine Richtung durch alle anderen Monster hindurch und treffen nur ihn. Vorher fing das erste Monster auf
+  // dem Weg den Schuss ab. Ohne Fokus (Ziel vom Spiel gewählt oder keins) bleibt alles wie bisher.
+  if (o.owner === 'player' && !o.target && !o.pierce && !o.turn && !o.onlyHit && !o.salve) {
+    const f = game.target;
+    if (targetIsManual(f) && !f.dead && !f.hidden && !f.duelProxy) o.onlyHit = f;
+  }
+  // Fremdes Geschoss auf den Fokus des Mitspielers (passTo): das Monster, das am Zielpunkt steht, ist sein Ziel – nur an
+  // ihm endet es (ein Monster dicht vor dem Seelenstein fängt es so nicht ab)
+  if (o.owner === 'remote' && o.passTo) {
+    let bd = Infinity;
+    for (const m of enemiesNear(o.passTo.x, o.passTo.y, 80)) {
+      const d = hyp(m.x - o.passTo.x, m.y - o.passTo.y);
+      if (!m.dead && d <= (m.r || 0) + 30 && d < bd) { bd = d; o.passMon = m; }
+    }
+  }
   game.projectiles.push({
     hit: new Set(), traveled: 0, pierce: false, chain: 0, radius: 6, trail: [], rank: fxRank,
     ...o,
@@ -2258,10 +2295,19 @@ function updateProjectiles(dt) {
     if (pr.trail.length > 9) pr.trail.shift();
     if (pr.traveled > pr.range) { pr.done = true; continue; }
 
-    // Geschosse von Mitspielern: nur zum Ansehen, sie enden am ersten Monster
+    // Geschosse von Mitspielern: nur zum Ansehen, sie enden am ersten Monster.
+    // Ging der Schuss auf den Fokus des Mitspielers (passTo, Netzmeldung fo), fliegt er wie bei ihm durch die anderen
+    // hindurch und endet erst am Monster am Zielpunkt; durchbohrende Pfeile (pierce) fliegen durch alle.
     if (pr.owner === 'remote') {
       for (const m of game.monsters) {
         if (m.dead || hyp(m.x - pr.x, m.y - pr.y) > m.r + pr.radius) continue;
+        if (pr.passMon && !pr.passMon.dead ? m !== pr.passMon : pr.passTo && hyp(m.x - pr.passTo.x, m.y - pr.passTo.y) > m.r + 30) continue;
+        if (pr.pierce) {
+          if (pr.hit.has(m.id)) continue;
+          pr.hit.add(m.id);
+          vfxImpact(m, false, pr.color);
+          continue;
+        }
         pr.done = true;
         if (pr.onRemoteHit) pr.onRemoteHit(m);
         else vfxImpact(m, false, pr.color);
@@ -2412,6 +2458,8 @@ function pvpAttackKind(p, opts) {
 }
 // Treffer auf einen anderen Spieler: Nachricht mit rohem Schaden (a), krit (c), Stufe (l), Angriffsart (at: m/r/s) und Gift (pz)
 // (nicht „k“: das ist die Art der Nachricht, 'dh' bzw. 'pvh')
+// Rang-Extras, die dasselbe Ziel erneut treffen, gegen Spieler (Duell, Turnierarena, Lichtwacht) nur zu diesem Anteil
+const RANK_PVP_ECHO = 0.5;
 function pvpOutgoing(mul, opts) {
   const p = game.player;
   const s = game.stats;
@@ -2420,7 +2468,9 @@ function pvpOutgoing(mul, opts) {
   if (!opts.ally && !opts.dot) breakStealth(p);
   // duelMul (seit 8.6): Kontroll-Fertigkeiten des Magiers gleichen im Duell aus, dass Zustände dort nur als Schaden zählen
   const raw = base * mul * (opts.ally ? PVP_DMG.allyMul : 1) * (0.9 + Math.random() * 0.2) * (crit ? 1.8 + (s.critDmg || 0) : 1) *
-    (opts.basic ? 1 + (s.basicDmg || 0) : 1) * (opts.duelMul || 1) * (opts.ally ? 1 : (1 + (s.vsHuman || 0)) * pathDmgMul(p, 'pvp'));
+    (opts.basic ? 1 + (s.basicDmg || 0) : 1) * (opts.duelMul || 1) * (opts.ally ? 1 : (1 + (s.vsHuman || 0)) * pathDmgMul(p, 'pvp')) *
+    // Rang-Boni (docs/rang-boni.md): trifft ein Rang-Extra dasselbe Ziel erneut (Rücksprung, Nachschlag …), zählt es gegen Spieler halb
+    (opts.rankEcho ? RANK_PVP_ECHO : 1);
   const d = { a: Math.round(raw), c: crit ? 1 : 0, l: p.level, at: pvpAttackKind(p, opts) };
   if (opts.ally) d.al = 1; // Treffer eines Dieners: kein Lebensraub für den Herrn
   if (!opts.ally && !opts.dot && s.poison > 0 && Math.random() < s.poison) d.pz = Math.max(1, Math.round((raw * TOXIN.share) / TOXIN.dur));

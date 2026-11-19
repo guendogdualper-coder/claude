@@ -2743,7 +2743,14 @@ function v3WarmFx() {
   fx3BatchDone();
   for (const b of FXB3.batches.values()) b.mesh.visible = false;
   for (const b of FXB3.meshes.values()) if (b.mesh) b.mesh.visible = false;
+  // auch das Bündel der Streifen (Schwünge, Ringe, Blitze): es blieb sichtbar, und 1,2 s nach jedem Spielstart standen
+  // für ein Bild weiße Bögen und Ringe neben der Figur (gemessen: rund 450 kurz aufblitzende helle Bildpunkte)
+  if (FXB3_STRIP.mesh) FXB3_STRIP.mesh.visible = false;
   for (const h of hs) fx3Release(h);
   // nicht wegwerfen: ein entsorgtes Material gäbe sein frisch übersetztes Programm gleich wieder frei
   if (pts) pts.visible = false;
+  // Lichtwünsche der Probe-Effekte verwerfen: sonst dunkelte das Gewitter (sturmgericht.js) eine Sekunde nach dem Start
+  // für ein Bild die ganze Szene ab (gemessen: Himmelslicht 0,62 → 0,54, Sonne 0,95 → 0,77) und ein Feuer lieh sich eine Lampe
+  if (typeof SG3_L !== 'undefined') { SG3_L.p = 0; SG3_L.sky = 0; SG3_L.dim = 0; }
+  if (typeof FLM3_L !== 'undefined') FLM3_L.p = 0;
 }

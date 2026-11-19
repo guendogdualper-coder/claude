@@ -80,6 +80,14 @@ function resizeSoon() {
 const MOBILE_2D_DPR = 1.6;
 function resizeRenderer() {
   const r = renderer;
+  // Größe nur zu Beginn eines Bildes setzen, das danach auch gezeichnet wird (frame in spiel.js setzt r.inFrame). Aus
+  // Zeitgebern (checkViewSize nach resizeSoon), Ereignissen (Drehen, Einstellungen, Grafik-Neustart) leerte das Setzen
+  // beide Zeichenflächen, und bis zum nächsten gezeichneten Bild – im 30er-Takt bis zu zwei – zeigte der Bildschirm die
+  // leere Fläche: ein kurzes schwarzes bzw. helles Aufblinken. Jetzt wird es auf den Anfang des nächsten Bildes verschoben.
+  if (r.loop && !r.inFrame) {
+    r.resizeDue = true;
+    return;
+  }
   r.dpr = Math.min(window.devicePixelRatio || 1, r.maxDpr || 2);
   // In 3D zeichnet diese Fläche nur Namen, Balken und Zahlen über der Welt: immer scharf (mindestens 2-fach),
   // auch wenn die 3D-Welt ihre Auflösung zum Flüssighalten senkt (13.23)
@@ -369,7 +377,9 @@ const WEAPON_IDLE = { side: -0.9, down: -1.1, up: -2.1 };
 function swingProgress(p, ago = 0) {
   if (!(p.swing > 0)) return -1;
   const t = 1 - p.swing / (p.swingDur || 0.3) - ago;
-  return t < 0 ? -1 : t;
+  if (t < 0) return -1;
+  // Krieger mit Klingenbogen (seit 15.52): kurzes, spätes Ausholen und Treffer-Stopp nur im Bild (klingenbogen.js)
+  return p.swingKind === 'combo' && typeof kbSwingT === 'function' ? Math.max(0, kbSwingT(p, t)) : t;
 }
 
 function weaponAngle(kind, dir, p, ago = 0) {
@@ -388,6 +398,9 @@ function weaponAngle(kind, dir, p, ago = 0) {
     return base + (t >= 0 ? Math.sin(t * Math.PI) * 0.9 : 0);
   }
   if (t < 0) return kind === 'fan' ? WEAPON_IDLE[dir] + 0.5 : WEAPON_IDLE[dir];
+  // Klingenbogen (seit 15.52): kurz ausholen, sehr schneller Hieb, Nachschwung; der letzte Schlag als weiter Querhieb
+  const kb = typeof kbAngle2d === 'function' ? kbAngle2d(p, dir, t) : null;
+  if (kb != null) return kb;
   const { a0, a1 } = swingArc(p, dir);
   return a0 + (a1 - a0) * easeOut(t);
 }
@@ -1114,7 +1127,9 @@ function drawMonster(ctx, m) {
   }
   // Eingefroren (Magier seit 8.6): die Pose bleibt beim Zeitpunkt des Einfrierens stehen
   const frozen = m.frozen > game.time;
-  const tt = frozen ? m.frozenT || game.time : game.time;
+  // Treffer des Klingenbogens (seit 15.52): kurz stillstehen, weiß aufblitzen, vom Krieger weg rucken (klingenbogen.js)
+  const kbj = m.kbHitAt != null && typeof kbJolt2d === 'function' ? kbJolt2d(m) : null;
+  const tt = frozen ? m.frozenT || game.time : kbj && kbj.held ? m.kbHitAt : game.time;
   const frame = m.moving ? Math.floor(tt * 9 + m.id * 0.37) % 4 : 0;
   if (m.type.shape !== 'ghost') castShadow(ctx, monsterSprite(m.typeId, frame), m.x, fy, m.facing < 0, 0.2);
   const lunge = m.attackAnim > 0 && !frozen ? Math.sin(m.attackAnim / 0.25 * Math.PI) * 5 * m.facing : 0;
@@ -1123,10 +1138,10 @@ function drawMonster(ctx, m) {
   ctx.save();
   // Geister schweben über dem Boden
   const float = m.type.shape === 'ghost' ? -6 + Math.sin(game.time * 2.5 + m.id) * 3 : 0;
-  ctx.translate(m.x + lunge, fy + float);
+  ctx.translate(m.x + lunge + (kbj ? kbj.x : 0), fy + float + (kbj ? kbj.y : 0));
   ctx.scale(1, breathe);
   const msp = monsterSprite(m.typeId, frame);
-  blitSprite(ctx, ghostDraw ? ghostSprite(msp) : msp, 0, 0, m.facing < 0, m.hitFlash);
+  blitSprite(ctx, ghostDraw ? ghostSprite(msp) : msp, 0, 0, m.facing < 0, kbj ? Math.max(m.hitFlash || 0, 0.14 * kbj.f) : m.hitFlash);
   ctx.restore();
   if (frozen) drawIceBlock(ctx, m, fy + float, h);
 
@@ -1964,7 +1979,9 @@ function adaptQuality(dtMs, cap) {
     // 30er-Takt: nur absenken, wenn die Hälfte der Bilder deutlich länger als 33 ms braucht – seit 13.74 erst, wenn
     // das zwei Messungen hintereinander so ist (einzelne Hänger zählen nicht), und in eigener Reihenfolge (capQualityStep)
     // seit 14.88: schon ab 15 % über der Bildzeit (vorher 30 %: ein Handy mit 25 Bildern/s regelte nie nach)
-    if (median <= (1000 / cap) * 1.15) {
+    // seit dem Wärme-Update gegen den echten Abstand (ganze Bildschirmtakte, capInterval in spiel.js): Grenze 40 heißt auf
+    // 60-Hz-Bildschirmen 33 ms, das ist kein Ruckeln
+    if (median <= (typeof capInterval === 'function' ? capInterval(cap) : 1000 / cap) * 1.15) {
       quality.bad = 0;
       return;
     }

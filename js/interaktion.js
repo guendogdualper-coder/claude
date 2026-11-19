@@ -789,6 +789,8 @@ function remoteSkillFx(rp, d) {
   if (d.s === '_shot') {
     snd.shot(rp, { style: d.st, el: d.el });
     spawnProjectile({ owner: 'remote', x: rp.x, y: rp.y, aimAt: target, speed: d.st === 'arrow' ? (typeof BOW_ARROW !== 'undefined' ? BOW_ARROW.speed : 620) : 480, range: hyp(d.tx - rp.x, d.ty - rp.y) + 60, mul: 0, color: d.c || '#f0e0b0', radius: 5, style: d.st, el: d.el,
+      // auf den Fokus des Mitspielers (fo): durch die Monster davor hindurch wie bei ihm (updateProjectiles)
+      passTo: d.fo ? target : null,
       // Blitzmagier (seit 15.48): Funkeneinschlag wie beim eigenen Blitzpfeil
       onRemoteHit: d.el === 'blitz' && typeof blitzShotHit === 'function' ? blitzShotHit : undefined });
     return;
@@ -809,7 +811,9 @@ function remoteSkillFx(rp, d) {
   if (typeof MAGE2_REMOTE !== 'undefined' && MAGE2_REMOTE[sk.type]) {
     // kein Klang bei Abbruch (cx) und bei Kanal-Meldungen (bm 2 = Richtung, 0 = Ende)
     if (!d.cx && d.bm !== 0 && d.bm !== 2) snd.skill(sk, rp);
-    MAGE2_REMOTE[sk.type](rp, sk, d);
+    // Rang-Boni (docs/rang-boni.md): Bild mit den Werten und Extras des Rangs des Mitspielers (rankSkR, spieler.js)
+    const mrk = Number.isInteger(d.rk) && d.rk >= 0 && d.rk < SKILL_RANKS.length ? d.rk : -1;
+    withRank(mrk, () => MAGE2_REMOTE[sk.type](rp, typeof rankSkR === 'function' ? rankSkR(sk, mrk) : sk, d));
     return;
   }
   snd.skill(sk, rp);
@@ -896,7 +900,7 @@ function remoteSkillFx(rp, d) {
       break;
     }
     case 'projectile':
-      spawnProjectile({ owner: 'remote', x: rp.x, y: rp.y, aimAt: target, speed: sk.speed || 500, range: hyp(d.tx - rp.x, d.ty - rp.y) + 60, mul: 0, color: sk.color || col, radius: 7, style: sk.style, pierce: sk.pierce });
+      spawnProjectile({ owner: 'remote', x: rp.x, y: rp.y, aimAt: target, speed: sk.speed || 500, range: hyp(d.tx - rp.x, d.ty - rp.y) + 60, mul: 0, color: sk.color || col, radius: 7, style: sk.style, pierce: sk.pierce, passTo: d.fo ? target : null });
       break;
     // Nekromant, Weg der Seelen (seit 8.5): nur Optik, mit dem Rang des Wirkers. Alte IDs (8.4-Mitspieler, über
     // SKILL_RENAMED) oder fehlende Felder zeigen nur Rune bzw. Säule.
@@ -928,22 +932,22 @@ function remoteSkillFx(rp, d) {
       break;
     // Magier (seit 8.6): nur Optik mit dem Rang des Wirkers; fehlende Felder zeigen nur das Siegel an der Figur
     case 'nova':
-      withRank(rk, () => novaFx(rp, d.x ?? rp.x, d.y ?? rp.y, sk, false, 0, lvlFromRank(rk), { ts: d.ts }));
+      withRank(rk, () => novaFx(rp, d.x ?? rp.x, d.y ?? rp.y, typeof rankSkR === 'function' ? rankSkR(sk, rk) : sk, false, 0, lvlFromRank(rk), { ts: d.ts }));
       break;
     case 'mbolt':
       // Kettenblitz (instant): ganzer Blitz statt Geschoss (chainRemote, magier-neu.js)
       if (sk.instant && typeof chainRemote === 'function') {
-        withRank(rk, () => chainRemote(rp, sk, d));
+        withRank(rk, () => chainRemote(rp, typeof rankSkR === 'function' ? rankSkR(sk, rk) : sk, d));
         break;
       }
-      withRank(rk, () => spawnProjectile({ ...mageBolt(rp, sk, null, 0, 1, false), dir: null, aimAt: target, range: hyp(d.tx - rp.x, d.ty - rp.y) + 60 }));
+      withRank(rk, () => spawnProjectile({ ...mageBolt(rp, typeof rankSkR === 'function' ? rankSkR(sk, rk) : sk, null, 0, 1, false), dir: null, aimAt: target, range: hyp(d.tx - rp.x, d.ty - rp.y) + 60, passTo: d.fo ? target : null }));
       break;
     case 'shift':
       if (!d.pre || !isFinite(d.x1) || !isFinite(d.y1)) {
         addEffect({ type: 'sigil3', ground: true, el: sk.el, follow: rp, ox: 0, oy: 0, x: rp.x, y: feetY(rp), R: 40, flash: true, dur: 0.5 });
         break;
       }
-      withRank(rk, () => shiftFx(rp, { x: d.x0 ?? d.x, y: d.y0 ?? d.y }, { x: d.x1, y: d.y1 }, sk, false, 0, 1));
+      withRank(rk, () => shiftFx(rp, { x: d.x0 ?? d.x, y: d.y0 ?? d.y }, { x: d.x1, y: d.y1 }, typeof rankSkR === 'function' ? rankSkR(sk, rk) : sk, false, 0, 1));
       // sofort am Ziel, ohne über den Bildschirm zu gleiten (wie der Hinterhalt)
       rp.blinkHide = game.time + 0.14;
       rp.glideHold = { x: d.x1, y: d.y1, until: game.time + 0.6 };
@@ -951,7 +955,7 @@ function remoteSkillFx(rp, d) {
       rp.y = rp.ty = d.y1;
       break;
     case 'sigil':
-      withRank(rk, () => sigilFx(rp, target.x, target.y, sk, false, 0, 1));
+      withRank(rk, () => sigilFx(rp, target.x, target.y, typeof rankSkR === 'function' ? rankSkR(sk, rk) : sk, false, 0, 1));
       break;
     case 'vortex':
       vortexFx(rp, sk);

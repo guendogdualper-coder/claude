@@ -2120,6 +2120,8 @@ function statsWithoutBuff(sk) {
 }
 
 function skillStats(sk, lvl) {
+  // Rang-Boni (docs/rang-boni.md): Werte mit denen des Rangs (Radius, Sprünge …), am Ende je erreichtem Rang eine Zeile
+  if (typeof rankSk === 'function') sk = rankSk(sk.base || sk, lvl);
   const out = [];
   const scale = buffScale(lvl);
   const hit = (f) => skillHitNum(f, lvl);
@@ -2198,6 +2200,7 @@ function skillStats(sk, lvl) {
   // seit 13.87: Blizzard des Schamanen (blizzardFx) und Totenruf (Geister) halten fest sk.duration, nur Buffs, Flüche,
   // Heilung und Diener wachsen mit der Stufe (skillDuration)
   if (sk.duration) out.push(['Dauer', (sk.type === 'blizzard' || sk.type === 'revive' ? numDe(sk.duration) : skillDuration(sk, lvl)) + ' s']);
+  if (typeof rankBonusLines === 'function') out.push(...rankBonusLines(sk, lvl));
   return out;
 }
 
@@ -2341,7 +2344,7 @@ function skillListHtml(skills, p) {
       const has = !p || (open && r >= x.r);
       const now = open && p && r === x.r;
       const rnm = x.r < 0 ? sk.name : (RANK_NAMES[sk.id] || [])[x.r] || sk.name;
-      return `<span class="sk-rank${has ? ' has' : ''}${now ? ' now' : ''}" title="${rnm} · ${x.name || 'Normal'}${x.min > 1 ? ' · ab Stufe ' + x.min : ''}">` +
+      return `<span class="sk-rank${has ? ' has' : ''}${now ? ' now' : ''}" title="${rnm} · ${x.name || 'Normal'}${x.min > 1 ? ' · ab Stufe ' + x.min : ''}${x.r >= 0 && typeof rankBonusText === 'function' && rankBonusText(sk, x.r) ? ' · ' + escapeHtml(rankBonusText(sk, x.r)) : ''}">` +
         `<img src="${skillIconUrl(sk, x.r)}" alt=""><small style="color:${x.color}">${x.label}</small></span>`;
     }).join('<i class="sk-arrow">›</i>') + '</span>';
     const rn = p && open ? skillRankName(sk, lvl) : sk.name;

@@ -1485,6 +1485,17 @@ kbd {
   0% { filter: brightness(1.8); }
   100% { filter: brightness(1); }
 }
+/* Rang-Boni (docs/rang-boni.md): eine vollendete Fertigkeit springt beim Bereitwerden einmal kurz auf – nur transform,
+   einmalig, keine Dauerschleife (Handy) */
+.slot.skill.rank-V.ready { animation: skill-ready 0.6s ease-out, skill-ready-v 0.7s ease-out; }
+@keyframes skill-ready-v {
+  0% { transform: scale(1.16); }
+  45% { transform: scale(0.97); }
+  100% { transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .slot.skill.rank-V.ready { animation: skill-ready 0.6s ease-out; }
+}
 .slot.skill.no-mana::before { content: ""; position: absolute; inset: 0; border-radius: 50%; z-index: 2; background: rgba(40, 70, 160, 0.4); }
 
 /* Angriffsknopf mit gekreuzten Schwertern */
@@ -2413,7 +2424,9 @@ body.has-target { --target-h: 46px; }
 }
 
 /* --- Version 4.0: 3D-Szene unter dem durchsichtigen 2D-Canvas ---------------------------------- */
-#welt3d { pointer-events: none; background: #9ec8e0; }
+/* Hintergrund dunkel wie die App (vorher hellblau #9ec8e0): Er ist nur zu sehen, wenn die 3D-Fläche kein Bild hat
+   (Grafikkontext verloren, Neustart der Grafik) – hell wirkte das als weißes Aufblitzen */
+#welt3d { pointer-events: none; background: #12100c; }
 #welt3d[hidden] { display: none; }
 
 /* --- Version 4.2: Chat-Kanäle Global, Gilde, Ort ---------------------------------------------- */

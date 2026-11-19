@@ -105,6 +105,44 @@ Glocke, Amboss, Koto, Erhu, Flöte; Hall als Faltung). Keine Aufnahmen, keine Sa
 - **Von außen ersetzen:** mit einem Prompt oben eine Fassung erzeugen, als `<Rohordner>/musik/<id>.mp3` ablegen und im
   Eintrag `synth` und `schleife` entfernen (dann sucht das Werkzeug die Schleife wie bei den anderen Stücken).
 
+## Arena-Hörproben aus echten Instrumenten-Samples (`tools/klang-synth/arena_varianten.py`)
+
+Die gerechnete Arenamusik klang zu synthetisch. `tools/klang-synth/arena_varianten.py` baut darum drei neue, eigene
+Kompositionen überwiegend aus Aufnahmen echter Instrumente, zum Auswählen. **Gewählt (seit 15.52 im Spiel als
+`snd/musik/arena.mp3`): a „Titanen“** (`GEWAEHLT` im Skript; `tools/klang-erzeugen.py` ruft es für den Eintrag `arena`
+mit `arena --roh <ordner>` auf und bekommt die Rohdatei `<roh>/musik/arena.wav`).
+
+- **a „Titanen“** – episch-orchestral, g-Moll, 132 BPM, 64 Takte (116 s): Spiccato-Ostinato der Celli/Bratschen/Geigen
+  (3+3+2), Fasstrommel-Ensemble aus großer Trommel, Tenortrommeln, tief gestimmten Toms und Pauken, Posaunen-/Tuba-
+  und Trompetenstöße, Hornthema, zweites Thema in Geigen und Hörnern, chorartige Flächen.
+- **b „Stahl“** – treibend-modern, d-Moll, 128 BPM, 64 Takte (120 s): echte Snare, Becken, Toms und Klatschen, Bassdrum
+  und Synthesizer-Bass mit Pumpen, gedoppelte Rhythmusgitarren links/rechts, Refrain-Melodie (Synthesizer mit Geigen
+  bzw. Hörnern gedoppelt), Blechantworten, Arpeggio, Klatschen der Menge mit Stadionhall.
+- **c „Kirschsturm“** – fernöstlich, A-In-Skala (A–B♭–D–E–F), 150 BPM, 72 Takte (115 s): Koto (Đàn-tranh-Aufnahmen),
+  Shamisen-artiges Zupfriff (Strumstick + Holzklick, Rutscher), Shakuhachi-artige Flöte (von unten angeblasen, Atem),
+  schnelle Fasstrommeln mit Shime-Wirbel, Streicher, Gong.
+
+**Samples (nur CC0, nicht im Repo):** VSCO 2 Community Edition (Versilian Studios; Sam Gossner, Simon Dalzell –
+github.com/sgossner/VSCO-2-CE, Stand `4403009`, Lizenz CC0 1.0) für Streicher, Blech, Flöte, große Trommel, Pauken,
+Becken, Gong, Amboss, Tamburin; Versilian Community Sample Library (github.com/sgossner/VCSL, Stand `c1ea7bc`, Lizenz
+CC0 1.0) für Đàn tranh, Strumstick, Snare, Toms, Tenortrommeln, Rahmentrommeln, Hi-Hat, Klatschen, Schüttelrohr,
+Holzblock (beide Sammlungen: „CC0 1.0 Universal“ in ihrer LICENSE-Datei). Die Readme von VSCO bittet zusätzlich (ohne
+Lizenzpflicht), die Samples nicht als solche zu verkaufen und Versilian Studios zu nennen – ins Spiel kommen nur fertig
+gemischte Stücke. Gerechnet sind nur Gitarren (Karplus-Strong + Verstärker/Box), Synthesizer-Bass, -Melodie und
+-Arpeggio, der Kick-Körper, der Chor (Formantfilter) und Anstiege. Melodien, Riffs, Harmonien und Abläufe sind eigene
+Kompositionen.
+
+**Erzeugen:** `python3 tools/klang-synth/arena_varianten.py [a b c] [--aus <ordner>] [--samples <ordner>]` holt die
+Samples beim ersten Lauf mit git (nur die gebrauchten Ordner, festgelegter Stand, ≈ 0,9 GB, Standard
+`~/.cache/seelenstein-klang-roh/samples`) und schreibt je Stück `arena_<x>.mp3` (spielfertig wie `snd/musik/*.mp3`:
+Schleife auf Taktgrenzen, −18 LUFS, ≤ −1,5 dBTP, VBR q2 – gebaut mit `baue_musik()` aus `klang-erzeugen.py`),
+`arena_<x>_probe.mp3` (30 s: Anfang + Höhepunkt), die Rohdatei `roh/arena_<x>.wav` und `varianten.json` (Schleife,
+Lautheit). Je Stück einige Minuten und bis zu 4 GB Arbeitsspeicher.
+
+**Übernehmen (nach der Wahl):** Rohdatei als `<Rohordner>/musik/arena.wav` ablegen, im Eintrag `arena` in
+`tools/klang-liste.json` `bpm` und `schleife` aus `varianten.json` eintragen, dann `python3 tools/klang-erzeugen.py
+bauen arena` und die Version in `sw.js` erhöhen.
+
 ## Neue Datei einbauen
 
 1. **Erzeugen:** Prompt in ElevenLabs Music (oder Suno) eingeben, rein instrumental, 2–3 Minuten. Mehrere Fassungen

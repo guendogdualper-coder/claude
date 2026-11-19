@@ -296,7 +296,10 @@ SKILL_TYPES.bonethrow = function (sk, pw, lvl) {
   // Fokus respektieren: beim bewusst gewählten Ziel (Klick, Antippen, Tab) fliegt der Knochen an anderen vorbei zu ihm
   let hit = t && targetIsManual(t) ? t : null;
   let hu = hit ? -Infinity : Infinity;
-  for (const m of hit ? [] : enemiesNear(p.x, p.y, len + sk.width)) {
+  // steht der Fokus außer Reichweite (die Figur schaut zu ihm), fliegt der Knochen in seine Richtung an allen vorbei
+  const g = game.target;
+  const away = !hit && targetIsManual(g) && !g.dead && !g.hidden && !g.duelProxy;
+  for (const m of hit || away ? [] : enemiesNear(p.x, p.y, len + sk.width)) {
     const u = (m.x - p.x) * dir.x + (m.y - p.y) * dir.y;
     if (u < 0 || u > len + (m.r || 0)) continue;
     if (Math.abs((m.x - p.x) * dir.y - (m.y - p.y) * dir.x) > sk.width + (m.r || 0)) continue;

@@ -12,9 +12,10 @@ const CHANNEL_TICK = {};
 SKILL_TYPES.beam = function (sk, pw, lvl) {
   const p = game.player;
   if (p.channel) return false;
-  const i = classSkills(p).indexOf(sk);
+  // sk ist bei Rang-Boni die Kopie mit den Werten des Rangs (rankSk) – der Platz in der Leiste gehört zum Original
+  const i = classSkills(p).indexOf(sk.base || sk);
   input.walkTo = null;
-  p.channel = { i, sk, pw, lvl, rank: fxRank, start: game.time, next: game.time + 0.08, net: 0, held: true, on: new Map(), fx: null };
+  p.channel = { i, sk, pw, lvl, rank: fxRank, start: game.time, next: game.time + 0.08, net: 0, held: true, on: new Map(), fx: null, ticks: 0 };
   const end = beamEnd(p, sk);
   p.channel.fx = addEffect({ type: 'icebeam', follow: p, x2: end.x, y2: end.y, dur: sk.maxDur + 1, color: sk.color, live: true });
   startSwing(p, 'strahl', 1);
@@ -103,13 +104,18 @@ function channelTick(p, dt) {
   if (game.time < c.next) return;
   c.next += sk.every;
   // Treffer: leichter Schaden, Verlangsamung wächst mit der Zeit im Strahl
+  // Rang H (Kältestau, docs/rang-boni.md): nach stau.after s im Strahl um stau.mul stärker
+  const stau = sk.stau && age >= sk.stau.after ? 1 + sk.stau.mul : 1;
+  c.ticks++;
   withRank(c.rank, () => {
-    for (const m of enemiesOnBeam(p, end, sk.width)) {
+    const onBeam = enemiesOnBeam(p, end, sk.width);
+    for (const m of onBeam) {
       const since = c.on.get(m) || game.time;
       c.on.set(m, since);
       // Kombo (seit 13.64): mehr Schaden gegen verlangsamte und eingefrorene oder betäubte Gegner
       const cb = beamComboHit(sk, c.lvl, m);
-      const dealt = hitMonster(m, sk.dmg * c.pw * cb, { skill: sk.id, duelMul: sk.duelMul, vfxColor: cb > 1 ? '#9fe8ff' : '#d8f6ff' });
+      // der Kältestau zählt nur gegen Monster (gegen Spieler bliebe er reiner Mehrschaden, docs/rang-boni.md 3.3)
+      const dealt = hitMonster(m, sk.dmg * c.pw * cb * (m.duelProxy ? 1 : stau), { skill: sk.id, duelMul: sk.duelMul, vfxColor: cb > 1 ? '#9fe8ff' : '#d8f6ff' });
       if (cb > 1) beamComboFx(m, dealt);
       if (!m.isStone && !m.duelProxy) {
         const amount = Math.min(sk.slow.max, sk.slow.amount + (game.time - since) * sk.slow.build);
@@ -119,6 +125,8 @@ function channelTick(p, dt) {
       const b = bodyCenter(m);
       particles(b.x, b.y, { count: 3, color: ['#eafcff', '#9ff6ff', '#3a7bff'], speed: [30, 90], life: [0.25, 0.45], size: [1.5, 3], shape: 'spark', drag: 3 });
     }
+    // Rang V (Atem des Winters): jeder shard.every. Treffer schießt einen Eissplitter in einen weiteren Gegner
+    if (sk.shard && onBeam.length && c.ticks % sk.shard.every === 0) beamShard(p, sk, c, end, onBeam);
   });
   // Reif am Boden entlang des Strahls
   if (Math.random() < 0.5) {
@@ -173,7 +181,44 @@ function beamComboFx(m, dealt) {
 }
 
 // Mitspieler: Strahl anzeigen, Richtung nachführen, beenden
+// Eissplitter des Eisstrahls (Rang V): vom Strahlende zum nächsten Gegner bis shard.r, der nicht im Strahl steht
+// (shard.mul, verlangsamt); ohne ihn trifft er das erste Ziel im Strahl (shard.self, gegen Spieler halb)
+function beamShard(p, sk, c, end, onBeam) {
+  const on = new Set(onBeam);
+  let best = null;
+  let bd = sk.shard.r;
+  for (const m of enemiesNear(end.x, end.y, sk.shard.r)) {
+    if (m.dead || on.has(m)) continue;
+    const d = hyp(m.x - end.x, m.y - end.y);
+    if (d < bd) { bd = d; best = m; }
+  }
+  const t = best || onBeam[0];
+  const from = best ? onBeam[onBeam.length - 1] : p;
+  beamShardFx(from.x, from.y, t);
+  netSkillFx(sk.id, sk.range, { bm: 3, x: Math.round(from.x), y: Math.round(from.y), tx: Math.round(t.x), ty: Math.round(t.y) });
+  later(0.12, () => {
+    if (t.dead) return;
+    if (best) hitMonster(t, sk.dmg * c.pw * sk.shard.mul, { skill: sk.id, slow: { amount: 0.5, duration: 1.5 }, duelMul: sk.duelMul, vfxColor: '#9fe8ff' });
+    else hitMonster(t, sk.dmg * c.pw * sk.shard.self, { skill: sk.id, rankEcho: true, duelMul: sk.duelMul, vfxColor: '#9fe8ff' });
+  });
+}
+// Bild des Eissplitters (auch für Mitspieler): ein großer Kristall fliegt in 0,12 s zum Ziel und zerspringt
+function beamShardFx(x, y, t) {
+  const tx = t.x;
+  const ty = t.y;
+  addEffect({ type: 'shards3', x, y: y + 9, r: 10, count: 3, color: '#ffffff', glow: true, size: 0.4, dur: 0.3 });
+  later(0.12, () => {
+    addEffect({ type: 'shards3', x: tx, y: ty + 9, r: 22, count: 7, color: '#9ff6ff', glow: true, size: 0.55, dur: 0.5 });
+    addEffect({ type: 'sparks3', x: tx, y: ty + 9, h: 0.8, count: 9, color: '#c84aff', speed: 2.6, up: 1.1, dur: 0.45 });
+    if (!V3.on) particles(tx, ty - 14, { count: 12, color: ['#ffffff', '#9ff6ff', '#3a7bff', '#c84aff'], speed: [70, 190], life: [0.2, 0.45], size: [2, 3.5], shape: 'square', drag: 3, gravity: 260 });
+  });
+  addEffect({ type: 'chain', x, y: y - 14, x2: tx, y2: ty - 14, dur: 0.18, color: '#9ff6ff' });
+}
 function remoteBeam(rp, d) {
+  if (d.bm === 3) {
+    if (Number.isFinite(d.tx) && Number.isFinite(d.ty)) beamShardFx(d.x ?? rp.x, d.y ?? rp.y, { x: d.tx, y: d.ty });
+    return;
+  }
   if (d.bm === 0) {
     if (rp.beamFx) rp.beamFx.dur = game.time - rp.beamFx.start + 0.18;
     rp.beamFx = null;

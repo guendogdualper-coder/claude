@@ -71,6 +71,8 @@ function adlSnd(p, what) {
   const v = p === game.player ? 1 : 0.6;
   const pos = { x: p.x, y: p.y };
   const kind = weaponKindOf(p);
+  // seit 15.52: die im Rechner erzeugten Hiebe des Klingenbogens (klingenbogen.js), sobald die Datei geladen ist
+  if ((what === 'swing' || what === 'fin') && typeof kbSkillSnd === 'function' && kbSkillSnd(p, what === 'fin')) return;
   if (what === 'swing') {
     const S = (typeof SWING_FILE !== 'undefined' && SWING_FILE[kind]) || ['schwung_mittel', 1];
     snd.file(S[0], { ...pos, vol: 0.4 * v, rate: S[1] * 1.08, vary: 0.08, grp: 'swing' }, kind === 'greatsword' || kind === 'greataxe' ? 'whoosh_h' : 'whoosh_m', { ...pos, vol: 0.38 * v });

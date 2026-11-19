@@ -266,6 +266,8 @@ SKILL_TYPES.msnow = function (sk, pw, lvl) {
 function snowFx(owner, x, y, sk, n, seed, local, pw, lvl) {
   addEffect({ type: 'msnow3', x, y, R: sk.radius, delay: sk.delay, every: sk.every, ticks: n, seed, dur: sk.delay + n * sk.every + 1.1 });
   if (owner === game.player) shakeScreen(1.5);
+  // Rang V (Ewiger Winter, docs/rang-boni.md): zum Schluss stürzt ein großer Eiszapfen in die Mitte
+  if (sk.icicle) later(sk.delay + n * sk.every + 0.15, () => snowIcicle(owner, x, y, sk, local, pw));
   if (!local) return;
   // wie lange jeder Gegner schon im Sturm steht (Pulse): daraus wächst die Verlangsamung
   const stay = new Map();
@@ -284,6 +286,20 @@ function snowFx(owner, x, y, sk, n, seed, local, pw, lvl) {
         });
       }
     });
+  }
+}
+function snowIcicle(owner, x, y, sk, local, pw) {
+  const I = sk.icicle;
+  const fy = y + 9;
+  addEffect({ type: 'column3', x, y: fy, r: 24, hgt: 3.8, color: '#9fd0ff', core: '#ffffff', dur: 0.55 });
+  addEffect({ type: 'shards3', x, y: fy, r: I.r * 0.6, count: 12, color: '#eafcff', glow: true, size: 0.7, dur: 0.8 });
+  addEffect({ type: 'sparks3', x, y: fy, h: 1, count: 18, color: '#c84aff', speed: 3.2, up: 1.6, dur: 0.7 });
+  if (!V3.on) particles(x, fy - 20, { count: 26, color: ['#ffffff', '#eafcff', '#9fd0ff', '#c84aff'], speed: [100, 260], life: [0.3, 0.6], size: [2, 4], shape: 'square', drag: 2.5, gravity: 380 });
+  if (owner === game.player) shakeScreen(4);
+  if (!local || owner.dead) return;
+  for (const m of enemiesInCircle(x, y, I.r)) {
+    const fz = canFreeze(m) ? I.freeze : 0;
+    hitMonster(m, sk.dmg * I.mul * pw, { skill: sk.id, stun: fz, freeze: fz > 0, heavy: true, rankEcho: true, duelMul: sk.duelMul, vfxColor: '#ffffff' });
   }
 }
 MAGE2_REMOTE.msnow = (rp, sk, d) => snowFx(rp, d.tx ?? rp.x, d.ty ?? rp.y, sk, Number.isInteger(d.n) && d.n > 0 && d.n < 20 ? d.n : sk.ticks, d.sd || 1, false, 0, 1);

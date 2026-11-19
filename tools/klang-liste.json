@@ -21,8 +21,8 @@
      "hinweis": "Kampf gegen Kharzul: cis-Moll, 150 BPM, 64 Takte; eigene Komposition, im Rechner erzeugt (tools/klang-synth/musik.py, Rohdatei <roh>/musik/<id>.wav); Prompt für eine Fassung von außen: docs/musik-prompts.md"},
     {"id": "kharzul2", "stimmung": "kharzul2", "synth": "klang-synth/musik.py", "lufs": -18, "tp": -1.5, "vbr": 2, "bpm": 150, "takt": 4, "blende": 0.5, "schleife": [3.2, 105.6],
      "hinweis": "Kharzul ab der Verwandlung: dasselbe Stück mit mehr Wucht, gleiche Schleife (Gleichlauf); eigene Komposition, im Rechner erzeugt (tools/klang-synth/musik.py, Rohdatei <roh>/musik/<id>.wav); Prompt für eine Fassung von außen: docs/musik-prompts.md"},
-    {"id": "arena", "stimmung": "arena", "synth": "klang-synth/musik.py", "lufs": -18, "tp": -1.5, "vbr": 2, "bpm": 125, "takt": 4, "blende": 0.5, "schleife": [3.84, 111.36],
-     "hinweis": "Prüfungs- und Turnierarena: e-dorisch, 125 BPM, 56 Takte; eigene Komposition, im Rechner erzeugt (tools/klang-synth/musik.py, Rohdatei <roh>/musik/<id>.wav); Prompt für eine Fassung von außen: docs/musik-prompts.md"}
+    {"id": "arena", "stimmung": "arena", "synth": "klang-synth/arena_varianten.py", "lufs": -18, "tp": -1.5, "vbr": 2, "bpm": 132, "takt": 4, "blende": 0.5, "schleife": [3.636372, 120.0],
+     "hinweis": "Prüfungs- und Turnierarena (seit 15.52): „Titanen“, episch-orchestral, g-Moll, 132 BPM, 64 Takte; eigene Komposition aus CC0-Instrumenten-Samples (VSCO 2 CE, VCSL), gebaut mit tools/klang-synth/arena_varianten.py (Fassung a, Rohdatei <roh>/musik/<id>.wav); siehe docs/musik-prompts.md"}
   ],
   "sfx": [
     {"id": "hieb_schwert", "gruppe": "kampf", "dauer": 4, "einfluss": 0.55, "hp": 70, "abstand": 0.5, "ausklang": -32, "max": 0.6,
@@ -31,6 +31,12 @@
      "prompt": "Three separate heavy battle axe chops into flesh and bone, each a deep heavy whoosh ending in a thick meaty chop with a slight bone crunch, pause between each, close-up, punchy, clean, no music, no voice"},
     {"id": "hieb_dolch", "gruppe": "kampf", "dauer": 3, "einfluss": 0.55, "hp": 80, "abstand": 0.3, "ausklang": -30, "max": 0.45,
      "prompt": "Four separate quick dagger stabs into flesh, each a short sharp swish then a tight wet stab, pause between each, close-up, crisp, clean, no music, no voice"},
+    {"id": "klingenhieb_schwert", "gruppe": "kampf", "synth": "klang-synth/hiebe.py", "lufs": -13.5, "ausklang": -42, "mindest": -30, "max": 1.2, "rollen": {"hit": [0, 1, 2, 3], "fin": [4, 5], "swing": [6, 7, 8]},
+     "hinweis": "Klingenbogen des Kriegers (seit 15.52), Schwert: im Rechner erzeugt (tools/klang-synth/hiebe.py) – Luftzischen hoch nach tief, metallisches Klingen, beim Treffer tiefer Schlag und knackiger Einschlag; hit 4 Varianten, fin (letzter Kombo-Schlag, kritisch) 2, swing (ohne Treffer) 3"},
+    {"id": "klingenhieb_axt", "gruppe": "kampf", "synth": "klang-synth/hiebe.py", "lufs": -13.5, "ausklang": -42, "mindest": -30, "max": 1.2, "rollen": {"hit": [0, 1, 2, 3], "fin": [4, 5], "swing": [6, 7, 8]},
+     "hinweis": "Klingenbogen, Axt: weniger Klang, mehr Holz und Wucht (wie klingenhieb_schwert gebaut)"},
+    {"id": "klingenhieb_wucht", "gruppe": "kampf", "synth": "klang-synth/hiebe.py", "lufs": -13.5, "ausklang": -42, "mindest": -30, "max": 1.4, "rollen": {"hit": [0, 1, 2, 3], "fin": [4, 5], "swing": [6, 7, 8]},
+     "hinweis": "Klingenbogen, Zweihänder und Streitaxt: tief und lang (das Spiel spielt sie für die Streitaxt etwas tiefer)"},
     {"id": "schwung_leicht", "gruppe": "kampf", "dauer": 3, "einfluss": 0.6, "hp": 120, "abstand": 0.08, "mindest": -6, "ausklang": -30, "max": 0.24, "anzahl": 6,
      "prompt": "Four separate fast light blade swishes cutting through the air, thin quick whoosh, no impact, pause between each, clean, close-up"},
     {"id": "schwung_mittel", "gruppe": "kampf", "dauer": 3.5, "einfluss": 0.6, "hp": 90, "mindest": -10, "ausklang": -30, "max": 0.55,

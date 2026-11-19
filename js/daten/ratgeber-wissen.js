@@ -173,15 +173,18 @@ const RATGEBER_WISSEN = [
     c: 'steuerung', q: 'Wie greife ich an und wähle ein Ziel?',
     a: 'Halte {k:attack} (am Handy den Angriffsknopf): Ist kein Monster in Reichweite, läufst du zum nächsten. {k:target} wählt das nächste Ziel. ' +
       'Am PC greift ein Linksklick auf ein Monster an, ein Rechtsklick wählt es nur aus. Am Handy tippst du das Monster an. ' +
-      'Ein so gewähltes Ziel bleibt dein Fokus: Grundangriff und Fertigkeiten gehen auf es, solange es in Reichweite ist – auch ein Seelenstein, wenn seine Monster herbeieilen.',
-    k: 'angreifen angriff ziel waehlen target anvisieren schlagen leertaste klick fokus seelenstein'
+      'Ein so gewähltes Ziel bleibt dein Fokus: Grundangriff und Fertigkeiten gehen auf es, solange es in Reichweite ist – auch ein Seelenstein, wenn seine Monster herbeieilen. ' +
+      'Geschosse, Pfeile und Blitze fliegen dabei durch die Monster davor hindurch und treffen nur den Fokus; Flächenzauber treffen am Einschlagort wie gewohnt alle. ' +
+      'Der Grundangriff reicht beim Magier 310 weit, beim Schamanen 300, beim Nekromanten mit Stab 290 und mit dem Bogen 680.',
+    k: 'angreifen angriff ziel waehlen target anvisieren schlagen leertaste klick fokus seelenstein reichweite grundangriff durchfliegen geschoss'
   },
   {
     c: 'steuerung', q: 'Was macht der AUTO-Knopf (Auto-Angriff)?',
     a: 'Er schaltet den Auto-Angriff ein und aus (am PC rechts an der Leiste, am Handy links neben dem Lebenstrank, auch unter Einstellungen → Steuerung; gemerkt je Gerät). ' +
-      'Ist er an, klickst bzw. tippst du ein Monster oder einen Seelenstein einmal an: Deine Figur läuft hin und greift es immer weiter an, Fertigkeiten gehen auf dasselbe Ziel. ' +
+      'Ist er an, klickst bzw. tippst du ein Monster oder einen Seelenstein einmal an: Deine Figur läuft in Reichweite und greift es mit dem Grundangriff immer weiter an, Fertigkeiten gehen auf dasselbe Ziel. ' +
+      'Der Fokus wechselt dabei nicht – auch nicht, wenn andere Monster dich angreifen oder davorstehen: Schüsse und Zauber fliegen durch sie hindurch zum Ziel. ' +
       'Schluss ist, wenn es besiegt ist, du ein anderes Ziel wählst, selbst läufst oder Esc drückst. Aus ist jeder Angriff wie gewohnt einzeln.',
-    k: 'auto angriff autoangriff automatisch dauerangriff weiter angreifen auto attack fokus klick antippen knopf'
+    k: 'auto angriff autoangriff automatisch dauerangriff weiter angreifen auto attack fokus klick antippen knopf durchfliegen'
   },
   {
     c: 'steuerung', q: 'Kann ich mit der Maus laufen?',
@@ -705,12 +708,15 @@ const RATGEBER_WISSEN = [
   {
     c: 'dungeons', p: 2, q: 'Was ist der Turm der Verdammten?',
     a: () => {
-      const T = (typeof TURM !== 'undefined') ? TURM : { level: 80, maxPlayers: 10, ebenen: 11, respawn: 8 };
+      const T = (typeof TURM !== 'undefined') ? TURM : { level: 80, maxPlayers: 10, ebenen: 15, respawn: 8, wonStay: 150 };
       const min = (typeof INST !== 'undefined') ? INST.lockMin : 60;
       return `Eine Gruppen-Instanz ab Stufe ${T.level} im <b>Seelenhain</b>: der schwarze Turm steht westlich des Lagers Seelenwacht am Weg. ` +
         `Allein oder mit bis zu ${T.maxPlayers} Spielern (beide Seiten gemeinsam, ohne Kampf untereinander) kämpft ihr euch in einer Halle durch ${T.ebenen} Ebenen: ` +
-        'fünf Wellen Verdammter, der Kettenhüter, vier Seelensteine, die Zwillingshüter, acht Trugsteine, die Schlüsseljagd und zuletzt Kharzul, der Wächter der Verdammten. ' +
+        'Wellen Verdammter mit Schlächtern und Hauptleuten, der Kettenhüter, vier Seelensteine, der Schlächtersturm, die Zwillingshüter, acht Trugsteine, eine Belagerung, die Schlüsseljagd, die Hauptleute, ' +
+        'die drei Hüter zugleich, die letzte Belagerung und zuletzt Kharzul, der Wächter der Verdammten. Allein ist das hart, zu mehrt wachsen Gegnerzahl, Leben und Schaden mit. ' +
+        'Auf dem Weg hinein reitest du (oder fliegst auf der Glutschwinge) durch eine Glutschlucht zum Turm – das lässt sich überspringen. ' +
         'Die Halle liegt im Glutschlund; ringsum sitzen auf den Rängen Ungeheuer, die toben, wenn ihr eine Ebene schafft – und auch, wenn alle fallen. ' +
+        `Nach dem Sieg wartet die Truhe des Wächters, und der Turm-Schmied wertet einmal ein Teil auf; nach ${T.wonStay || 150} Sekunden bringt euch der Turm hinaus (die Zeit läuft oben mit). ` +
         `Am Tor beginnst du einen Durchgang („nur meine Gruppe“ oder „offen für alle“) oder trittst einem laufenden bei. Wer fällt, steht nach ${T.respawn} Sekunden am Eingang der Halle wieder auf; ` +
         `fallen alle zugleich, beginnt die Ebene von vorn. Die Sperre dauert ${min} Minuten ab dem Betreten und gilt nur für den Turm.`;
     },
@@ -720,22 +726,25 @@ const RATGEBER_WISSEN = [
     c: 'dungeons', q: 'Wie funktionieren Trugsteine, Schlüsseljagd und Kharzul im Turm?',
     a: () => {
       const T = (typeof TURM !== 'undefined') ? TURM : { keyFrom: 15, keyTo: 25, kettenZeit: 25, benommen: 6, schlag: 0.6, heilung: 0.1 };
-      return '<ul><li><b>Trugsteine (Ebene 9):</b> Acht Steine stehen in der Halle, nur zwei sind echt – von außen sieht man es nicht. Ein falscher Stein zerplatzt und ruft eine Strafwelle; ' +
+      return '<ul><li><b>Belagerungen (Ebene 10 und 14):</b> 45 bzw. 60 Sekunden lang rücken ohne Pause Verdammte nach, auch Schlächter und Hauptleute – haltet stand, danach besiegt ihr den Rest.</li>' +
+        '<li><b>Trugsteine (Ebene 9):</b> Acht Steine stehen in der Halle, nur zwei sind echt – von außen sieht man es nicht. Ein falscher Stein zerplatzt und ruft eine Strafwelle; ' +
         'sind beide echten zerstört, ist die Ebene sofort geschafft.</li>' +
-        `<li><b>Schlüsseljagd (Ebene 10):</b> Schwärme kleiner Glutwichte strömen herein. Etwa alle ${T.keyFrom}–${T.keyTo} besiegten Wichte fällt ein Schlüssel (er gehört der ganzen Gruppe). ` +
+        `<li><b>Schlüsseljagd (Ebene 11):</b> Schwärme kleiner Glutwichte strömen herein. Etwa alle ${T.keyFrom}–${T.keyTo} besiegten Wichte fällt ein Schlüssel (er gehört der ganzen Gruppe). ` +
         'Wer mit einem Schlüssel an ein verschlossenes Tor tritt, öffnet es. Sind alle vier Tore offen, verschwinden die Wichte.</li>' +
-        '<li><b>Kharzul (Ebene 11):</b> Bei 75 % beginnt der <b>Totentanz</b>: Er rammt die Hellebarde in die Mitte, vier Arme aus Seelenfeuer kreisen durch die Halle – lauft in den Lücken mit, er bleibt angreifbar. ' +
+        '<li><b>Die drei Hüter (Ebene 13):</b> Ossarn, Ilmra und Varn kommen zugleich, jeder mit etwas weniger Leben als allein.</li>' +
+        '<li><b>Kharzul (Ebene 15):</b> Bei 75 % beginnt der <b>Totentanz</b>: Er rammt die Hellebarde in die Mitte, vier Arme aus Seelenfeuer kreisen durch die Halle – lauft in den Lücken mit, er bleibt angreifbar. ' +
         'Bei 50 % zeigt er seine <b>wahre Gestalt</b>: größer, schwarz-rot in Höllenfeuer, er läuft und schlägt viel schneller und hat vier neue Angriffe (Seelenschnitt vorn und hinten, Höllensprung, Kettensturm, Höllenfeuerwelle). ' +
         'Ab 25 % kommt der <b>Seelenbann</b>: Jeder bekommt ein Brandmal, das nach 5 Sekunden alle anderen im Umkreis trifft – lauft auseinander.</li></ul>';
     },
-    k: 'turm trugsteine trugstein echt falsch strafwelle schluessel schluesseljagd glutwicht glutwichte tore tor oeffnen kharzul waechter mechanik totentanz verwandlung wahre gestalt seelenbann brandmal'
+    k: 'turm belagerung hueter drei trugsteine trugstein echt falsch strafwelle schluessel schluesseljagd glutwicht glutwichte tore tor oeffnen kharzul waechter mechanik totentanz verwandlung wahre gestalt seelenbann brandmal'
   },
   {
     c: 'dungeons', q: 'Was gibt es im Turm der Verdammten zu holen?',
-    a: 'Gold für jede geschaffte Ebene. Die drei Hüter lassen mit etwas Glück ein episches Teil (Lv 70–80) fallen, selten ein legendäres. Der Wächter gibt 2 epische Teile (Lv 80), mit Glück ein legendäres (Lv 80) – ' +
-      'das gehört meist zur zweiten Reihe der Klassen-Sets deiner Klasse –, dazu Seelensplitter, Ätherkerne, Schmiede-Teile und manchmal einen Seelenstein als Gegenstand. Die echten Seelensteine der Ebenen 7 und 9 geben ihre gewohnte Beute. ' +
-      'Die Beute der Hüter und des Wächters gibt es je Sperre einmal.',
-    k: 'turm der verdammten beute belohnung legendaer episch klassen-set aetherkern seelenstein gold sperre'
+    a: 'Gold für jede geschaffte Ebene. Die Hüter lassen mit etwas Glück ein episches Teil (Lv 70–80) fallen, selten ein legendäres. Fällt Kharzul, erscheint die <b>Truhe des Wächters</b>: 3 epische Teile (Lv 80), ' +
+      'mit Glück ein legendäres (Lv 80, sonst ein viertes episches) – das gehört meist zur zweiten Reihe der Klassen-Sets deiner Klasse –, dazu Seelensplitter, Ätherkerne, Schmiede-Teile, oft einen Seelenstein als Gegenstand und viel Gold. ' +
+      'Danach steigt der <b>Turm-Schmied</b> aus der Glut: Einmal je Durchgang wertet er ein Teil um +1 auf, mit 20 Prozentpunkten mehr Chance als beim Schmied, ohne Segensschriftrolle, und nichts zerbricht (Gold, Splitter und Teile kostet es wie beim Schmied). ' +
+      'Die echten Seelensteine der Ebenen 6 und 9 geben ihre gewohnte Beute. Die Beute der Hüter und des Wächters gibt es je Sperre einmal.',
+    k: 'turm der verdammten beute belohnung legendaer episch klassen-set aetherkern seelenstein gold sperre truhe waechter turm-schmied turmschmied ghorvan aufwerten'
   },
   {
     c: 'dungeons', q: 'Welche Rollen gibt es in einer Gruppe?',

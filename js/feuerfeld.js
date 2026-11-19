@@ -579,16 +579,33 @@ function fieldDur(sk) {
 }
 function fieldFx(owner, x, y, sk, local, pw) {
   addEffect({ type: 'mfield3', x, y, R: sk.radius, delay: sk.delay, every: sk.every, ticks: sk.ticks, seed: Math.floor(Math.random() * 1000), dur: fieldDur(sk) });
+  // Rang V (Pforte zur Hölle, docs/rang-boni.md): zum Schluss bricht eine Feuersäule aus der Mitte (Bild für alle)
+  if (sk.pillar) later(sk.delay + sk.ticks * sk.every, () => fieldPillarFx(owner, x, y, sk, local, pw));
   if (!local) return;
   for (let k = 0; k < sk.ticks; k++) {
     later(sk.delay + k * sk.every, () => {
       const last = k === sk.ticks - 1;
       for (const m of enemiesInCircle(x, y, sk.radius)) {
+        // Rang H (Glutsog): jeder Puls zieht zur Mitte (negativer Rückstoß, nicht Bosse und Steine)
+        const pull = sk.pull && !m.isStone && !(m.type && (m.type.boss || m.type.raid)) && hyp(m.x - x, m.y - y) > 8 ? { knockback: -sk.pull, from: { x, y } } : {};
         // seit 13.69 betäubt jeder Puls kurz (sk.stun): Flammensäulen werfen die Gegner aus dem Tritt
-        hitMonster(m, sk.dmg * pw, { skill: sk.id, burn: last ? sk.burn : null, stun: sk.stun, vfxColor: '#ff8a4a' });
+        hitMonster(m, sk.dmg * pw, { skill: sk.id, burn: last ? sk.burn : null, stun: sk.stun, vfxColor: '#ff8a4a', ...pull });
       }
       if (k === 0 && owner === game.player) shakeScreen(2.5);
     });
+  }
+}
+function fieldPillarFx(owner, x, y, sk, local, pw) {
+  const P = sk.pillar;
+  addEffect({ type: 'column3', x, y: y + 9, r: 34, hgt: 3.4, color: '#ff4a1a', core: '#fff1c8', dur: 0.75 });
+  addEffect({ type: 'column3', x, y: y + 9, r: 18, hgt: 4.2, color: '#ffd34d', core: '#ffffff', dur: 0.5 });
+  addEffect({ type: 'sparks3', x, y: y + 9, h: 0.6, count: 22, color: '#ffd34d', speed: 3.6, up: 2.4, dur: 0.8 });
+  if (!V3.on) particles(x, y - 10, { count: 26, color: ['#fff1c8', '#ffd34d', '#ff6a2a', '#c84aff'], angle: -Math.PI / 2, spread: 0.6, speed: [120, 320], life: [0.35, 0.7], size: [2, 4.5], shape: 'ember', drag: 2 });
+  if (owner === game.player) shakeScreen(4);
+  if (!local) return;
+  for (const m of enemiesInCircle(x, y, P.r)) {
+    if (P.lift && canLift(m)) m.lift = { start: game.time, dur: 0.45, h: P.lift };
+    hitMonster(m, sk.dmg * P.mul * pw, { skill: sk.id, burn: sk.burn, heavy: true, rankEcho: true, vfxColor: '#ffd34d' });
   }
 }
 MAGE2_REMOTE.mfield = (rp, sk, d) => fieldFx(rp, d.tx ?? rp.x, d.ty ?? rp.y, sk, false, 0);
@@ -803,6 +820,7 @@ SKILL_TYPES.mtornado = function (sk, pw, lvl) {
 function tornadoFx(owner, x, y, sk, n, seed, local, pw) {
   const e = addEffect({ type: 'mtornado3', x, y, R: sk.radius, n, seed, delay: sk.delay, life: sk.life, dur: sk.delay + sk.life + 0.6 });
   if (owner === game.player) shakeScreen(2);
+  if (sk.merge) later(sk.delay + sk.life - 0.35, () => tornadoMergeFx(owner, x, y, sk, local, pw));
   if (!local) return;
   const ticks = Math.round(sk.life / sk.every);
   for (let k = 0; k < ticks; k++) {
@@ -813,15 +831,30 @@ function tornadoFx(owner, x, y, sk, n, seed, local, pw) {
         const c = tornadoPos(e, i, tt);
         for (const m of enemiesInCircle(c.x, c.y, sk.hitR)) {
           hitMonster(m, sk.dmg * pw, { skill: sk.id, burn: last || k % 3 === 2 ? sk.burn : null, vfxColor: '#ffb04a' });
-          // leichter Sog zur Mitte des Tornados (nicht bei Steinen und Bossen)
+          // leichter Sog zur Mitte des Tornados (nicht bei Steinen und Bossen); Rang H stärker (sk.pull)
           if (!m.isStone && !(m.type && (m.type.boss || m.type.raid))) {
-            m.x += (c.x - m.x) * 0.18;
-            m.y += (c.y - m.y) * 0.18;
+            const pf = sk.pull || 0.18;
+            m.x += (c.x - m.x) * pf;
+            m.y += (c.y - m.y) * pf;
           }
         }
       }
     });
   }
+}
+// Rang V der Feuertornados (Weltenbrand, docs/rang-boni.md): zum Schluss verschmelzen alle in der Mitte zu einem großen
+// Feuerwirbel, der das ganze Feld einmal trifft (merge.mul eines Tornadotreffers)
+function tornadoMergeFx(owner, x, y, sk, local, pw) {
+  const M = sk.merge;
+  addEffect({ type: 'mtornado3', x, y, R: 4, n: 1, seed: Math.floor(Math.random() * 1000), delay: 0, life: M.life, dur: M.life + 0.6 });
+  addEffect({ type: 'column3', x, y: y + 9, r: 40, hgt: 3.6, color: '#ff4a1a', core: '#ffd34d', dur: 0.7 });
+  addEffect({ type: 'sparks3', x, y: y + 9, h: 1.2, count: 24, color: '#ffd34d', speed: 4, up: 2.2, dur: 0.8 });
+  if (!V3.on) particles(x, y - 30, { count: 24, color: ['#fff1c8', '#ffd34d', '#ff6a2a', '#c84aff'], speed: [100, 280], life: [0.3, 0.7], size: [2, 4], shape: 'ember', drag: 2.5 });
+  if (owner === game.player) shakeScreen(4);
+  if (!local) return;
+  later(0.25, () => {
+    for (const m of enemiesInCircle(x, y, sk.radius)) hitMonster(m, sk.dmg * M.mul * pw, { skill: sk.id, burn: sk.burn, heavy: true, rankEcho: true, vfxColor: '#ffd34d' });
+  });
 }
 MAGE2_REMOTE.mtornado = (rp, sk, d) => tornadoFx(rp, d.tx ?? rp.x, d.ty ?? rp.y, sk, d.n || 2, d.sd || 1, false, 0);
 

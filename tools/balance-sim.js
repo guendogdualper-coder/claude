@@ -16,6 +16,10 @@
 //                                                     Stufe 20/50/80, Ausrüstung std und top; --alt misst die Rechnung bis
 //                                                     14.14, --wuerfe <n> Würfe je Paar (4), --pvp-zeit <s> längstes Duell (60),
 //                                                     --pvp-tabellen <datei.json> druckt die Tabellen einer Messung
+// Rang-Boni (docs/rang-boni.md): --rang <stufe> setzt alle fünf Fertigkeiten auf diese Stufe (14 = normal, 18 = E1, 28 = H1,
+//           38 = L1, 48 = V; Stufe 15–17 wird beim Laden zu E1), --ohne-rangboni misst denselben Stand ohne Rang-Boni
+//           (RANK_BONUS.off); beides auch mit --pvp. --port <n> startet den eigenen Webserver auf diesem Port (sonst frei),
+//           --seed <n> versetzt alle Würfe (PvE: mehrere Läufe mitteln).
 // Optionen: --out <datei.json> (Standard: balance-ergebnis.json bzw. balance-vorschlag.json im aktuellen Ordner),
 //           --worker <n> (parallele Seiten, Standard 3), --url <http://…/> (statt des eigenen Servers),
 //           --kurz (kürzere Läufe zum schnellen Probieren), --ohne-farm (Farm-Lauf weglassen), --root <repo> (Spielordner)
@@ -217,7 +221,9 @@ function pageLib() {
   // --- Fertigkeitsstufen (für alle Wege gleich, ohne Vorliebe für eine Art von Fertigkeit) ---
   // bis Stufe 69: L−1 Punkte reihum auf alle freigeschalteten Fertigkeiten (Reihenfolge der Freischaltung), 15 → E1;
   // Stufe 70–79: alle H5 (Punkte voll + Schriftrollen); ab Stufe 80: alle L5
+  S.forceLvl = null; // --rang: alle Fertigkeiten auf diese Stufe
   S.skillLevels = (cls, path, L) => {
+    if (S.forceLvl) return [S.forceLvl, S.forceLvl, S.forceLvl, S.forceLvl, S.forceLvl];
     if (L >= 80) return [42, 42, 42, 42, 42];
     if (L >= 70) return [32, 32, 32, 32, 32];
     const skills = CLASSES[cls].paths[path].skills;
@@ -687,7 +693,7 @@ function pageLib() {
 // Node-Teil: Server, Arbeiter, Wertung, Tabellen
 // =================================================================================================================
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.svg': 'image/svg+xml', '.mp3': 'audio/mpeg', '.wav': 'audio/wav', '.ogg': 'audio/ogg', '.webmanifest': 'application/manifest+json', '.woff2': 'font/woff2', '.ico': 'image/x-icon' };
-function startServer() {
+function startServer(port = 0) {
   return new Promise((resolve) => {
     const srv = http.createServer((req, res) => {
       let p = decodeURIComponent(req.url.split('?')[0]);
@@ -700,7 +706,7 @@ function startServer() {
         res.end(data);
       });
     });
-    srv.listen(0, '127.0.0.1', () => resolve({ srv, url: `http://127.0.0.1:${srv.address().port}/` }));
+    srv.listen(port, '127.0.0.1', () => resolve({ srv, url: `http://127.0.0.1:${srv.address().port}/` }));
   });
 }
 
@@ -711,11 +717,24 @@ async function openPage(browser, url) {
   const pg = await ctx.newPage();
   pg.on('pageerror', (e) => console.log('  [Seitenfehler]', e.message));
   await pg.addInitScript(() => localStorage.setItem('seelenstein.optionen', JSON.stringify({ view: '2d', graphics: 'niedrig', optsVer: 2, volume: 0, music: false, numbers: false })));
-  await pg.goto(url);
+  // nur auf das Dokument warten: 'load' wartete in der Kopfloswelt mitunter bis zur Zeitgrenze (Bilder, Klänge)
+  await pg.goto(url, { waitUntil: 'domcontentloaded', timeout: 90000 });
   await pg.waitForFunction(() => typeof startGame === 'function' && typeof game !== 'undefined' && game.world, null, { timeout: 90000 });
   await pg.waitForTimeout(500);
   await pg.addScriptTag({ content: '(' + pageLib.toString() + ')();' });
   return pg;
+}
+
+// --rang / --ohne-rangboni auf eine Seite legen
+async function applyRang(pg, a) {
+  await pg.evaluate(({ lvl, off, seed }) => {
+    SIM.forceLvl = lvl || null;
+    if (typeof RANK_BONUS !== 'undefined') RANK_BONUS.off = !!off;
+    // --seed: alle Würfe um diesen Wert versetzt (mehrere Läufe mitteln, eine Messung streut um einige Prozent)
+    // den freien Kampfplatz vorher mit den gewohnten Würfen suchen (mit versetzten fand findArena mitunter keinen)
+    for (let k = 0; !SIM.arena && k < 20; k++) { SIM.seed(7 + k); SIM.arena = SIM.findArena('wiesen'); }
+    if (seed && !SIM.seedOrig) { SIM.seedOrig = SIM.seed; SIM.seed = (s) => SIM.seedOrig((s || 1) + seed * 7919); }
+  }, { lvl: a.rang || 0, off: !!a.rbOff, seed: a.seed || 0 });
 }
 
 function parseArgs(argv) {
@@ -740,6 +759,10 @@ function parseArgs(argv) {
     else if (k === '--ohne-farm') a.farm = false;
     else if (k === '--tabellen') a.tabellen = v();
     else if (k === '--root') v();
+    else if (k === '--rang') a.rang = +v();
+    else if (k === '--ohne-rangboni') a.rbOff = true;
+    else if (k === '--port') a.port = +v();
+    else if (k === '--seed') a.seed = +v();
   }
   return a;
 }
@@ -943,10 +966,12 @@ async function mainPvp(a) {
   const out = a.out || (a.alt ? 'balance-pvp-vorher.json' : 'balance-pvp.json');
   let srv = null;
   let url = a.url;
-  if (!url) { const s = await startServer(); srv = s.srv; url = s.url; }
+  if (!url) { const s = await startServer(a.port || 0); srv = s.srv; url = s.url; }
   const browser = await chromium.launch();
   const pages = await Promise.all(Array.from({ length: a.worker }, () => openPage(browser, url)));
   for (const pg of pages) await pg.evaluate((on) => SIM.pvpLegacy(on), !!a.alt);
+  for (const pg of pages) await applyRang(pg, a);
+  if (a.rang || a.rbOff) console.log(`[pvp] Rang-Boni: ${a.rang ? 'alle Fertigkeiten auf Stufe ' + a.rang : 'Stufen wie üblich'}${a.rbOff ? ', OHNE Rang-Boni' : ''}`);
   // Wertänderungen zum Ausprobieren (--vorschlag-datei, gleiches Format wie VORSCHLAG, z. B. { set: 'PVP_DMG.defMul', v: 1 })
   const vlist = a.vdatei ? JSON.parse(fs.readFileSync(a.vdatei, 'utf8')) : [];
   if (vlist.length) for (const pg of pages) await pg.evaluate((ov) => SIM.applyOverrides(ov), vlist);
@@ -1001,7 +1026,7 @@ async function main() {
   const out = a.out || (a.vorschlag ? 'balance-vorschlag.json' : 'balance-ergebnis.json');
   let srv = null;
   let url = a.url;
-  if (!url) { const s = await startServer(); srv = s.srv; url = s.url; }
+  if (!url) { const s = await startServer(a.port || 0); srv = s.srv; url = s.url; }
   const browser = await chromium.launch();
   const jobs = [];
   for (const g of a.ausr) for (const L of a.stufen) for (const [cls, pa, id] of PATHS) if (!a.wege || a.wege.includes(id)) jobs.push({ cls, path: pa, L, gear: g });
@@ -1010,8 +1035,10 @@ async function main() {
   const results = [];
   const t0 = Date.now();
   let next = 0;
+  if (a.rang || a.rbOff) console.log(`[sim] Rang-Boni: ${a.rang ? 'alle Fertigkeiten auf Stufe ' + a.rang : 'Stufen wie üblich'}${a.rbOff ? ', OHNE Rang-Boni' : ''}`);
   const work = async (w) => {
     const pg = await openPage(browser, url);
+    await applyRang(pg, a);
     while (next < jobs.length) {
       const j = jobs[next++];
       const t1 = Date.now();

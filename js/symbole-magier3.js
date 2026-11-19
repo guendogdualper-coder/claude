@@ -162,3 +162,263 @@ Object.assign(SKILL_ART, {
     }
   }
 });
+
+// --- Rang-Ebenen der Symbole (Rang-Boni, docs/rang-boni.md) ----------------------------------------------------------
+// Je Rang kommt ein Bildelement dazu, das die neue Mechanik zeigt (r 0 = E, 1 = H, 2 = L, 3 = V); Vollendet hat eine
+// eigene Signatur in Rot-Gold-Violett und den Glutkern-Hintergrund (drawSkillIcon). Gezeichnet über dem Motiv, nur
+// einmal je Rang (skillIconCache) – kostet im Spiel nichts.
+const RK_GOLD = ['#fff6c8', '#ffd34d', '#b8860b'];
+const RK_V = ['#ffe0a0', '#ff6a4a', '#c84aff'];
+// leuchtender Knoten (Blitzziel)
+function rkNode(ctx, IK, x, y, r, pal) {
+  IK.light(ctx, x, y, r * 2.6, pal[1], 0.8);
+  IK.fill(ctx, (c) => c.arc(x, y, r, 0, Math.PI * 2), IK.rad(ctx, x - r * 0.3, y - r * 0.3, 0, r * 1.1, [[0, '#ffffff'], [0.5, pal[0]], [1, pal[1]]]), 0.8, 'rgba(40,20,90,0.9)');
+}
+// kleiner Blitz von a nach b
+function rkBolt(ctx, IK, x0, y0, x1, y1, col, w, glow, seed, n = 4, amp = 2.2) {
+  IK.bolt(ctx, IK.zigzag(x0, y0, x1, y1, n, amp, seed), col, w, glow);
+}
+// Krone aus drei Blitzzacken über (x, y)
+function rkCrown(ctx, IK, x, y, s = 1) {
+  for (const [dx, h] of [[-4, 5], [0, 7], [4, 5]]) rkBolt(ctx, IK, x + dx * s, y, x + dx * 0.8 * s, y - h * s, '#ffd34d', 1.1, '#ff6a4a', 9 + dx, 2, 0.8);
+  IK.line(ctx, [[x - 5 * s, y], [x + 5 * s, y]], '#ffd34d', 1.4, 'rgba(60,10,10,0.9)');
+}
+Object.assign(SKILL_ART_RANK, {
+  // Kettenblitz: je Rang ein Kettenknoten mehr (4, 5, 6 Ziele), L goldene Knoten, V Rücksprung als Schleife mit Krone
+  kettenblitz(ctx, IK, sk, r) {
+    const pal = r >= 2 ? RK_GOLD : ['#ffffff', '#9fd0ff', '#3a6ac8'];
+    if (r >= 0) { rkBolt(ctx, IK, 6, 5, 11, 15, '#ffffff', 2.4, '#9fd0ff', 3); rkNode(ctx, IK, 11, 15, 3.4, pal); }
+    if (r >= 1) { rkBolt(ctx, IK, 11, 15, 0, 16, '#ffffff', 2.2, '#c58cff', 5); rkNode(ctx, IK, 0, 16, 3.2, r >= 2 ? RK_GOLD : ['#ffffff', '#d8b0ff', '#7a3ac0']); }
+    if (r >= 2) {
+      rkBolt(ctx, IK, 0, 16, -11, 12, '#fff6c8', 2.2, '#ffd34d', 7);
+      rkNode(ctx, IK, -11, 12, 3, RK_GOLD);
+      for (const [x, y] of [[-4, -10], [6, 5], [15, -9]]) rkNode(ctx, IK, x, y, 3, RK_GOLD);
+    }
+    if (r >= 3) {
+      // Rücksprung: roter Bogen vom letzten Ziel zurück zum ersten, Blitzkrone über dem letzten Ziel
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.lineCap = 'round';
+      for (const [w, c, a] of [[6, '#ff4a2a', 0.5], [3, '#ff8a4a', 1], [1.2, '#fff1c8', 1]]) {
+        ctx.strokeStyle = c;
+        ctx.lineWidth = w;
+        ctx.globalAlpha = a;
+        ctx.beginPath();
+        ctx.moveTo(-11, 12);
+        ctx.bezierCurveTo(-23, -2, -15, -19, -4, -10);
+        ctx.stroke();
+      }
+      ctx.restore();
+      rkCrown(ctx, IK, -11, 7, 1.4);
+    }
+  },
+  // Blitzspeer: E breiterer Schein, H Ladung (violette Kugel), L goldene Spitze, V Himmelsblitz am Ende der Bahn
+  blitzspeer(ctx, IK, sk, r) {
+    if (r >= 0) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.lineCap = 'round';
+      for (const [w, a] of [[10, 0.25], [5, 0.45]]) {
+        ctx.globalAlpha = a;
+        ctx.strokeStyle = '#9fd0ff';
+        ctx.lineWidth = w;
+        ctx.beginPath();
+        ctx.moveTo(-15, 15);
+        ctx.lineTo(13, -13);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+    if (r >= 1) {
+      rkNode(ctx, IK, -12, 12, 3.6, ['#ffffff', '#d8b0ff', '#7a3ac0']);
+      for (const [x1, y1, sd] of [[-18, 6, 3], [-6, 18, 7]]) rkBolt(ctx, IK, -12, 12, x1, y1, '#ffffff', 1.4, '#c58cff', sd, 2, 1.2);
+    }
+    if (r >= 2) IK.fill(ctx, (c) => { c.moveTo(17, -17); c.lineTo(7, -12); c.lineTo(12, -7); c.closePath(); }, IK.lin(ctx, 7, -12, 17, -17, [[0, RK_GOLD[2]], [1, RK_GOLD[0]]]), 0.8, 'rgba(60,40,0,0.9)');
+    if (r >= 3) {
+      rkBolt(ctx, IK, 5, -21, 12, -9, '#ffd34d', 3, '#ff4a2a', 13, 4, 2.4);
+      IK.light(ctx, 12, -9, 10, '#ff6a4a', 1);
+      IK.light(ctx, 12, -9, 4, '#ffffff', 1);
+    }
+  },
+  // Blitzschritt: E längere Spur, H zusätzlicher Himmelsblitz, L goldene Spur, V Kugelblitz am Ziel
+  blitzschritt(ctx, IK, sk, r) {
+    if (r >= 0) for (const y of [8, 12]) IK.line(ctx, [[-20, y], [-7, y]], '#cfe8ff', 1.8, 'rgba(20,30,80,0.7)');
+    if (r >= 1) rkBolt(ctx, IK, -16, -18, -13, 6, '#ffffff', 2.2, '#c58cff', 17, 4, 2.2);
+    if (r >= 2) IK.line(ctx, [[-19, 16], [10, 16]], RK_GOLD[1], 2, 'rgba(60,40,0,0.7)');
+    if (r >= 3) {
+      IK.light(ctx, 14, 4, 12, '#ff6a4a', 1);
+      IK.fill(ctx, (c) => c.arc(14, 4, 4.6, 0, Math.PI * 2), IK.rad(ctx, 13, 3, 0, 5.4, [[0, '#ffffff'], [0.5, RK_V[0]], [1, RK_V[1]]]), 0.8, 'rgba(60,10,10,0.9)');
+      for (let i = 0; i < 4; i++) { const a = -1.2 + i * 0.8; rkBolt(ctx, IK, 14 + Math.cos(a) * 5, 4 + Math.sin(a) * 5, 14 + Math.cos(a) * 10, 4 + Math.sin(a) * 10, '#ffd34d', 1.2, '#ff6a4a', 21 + i, 2, 1); }
+    }
+  },
+  // Gewitterwolke: E breitere Wolke, H Nebenblitz, L goldener Blitz, V Wolke zieht nach (Bewegungsstriche, roter Blitz)
+  gewitter(ctx, IK, sk, r) {
+    const puff = (x, y, s) => IK.fill(ctx, (c) => { c.arc(x, y, s, 0, Math.PI * 2); c.arc(x + s * 0.9, y + 1, s * 0.8, 0, Math.PI * 2); },
+      IK.rad(ctx, x, y - s * 0.5, 0, s * 1.6, [[0, '#b8b0e0'], [1, '#4a4466']]), 0.8, 'rgba(10,6,20,0.9)');
+    if (r >= 0) { puff(-19, -9, 4); puff(14, -10, 4); }
+    if (r >= 1) rkBolt(ctx, IK, 14, -6, 18, 8, '#ffffff', 2, '#c58cff', 23, 3, 1.6);
+    if (r >= 2) rkBolt(ctx, IK, -2, -6, 0, 10, '#fff6c8', 2.6, '#ffd34d', 29, 4, 1.8);
+    if (r >= 3) {
+      for (const y of [-15, -11, -7]) IK.line(ctx, [[-22, y], [-15, y]], '#ffd0a0', 1.4, null);
+      rkBolt(ctx, IK, 8, -5, 13, 14, '#ffd34d', 2.8, '#ff4a2a', 31, 4, 2.2);
+      IK.light(ctx, 13, 14, 7, '#ff6a4a', 1);
+    }
+  },
+  // Kugelblitz: E größeres Feld, H helleres Finale, L goldener Kern, V Sonnensturm (vier rote Blitze nach außen)
+  kugelblitz(ctx, IK, sk, r) {
+    if (r >= 0) IK.light(ctx, 0, 0, 21, '#9fd0ff', 0.35);
+    if (r >= 1) IK.light(ctx, 0, -1, 10, '#ffffff', 0.7);
+    if (r >= 2) IK.fill(ctx, (c) => c.arc(0, -1, 4, 0, Math.PI * 2), IK.rad(ctx, -1, -2, 0, 4.6, [[0, '#ffffff'], [0.5, RK_GOLD[0]], [1, RK_GOLD[1]]]), 0.8, 'rgba(60,40,0,0.9)');
+    if (r >= 3) {
+      for (let i = 0; i < 4; i++) { const a = Math.PI / 4 + i * Math.PI / 2; rkBolt(ctx, IK, Math.cos(a) * 6, Math.sin(a) * 6 - 1, Math.cos(a) * 18, Math.sin(a) * 18 - 1, '#ffd34d', 2.2, '#ff4a2a', 41 + i, 3, 1.8); }
+      rkBolt(ctx, IK, 0, 3, 0, 18, '#ffffff', 2.6, '#ffd34d', 47, 3, 1.4);
+    }
+  },
+  // Glutfeld: E breiterer Glutrand, H Sog (zwei Bögen nach innen), L goldene Flammen, V Feuersäule in der Mitte
+  glutfeld(ctx, IK, sk, r) {
+    if (r >= 0) IK.light(ctx, 0, 15, 19, '#ff8a2a', 0.6);
+    if (r >= 1) for (const sg of [-1, 1]) IK.line(ctx, [[sg * 19, 4], [sg * 14, 9], [sg * 9, 9]], '#ffe08a', 2, 'rgba(60,10,0,0.85)');
+    if (r >= 2) for (const x of [-10, 10]) IK.flame(ctx, x, 14, 9, 0, ['#b8860b', '#ffd34d', '#fff6c8']);
+    if (r >= 3) {
+      IK.light(ctx, 0, -2, 17, '#ff6a4a', 0.9);
+      IK.fill(ctx, (c) => { c.moveTo(-5, 15); c.lineTo(-3, -19); c.lineTo(3, -19); c.lineTo(5, 15); c.closePath(); }, IK.lin(ctx, 0, -19, 0, 15, [[0, '#ffffff'], [0.3, RK_V[0]], [0.7, RK_V[1]], [1, '#a01a0a']]), 0.9, 'rgba(60,10,10,0.9)');
+      IK.light(ctx, 0, -18, 6, '#ffd34d', 1);
+    }
+  },
+  // Feuerball: E Glutspur, H Flammenkranz um die Kugel, L Glutlache darunter, V drei Feuerkugeln fliegen heraus
+  feuerball(ctx, IK, sk, r) {
+    if (r >= 0) for (const [a, b] of [[[-20, 10], [-9, 3]], [[-17, 15], [-7, 8]]]) IK.line(ctx, [a, b], '#ffe08a', 1.8, 'rgba(60,10,0,0.7)');
+    if (r >= 1) for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2; IK.flame(ctx, 3 + Math.cos(a) * 11, -3 + Math.sin(a) * 11, 5, a + Math.PI / 2, ['#c81a0a', '#ff8a2a', '#fff1a0']); }
+    if (r >= 2) for (const x of [-7, 0, 7]) IK.flame(ctx, x, 20, 7, 0, ['#b8860b', '#ffd34d', '#fff6c8']);
+    if (r >= 3) {
+      for (const [x, y] of [[17, -13], [18, 5], [-3, -19]]) {
+        IK.light(ctx, x, y, 7, '#ff6a4a', 1);
+        IK.fill(ctx, (c) => c.arc(x, y, 3.2, 0, Math.PI * 2), IK.rad(ctx, x - 0.6, y - 0.6, 0, 3.6, [[0, '#ffffff'], [0.5, '#ffd34d'], [1, '#ff4a1a']]), 0.7, 'rgba(60,10,0,0.9)');
+      }
+    }
+  },
+  // Flammenwoge: E längere Bahn, H Mitreißen (Pfeil), L goldener Kamm, V zweite Woge dahinter in Rot-Violett
+  flammenwoge(ctx, IK, sk, r) {
+    if (r >= 0) for (const y of [-4, 4]) IK.line(ctx, [[-22, y], [-12, y]], '#ffe08a', 1.8, 'rgba(60,10,0,0.7)');
+    if (r >= 1) IK.fill(ctx, (c) => { c.moveTo(12, 17); c.lineTo(20, 12); c.lineTo(12, 7); c.closePath(); }, '#ffe08a', 0.9, 'rgba(60,10,0,0.9)');
+    if (r >= 2) IK.line(ctx, [[0, -12], [5, -16], [10, -12]], RK_GOLD[1], 2.2, 'rgba(60,40,0,0.85)');
+    if (r >= 3) for (const [x, y] of [[-14, 6], [-12, -6]]) IK.flame(ctx, x, y + 9, 13, 0.2, ['#7a0a3a', '#ff4a6a', '#ffd0e0']);
+  },
+  // Phönixflamme: E Schwingenspitzen glühen, H längerer Schweif, L goldener Kamm, V zweiter kleiner Phönix
+  phoenix(ctx, IK, sk, r) {
+    if (r >= 0) for (const sg of [-1, 1]) IK.light(ctx, sg * 16, -2, 7, '#ffd34d', 0.9);
+    if (r >= 1) IK.flame(ctx, 0, 23, 12, Math.PI, ['#c81a0a', '#ff8a2a', '#fff1a0']);
+    if (r >= 2) for (const dx of [-3, 0, 3]) IK.line(ctx, [[dx * 0.5, -14], [dx, -20]], RK_GOLD[1], 1.8, 'rgba(60,40,0,0.85)');
+    if (r >= 3) {
+      ctx.save();
+      ctx.translate(-13, -11);
+      ctx.scale(1.6, 1.6);
+      IK.light(ctx, 0, 0, 6, '#ff6a4a', 1);
+      for (const sg of [-1, 1]) IK.fill(ctx, (c) => { c.moveTo(0, 0); c.quadraticCurveTo(sg * 6, -6, sg * 8, 0); c.quadraticCurveTo(sg * 4, -1, 0, 2); c.closePath(); }, IK.lin(ctx, 0, -6, 0, 2, [[0, '#fff1c8'], [1, '#ff6a4a']]), 0.6, 'rgba(60,10,0,0.9)');
+      IK.flame(ctx, 0, 6, 5, Math.PI, ['#c84aff', '#ff6a4a', '#ffe0a0']);
+      ctx.restore();
+    }
+  },
+  // Feuertornados: E Glutfunken, H Sog-Schlieren, L goldene Spitzen, V ein großer verschmolzener Wirbel vorn
+  feuertornado(ctx, IK, sk, r) {
+    if (r >= 0) IK.sparkles(ctx, 7, '#fff1a0', 3, 18, 0, 0, 2.4);
+    if (r >= 1) for (const sg of [-1, 1]) IK.line(ctx, [[sg * 20, -3], [sg * 15, 2], [sg * 10, 2]], '#ffe08a', 2, 'rgba(60,10,0,0.85)');
+    if (r >= 2) for (const x of [-10, 0, 10]) IK.light(ctx, x, -15, 5, '#ffd34d', 1);
+    if (r >= 3) {
+      IK.light(ctx, 0, 2, 16, '#ff6a4a', 0.9);
+      IK.swirl(ctx, 0, 4, 3, 14, 2.2, '#ffd34d', 2.8, 0.5);
+      IK.swirl(ctx, 0, 4, 2, 10, 2.2, '#c84aff', 1.8, 2.1);
+    }
+  }
+});
+
+// Frost und Erde (Paket 2): dieselbe Rang-Sprache – E/H ein Element der Mechanik, L Gold, V eigene Signatur
+const RK_ICE = ['#ffffff', '#9ff0ff', '#3a7bff', '#1a3fb0'];
+const RK_ICE_V = ['#ffffff', '#ffd0f0', '#c84aff', '#5a1a8a'];
+const RK_ROCK = ['#ffe0b0', '#c89a5a', '#4a3020'];
+const RK_ROCK_V = ['#ffb08a', '#c8402a', '#3a0a06'];
+Object.assign(SKILL_ART_RANK, {
+  // Frostnova: E Nachhall (äußere Kristalle), H größerer Umkreis, L goldener Kern, V Eis zerspringt (Splitter nach außen)
+  frostnova(ctx, IK, sk, r) {
+    if (r >= 0) for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2 + 0.5; IK.crystal(ctx, Math.cos(a) * 10, Math.sin(a) * 9, 8, 3.4, a + Math.PI / 2, RK_ICE); }
+    if (r >= 1) IK.light(ctx, 0, 0, 21, '#c58cff', 0.35);
+    if (r >= 2) IK.fill(ctx, (c) => c.arc(0, 0, 3.6, 0, Math.PI * 2), IK.rad(ctx, -1, -1, 0, 4, [[0, '#ffffff'], [0.5, RK_GOLD[0]], [1, RK_GOLD[1]]]), 0.8, 'rgba(60,40,0,0.9)');
+    if (r >= 3) for (let i = 0; i < 5; i++) { const a = (i / 5) * Math.PI * 2 + 0.9; IK.crystal(ctx, Math.cos(a) * 9, Math.sin(a) * 8, 10, 3.8, a + Math.PI / 2, RK_ICE_V); }
+  },
+  // Eisstrahl: E längere Spitze, H breiterer Strahl, L goldene Schneeflocke, V Seitensplitter in Violett
+  eisstrahl(ctx, IK, sk, r) {
+    if (r >= 0) IK.light(ctx, 15, -15, 8, '#eafcff', 0.9);
+    if (r >= 1) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.globalAlpha = 0.35;
+      ctx.strokeStyle = '#9ff6ff';
+      ctx.lineCap = 'round';
+      ctx.lineWidth = 11;
+      ctx.beginPath(); ctx.moveTo(-10, 10); ctx.lineTo(14, -14); ctx.stroke();
+      ctx.restore();
+    }
+    if (r >= 2) for (let i = 0; i < 3; i++) IK.line(ctx, [[-14 + Math.cos(i * 1.05) * 5, -10 + Math.sin(i * 1.05) * 5], [-14 - Math.cos(i * 1.05) * 5, -10 - Math.sin(i * 1.05) * 5]], RK_GOLD[1], 1.8, 'rgba(60,40,0,0.85)');
+    if (r >= 3) { IK.crystal(ctx, 14, 6, 13, 4, 0.9, RK_ICE_V); IK.light(ctx, 16, 10, 6, '#c84aff', 0.9); }
+  },
+  // Eisschritt: E Bewegungsstriche, H Nachbild, L goldene Augen, V die Figur zerspringt in Splitter
+  eisschritt(ctx, IK, sk, r) {
+    if (r >= 0) for (const y of [-2, 5]) IK.line(ctx, [[-21, y], [-12, y]], '#eafcff', 1.8, 'rgba(10,30,80,0.7)');
+    if (r >= 1) IK.light(ctx, -9, 0, 9, '#c58cff', 0.6);
+    if (r >= 2) for (const x of [-2, 3]) IK.light(ctx, x, -8, 2.6, '#ffd34d', 1);
+    if (r >= 3) for (let i = 0; i < 5; i++) { const a = -1.4 + i * 0.7; IK.crystal(ctx, 4 + Math.cos(a) * 8, 2 + Math.sin(a) * 8, 9, 3.4, a + Math.PI / 2, RK_ICE_V); }
+  },
+  // Eisgefängnis: E breiterer Sockel, H Splitter außen, L goldene Spitze, V fünf Splitter nach außen
+  eisgefaengnis(ctx, IK, sk, r) {
+    if (r >= 0) for (const s of [-1, 1]) IK.crystal(ctx, s * 12, 14, 11, 4.2, s * 0.45, RK_ICE);
+    if (r >= 1) for (const [x, y, a] of [[-15, -2, -1.1], [15, 0, 1.1]]) IK.crystal(ctx, x, y, 8, 3.2, a, RK_ICE);
+    if (r >= 2) IK.crystal(ctx, 0, -14, 8, 3.4, 0, ['#fff6c8', '#ffd34d', '#b8860b', '#6a4a0a']);
+    if (r >= 3) for (let i = 0; i < 5; i++) { const a = -Math.PI / 2 + (i - 2) * 0.62; IK.crystal(ctx, Math.cos(a) * 9, Math.sin(a) * 9 + 4, 10, 3.6, a + Math.PI / 2, RK_ICE_V); }
+  },
+  // Blizzard: E mehr Flocken, H dichterer Wirbel, L goldene Flocke, V großer Eiszapfen in der Mitte
+  schneesturm(ctx, IK, sk, r) {
+    if (r >= 0) IK.sparkles(ctx, 7, '#ffffff', 5, 19, 0, 0, 2.4);
+    if (r >= 1) IK.swirl(ctx, 0, 0, 4, 16, 1.6, '#e8d8ff', 1.8, 1.2);
+    if (r >= 2) for (let i = 0; i < 3; i++) IK.line(ctx, [[12 + Math.cos(i * 1.05) * 4, -12 + Math.sin(i * 1.05) * 4], [12 - Math.cos(i * 1.05) * 4, -12 - Math.sin(i * 1.05) * 4]], RK_GOLD[1], 1.8, 'rgba(60,40,0,0.85)');
+    if (r >= 3) { IK.crystal(ctx, 0, 4, 22, 6, Math.PI, RK_ICE_V); IK.light(ctx, 0, 14, 8, '#c84aff', 0.9); }
+  },
+  // Steinschlag: E Staub, H drei Steinsplitter, L goldene Risse, V zweiter glühender Brocken von oben
+  steinschlag(ctx, IK, sk, r) {
+    if (r >= 0) IK.light(ctx, 0, 12, 16, '#c9a878', 0.45);
+    if (r >= 1) for (const [x, y, sd] of [[-13, -9, 1], [13, -11, 2], [12, 11, 3]]) IK.rock(ctx, x, y, 4.2, sd, RK_ROCK);
+    if (r >= 2) for (const s of [-1, 1]) IK.line(ctx, [[s * 3, 3], [s * 8, 8], [s * 6, 13]], RK_GOLD[1], 1.6, 'rgba(60,40,0,0.85)');
+    if (r >= 3) { IK.light(ctx, 0, -15, 9, '#ff6a4a', 1); IK.rock(ctx, 0, -15, 5.5, 7, RK_ROCK_V); }
+  },
+  // Felsgeschoss: E Staub, H rollt weiter (Bewegungsstriche, kleiner Brocken), L goldene Risse, V Fächer aus vier Brocken
+  steingeschoss(ctx, IK, sk, r) {
+    if (r >= 0) IK.light(ctx, 0, 0, 20, '#c9a878', 0.35);
+    if (r >= 1) { for (const y of [14, 18]) IK.line(ctx, [[-20, y], [-8, y]], '#ffd98a', 1.6, 'rgba(40,20,0,0.7)'); IK.rock(ctx, -4, 16, 3.4, 4, RK_ROCK); }
+    if (r >= 2) IK.line(ctx, [[-8, -12], [-2, -6], [-6, 0]], RK_GOLD[1], 2, 'rgba(60,40,0,0.85)');
+    if (r >= 3) for (let i = 0; i < 4; i++) { const a = -0.9 + i * 0.6; IK.light(ctx, 12 + Math.cos(a) * 8, -4 + Math.sin(a) * 8, 4, '#ff6a4a', 0.9); IK.rock(ctx, 12 + Math.cos(a) * 8, -4 + Math.sin(a) * 8, 2.6, 10 + i, RK_ROCK_V); }
+  },
+  // Erdspitzen: E zusätzliche Spitze, H Spitzen am Rand, L goldene Spitzen, V rot glühende Spitzen
+  erdspitzen(ctx, IK, sk, r) {
+    const spike = (x, y, h, pal) => IK.fill(ctx, (c) => { c.moveTo(x - 3, y); c.lineTo(x, y - h); c.lineTo(x + 3, y); c.closePath(); }, IK.lin(ctx, x, y - h, x, y, [[0, pal[0]], [1, pal[2]]]), 0.8, 'rgba(10,6,4,0.9)');
+    if (r >= 0) spike(13, 16, 15, RK_ROCK);
+    if (r >= 1) for (const x of [-19, 19]) spike(x, 12, 8, RK_ROCK);
+    if (r >= 2) for (const x of [-6, 4]) IK.light(ctx, x, -12, 3.4, '#ffd34d', 1);
+    if (r >= 3) { IK.light(ctx, 0, 6, 16, '#ff4a2a', 0.7); for (const x of [-12, 0, 12]) spike(x, 18, 12, RK_ROCK_V); }
+  },
+  // Bergsturz: E Staubwolke, H drei rollende Brocken, L goldener Glutkern, V zwei kleine Brocken stürzen hinterher
+  bergsturz(ctx, IK, sk, r) {
+    if (r >= 0) IK.light(ctx, 0, 16, 17, '#c9a878', 0.45);
+    if (r >= 1) for (const [x, sd] of [[-11, 1], [0, 2], [11, 3]]) IK.rock(ctx, x, 14, 3.8, sd, RK_ROCK);
+    if (r >= 2) IK.light(ctx, 0, -2, 6, '#ffd34d', 1);
+    if (r >= 3) for (const [x, y] of [[-12, -11], [13, -9]]) { IK.line(ctx, [[x - 5, y - 7], [x, y]], '#ff8a4a', 2.4, null); IK.light(ctx, x, y, 7, '#ff6a4a', 1); IK.rock(ctx, x, y, 4.6, x, RK_ROCK_V); }
+  },
+  // Schwerkraftsiegel: E ein Fels mehr, H Sog-Schlieren, L goldener Kern, V schwarzes Loch mit violettem Saum
+  schwerkraft(ctx, IK, sk, r) {
+    if (r >= 0) IK.rock(ctx, 0, -14, 4.2, 9, RK_ROCK);
+    if (r >= 1) IK.swirl(ctx, 0, 0, 5, 17, 1.2, '#ffd98a', 1.6, 0.4);
+    if (r >= 2) IK.fill(ctx, (c) => c.arc(0, 0, 4.2, 0, Math.PI * 2), IK.rad(ctx, -1, -1, 0, 5, [[0, '#ffffff'], [0.5, RK_GOLD[0]], [1, RK_GOLD[1]]]), 0.8, 'rgba(60,40,0,0.9)');
+    if (r >= 3) {
+      IK.light(ctx, 0, 0, 13, '#c84aff', 1);
+      IK.fill(ctx, (c) => c.arc(0, 0, 6.5, 0, Math.PI * 2), IK.rad(ctx, 0, 0, 0, 7, [[0, '#000000'], [0.7, '#14061e'], [1, '#5a1a8a']]), 1.4, '#c84aff');
+    }
+  }
+});

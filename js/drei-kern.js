@@ -1065,6 +1065,12 @@ function v3ApplyGraphics() {
 
 function v3Resize() {
   if (!V3.gl) return;
+  // wie resizeRenderer (zeichnen.js): außerhalb eines Bildes nur vormerken, sonst bleibt die 3D-Fläche bis zum nächsten
+  // gezeichneten Bild leer (Aufblinken)
+  if (renderer.loop && !renderer.inFrame) {
+    renderer.resizeDue = true;
+    return;
+  }
   const w = renderer.w || window.innerWidth;
   const h = renderer.h || window.innerHeight;
   const pr = Math.min(window.devicePixelRatio || 1, renderer.maxDpr || gfx().dpr);
@@ -2868,6 +2874,15 @@ function v3RenderScene() {
     };
   }
   cam.layers.disable(SHADOW_LAYER3);
+  // Leistung „Akku schonen“ (waermeschutz.js): Schattenkarte nur jedes zweite Bild neu zeichnen (Schatten werfen nur
+  // Figuren; die Karte bleibt mit ihrer eigenen Lage gültig). Fehlt sie (neue Größe), sofort.
+  const se = typeof leistungShadowEvery === 'function' ? leistungShadowEvery() : 1;
+  const smap = V3.gl.shadowMap;
+  if (se > 1) {
+    smap.autoUpdate = false;
+    V3.shadowN = (V3.shadowN || 0) + 1;
+    smap.needsUpdate = V3.shadowN % se === 0 || !(sh && sh.map);
+  } else smap.autoUpdate = true;
   try {
     V3.gl.render(V3.scene, cam);
   } finally {

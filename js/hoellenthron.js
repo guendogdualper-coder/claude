@@ -260,7 +260,7 @@ function htTransformFx(m) {
   if (htOwn3(m)) m.bsRoar = game.time;
   if (V3.on && htOwn3(m)) bossTransform3(m);
   else {
-    flashScreen('#ff3a1a', 0.5);
+    // kein Bildschirmblitz mehr bei Angriffen der Gegner (Flimmern am Handy: nur eigenes Tun darf aufhellen)
     addEffect({ type: 'ring', x: m.x, y: fy, r: 520, dur: 1.1, color: '#ff3a1a', width: 22, grow: true });
     addEffect({ type: 'ring', x: m.x, y: fy, r: 380, dur: 0.9, color: '#ffd34d', width: 14, grow: true });
     addEffect({ type: 'ultbeam', x: m.x, y: fy, w: 200, dur: 1.6, color: '#ff3a1a' });
@@ -284,7 +284,7 @@ function htQuarterShow(m, kind, c, inner, delay) {
 }
 function htQuarterResolve(m, kind, c, inner, atk, lvl) {
   shakeScreen(16);
-  if (!(V3.on && htOwn3(m))) flashScreen('#ff3a1a', 0.3);
+  // kein Bildschirmblitz mehr bei Angriffen der Gegner (Flimmern am Handy: nur eigenes Tun darf aufhellen)
   if (typeof snd !== 'undefined') snd.player('imp_feuer', { x: c.x, y: c.y });
   const p = game.player;
   if (p.dead || !htInside(p)) return;
@@ -386,7 +386,7 @@ function htWatch() {
     // seit 14.81 in 3D ohne Bildschirmblitz: Abaddor brüllt (bosse3d-modelle2.js)
     const ab = game.monsters.find((q) => q.type && q.type.teufel && !q.dead);
     if (ab && V3.on && htOwn3(ab)) bossRoar(ab);
-    else flashScreen('#ff3a1a', 0.35);
+    // kein Bildschirmblitz mehr bei Angriffen der Gegner (Flimmern am Handy: nur eigenes Tun darf aufhellen)
   }
   htState.rest = rest;
   htState.sealed = sealed;

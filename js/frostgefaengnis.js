@@ -76,7 +76,17 @@ function prisonFx(owner, x, y, sk, hold, seed, local, pw) {
     if (!V3.on) {
       particles(x, fy - 10, { count: 30, color: ['#ffffff', '#eafcff', '#9ff6ff', '#3a7bff'], speed: [110, 260], life: [0.35, 0.65], size: [2, 3.8], shape: 'square', drag: 2.5, gravity: 380 });
     }
+    // Rang V (Ewige Starre, docs/rang-boni.md): Eissplitter fliegen nach außen (fernste Gegner zuerst; Bild für alle)
+    if (sk.shards) rankShards(owner, x, y, sk, { ...sk.shards, style: 'frostlance', far: true }, local, pw);
     if (!local) return;
+    // Rang H: das Zersplittern trifft auch Gegner knapp außerhalb, die nicht gefangen waren (crackOut)
+    if (sk.crackOut) {
+      const inside = new Set(caught);
+      for (const m of enemiesInCircle(x, y, sk.radius + sk.crackOut.r)) {
+        if (inside.has(m)) continue;
+        hitMonster(m, sk.crack * sk.crackOut.mul * pw, { skill: sk.id, slow: { amount: sk.after.amount, duration: sk.after.duration }, duelMul: sk.duelMul, vfxColor: '#eafcff' });
+      }
+    }
     for (const m of caught) {
       if (m.dead || hyp(m.x - x, m.y - y) > sk.radius + 60) continue;
       // das eigene Eis endet jetzt: Block zerspringt (als Mitspieler dem Host melden)

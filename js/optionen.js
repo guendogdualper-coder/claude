@@ -13,7 +13,7 @@ const IS_PC = (() => {
     return false;
   }
 })();
-const OPT_DEFAULTS = { view: '3d', volume: 0.7, music: true, musicVol: 0.5, graphics: IS_PC ? 'plus' : 'mittel', fps: IS_PC ? '60' : 'auto', camera: 'normal', fog: IS_PC ? 'wenig' : 'normal', shake: true, vibrate: true, numbers: true, names: true, selfBar: false, selfBarSize: 1, dmeter: false, autoAttack: false };
+const OPT_DEFAULTS = { view: '3d', volume: 0.7, music: true, musicVol: 0.5, graphics: IS_PC ? 'plus' : 'mittel', fps: IS_PC ? '60' : 'auto', camera: 'normal', fog: IS_PC ? 'wenig' : 'normal', leistung: IS_PC ? 'max' : 'spar', shake: true, vibrate: true, numbers: true, names: true, selfBar: false, selfBarSize: 1, dmeter: false, autoAttack: false };
 
 // Bildrate (seit 9.9): Auto = 60 Bilder/s, solange das Gerät es schafft, sonst gleichmäßig 30 (ruckelt nicht,
 // spart Akku und hält das Handy kühler); 30 = immer Akku sparen
@@ -56,11 +56,32 @@ const opts = (() => {
     if (!o.fog) o.fog = IS_PC ? 'wenig' : 'normal';
     o.optsVer = 4;
   }
+  // Wärme-Update: neue Einstellung „Leistung“ (waermeschutz.js), am Handy „Akku schonen“. Die Bildrate stand am Handy
+  // oft auf „Max“ (90/120 Bilder auf schnellen Bildschirmen) – einmalig auf „Auto“, damit „Leistung“ sie regelt.
+  if ((o.optsVer || 0) < 5) {
+    if (!IS_PC && o.fps === '60') o.fps = 'auto';
+    if (!o.leistung) o.leistung = IS_PC ? 'max' : 'spar';
+    o.optsVer = 5;
+    try { localStorage.setItem(OPT_KEY, JSON.stringify(o)); } catch (e) { /* privat */ }
+  }
 
   return o;
 })();
 
-const gfx = () => GRAPHICS[opts.graphics] || GRAPHICS.hoch;
+// Grafikstufe; am Handy begrenzt die Einstellung „Leistung“ (und der Wärmeschutz) die Auflösung (waermeschutz.js)
+const _gfxCap = { k: '', v: null };
+const gfx = () => {
+  const base = GRAPHICS[opts.graphics] || GRAPHICS.hoch;
+  if (IS_PC || typeof leistungDprCap !== 'function') return base;
+  const cap = leistungDprCap();
+  if (!(cap < base.dpr)) return base;
+  const k = opts.graphics + ':' + cap;
+  if (_gfxCap.k !== k) {
+    _gfxCap.k = k;
+    _gfxCap.v = { ...base, dpr: cap };
+  }
+  return _gfxCap.v;
+};
 
 function setOpt(key, value) {
   opts[key] = value;
@@ -169,7 +190,8 @@ const options = {
       pane = `<section class="opt-group">` +
         seg('view', VIEWS, 'Ansicht', V3.on || opts.view === '2d' ? '3D: echte Welt mit Licht und Schatten. 2D: die klassische Ansicht, spart Akku.' : '3D wird von diesem Gerät nicht unterstützt, darum läuft 2D.') +
         seg('graphics', GRAPHICS, 'Qualität', `${IS_PC ? 'PC erkannt: Plus ist empfohlen – wie Ultra, dazu Leuchten von Feuer, Magie und Laternen, kräftigere Farben, weiche Ränder und Schatten für die ganze Welt.' : 'Handy oder Tablet erkannt: Mittel ist empfohlen. Plus (Leuchten, kräftige Farben, weiche Ränder) sieht am schönsten aus, braucht aber ein neueres Handy und mehr Akku; Hoch und Ultra sind schärfer, machen das Handy aber wärmer.'} Niedrig spart Akku und läuft auf älteren Handys flüssiger. Ruckelt es, senkt das Spiel die Auflösung und die Schatten von selbst.`) +
-        seg('fps', FPS_MODES, 'Bildrate', 'Auto: am PC so viele Bilder, wie der Bildschirm zeigt (60, 120 oder 144; ist der Rechner zu langsam, gleichmäßig 30), am Handy 60, solange es die hält (sonst gleichmäßig 30). Max: immer so viele Bilder wie der Bildschirm (auch 90 oder 120 am Handy) – flüssiger, macht das Handy aber warm.') +
+        (typeof LEISTUNG_MODES !== 'undefined' ? seg('leistung', LEISTUNG_MODES, 'Leistung', `Akku schonen${IS_PC ? '' : ' (am Handy empfohlen)'}: 30 Bilder pro Sekunde, in Fenstern und im Stillstand weniger, ${IS_PC ? 'Schatten seltener neu' : 'die 3D-Welt etwas weniger fein, Schatten seltener neu'} – das Gerät bleibt kühl und der Akku hält länger. Ausgewogen: ${IS_PC ? 'höchstens 60 Bilder pro Sekunde' : '30 bis 45 Bilder pro Sekunde'}. Maximal: so flüssig und scharf, wie die Grafikstufe es vorgibt – ${IS_PC ? 'wie bisher' : 'das Handy wird dabei warm'}. ${IS_PC ? 'Ist der Akku fast leer' : 'Wird das Handy trotzdem heiß oder ist der Akku fast leer'}, spart das Spiel von selbst.`) : '') +
+        seg('fps', FPS_MODES, 'Bildrate', 'Auto: so viele Bilder, wie die Einstellung „Leistung“ vorsieht (ist das Gerät zu langsam, gleichmäßig 30). Max: immer so viele Bilder wie der Bildschirm (auch 90 oder 120 am Handy) – flüssiger, macht das Handy aber warm.') +
         seg('fog', FOG_MODES, 'Nebel', 'Wie weit du in die Ferne siehst. Wenig: klare Sicht weit nach hinten (lädt etwas mehr Welt, am PC empfohlen). Normal: wie bisher. Viel: dichter Dunst, spart am Handy etwas Leistung.') +
         seg('camera', CAMERA, 'Kamera', 'Wie nah die Kamera an deiner Figur ist. Schulterblick (3D): tief und nah hinter der Figur wie in der 3D-Vorschau; zum Drehen auf der rechten Bildhälfte wischen oder mit gedrückter rechter Maustaste ziehen, Mausrad zoomt.') +
         sw('shake', 'Bildschirmwackeln', 'Bei kritischen Treffern, Bossen und Explosionen.') +
@@ -238,6 +260,8 @@ const options = {
         switchView(v);
         return;
       }
+      // „Leistung“ bestimmt die Bildrate über „Auto“ – wer sie wählt, bekommt Auto (Max/30 bleiben einzeln wählbar)
+      if (k === 'leistung' && opts.fps !== 'auto') opts.fps = 'auto';
       setOpt(k, v);
       this.render();
     }));

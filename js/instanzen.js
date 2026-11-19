@@ -827,7 +827,7 @@ function instResolve(m, kind, circles, inner, atk, lvl) {
   shakeScreen(kind === 'ult' ? 16 : 8);
   if (kind === 'ult') {
     const [big, ...safe] = circles;
-    if (!own3) flashScreen(T.col, 0.35);
+    // kein Bildschirmblitz mehr bei Angriffen der Gegner (Flimmern am Handy: nur eigenes Tun darf aufhellen)
     const rnd = mulberry32((m.id * 977 + Math.floor(game.time)) | 0);
     for (let i = 0; i < (own3 ? 0 : 18); i++) {
       const a = rnd() * Math.PI * 2;
@@ -1069,7 +1069,7 @@ function instWatch() {
     ui.banner(`${boss.name} erwacht!`, 'Das Siegel ist gebrochen');
     shakeScreen(10);
     if (V3.on && instOwn3(boss)) bossRoar(boss);
-    else flashScreen(boss.type.boss.color, 0.3);
+    // kein Bildschirmblitz mehr bei Angriffen der Gegner (Flimmern am Handy: nur eigenes Tun darf aufhellen)
   }
   instState.sealed = sealed;
   const bb = document.getElementById('bossBar');

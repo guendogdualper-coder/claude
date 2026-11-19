@@ -959,6 +959,10 @@ function netSkillFx(id, range = 160, extra = {}) {
     t: 'fx', s: id, x: Math.round(p.x), y: Math.round(p.y), fx: +p.facing.x.toFixed(2), fy: +p.facing.y.toFixed(2),
     tx: Math.round(t ? t.x : p.x + p.facing.x * range), ty: Math.round(t ? t.y : p.y + p.facing.y * range), ...extra
   };
+  // Zielpunkt ist der bewusst gewählte Fokus (Klick, Antippen, Tab): fo = 1 – Mitspieler lassen das Geschoss dann wie
+  // hier durch die Monster davor fliegen (updateProjectiles, passTo). Ältere Versionen kennen fo nicht und zeigen es wie bisher.
+  const f = game.target;
+  if (targetIsManual(f) && !f.dead && hyp(f.x - d.tx, f.y - d.ty) <= (f.r || 0) + 30) d.fo = 1;
   if (net.mode === 'host') netBroadcast({ ...d, from: 'host' });
   else netSend(d);
 }

@@ -182,7 +182,7 @@ function raidDoomResolve(m, safe, atk, lvl) {
   shakeScreen(16);
   // seit 14.68 ohne Bildschirmblitz bei Aelvyr (er stürzt aus der Luft, Staub und Kristalle, aelvyr.js)
   // seit 14.80 ebenso bei den Endbossen der Karten (bosse3d.js)
-  if (m.typeId !== 'aelvyr' && !(typeof isBoss3 === 'function' && isBoss3(m.typeId))) flashScreen(b.color, 0.32);
+  // kein Bildschirmblitz mehr bei Angriffen der Gegner (Flimmern am Handy: nur eigenes Tun darf aufhellen)
   addEffect({ type: 'ring', x: m.homeX, y: m.homeY + 10, r: RAID_REACH * 0.9, dur: 0.9, color: b.color, width: 26, grow: true });
   const p = game.player;
   if (!p || p.dead || hyp(p.x - m.homeX, p.y - m.homeY) > RAID_REACH) return;

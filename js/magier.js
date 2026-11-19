@@ -99,7 +99,14 @@ function novaFx(owner, x, y, sk, local, pw, lvl, o = {}) {
     });
   }
   // Nachhall ab E1: zweite, weitere Front mit 35 % Schaden, ohne Betäubung und Einfrieren
-  if (!echo && skillRank(lvl || 1) >= 0) novaFx(owner, x, y, sk, local, pw * 0.35, lvl, { echo: true });
+  // Rang L (Rang-Boni): stärkerer Nachhall (echoMul); Rang V: Eingefrorene zerspringen beim Auftauen (thaw)
+  if (!echo && skillRank(lvl || 1) >= 0) novaFx(owner, x, y, sk, local, pw * (sk.echoMul || 0.35), lvl, { echo: true });
+  if (!echo && sk.thaw && !local) {
+    // Mitspieler: das Zerspringen an den Monstern im Kreis, wenn das Eis taut (nur Bild)
+    later(at + sk.grow + mageDur(sk.freeze || 1, lvl), () => {
+      for (const m of game.monsters) if (!m.dead && hyp(m.x - x, m.y - y) <= R) thawBurst(owner, m, sk, false, 0);
+    });
+  }
   if (arcs) {
     if (local) novaArcs(owner, x, y, sk, pw, at, arcs);
     return { x: Math.round(x), y: Math.round(y), ts: arcs.pts };
@@ -124,6 +131,7 @@ function novaFx(owner, x, y, sk, local, pw, lvl, o = {}) {
         first = false;
         hitStop(0.04);
       }
+      if (fz > 0 && sk.thaw) later(fz, () => thawBurst(owner, m, sk, true, pw));
       if (sk.ignite && burning && !echo && ignites++ < 4) later(0.1, () => igniteBurst(m, sk, pw));
     });
   }
@@ -223,13 +231,19 @@ function mageBolt(owner, sk, t, pw, lvl, local) {
     aimAt: sk.pierce && t ? { x: t.x, y: t.y } : null, speed: sk.speed, range: sk.range + 40, mul: sk.dmg * pw,
     color: mageElOf(sk.el).main, radius: sk.pierce ? 8 : 7, pierce: sk.pierce, chain: sk.chain || 0, chainMul: sk.chainMul,
     stun: sk.stun, slow: sk.slow, burn: sk.burn, knockback: sk.knockback, duelMul: sk.duelMul, style: sk.style, el: sk.el, skill: sk.id, big: sk.big,
-    hitMul: (m) => boltHitMul(sk, m), afterHit: (m, pr) => boltAfterHit(sk, m, pr, pw, lvl), onRemoteHit: (m) => boltImpactFx(sk, m)
+    hitMul: (m) => boltHitMul(sk, m), afterHit: (m, pr) => boltAfterHit(sk, m, pr, pw, lvl),
+    // Rang V des Feuerballs (Sternenfeuer): auch Mitspieler sehen die drei kleinen Feuerkugeln
+    onRemoteHit: (m) => {
+      boltImpactFx(sk, m);
+      if (sk.stars) fireStars(sk, m, 0, false);
+      if (sk.roll || sk.burst) stoneRankFx(sk, m, m.x - owner.x, m.y - owner.y, false, 0);
+    }
   };
 }
 
 function boltHitMul(sk, m) {
   if (sk.shatter && m.frozen > game.time) return 1 + sk.shatter; // Frost: Zerspringen
-  if (sk.discharge && m.charged > game.time) return 1 + sk.discharge; // Blitz: Entladung
+  if (sk.discharge && m.charged > game.time) return 1 + sk.discharge + (m.chargeX || 0); // Blitz: Entladung (+ doppelte Ladung, Rang L des Blitzspeers)
   return 1;
 }
 
@@ -244,6 +258,7 @@ function boltAfterHit(sk, m, pr, pw, lvl) {
   }
   if (sk.discharge && m.charged > game.time) {
     m.charged = 0;
+    m.chargeX = 0;
     addEffect({ type: 'sparks3', x: m.x, y: feetY(m), h: 0.8, count: 8, color: '#fff7b0', speed: 2.4, up: 1, dur: 0.4 });
   }
   if (sk.splash) {
@@ -253,13 +268,137 @@ function boltAfterHit(sk, m, pr, pw, lvl) {
       hitMonster(o, pr.mul * sk.splash.mul, { skill: sk.id, burn: sk.burn, stun: sk.splash.stun, vfxColor: pr.color });
     }
   }
+  // Rang-Boni des Feuerballs (docs/rang-boni.md): L Glutlache unter dem Ziel, V Sternenfeuer
+  if (sk.pool) firePool(sk, m.x, m.y, pr.mul);
+  if (sk.stars) fireStars(sk, m, pr.mul, true);
+  // Rang-Boni des Felsgeschosses: H rollt weiter, V zerplatzt in Brocken (Richtung des Geschosses)
+  if (sk.roll || sk.burst) stoneRankFx(sk, m, pr.vx || 1, pr.vy || 0, true, pw);
   boltImpactFx(sk, m);
+}
+// Splitter der Rang-Boni (Frost und Erde): o.n kleine Geschosse von (x, y) zu den nächsten Gegnern bis o.r (o.far: die
+// fernsten zuerst, o.skip: nicht dieser), fehlen Gegner, fliegen die übrigen nach außen. Der eigene Spieler trifft mit
+// o.mul × Schaden der Fertigkeit (gegen Spieler halb: duelMul × RANK_PVP_ECHO), Mitspieler sehen nur das Bild.
+// o.style 'frostlance' (Eis, verlangsamt) oder 'stone'. salve: an der Fokus-Regel vorbei (sie würde jeden Splitter
+// auf das gewählte Ziel umlenken)
+function rankShards(owner, x, y, sk, o, local, pw) {
+  const skip = o.skip || null;
+  const list = enemiesNear(x, y, o.r).filter((m) => !m.dead && m !== skip && hyp(m.x - x, m.y - y) <= o.r)
+    .sort((a, b) => (o.far ? -1 : 1) * (hyp(a.x - x, a.y - y) - hyp(b.x - x, b.y - y))).slice(0, o.n);
+  const ice = o.style === 'frostlance';
+  for (let i = 0; i < o.n; i++) {
+    const m = list[i];
+    const a = (i / o.n) * Math.PI * 2 + (o.a0 || 0.3);
+    const tx = m ? m.x : x + Math.cos(a) * o.r;
+    const ty = m ? m.y : y + Math.sin(a) * o.r * 0.8;
+    // ohne Ziel startet der Splitter ein Stück außerhalb der Mitte (sonst träfe er sofort, wer dort steht)
+    const sx = m ? x : x + Math.cos(a) * 30;
+    const sy = m ? y : y + Math.sin(a) * 24;
+    later(0.03 * i, () => {
+      if (owner.dead) return;
+      // ist das Ziel inzwischen gefallen, fliegt der Splitter zu seiner letzten Stelle
+      const tgt = local && m && !m.dead ? m : null;
+      spawnProjectile({
+        owner: local ? 'player' : 'remote', x: sx, y: sy, target: tgt, aimAt: tgt ? null : { x: tx, y: ty }, dir: null,
+        passTo: !local && m ? { x: tx, y: ty } : null, hit: new Set(skip ? [skip.id] : []), salve: { duel: 0, extra: 1 },
+        speed: ice ? 640 : 520, range: hyp(tx - sx, ty - sy) + 30, mul: local ? sk.dmg * o.mul * pw : 0, color: ice ? '#9ff6ff' : '#f0a830', radius: 6,
+        style: o.style, el: ice ? 'frost' : 'erde', skill: sk.id, slow: ice ? { amount: 0.4, duration: 1.5 } : null,
+        duelMul: (sk.duelMul || 1) * RANK_PVP_ECHO,
+        afterHit: (t) => shardHitFx(t, ice), onRemoteHit: (t) => shardHitFx(t, ice)
+      });
+    });
+  }
+}
+// Einschlag eines Splitters (nichts am Boden)
+function shardHitFx(t, ice) {
+  if (!t) return;
+  const fy = feetY(t);
+  if (ice) addEffect({ type: 'shards3', x: t.x, y: fy, r: 14, count: 4, color: '#9ff6ff', glow: true, size: 0.35, dur: 0.4 });
+  else addEffect({ type: 'mdebris3', x: t.x, y: fy, n: 4, size: 0.07, dur: 0.6 });
+  if (!V3.on) {
+    const c = bodyCenter(t);
+    particles(c.x, c.y, { count: 7, color: ice ? ['#ffffff', '#eafcff', '#3a7bff'] : ['#3e3532', '#6a5a50', '#f0a830'], speed: [50, 140], life: [0.2, 0.45], size: [1.5, 3], shape: 'square', drag: 3, gravity: 300, glow: ice });
+  }
+}
+// Frostnova V: das Eis eines Gegners taut und zerspringt – Splitterschaden an Gegnern daneben (thaw.r, thaw.mul)
+function thawBurst(owner, m, sk, local, pw) {
+  if (m.dead) return;
+  const fy = feetY(m);
+  addEffect({ type: 'shards3', x: m.x, y: fy, r: 24, count: 8, color: '#eafcff', glow: true, size: 0.5, dur: 0.55 });
+  addEffect({ type: 'sparks3', x: m.x, y: fy, h: 0.8, count: 10, color: '#9fd0ff', speed: 2.6, up: 1.2, dur: 0.5 });
+  if (!V3.on) {
+    const c = bodyCenter(m);
+    particles(c.x, c.y, { count: 12, color: ['#ffffff', '#eafcff', '#3a7bff', '#c84aff'], speed: [80, 200], life: [0.25, 0.5], size: [2, 3.5], shape: 'square', drag: 3, gravity: 300 });
+  }
+  if (!local || owner.dead) return;
+  for (const o of enemiesInCircle(m.x, m.y, sk.thaw.r)) {
+    if (o === m) continue;
+    hitMonster(o, sk.dmg * sk.thaw.mul * pw, { skill: sk.id, slow: { amount: 0.4, duration: 1.5 }, rankEcho: true, duelMul: sk.duelMul, vfxColor: '#d8f6ff' });
+  }
+}
+// Felsgeschoss H/V: ein Brocken rollt in Flugrichtung weiter (roll), der Fels zerplatzt im Fächer (burst)
+function stoneRankFx(sk, m, dx, dy, local, pw) {
+  const l = hyp(dx, dy) || 1;
+  const ux = dx / l;
+  const uy = dy / l;
+  const shoot = (ax, ay, len, mul, sz, delay) => later(delay, () => {
+    spawnProjectile({
+      owner: local ? 'player' : 'remote', x: m.x, y: m.y, target: null, dir: { x: ax, y: ay }, aimAt: null, pierce: true, hit: new Set([m.id]),
+      speed: 420, range: len, mul: local ? sk.dmg * mul * pw : 0, color: '#f0a830', radius: sz, style: 'stone', el: 'erde', skill: sk.id,
+      duelMul: (sk.duelMul || 1) * RANK_PVP_ECHO, afterHit: (t) => shardHitFx(t, false), onRemoteHit: (t) => shardHitFx(t, false)
+    });
+  });
+  if (sk.roll) shoot(ux, uy, sk.roll.len, sk.roll.mul, 10, 0.08);
+  if (sk.burst) {
+    for (let i = 0; i < sk.burst.n; i++) {
+      const a = Math.atan2(uy, ux) + (i / (sk.burst.n - 1) - 0.5) * 1.4;
+      shoot(Math.cos(a), Math.sin(a), sk.burst.len, sk.burst.mul, 7, 0.12);
+    }
+    addEffect({ type: 'sparks3', x: m.x, y: feetY(m), h: 0.7, count: 14, color: '#ffd34d', speed: 3, up: 1.4, dur: 0.6 });
+  }
+}
+// Glutlache (Rang L): pool.ticks Mal alle pool.every s trifft sie alle bis pool.r (je pool.mul des Treffers)
+function firePool(sk, x, y, mul) {
+  const P = sk.pool;
+  for (let j = 1; j <= P.ticks; j++) {
+    later(j * P.every, () => {
+      for (const o of enemiesInCircle(x, y, P.r)) hitMonster(o, mul * P.mul, { skill: sk.id, rankEcho: true, vfxColor: '#ff8a4a' });
+    });
+  }
+}
+// Sternenfeuer (Rang V): drei kleine Feuerkugeln fliegen vom Einschlag zu den nächsten anderen Gegnern (local: mit Schaden)
+function fireStars(sk, m, mul, local) {
+  const S = sk.stars;
+  const list = enemiesNear(m.x, m.y, S.r).filter((o) => !o.dead && o !== m && hyp(o.x - m.x, o.y - m.y) <= S.r)
+    .sort((a, b) => hyp(a.x - m.x, a.y - m.y) - hyp(b.x - m.x, b.y - m.y)).slice(0, S.n);
+  addEffect({ type: 'sparks3', x: m.x, y: feetY(m), h: 1.1, count: 16, color: '#ffd34d', speed: 3.4, up: 1.6, dur: 0.6 });
+  list.forEach((o, j) => {
+    later(0.06 + j * 0.05, () => {
+      if (o.dead) return;
+      spawnProjectile({
+        owner: local ? 'player' : 'remote', x: m.x, y: m.y, target: local ? o : null, aimAt: local ? null : { x: o.x, y: o.y }, dir: null,
+        passTo: local ? null : { x: o.x, y: o.y }, hit: new Set([m.id]), speed: 520, range: hyp(o.x - m.x, o.y - m.y) + 60,
+        mul: mul * S.mul, color: '#ff8a4a', radius: 6, style: 'fireball', el: 'feuer', skill: sk.id,
+        afterHit: (t) => fireStarHitFx(t), onRemoteHit: (t) => fireStarHitFx(t)
+      });
+    });
+  });
+}
+// kleiner Einschlag einer Feuerkugel (Funken und Glut, nichts am Boden)
+function fireStarHitFx(t) {
+  if (!t) return;
+  addEffect({ type: 'sparks3', x: t.x, y: feetY(t), h: 0.7, count: 9, color: '#ff8a4a', speed: 2.4, up: 1.3, dur: 0.5 });
+  if (!V3.on) {
+    const c = bodyCenter(t);
+    particles(c.x, c.y, { count: 10, color: ['#fff1c8', '#ff8a4a', '#e8362a'], speed: [60, 170], life: [0.2, 0.45], size: [2, 3.5], shape: 'ember', drag: 3 });
+  }
 }
 
 // Einschlag je Geschoss (auch für Geschosse der Mitspieler)
 function boltImpactFx(sk, m) {
   const fy = feetY(m);
   const c = bodyCenter(m);
+  // Glutlache (Rang L des Feuerballs): kleine Flammen züngeln 2 s am Einschlag (für alle sichtbar)
+  if (sk.pool) addEffect({ type: 'mglut3', x: m.x, y: fy, R: sk.pool.r, seed: Math.floor(Math.random() * 1000), dur: sk.pool.ticks * sk.pool.every + 0.4 });
   if (sk.style === 'fireball' && sk.big) {
     // Feuerball mit Zauberzeit (seit 11.5): große Explosion
     // seit 14.3 länger (2,6 s): die Explosion lässt in 3D selbst eine Brandspur zurück, das flache Oval nur noch in 2D
@@ -424,6 +563,8 @@ function shiftFx(owner, a, b, sk, local, pw, lvl) {
       if (!V3.on) particles(a.x, fa - 20, { count: 18, color: ['#ffffff', '#eafcff', '#3a7bff'], speed: [80, 200], life: [0.3, 0.6], size: [2, 3.5], shape: 'square', drag: 3, gravity: 300 });
       hitCircle(a.x, a.y);
       if (near) shakeScreen(3);
+      // Rang V (Geist des Eises): die Eisfigur zerspringt in Splitter, die zu Gegnern ringsum fliegen
+      if (sk.shards) rankShards(owner, a.x, a.y, sk, { ...sk.shards, style: 'frostlance' }, local, pw);
     });
     if (!low) addEffect({ type: 'mtrail3', ground: true, x: (a.x + b.x) / 2, y: (fa + fb) / 2, x0: a.x, y0: fa, x1: b.x, y1: fb, el: 'frost', w: 16, dur: 1.5 });
   } else if (sk.el === 'blitz') {
@@ -439,6 +580,8 @@ function shiftFx(owner, a, b, sk, local, pw, lvl) {
       if (near) shakeScreen(3);
       // seit 11.5: Himmelsblitze schlagen hinter dir auf deinem Weg ein
       if (sk.trail && typeof blitzTrail === 'function') blitzTrail(owner, a, b, sk, local, pw);
+      // Rang V (Lichtgeschwindigkeit, docs/rang-boni.md): am Ziel entlädt sich ein Kugelblitz
+      if (sk.orb) later(0.1, () => blitzOrbFx(owner, b, sk, local, pw));
       if (!local || owner.dead) return;
       const vx = b.x - a.x;
       const vy = b.y - a.y;
@@ -463,6 +606,43 @@ function shiftFx(owner, a, b, sk, local, pw, lvl) {
       if (near) shakeScreen(4);
     });
   }
+}
+// Kugelblitz am Ende des Blitzschritts (Rang V): Lichtblitz und rote Blitze in alle Gegner bis orb.r (je orb.mul)
+function blitzOrbFx(owner, b, sk, local, pw) {
+  const fb = b.y + 9;
+  addEffect({ type: 'mkhit3', x: b.x, y: fb, hgt: 1.3, s: 1.6, dur: 0.5, seed: Math.random() * 90 });
+  addEffect({ type: 'sparks3', x: b.x, y: fb, h: 1.3, count: 16, color: '#ff8a4a', speed: 3.4, up: 1, dur: 0.55 });
+  if (owner === game.player) shakeScreen(3);
+  const foes = enemiesInCircle(b.x, b.y, sk.orb.r).filter((m) => !m.dead).slice(0, 6);
+  for (const m of foes) {
+    const by = feetY(m);
+    addEffect({ type: 'mkbolt3', x: (b.x + m.x) / 2, y: (fb + by) / 2, ax: b.x, ay: fb, ah: 1.3, bx: m.x, by, bh: Math.max(0.5, figureHeight(m) * 0.5 * U3), to: m, s: 0.7, branch: 1, dur: 0.36, col: '#ff6a4a', seed: Math.random() * 90 });
+    if (local && !owner.dead) hitMonster(m, sk.dmg * sk.orb.mul * pw, { skill: sk.id, heavy: true, rankEcho: true, vfxColor: '#ffd34d' });
+  }
+}
+// Sonnensturm (Rang V des Kugelblitzes): burst.n Blitze aus der Kugel in die nächsten Gegner bis burst.r (je burst.mul),
+// fehlen Gegner, fahren sie nach außen in den Boden; der Kern (gold, dick) trifft das erste Ziel mit burst.core
+function kugelSunFx(owner, x, y, sk, L, list, local, pw) {
+  const fy = y + 9;
+  const B = sk.burst;
+  const core = list && list[0] && !list[0].dead ? list[0] : null;
+  const pool = enemiesNear(x, y, B.r).filter((m) => !m.dead && m !== core && hyp(m.x - x, m.y - y) <= B.r)
+    .sort((a, b) => hyp(a.x - x, a.y - y) - hyp(b.x - x, b.y - y)).slice(0, B.n);
+  later(0.12, () => {
+    if (core && !core.dead) {
+      const by = feetY(core);
+      addEffect({ type: 'mkbolt3', x: (x + core.x) / 2, y: (fy + by) / 2, ax: x, ay: fy, ah: KUGEL_H, bx: core.x, by, bh: Math.max(0.5, figureHeight(core) * 0.5 * U3), to: core, s: 1.25, branch: 2, dur: 0.5, col: '#ffd34d', seed: Math.random() * 90 });
+      if (local) hitMonster(core, L.dmg * B.core * pw, { skill: sk.id, heavy: true, rankEcho: true, vfxColor: '#ffd34d' });
+    }
+    for (let i = 0; i < B.n; i++) {
+      const m = pool[i];
+      const a = (i / B.n) * Math.PI * 2 + 0.4;
+      const bx = m ? m.x : x + Math.cos(a) * sk.radius * 1.1;
+      const by = m ? feetY(m) : fy + Math.sin(a) * sk.radius * 0.8;
+      addEffect({ type: 'mkbolt3', x: (x + bx) / 2, y: (fy + by) / 2, ax: x, ay: fy, ah: KUGEL_H, bx, by, bh: m ? Math.max(0.5, figureHeight(m) * 0.5 * U3) : 0.05, to: m || null, s: 0.75, branch: 1, dur: 0.42, col: '#ff6a4a', seed: Math.random() * 90 });
+      if (m && local) hitMonster(m, L.dmg * B.mul * pw, { skill: sk.id, rankEcho: true, vfxColor: '#ffd34d' });
+    }
+  });
 }
 // Eisfigur des Eisschritts: fünf Kristalle in Figurgröße [dx, dy, Höhe, Dicke, Neigung x, Neigung z]
 const MAGE_STATUE = [[0, 0, 1.4, 0.16, 0, 0], [-7, 2, 1.1, 0.12, 0, 0.25], [7, 2, 1.0, 0.12, 0, -0.25], [-3, -4, 1.2, 0.11, -0.2, 0.1], [4, -3, 1.15, 0.1, -0.2, -0.12]];
@@ -567,8 +747,10 @@ function sigilTick(owner, e, x, y, sk, k, last, local, pw, lvl) {
       // der Blitz fährt aus der Kugel in den Gegner und betäubt ihn kurz (der letzte länger); 13.5 bis zur
       // Überarbeitung kam er vom Himmel (das Gewitterfeld gehört jetzt zur Gewitterwolke)
       kugelZapFx(x, fy, m, last);
-      if (local) hitMonster(m, L.dmg * pw, { skill: sk.id, stun: L.stun || sk.zapStun || 0, heavy: last, vfxColor: '#ffffff' });
+      if (local) hitMonster(m, L.dmg * pw, { skill: sk.id, stun: L.stun || sk.zapStun || 0, slow: sk.zapSlow, heavy: last, vfxColor: '#ffffff' });
     }
+    // Rang V (Sonnensturm, docs/rang-boni.md): die Kugel zerplatzt in Blitze nach außen, der Kern schlägt ins Ziel
+    if (last && sk.burst) kugelSunFx(owner, x, y, sk, L, list, local, pw);
     // zum Schluss zerplatzt die Kugel (Bild in mkugel3); kein Ring am Boden
     if (last) kugelBurstFx(x, fy, sk.radius);
     // seit 14.66 nur beim eigenen Siegel: die Siegel der Mitspieler ließen das Bild sonst ständig aufblitzen

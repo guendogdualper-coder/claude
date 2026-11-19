@@ -1,6 +1,6 @@
 // Spielzustand und Hauptschleife. Diese Datei wird als letzte geladen und startet alles.
 
-const GAME_VERSION = '15.51';
+const GAME_VERSION = '15.52';
 
 const game = {
   world: null,
@@ -34,6 +34,8 @@ function startGame(save, slot) {
   if (typeof accountClaim === 'function') accountClaim(saveSlot);
   game.party = null;
   game.player = makePlayer(save);
+  // Stillstand (Bildrate in Ruhe, waermeschutz.js) zählt ab jetzt
+  if (typeof leistungStart === 'function') leistungStart();
   // Ninja (seit 13.10, ein Dolch je Hand): einmalig ein zweiter Dolch gleicher Stufe (+0) in die Nebenhand
   const np = game.player;
   if (np.classId === 'ninja' && !np.dagger2) {
@@ -275,10 +277,22 @@ function frameCap() {
   // seit 14.98: am Handy heißt „Auto“ 60 Bilder pro Sekunde, solange das Gerät sie hält (adaptQuality); schafft es
   // das nicht, gleichmäßig 30 (für diese und die nächsten Sitzungen gemerkt). Vorher immer 30 – auf schnellen
   // Handys wirkte das Spiel dadurch ruckelig. Nie mehr als 60 (120-Hz-Bildschirme: Wärme, Akku).
-  if (opts.fps === 'auto') return quality.cap30 ? 30 : IS_PC ? 0 : 60;
+  // seit dem Wärme-Update: „Auto“ richtet sich nach der Einstellung „Leistung“ (waermeschutz.js) – am Handy
+  // standardmäßig 30, in Fenstern und im Stillstand 20; vorher 60, das machte das Handy schnell heiß
+  if (opts.fps === 'auto') return typeof leistungCap === 'function' ? leistungCap() : quality.cap30 ? 30 : IS_PC ? 0 : 60;
   return 0;
 }
+// Bildschirmtakt schätzen (Abstand zweier rAF-Aufrufe, gedeckelt): für capInterval
+let lastRaf = 0;
+// tatsächlicher Bildabstand bei einer Grenze: ganze Bildschirmtakte (60 Hz und Grenze 40 → 33 ms, 120 Hz → 25 ms)
+function capInterval(cap) {
+  const v = quality.vsync || 16.67;
+  return Math.max(1, Math.ceil((1000 / cap - 4) / v - 1e-6)) * v;
+}
 function frame(ts) {
+  const rd = ts - lastRaf;
+  lastRaf = ts;
+  if (rd > 3 && rd < 200) quality.vsync = (quality.vsync || 16.67) + (Math.min(rd, 34) - (quality.vsync || 16.67)) * 0.05;
   const cap = frameCap();
   if (cap && ts - lastFrame < 1000 / cap - 4) {
     requestAnimationFrame(frame);
@@ -290,6 +304,9 @@ function frame(ts) {
   // seit 14.69: ein Fehler in einem Bild hält die Schleife nicht mehr an (vorher blieb das Spiel als Standbild stehen –
   // „das Spiel stürzt ab“); gemeldet wird je Fehlermeldung einmal, weiter als ungefangener Fehler
   try {
+    // Größenwechsel nur hier, direkt vor dem Zeichnen (resizeRenderer/v3Resize verschieben Aufrufe von außerhalb hierher)
+    renderer.loop = true;
+    renderer.inFrame = true;
     if (renderer.resizeDue) resizeRenderer();
     if (ts - (renderer.sizeCheckAt || 0) > 500) {
       renderer.sizeCheckAt = ts;
@@ -306,6 +323,8 @@ function frame(ts) {
     if (game.running && typeof bigMapOpen === 'function' && bigMapOpen()) tickBigMap();
   } catch (err) {
     frameFailed(err);
+  } finally {
+    renderer.inFrame = false;
   }
   requestAnimationFrame(frame);
 }

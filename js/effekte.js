@@ -68,7 +68,12 @@ function updateScreenEffects(realDt) {
 // seit 14.91: kleine Blitze (unter 0,2 – normale Fertigkeiten, Treffer, Rang-Effekte) zeichnen nichts mehr; sie kamen
 // oft hintereinander und wirkten als weißes Flackern. Große Momente (Stufenaufstieg, Ulti, Boss) bleiben, aber deutlich
 // sanfter: höchstens 14 % Deckkraft, weich ein- und ausgeblendet statt schlagartig.
+// Flimmer-Meldung „weißes Blinzeln am Handy“ (docs/leistung.md, Abschnitt Flimmern): nur noch ein schwacher Farbton –
+// höchstens 6 % Deckkraft, helle und weiße Farben (Blitz, Licht, Stufenaufstieg) höchstens 3 % und zur Farbe hin
+// statt nach Weiß. Blitze, die nicht vom eigenen Tun kommen (Angriffe der Bosse, Wetter), rufen das gar nicht mehr auf.
 const FLASH_MIN = 0.2;
+const FLASH_MAX = 0.06;
+const FLASH_MAX_HELL = 0.03;
 function flashScreen(color, amount) {
   if (!(amount >= FLASH_MIN)) return;
   game.flashColor = color;
@@ -82,9 +87,12 @@ function drawScreenFlash(ctx, w, h) {
   const peak = game.flashPeak || game.screenFlash;
   const u = game.screenFlash / peak; // 1 → 0
   const env = Math.min(1, (1 - u) / 0.15) * Math.pow(u, 1.4); // kurz einblenden, weich ausklingen
-  const a = Math.min(0.14, peak * 0.3) * env;
+  const rgb = hexRgb(game.flashColor || '#fff0c8').split(',').map(Number);
+  // hell = alle drei Anteile hoch (Weiß, Pastell): noch schwächer, sonst hellt es das ganze Bild auf
+  const hell = Math.min(rgb[0], rgb[1], rgb[2]) > 150;
+  const a = Math.min(hell ? FLASH_MAX_HELL : FLASH_MAX, peak * 0.15) * env;
   if (a < 0.004) return;
-  ctx.fillStyle = `rgba(${hexRgb(game.flashColor || '#fff0c8')},${a.toFixed(3)})`;
+  ctx.fillStyle = `rgba(${rgb.join(',')},${a.toFixed(3)})`;
   ctx.fillRect(0, 0, w, h);
 }
 
@@ -438,6 +446,8 @@ function swingArc(p, dir) {
 
 // Schwungspur am Arm der Figur, folgt ihr während des Schlags
 function vfxSwing(p, color, radius = 32, width = 14) {
+  // Krieger mit Hiebwaffe (seit 15.52): Klingenbogen aus der Bahn der Klingenspitze (klingenbogen.js)
+  if (typeof kbSwing === 'function' && kbSwing(p)) return;
   const dir = facingDir(p.facing);
   const flip = dir === 'side' && p.facing.x < 0;
   const hand = handPosition(dir, 0, 'right');
@@ -475,6 +485,8 @@ function vfxSweep(p, radius, a0, a1, color, dur = 0.3, width = 22) {
 
 // Treffer: Lichtblitz, Funken, bei kritischen Treffern stärker
 function vfxImpact(target, crit, color = '#fff2d0') {
+  // Treffer des Klingenbogens (seit 15.52): Ziel blitzt und ruckt, kurzer Treffer-Stopp nur im Bild (klingenbogen.js)
+  if (typeof kbStruck === 'function') kbStruck(target, crit);
   const c = bodyCenter(target);
   addEffect({ type: 'impact', x: c.x, y: c.y, dur: crit ? 0.32 : 0.22, color: crit ? '#ffd34d' : color, big: crit });
   particles(c.x, c.y, {

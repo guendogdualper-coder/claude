@@ -456,7 +456,9 @@ MAGE2_REMOTE.bshot = (rp, sk, d) => {
     plan.rel.forEach((at, k) => later(at, () => {
       const last = k === n - 1;
       spawnProjectile({ owner: 'remote', x: rp.x, y: rp.y, aimAt: { x: d.tx, y: d.ty }, speed: sk.speed, range: hyp(d.tx - rp.x, d.ty - rp.y) + 60, mul: 0, color: d.c || sk.color,
-        radius: 6, style: 'arrow', bfx: last ? 'falke' : 'salvo', onRemoteHit: last ? (m) => salvoLastHit(m) : null });
+        radius: 6, style: 'arrow', bfx: last ? 'falke' : 'salvo', onRemoteHit: last ? (m) => salvoLastHit(m) : null,
+        // auf den Fokus des Mitspielers (fo): durch die Monster davor hindurch wie bei ihm
+        passTo: d.fo ? { x: d.tx, y: d.ty } : null });
       addEffect({ type: 'bmuzzle3', follow: rp, ox: 0, oy: 0, color: BOW3.violet, dur: 0.45 });
     }));
   });
@@ -564,7 +566,8 @@ function pierceFx(owner, x, y, f, sk, len = sk.range) {
 }
 MAGE2_REMOTE.bpierce = (rp, sk, d) => later(0.18, () => {
   const f = { x: d.fx, y: d.fy };
-  spawnProjectile({ owner: 'remote', x: rp.x, y: rp.y, dir: f, speed: sk.speed, range: sk.range, mul: 0, color: d.c || sk.color, radius: 9, style: 'arrow', bfx: 'pierce' });
+  // durchbohrt wie beim Mitspieler alle in der Linie (vorher endete das Bild am ersten Monster)
+  spawnProjectile({ owner: 'remote', x: rp.x, y: rp.y, dir: f, speed: sk.speed, range: sk.range, mul: 0, color: d.c || sk.color, radius: 9, style: 'arrow', bfx: 'pierce', pierce: true });
   pierceFx(rp, rp.x, rp.y, f, sk, pierceLen(rp.x, rp.y, f, sk));
 });
 

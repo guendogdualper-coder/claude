@@ -7629,6 +7629,8 @@ function syncMonster3(m, dt) {
 
 function animateCreature(a, e, dt, moving, atk, flash, wind = 0) {
   const fy = feetY(e);
+  // Treffer des Klingenbogens (seit 15.52): die Pose steht kurz still, nur die Lage folgt (klingenbogen.js)
+  if (e.kbHitAt != null && typeof kbMonHold3 === 'function' && kbMonHold3(a, e, fy)) return;
   resetBones(a);
   const B = a.bones;
   // Eingefroren (seit 8.6, Frost-Magier): Lauf-, Atem- und Angriffsphase bleiben im Moment des Einfrierens stehen
@@ -7755,6 +7757,8 @@ function animateCreature(a, e, dt, moving, atk, flash, wind = 0) {
     else mat.emissive.setRGB(0, 0, 0);
   }
   if (posed) creatureAttackPose(a, B, fam, a.model.style, wind, atk, t, flash > 0);
+  // Klingenbogen (seit 15.52): weiß aufblitzen und vom Krieger weg rucken
+  if (e.kbHitAt != null && typeof kbMonFx3 === 'function') kbMonFx3(a, e);
   // Oger: Keule nach der fertigen Haltung ausrichten (brocken3d.js)
   if (a.model.ogre && typeof ogerKeule3 === 'function') ogerKeule3(a, B, a.brDir);
 }

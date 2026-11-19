@@ -38,6 +38,9 @@ function iconThemeOf(sk) {
 // Motive (neu) und eigenes Hintergrundthema je Fertigkeit; gefüllt in symbole-*.js
 const SKILL_ART = {};
 const SKILL_ART_THEME = {};
+// Rang-Ebene je Fertigkeit (Rang-Boni, docs/rang-boni.md): (ctx, IK, sk, r) zeichnet über dem Motiv, was der Rang
+// dazubringt (r 0 = E … 3 = V) – je Rang ein Bildelement, das die neue Mechanik zeigt; gefüllt in symbole-*.js
+const SKILL_ART_RANK = {};
 
 // --- Zeichenhilfen -------------------------------------------------------------------------------
 // Alle Hilfen arbeiten in Symbolkoordinaten (-24 bis 24). Farben als Verlauf: Liste von [Anteil, Farbe].
@@ -372,19 +375,21 @@ const IK = {
 };
 
 // --- Zeichnen ------------------------------------------------------------------------------------
-function drawSkillIcon(ctx, sk) {
+function drawSkillIcon(ctx, sk, r = -1) {
   const [mid, edge, glowCol] = iconThemeOf(sk);
+  // Vollendet (Rang-Boni): Glutkern statt des Element-Rands, die Strahlen hinter dem Motiv golden und kräftiger
+  const vMode = r >= 3 && !!SKILL_ART_RANK[sk.id];
   // Hintergrund: Lichtkugel oben, dunkler Rand
   ctx.save();
   ctx.beginPath();
   ctx.arc(0, 0, 23.5, 0, Math.PI * 2);
   ctx.clip();
-  ctx.fillStyle = IK.rad(ctx, -3, -6, 1, 30, [[0, mid], [0.55, edge], [1, '#05030a']]);
+  ctx.fillStyle = IK.rad(ctx, -3, -6, 1, 30, vMode ? [[0, mid], [0.4, '#5a0e1e'], [0.75, '#240414'], [1, '#05030a']] : [[0, mid], [0.55, edge], [1, '#05030a']]);
   ctx.fillRect(-24, -24, 48, 48);
   // feine Strahlen hinter dem Motiv
   ctx.globalCompositeOperation = 'lighter';
-  ctx.globalAlpha = 0.07;
-  ctx.fillStyle = glowCol;
+  ctx.globalAlpha = vMode ? 0.18 : 0.07;
+  ctx.fillStyle = vMode ? '#ffd34d' : glowCol;
   for (let i = 0; i < 12; i++) {
     const a = (i / 12) * Math.PI * 2;
     ctx.beginPath();
@@ -402,6 +407,11 @@ function drawSkillIcon(ctx, sk) {
   if (SKILL_ART[sk.id]) SKILL_ART[sk.id](ctx, IK, sk);
   else (SKILL_ICONS[sk.id] || (() => {}))(ctx);
   ctx.restore();
+  if (r >= 0 && SKILL_ART_RANK[sk.id]) {
+    ctx.save();
+    SKILL_ART_RANK[sk.id](ctx, IK, sk, r);
+    ctx.restore();
+  }
   // Innenschatten am Rand und Glanz oben
   ctx.fillStyle = IK.rad(ctx, 0, 0, 16, 24, [[0, 'rgba(0,0,0,0)'], [1, 'rgba(0,0,0,0.55)']]);
   ctx.fillRect(-24, -24, 48, 48);
@@ -435,7 +445,7 @@ skillIconUrl = function (sk, r = -1) {
   // seit 14.38 im Arbeitsspeicher (CPU_CANVAS, figuren.js): toDataURL ohne Zurücklesen von der Grafikkarte
   const ctx = c.getContext('2d', typeof CPU_CANVAS !== 'undefined' ? CPU_CANVAS : undefined);
   ctx.setTransform(size / 48, 0, 0, size / 48, size / 2, size / 2);
-  drawSkillIcon(ctx, sk);
+  drawSkillIcon(ctx, sk, r);
   if (r >= 0) {
     const col = SKILL_RANKS[r].color;
     ctx.save();

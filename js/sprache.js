@@ -128,8 +128,9 @@ function trOne(d, t) {
     const b = /[A-Za-zÄÖÜäöüß]{2}/.test(k[2]) ? trOne(d, k[2]) : k[2];
     if (a !== undefined && b !== undefined) return a + ' (' + b + ')' + k[3];
   }
-  // „Bezeichnung: Text“ in zwei Teilen, wenn es beide gibt („Tipp: Mit zwei Fingern …“ im Ladebild, seit 15.46)
-  const lb = t.match(/^([^:]{2,30}): (.+)$/);
+  // „Bezeichnung: Text“ in zwei Teilen, wenn es beide gibt („Tipp: Mit zwei Fingern …“ im Ladebild, seit 15.46;
+  // seit 15.52 bis 40 Zeichen, damit auch lange Bossnamen wie „Kharzul, Wächter der Verdammten“ passen)
+  const lb = t.match(/^([^:]{2,40}): (.+)$/);
   if (lb) {
     const a = trLookup(d, lb[1]);
     let b = a !== undefined ? trOne(d, lb[2]) : undefined;

@@ -16,6 +16,8 @@ Aufruf:
 Rohdateien liegen außerhalb des Repos (Standard ~/.cache/seelenstein-klang-roh, sonst --roh <ordner>).
 Seit 15.51 gibt es auch im Rechner erzeugte Musik (Turm, Kharzul, Arenen): Einträge mit „synth“ (Skript unter tools/)
 rechnet „roh“ ohne Netz und ohne Schlüssel mit diesem Skript (Rohdatei <roh>/musik/<id>.wav), „bauen“ wie alle anderen.
+Seit 15.52 auch Laute (Hiebe des Klingenbogens, tools/klang-synth/hiebe.py): Rohdatei <roh>/sfx/<id>.wav, die Schnitte
+der Varianten legt das Skript daneben ab (<id>.json), Lautheit und MP3 wie bei allen Lauten.
 
 Braucht: python3 mit numpy und scipy, ffmpeg (libmp3lame), urllib.
 """
@@ -205,6 +207,13 @@ def saeubern(s, cfg):
 
 
 def baue_sfx(e, roh, ziel):
+    # im Rechner erzeugte Laute (seit 15.52, „synth“): das Skript legt die Schnitte daneben ab (<id>.json)
+    seite = os.path.splitext(roh)[0] + '.json'
+    spitzen = None
+    if e.get('synth') and os.path.exists(seite):
+        sj = json.load(open(seite, encoding='utf8'))
+        e = dict(e, schnitte=sj['schnitte'])
+        spitzen = sj.get('spitzen')
     x = lade(roh)
     from scipy.signal import butter, sosfilt
     x = sosfilt(butter(2, e.get('hp', 35), 'highpass', fs=SR, output='sos'), x)
@@ -224,10 +233,14 @@ def baue_sfx(e, roh, ziel):
     clips = []
     alles = [luecke[:int(0.02 * SR)]]
     t = len(alles[0])
-    for s in teile_out:
+    if spitzen and len(spitzen) != len(seg):
+        spitzen = None
+    for i, s in enumerate(teile_out):
         # dritter Wert: Lage der lautesten Stelle (Aufschlag) im Laut – so kann das Spiel einen Treffer genau dort ansetzen
+        # (im Rechner erzeugte Laute: der bekannte Anschlag aus dem Skript statt der lautesten Stelle)
         db, n = huelle(s)
-        clips.append([round(t / SR, 3), round(len(s) / SR, 3), round(int(np.argmax(db)) * n / SR, 3)])
+        pk = spitzen[i] - seg[i][0] / SR if spitzen else int(np.argmax(db)) * n / SR
+        clips.append([round(t / SR, 3), round(len(s) / SR, 3), round(max(0.0, pk), 3)])
         alles += [s, luecke]
         t += len(s) + len(luecke)
     schreibe(ziel, np.concatenate(alles), e.get('kbps', 64))
@@ -728,7 +741,7 @@ def main():
             continue
         if nur and e['id'] not in nur:
             continue
-        roh = os.path.join(roh_dir, 'sfx', (e.get('quelle') or e['id']) + '.mp3')
+        roh = os.path.join(roh_dir, 'sfx', (e.get('quelle') or e['id']) + ('.wav' if e.get('synth') else '.mp3'))
         if not os.path.exists(roh):
             print('fehlt (roh):', e['id'])
             continue

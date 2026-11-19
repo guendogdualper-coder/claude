@@ -35,9 +35,18 @@ SKILL_TYPES.mwave = function (sk, pw) {
 };
 
 function waveFx(owner, dx, dy, sk, local, pw) {
+  // Rang V (Weltenbrandung, docs/rang-boni.md): eine zweite Woge folgt mit second.mul des Schadens (Bild für alle)
+  if (sk.second && !sk.isSecond) {
+    later(sk.second.delay, () => {
+      if (owner.dead) return;
+      waveFx(owner, dx, dy, { ...sk, isSecond: true, dmg: sk.dmg * sk.second.mul, push: 0, waveSlow: null }, local, pw);
+    });
+  }
   const e = addEffect({
     type: 'mwave3', x: owner.x + dx * 18, y: owner.y + dy * 18, x0: owner.x + dx * 18, y0: owner.y + dy * 18, dx, dy, L: sk.length, W: sk.width, W0: sk.width * 0.55,
-    speed: sk.speed, delay: 0.12, dur: 0.12 + sk.length / sk.speed + 1.1, seed: Math.floor(Math.random() * 1000)
+    speed: sk.speed, delay: 0.12, dur: 0.12 + sk.length / sk.speed + 1.1, seed: Math.floor(Math.random() * 1000),
+    // zweite Woge (Rang V): Schein rot-violett, Funken gold und violett
+    v: !!sk.isSecond
   });
   if (owner === game.player) shakeScreen(2);
   if (!local) return;
@@ -55,7 +64,8 @@ function waveFx(owner, dx, dy, sk, local, pw) {
         if (along < -20 || along > w.s + 18 || side > w.w / 2 + (m.r || 12)) continue;
         if (typeof isEnemy === 'function' && !isEnemy(m)) continue;
         hit.add(m);
-        hitMonster(m, sk.dmg * pw, { skill: sk.id, burn: sk.burn, vfxColor: '#ffb04a' });
+        // Rang H: verlangsamt kurz (waveSlow); die zweite Woge (Rang V) trifft dasselbe Ziel erneut (rankEcho)
+        hitMonster(m, sk.dmg * pw, { skill: sk.id, burn: sk.burn, slow: sk.waveSlow || null, rankEcho: !!sk.isSecond, vfxColor: sk.isSecond ? '#ffd34d' : '#ffb04a' });
         // ein Stück mitreißen (nicht Steine und Bosse)
         if (!m.dead && !m.isStone && !(m.type && (m.type.boss || m.type.raid))) {
           m.x += dx * sk.push;
@@ -174,11 +184,11 @@ FX3_DRAW.mwave3 = function (h, e) {
   }
   const cx = w.x * U3;
   const cz = w.y * U3;
-  n3Glow(h, cx + e.dx * 0.3, 0.8, cz + e.dy * 0.3, w.w * U3 * 0.6, FIRE3.hot, 0.35 * vis);
+  n3Glow(h, cx + e.dx * 0.3, 0.8, cz + e.dy * 0.3, w.w * U3 * 0.6, e.v ? '#ff4a6a' : FIRE3.hot, (e.v ? 0.5 : 0.35) * vis);
   for (let j = 0; j < (low ? 4 : flmN(10)); j++) {
     const v = n2h(j, e.seed + 5) - 0.5;
     const q = (T * 1.5 + n2h(j, e.seed)) % 1;
-    flmSpark(h, (w.x + px * v * w.w) * U3, 0.3 + q * 2.2, (w.y + py * v * w.w) * U3, e.dx * 2.5, 2.2, e.dy * 2.5, 0.22, 0.06, j % 2 ? FIRE3.hot : FIRE3.core, (1 - q) * vis);
+    flmSpark(h, (w.x + px * v * w.w) * U3, 0.3 + q * 2.2, (w.y + py * v * w.w) * U3, e.dx * 2.5, 2.2, e.dy * 2.5, 0.22, 0.06, e.v ? (j % 2 ? '#ffd34d' : '#c84aff') : j % 2 ? FIRE3.hot : FIRE3.core, (1 - q) * vis);
   }
   if (typeof fireLight3 === 'function') fireLight3(cx, 1.2, cz, 1.4 * vis, 7);
 };

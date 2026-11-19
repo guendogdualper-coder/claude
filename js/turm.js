@@ -1,4 +1,8 @@
-// Turm der Verdammten: Gruppen-Instanz ab Stufe 80 auf der Karte Seelenhain – elf Ebenen in einer Halle.
+// Turm der Verdammten: Gruppen-Instanz ab Stufe 80 auf der Karte Seelenhain – fünfzehn Ebenen in einer Halle.
+// Seit Phase 2 (nach 15.51; Wunsch: „allein in 10 Minuten geschafft – zu leicht“): 15 statt 11 Ebenen, viel mehr
+// Verdammte in den Wellen, zwei Belagerungen, die drei Hüter zusammen, Hüter und Kharzul deutlich stärker; nach dem
+// Sieg die Truhe des Wächters, der Turm-Schmied und eine sichtbare Rückkehr; beim Betreten ein kurzer Anweg zum Turm
+// (Truhe, Schmied, Anweg und Rückkehr: js/turmfinale.js).
 // Ablauf, Werte und Beute stehen auch in docs/turm.md.
 // - Zugang: ein dunkler Turm westlich des Lagers Seelenwacht (Karte 17). Sein Tor öffnet ein Fenster mit Bedingungen
 //   (Stufe 80, Sperre 60 Minuten ab dem Betreten wie bei den Instanzen, eigener Eintrag 'turm' in p.instLock), den
@@ -11,14 +15,20 @@
 //   und steht im Glutschlund: ringsum Ränge voller Ungeheuer, die jubeln (tribuene.js), dahinter verbrannter Grund mit
 //   Lavaadern und Felswände statt eines schwarzen Kastens. Jede Halle hat dafür ein großes Feld (150 × 120 Kacheln), so
 //   sieht man auch herausgezoomt keine Nachbarhalle. Boden: Basalt mit Rissen, Asche und Glutspalten (keine Ringe).
-// - Ebenen (alle in derselben Halle, 5 s Pause dazwischen):
-//     1–5  Ansturm         je eine Welle Verdammter, alle töten
-//     6    Der Hüter       Ossarn, der Kettenhüter
-//     7    Seelensteine    vier Seelensteine zerstören (sie rufen Wellen)
+// - Ebenen (alle in derselben Halle, 5 s Pause dazwischen), seit Phase 2 fünfzehn (TURM_EBENEN):
+//     1–3  Ansturm         je eine Welle Verdammter (14, 16, 18 allein), alle töten
+//     4    Der Hüter       Ossarn, der Kettenhüter
+//     5    Ansturm         20 Verdammte mit einem Hauptmann
+//     6    Seelensteine    vier Seelensteine zerstören (sie rufen Wellen)
+//     7    Schlächtersturm 18 Verdammte, davon 7 Schlächter
 //     8    Zwillingshüter  Ilmra und Varn zugleich
 //     9    Trugsteine      acht Steine, nur zwei sind echt; ein falscher ruft eine Strafwelle
-//     10   Schlüsseljagd   Glutwichte strömen herein und tragen Schlüssel; alle vier Tore öffnen
-//     11   Der Wächter     Kharzul, Wächter der Verdammten – seit 15.50 je Schwelle eine eigene Mechanik (kharzul.js):
+//     10   Belagerung      45 s lang strömen Verdammte aus allen Toren, danach den Rest besiegen
+//     11   Schlüsseljagd   Glutwichte strömen herein und tragen Schlüssel; alle vier Tore öffnen
+//     12   Die Hauptleute  22 Verdammte mit drei Hauptleuten und fünf Schlächtern
+//     13   Die drei Hüter  Ossarn, Ilmra und Varn zugleich
+//     14   Letzte Belagerung 60 s, mit mehr Schlächtern und einzelnen Hauptleuten
+//     15   Der Wächter     Kharzul, Wächter der Verdammten – seit 15.50 je Schwelle eine eigene Mechanik (kharzul.js):
 //                          75 % Totentanz (kreisende Arme aus Seelenfeuer), 50 % Verwandlung in seine wahre Gestalt
 //                          (schneller, neue Angriffe), 25 % Seelenbann (auseinanderlaufen). Die alten „Seelenketten“
 //                          (unverwundbar, Kettensteine in den Toren) sind aus; ihr Code bleibt für ältere Hosts im Kanal
@@ -36,20 +46,25 @@ const TURM = {
   // Felder der Hallen (Kacheln): nebeneinander im Abstand pitch, oben ab DUNGEON_H + y0. Halbe Breite/Höhe der Halle
   // hw/hh (bis zum Umbau 19/15 in Feldern zu 45 × 37 mit 4 Kacheln Abstand – Fläche jetzt × 1,37)
   slots: 4, slotW: 150, slotH: 120, pitch: 150, y0: 310, hw: 23, hh: 17,
-  // Lage der Hallen (seit dem Umbau 2): Host und Mitspieler müssen dieselbe haben, sonst stünde man woanders
-  lage: 2,
-  ebenen: 11,
-  firstPause: 6,        // Sekunden bis Ebene 1
+  // Lage und Aufbau der Hallen: Host und Mitspieler müssen dieselben haben, sonst stünde man woanders bzw. spielte andere
+  // Ebenen (2: Umbau der Hallen in 15.51, 3: fünfzehn Ebenen in Phase 2)
+  lage: 3,
+  ebenen: 15,
+  firstPause: 6,        // Sekunden bis Ebene 1 (frühestens 3 s, nachdem der Erste in der Halle steht)
   pause: 5,             // Pause zwischen zwei Ebenen
   respawn: 8,           // so lange liegt man, dann steht man am Eingang wieder auf
   emptyMax: 180,        // so lange bleibt ein Durchgang ohne Spieler bestehen
-  wonStay: 90,          // so lange bleibt die Halle nach dem Sieg offen
+  wonStay: 150,         // so lange bleibt die Halle nach dem Sieg offen (Truhe, Schmied), dann bringt der Turm alle hinaus
   netGrace: 12,         // so lange darf ein Teilnehmer ohne Verbindung oder außerhalb der Halle sein
   // Skalierung je weiterem Spieler: Zahl der Gegner, ihr Leben und Schaden, Leben und Schaden der Bosse, Seelensteine
-  perN: 0.4, perHp: 0.12, perAtk: 0.04, perBoss: 0.85, perBossAtk: 0.05, perStone: 0.5,
-  // Ansturm (Ebene 1–5): Gegner allein und Stärke (Leben und Schaden)
-  wave: [0, 6, 7, 8, 10, 12], str: [0, 0.8, 0.88, 0.96, 1.04, 1.12],
-  spawnGap: 0.15, spawnStun: 0.35,
+  // (Phase 2: Bosse +90 % Leben und +6 % Schaden je weiterem Spieler, vorher +85 %/+5 %)
+  perN: 0.4, perHp: 0.12, perAtk: 0.04, perBoss: 0.9, perBossAtk: 0.06, perStone: 0.5,
+  // Wellen: die Zahl der Gegner und ihre Stärke steht je Ebene in TURM_EBENEN (n, str); höchstens cap + capPer × Spieler
+  // leben zugleich (Phase 2: 14 + 4 je Spieler, vorher 14 + 3; mit 16 + 4 kam allein die Spieler-KI der Simulation
+  // in der Belagerung nicht mehr durch)
+  spawnGap: 0.15, spawnStun: 0.35, cap: 14, capPer: 4,
+  // Belagerung: Abstand der Nachrücker teilt sich durch 1 + uPer × (Spieler − 1)
+  uPer: 0.35,
   // Seelensteine: Anteil am Leben eines gewöhnlichen Steins der Stufe 80
   stoneHp: 0.5, trugHp: 0.3, stoneWaves: [0.75, 0.5, 0.25], echt: 2,
   // Schlüsseljagd: Glutwichte gleichzeitig (allein, je weiterem Spieler), Abstand der Nachrücker, Tötungen je Schlüssel
@@ -57,8 +72,10 @@ const TURM = {
   // Wächter: Seelenketten bei diesen Anteilen (seit 15.50 keine mehr, vorher 75/50/25 %: kharzul.js), Zeit,
   // Benommenheit, Schlag (Anteil am Höchstleben), Heilung
   ketten: [], kettenZeit: 25, benommen: 6, schlag: 0.6, heilung: 0.1, kettenHp: 0.9, perKette: 0.45, wichte: 20,
-  // Belohnung je geschaffter Ebene (× Ebene)
-  gold: 1200, xp: 20000,
+  // Belohnung je geschaffter Ebene (× Ebene; Phase 2: 900 statt 1.200 Gold, 15.000 statt 20.000 EP – bei 15 Ebenen
+  // zusammen 108.000 Gold und 1,8 Mio. EP statt 79.200 und 1,32 Mio.)
+  gold: 900, xp: 15000,
+  truheLeg: 0.35,       // Chance auf ein legendäres Teil in der Truhe des Wächters (sonst ein viertes episches)
   glut: '#ff6a2a', seele: '#8fe36a', gate: '#ff8a4a',
   theme: '#3a3238|#8a3a22|#ff5a1a'
 };
@@ -67,20 +84,31 @@ const turmScale = (n) => {
   const k = turmPl(n) - 1;
   return { n: 1 + TURM.perN * k, hp: 1 + TURM.perHp * k, atk: 1 + TURM.perAtk * k, boss: 1 + TURM.perBoss * k, bossAtk: 1 + TURM.perBossAtk * k, stone: 1 + TURM.perStone * k };
 };
-// Die elf Ebenen: Name und Ziel (Anzeige), art: w Welle, b Boss, s Seelensteine, t Trugsteine, k Schlüsseljagd, f Wächter
+// Die fünfzehn Ebenen: Name und Ziel (Anzeige), art: w Welle, b Boss(e), s Seelensteine, t Trugsteine, u Belagerung,
+// k Schlüsseljagd, f Wächter. str: Leben und Schaden der Verdammten dieser Ebene (auch Stein- und Strafwellen).
+// Wellen: n Gegner allein, hex mit Hexern, schl Schlächter, haupt Hauptleute (je weitere 4 Spieler einer mehr).
+// Belagerung: dauer s, gap s zwischen zwei Nachrückern (allein), Anteile schl/haupt. Bosse: bossHp Faktor je Boss.
+// Bis Phase 2 waren es elf: Wellen mit 6, 7, 8, 10 und 12 Verdammten (Stärke 0,8 bis 1,12), dann Hüter, Steine,
+// Zwillinge, Trugsteine, Schlüsseljagd und Kharzul.
 const TURM_EBENEN = [null,
-  { art: 'w', name: 'Ansturm', ziel: 'Besiegt alle Verdammten' },
-  { art: 'w', name: 'Ansturm', ziel: 'Besiegt alle Verdammten' },
-  { art: 'w', name: 'Ansturm', ziel: 'Besiegt alle Verdammten' },
-  { art: 'w', name: 'Ansturm', ziel: 'Besiegt alle Verdammten' },
-  { art: 'w', name: 'Ansturm', ziel: 'Besiegt alle Verdammten' },
-  { art: 'b', name: 'Der Hüter', ziel: 'Besiegt Ossarn, den Kettenhüter', boss: ['turm_hueter'] },
-  { art: 's', name: 'Seelensteine', ziel: 'Zerstört alle vier Seelensteine' },
-  { art: 'b', name: 'Zwillingshüter', ziel: 'Besiegt beide Hüter', boss: ['turm_ilmra', 'turm_varn'] },
-  { art: 't', name: 'Trugsteine', ziel: 'Nur zwei der acht Steine sind echt – findet sie' },
-  { art: 'k', name: 'Schlüsseljagd', ziel: 'Glutwichte tragen Schlüssel – öffnet alle vier Tore' },
-  { art: 'f', name: 'Der Wächter', ziel: 'Besiegt Kharzul, den Wächter der Verdammten', boss: ['turm_waechter'] }
+  { art: 'w', name: 'Ansturm', ziel: 'Besiegt alle Verdammten', n: 14, str: 0.85 },
+  { art: 'w', name: 'Ansturm', ziel: 'Besiegt alle Verdammten', n: 16, str: 0.9, hex: 1 },
+  { art: 'w', name: 'Ansturm', ziel: 'Besiegt alle Verdammten', n: 18, str: 0.95, hex: 1, schl: 2 },
+  { art: 'b', name: 'Der Hüter', ziel: 'Besiegt Ossarn, den Kettenhüter', boss: ['turm_hueter'], str: 1 },
+  { art: 'w', name: 'Ansturm', ziel: 'Besiegt alle Verdammten und ihren Hauptmann', n: 20, str: 1.0, hex: 1, schl: 3, haupt: 1 },
+  { art: 's', name: 'Seelensteine', ziel: 'Zerstört alle vier Seelensteine', str: 1.02 },
+  { art: 'w', name: 'Schlächtersturm', ziel: 'Besiegt die Schlächter und ihr Gefolge', n: 18, str: 1.05, hex: 1, schl: 7 },
+  { art: 'b', name: 'Zwillingshüter', ziel: 'Besiegt beide Hüter', boss: ['turm_ilmra', 'turm_varn'], str: 1.05 },
+  { art: 't', name: 'Trugsteine', ziel: 'Nur zwei der acht Steine sind echt – findet sie', str: 1.06 },
+  { art: 'u', name: 'Belagerung', ziel: 'Haltet 45 Sekunden stand – dann besiegt den Rest', dauer: 45, gap: 1.05, str: 1.06, schl: 0.15, haupt: 0 },
+  { art: 'k', name: 'Schlüsseljagd', ziel: 'Glutwichte tragen Schlüssel – öffnet alle vier Tore', str: 1.08 },
+  { art: 'w', name: 'Die Hauptleute', ziel: 'Besiegt die Hauptleute und ihre Truppe', n: 22, str: 1.12, hex: 1, schl: 5, haupt: 3 },
+  { art: 'b', name: 'Die drei Hüter', ziel: 'Besiegt Ossarn, Ilmra und Varn', boss: ['turm_hueter', 'turm_ilmra', 'turm_varn'], bossHp: 0.6, str: 1.12 },
+  { art: 'u', name: 'Letzte Belagerung', ziel: 'Haltet 60 Sekunden stand – dann besiegt den Rest', dauer: 60, gap: 1.3, str: 1.1, schl: 0.15, haupt: 0.03 },
+  { art: 'f', name: 'Der Wächter', ziel: 'Besiegt Kharzul, den Wächter der Verdammten', boss: ['turm_waechter'], str: 1.15 }
 ];
+// Ebene der Schlüsseljagd (die Tore gehen dort auf und zu)
+const TURM_KEY_E = TURM_EBENEN.findIndex((E) => E && E.art === 'k');
 
 // Gebiet der Hallen (Name oben in der Ecke, Stimmung, Wandfarbe) – außerhalb aller Karten: kein offener Kampf
 const TURM_ZONE = {
@@ -271,7 +299,7 @@ randomSpotInZone = function (zone, from, to) {
   for (let k = 0; k < 8 && s && hyp(s.x - cx, s.y - cy) < TURM_KEEP * TILE; k++) s = _turmRandomSpot(zone, from, to);
   return s;
 };
-// Seelensteine der Hallen: je Halle acht im Saal (Ebene 7 und 9) und vier Kettensteine vor den Toren (Wächter).
+// Seelensteine der Hallen: je Halle acht im Saal (Ebene 6 und 9, bis Phase 2 Ebene 7 und 9) und vier Kettensteine vor den Toren (Wächter).
 // Sie stehen von Anfang an in der Welt (so kennt sie jeder Mitspieler aus der Monsterliste) und liegen außerhalb
 // ihrer Ebene tot da – der Host weckt sie und legt sie wieder schlafen (turmStoneSet).
 const TURM_STEIN_KETTE = STONE_TYPES.find((t) => t.level === 60) || STONE_TYPES[STONE_TYPES.length - 1];
@@ -358,12 +386,13 @@ for (const [id, o] of Object.entries(TURM_MOBS)) {
 // Glutwicht: klein, schnell, wenig Leben und Schaden – nur die Masse macht ihn gefährlich
 MONSTER_TYPES.turm_glutwicht = { name: 'Glutwicht', level: TURM.level, shape: 'demon', color: '#e2562a', size: 9, speed: 132, range: 22, cooldown: 1.3, aggressive: true, hpMul: 0.22, atkMul: 0.2, dungeon: true, turm: true, scale3: 0.55 };
 // Hüter und Wächter: Angriffe aus den Instanzen (type.inst, instBossTick), Leben und Schaden für einen Spieler –
-// turmTune rechnet die Gruppe ein
+// turmTune rechnet die Gruppe ein. Phase 2: deutlich stärker als die Verdammten (Leben × 22–34 statt 9–14, Schaden
+// × 2,5–2,8 statt 1,8–2,0); Kharzul Leben × 80 statt 30 (allein rund 3 Mio.), Schaden × 3,2 statt 2,4
 const TURM_BOSSE = [
-  ['turm_hueter', 'Ossarn, der Kettenhüter', 'Hüter der sechsten Ebene', 'brute', 34, 14, 2.0, '#ff6a2a', ['slam', 'cross', 'charge', 'spikes'], 'lavagolem', 'feuer'],
-  ['turm_ilmra', 'Ilmra, Hüterin der Glut', 'Zwillingshüterin – ihr Feuer fällt vom Himmel', 'humanoid', 28, 9, 1.8, '#ffb04a', ['rain', 'fan', 'volley', 'pools'], 'feuerdaemon', 'feuer'],
-  ['turm_varn', 'Varn, Hüter der Asche', 'Zwillingshüter – seine Glefe zieht Kreuze', 'humanoid', 30, 11, 1.9, '#c8c0b8', ['charge', 'cross', 'slam', 'line'], 'untoter', 'tod'],
-  ['turm_waechter', 'Kharzul, Wächter der Verdammten', 'Ab der Hälfte zeigt er seine wahre Gestalt', 'demon', 46, 30, 2.4, '#8fe36a', ['fan', 'rain', 'pull', 'cross', 'leap', 'spikes', 'chain'], 'feuerdaemon', 'tod']
+  ['turm_hueter', 'Ossarn, der Kettenhüter', 'Hüter der vierten Ebene', 'brute', 34, 34, 2.8, '#ff6a2a', ['slam', 'cross', 'charge', 'spikes'], 'lavagolem', 'feuer'],
+  ['turm_ilmra', 'Ilmra, Hüterin der Glut', 'Zwillingshüterin – ihr Feuer fällt vom Himmel', 'humanoid', 28, 22, 2.5, '#ffb04a', ['rain', 'fan', 'volley', 'pools'], 'feuerdaemon', 'feuer'],
+  ['turm_varn', 'Varn, Hüter der Asche', 'Zwillingshüter – seine Glefe zieht Kreuze', 'humanoid', 30, 26, 2.6, '#c8c0b8', ['charge', 'cross', 'slam', 'line'], 'untoter', 'tod'],
+  ['turm_waechter', 'Kharzul, Wächter der Verdammten', 'Ab der Hälfte zeigt er seine wahre Gestalt', 'demon', 46, 80, 3.2, '#8fe36a', ['fan', 'rain', 'pull', 'cross', 'leap', 'spikes', 'chain'], 'feuerdaemon', 'tod']
 ];
 for (const [id, name, title, shape, size, hpMul, atkMul, color, moves, mat, fx] of TURM_BOSSE) {
   MONSTER_TYPES[id] = {
@@ -822,7 +851,7 @@ function turmResetLevel(S, s) {
   S.mech = null;
   S.stunUntil = 0;
   S.boss = [];
-  if (S.level === 10) { S.keys = 0; S.keyKills = 0; S.gates = [0, 0, 0, 0]; }
+  if (S.level === TURM_KEY_E) { S.keys = 0; S.keyKills = 0; S.gates = [0, 0, 0, 0]; }
   S.state = 'pause';
   S.sweepAt = 0;
 }
@@ -839,16 +868,27 @@ function turmList() {
 }
 
 // Gegner einer Welle (Ebene 1–5): Krieger, Schützen, ab Ebene 2 Hexer, ab Ebene 3 Schlächter, in Ebene 5 ein Hauptmann
+// Phase 2: Zahl, Schlächter und Hauptleute je Ebene aus TURM_EBENEN (vorher fest 6–12 Gegner in Ebene 1–5)
 function turmWave(E, players) {
+  const D = TURM_EBENEN[E];
   const sc = turmScale(players);
-  const n = Math.round(TURM.wave[E] * sc.n);
-  const pool = E === 1 ? ['turm_krieger', 'turm_krieger', 'turm_schuetze'] : ['turm_krieger', 'turm_schuetze', 'turm_krieger', 'turm_hexer'];
+  const pl = turmPl(players);
+  const n = Math.round((D.n || 12) * sc.n);
+  const pool = D.hex ? ['turm_krieger', 'turm_schuetze', 'turm_krieger', 'turm_hexer'] : ['turm_krieger', 'turm_krieger', 'turm_schuetze'];
   const out = [];
   for (let k = 0; k < n; k++) out.push(pool[k % pool.length]);
-  const brutes = E >= 3 ? Math.round((E - 2) * (1 + (turmPl(players) - 1) / 4)) : 0;
+  const brutes = Math.round((D.schl || 0) * (1 + (pl - 1) / 4));
   for (let k = 0; k < brutes && k < out.length; k++) out[Math.floor(((k + 1) * out.length) / (brutes + 1))] = 'turm_schlaechter';
-  if (E === 5) for (let k = 0; k < 1 + Math.floor((turmPl(players) - 1) / 4); k++) out[out.length - 1 - k * 3] = 'turm_hauptmann';
+  const haupt = D.haupt ? D.haupt * (1 + Math.floor((pl - 1) / 4)) : 0;
+  for (let k = 0; k < haupt && k * 3 < out.length; k++) out[out.length - 1 - k * 3] = 'turm_hauptmann';
   return out;
+}
+// Belagerung: der nächste Verdammte (Anteile für Schlächter und Hauptleute aus TURM_EBENEN)
+function turmSiegeType(D) {
+  const r = Math.random();
+  if (r < (D.haupt || 0)) return 'turm_hauptmann';
+  if (r < (D.haupt || 0) + (D.schl || 0)) return 'turm_schlaechter';
+  return ['turm_krieger', 'turm_schuetze', 'turm_krieger', 'turm_hexer'][randInt(0, 3)];
 }
 // Werte eines Turm-Monsters: art 'mob' (Welle, mit der Stärke der Ebene), 'add' (Helfer der Bosse), 'imp' (Glutwicht),
 // 'boss' (Hüter, Wächter) – jeweils mit der Skalierung für die Spielerzahl der Ebene
@@ -859,10 +899,12 @@ function turmTune(m, S, art) {
   let hp = art === 'boss' ? sc.boss : sc.hp;
   let atk = art === 'boss' ? sc.bossAtk : sc.atk;
   if (art === 'mob') {
-    const k = TURM.str[Math.min(5, S.level)];
+    const k = (TURM_EBENEN[S.level] && TURM_EBENEN[S.level].str) || 1.1;
     hp *= k;
     atk *= k;
   } else if (art === 'add') hp *= 0.7;
+  // mehrere Hüter zugleich (Ebene 13): jeder etwas schwächer
+  else if (art === 'boss' && TURM_EBENEN[S.level] && TURM_EBENEN[S.level].bossHp) hp *= TURM_EBENEN[S.level].bossHp;
   m.level = TURM.level;
   m.maxHp = Math.max(1, Math.round(st.maxHp * hp));
   m.atk = Math.round(st.atk * atk);
@@ -916,8 +958,10 @@ function turmStartLevel(S, s) {
     turmStoneSet(s, [], null, 1);
   } else if (D.art === 'b' || D.art === 'f') {
     const mid = turmMid(s);
+    // ein Hüter in der Mitte, zwei links und rechts, drei im Dreieck
+    const off = D.boss.length === 2 ? [[-6, 0], [6, 0]] : D.boss.length === 3 ? [[0, -4], [-7, 3], [7, 3]] : [[0, 0]];
     D.boss.forEach((id, k) => {
-      const at = D.boss.length > 1 ? { x: mid.x + (k ? 1 : -1) * 6 * TILE, y: mid.y } : mid;
+      const at = { x: mid.x + off[k][0] * TILE, y: mid.y + off[k][1] * TILE };
       S.boss.push(turmSpawn(S, s, id, 'boss', at, fighters));
     });
     S.total = S.boss.length;
@@ -943,6 +987,11 @@ function turmStartLevel(S, s) {
     S.keyKills = 0;
     S.gates = [0, 0, 0, 0];
     S.total = 4;
+    turmStoneSet(s, [], null, 1);
+  } else if (D.art === 'u') {
+    // Belagerung: dauer s lang Nachschub aus allen Toren, danach den Rest besiegen
+    S.uEnd = now + D.dauer;
+    S.total = 0;
     turmStoneSet(s, [], null, 1);
   }
   turmTellState(S, s);
@@ -982,6 +1031,7 @@ function turmTellState(S, s) {
   };
   if (S.state === 'fight') {
     if (D.art === 'w') d.a = Math.max(0, S.total - S.queue.length - alive);
+    if (D.art === 'u') { d.ut = Math.max(0, Math.ceil(S.uEnd - now)); d.a = alive; }
     if (D.art === 't') d.c = S.left;
     if (D.art === 'k') { d.ky = S.keys; d.a = S.gates.reduce((n, x) => n + x, 0); }
     if (S.boss.length) d.bh = S.boss.map((m) => (m.dead ? 0 : Math.max(1, Math.round((m.hp / m.maxHp) * 1000))));
@@ -1116,7 +1166,9 @@ function turmTickHost() {
     }
     const fighters = turmFighters(S, s);
     if (S.state === 'pause') {
-      // nach einem Rückschlag warten, bis wieder jemand in der Halle steht
+      // nach einem Rückschlag warten, bis wieder jemand in der Halle steht; seit Phase 2 (Anweg beim Betreten) beginnt
+      // eine Ebene frühestens 3 s, nachdem der Erste in der Halle steht
+      if (!fighters.length) S.until = Math.max(S.until, now + 3);
       if (now >= S.until && fighters.length) turmStartLevel(S, s);
       else if (now >= S.tellAt) {
         if (now >= S.until) S.until = now + 1;
@@ -1174,7 +1226,7 @@ function turmTickHost() {
     }
     let done = false;
     if (D.art === 'w') {
-      const cap = 14 + 3 * S.players;
+      const cap = TURM.cap + TURM.capPer * S.players;
       if (S.queue.length && now >= S.nextAt && alive < cap) {
         turmSpawn(S, s, S.queue.shift(), 'mob', turmSpawnSpot(s), fighters);
         S.nextAt = now + TURM.spawnGap;
@@ -1182,6 +1234,17 @@ function turmTickHost() {
         dirty = true;
       }
       done = !S.queue.length && alive === 0;
+    } else if (D.art === 'u') {
+      const cap = TURM.cap + TURM.capPer * S.players;
+      if (now < S.uEnd) {
+        if (now >= S.nextAt && alive < cap) {
+          turmSpawn(S, s, turmSiegeType(D), 'mob', turmSpawnSpot(s), fighters);
+          S.nextAt = now + D.gap / (1 + TURM.uPer * (S.players - 1));
+          alive++;
+          S.total++;
+          dirty = true;
+        }
+      } else done = alive === 0;
     } else if (D.art === 'b') {
       const dead = S.boss.filter((m) => m.dead).length;
       if (dead !== S.done) { S.done = dead; dirty = true; }
@@ -1365,8 +1428,16 @@ function turmGo(s, id) {
   const fresh = !instRecord(TURM.id);
   instRecord(TURM.id, true);
   if (fresh) ui.log(`${TURM.name}: Deine Sperre läuft ab jetzt ${INST.lockMin} Minuten.`, 'info');
-  moveThrough(spotNear(turmEntry(s), 50), TURM.gate);
-  ui.banner(TURM.name, 'Elf Ebenen bis zum Wächter – viel Glück!');
+  // seit Phase 2 erst der Anweg: ein paar Sekunden auf dem eigenen Reittier den düsteren Weg zum Turm (überspringbar,
+  // turmfinale.js); danach turmGoHall
+  if (typeof turmAnwegStart === 'function' && turmAnwegStart(run)) return;
+  turmGoHall(run);
+}
+// in die Halle (nach dem Anweg oder ohne ihn)
+function turmGoHall(run) {
+  if (!run || game.turmRun !== run || run.slot < 0) return;
+  moveThrough(spotNear(turmEntry(run.slot), 50), TURM.gate);
+  ui.banner(TURM.name, 'Fünfzehn Ebenen bis zum Wächter – viel Glück!');
   saveGame();
 }
 // am Eingang der Halle wieder aufstehen (ohne Verlust, mit gut halbem Leben und kurzem Schutz)
@@ -1393,6 +1464,9 @@ function turmRevive() {
 function turmStop(why) {
   const run = game.turmRun;
   if (!run) return;
+  // Truhe des Wächters nicht geöffnet: die Beute kommt trotzdem mit (turmfinale.js)
+  if (run.truhe && typeof turmTruheOeffnen === 'function') turmTruheOeffnen(run, true);
+  if (typeof turmFinaleEnde === 'function') turmFinaleEnde(run);
   game.turmRun = null;
   const p = game.player;
   run.time = run.t0 != null ? game.time - run.t0 : 0;
@@ -1576,7 +1650,9 @@ function turmOnEvent(run, d) {
     run.time = +d.z || 0;
     snd('success');
     jubel(1, 16);
-    ui.log(`${TURM.name}: Alle elf Ebenen geschafft! Die Halle bleibt noch kurz offen – verlasse den Turm über die Anzeige.`, 'level');
+    ui.log(`${TURM.name}: Alle fünfzehn Ebenen geschafft! Öffnet die Truhe des Wächters und besucht den Turm-Schmied, bevor euch der Turm hinausbringt.`, 'level');
+    // Truhe des Wächters, Turm-Schmied und die Rückkehr mit Countdown (turmfinale.js)
+    if (typeof turmFinaleSieg === 'function') turmFinaleSieg(run);
   }
 }
 // kleiner Funkenstoß (2D und 3D), ohne Ring
@@ -1716,6 +1792,12 @@ function turmTick() {
     return;
   }
   run.respawnAt = 0;
+  // auf dem Anweg (turmfinale.js): noch nicht in der Halle
+  if (run.anweg && typeof turmAnwegTick === 'function') {
+    turmAnwegTick(run);
+    turmHud();
+    return;
+  }
   // Halle verlassen: wer nur über die Wand gerutscht ist, kommt zurück an den Eingang; sonst endet der Durchgang.
   // Seit dem Umbau ist das Feld der Halle viel größer als die Halle: wer im Fels des eigenen Felds steht (Sprung oder
   // Teleport über die Wand), kommt ebenso an den Eingang
@@ -1828,7 +1910,13 @@ function turmBossLoot(m) {
     }
     rec.done = 1;
     instDevMark(TURM.id, rec);
-    turmFinalLoot(m);
+    // seit Phase 2 liegt die Beute in der Truhe des Wächters (turmfinale.js); wer sie nicht öffnet, bekommt sie beim
+    // Hinausgehen
+    const run = game.turmRun;
+    if (run) {
+      run.truhe = m;
+      ui.banner(`${m.name} ist gefallen!`, 'Die Truhe des Wächters erscheint');
+    } else turmFinalLoot(m);
   } else {
     const bit = TURM_BITS[m.typeId] || 1;
     if (rec.mb & bit) {
@@ -1856,22 +1944,28 @@ function turmMiniLoot(m) {
   ui.loot('Gold', gold, lootIconUrl('gold'), '#ffd96a');
   ui.banner(`${m.name} ist gefallen!`, leg ? 'Ein legendäres Teil!' : got ? 'Ein episches Teil!' : 'Hüter besiegt');
 }
-// Wächter: zwei epische Teile (Lv 80), mit INST.legendary80 ein legendäres (über KS.quellen2 meist ein Teil des
-// Klassen-Sets der zweiten Reihe), Splitter, Teile, Ätherkerne, mit Glück ein Seelenstein (Gegenstand) und Gold
+// Wächter (seit Phase 2 in der Truhe des Wächters, turmfinale.js): drei epische Teile (Lv 80, das erste oft eine
+// Waffe), zu 35 % ein legendäres (über KS.quellen2 meist ein Teil des Klassen-Sets der zweiten Reihe), sonst ein
+// viertes episches; Splitter, Schmiede-Teile, 2–3 Ätherkerne, zur Hälfte ein Seelenstein (Gegenstand) und Gold.
+// Bis Phase 2: zwei epische, 20 % legendär, 1–2 Ätherkerne, 30 % Seelenstein, 64.000 Gold. Rückgabe: was es gab
 function turmFinalLoot(m) {
   const p = game.player;
-  for (let k = 0; k < 2; k++) giveRarityItem(setTagItem(rollRarityItem(80, 3, null, k === 0 && Math.random() < 0.4 ? 'waffe' : null), m), m);
-  const leg = Math.random() < INST.legendary80 ? dropLegendary(m) : null;
-  instMats(m, { splinters: randInt(10, 15) }, randInt(4, 6));
-  const kerne = randInt(1, 2);
+  for (let k = 0; k < 3; k++) giveRarityItem(setTagItem(rollRarityItem(80, 3, null, k === 0 && Math.random() < 0.5 ? 'waffe' : null), m), m);
+  const leg = Math.random() < Math.max(INST.legendary80, TURM.truheLeg) ? dropLegendary(m) : null;
+  if (!leg) giveRarityItem(setTagItem(rollRarityItem(80, 3), m), m);
+  instMats(m, { splinters: randInt(14, 20) }, randInt(5, 7));
+  const kerne = randInt(2, 3);
   p.materials.aetherkern = (p.materials.aetherkern || 0) + kerne;
   ui.loot('Ätherkern', kerne, materialIconUrl('aetherkern'), MATERIAL_COLORS.aetherkern);
-  if (Math.random() < 0.3) addSkillMat('seelenstein', 1, m);
-  const gold = monsterGold(m.level * 800);
+  const stein = Math.random() < 0.5;
+  if (stein) addSkillMat('seelenstein', 1, m);
+  const gold = monsterGold((m.level || TURM.level) * 1000);
   p.gold += gold;
   ui.loot('Gold', gold, lootIconUrl('gold'), '#ffd96a');
-  ui.banner(`${TURM.name} bezwungen!`, `2 epische Teile${leg ? ' und ein legendäres!' : ''}`);
-  ui.log(`${TURM.name}: ${m.name} besiegt. Wieder frei in ${instLockMin(TURM.id)} Min.`, 'level');
+  ui.banner(`${TURM.name} bezwungen!`, leg ? '3 epische Teile und ein legendäres!' : '4 epische Teile!');
+  ui.log(`${TURM.name}: Die Truhe des Wächters ist geöffnet. Wieder frei in ${instLockMin(TURM.id)} Min.`, 'level');
+  saveGame();
+  return { leg: !!leg, epic: leg ? 3 : 4, kerne, stein, gold };
 }
 // Wer in der Halle seines Durchgangs steht, bekommt jeden Kill dieser Halle; wer nicht dazugehört, nichts
 const _turmNetEligible = netEligible;
@@ -2093,6 +2187,11 @@ function turmGoal(run) {
   if (E.art === 's') return { lang: `Seelensteine ${a}/${b}`, kurz: `Steine ${a}/${b}`, k: a / b };
   if (E.art === 't') return { lang: `Echte Steine ${a}/${b} · noch ${st.c | 0} Steine`, kurz: `Echt ${a}/${b}`, k: a / b };
   if (E.art === 'k') return { lang: `Schlüssel ${st.ky | 0} · Tore ${a}/4`, kurz: `Schl. ${st.ky | 0} · Tore ${a}/4`, k: a / 4 };
+  if (E.art === 'u') {
+    const ut = st.ut | 0;
+    return ut > 0 ? { lang: `Haltet stand: noch ${ut} s`, kurz: `${ut} s`, k: 1 - ut / (E.dauer || 60) }
+      : { lang: `Besiegt den Rest: noch ${a} Verdammte`, kurz: `${a} Geg.`, k: 1 };
+  }
   const bh = Array.isArray(st.bh) && st.bh.length ? st.bh : [1000];
   const hp = bh.reduce((n, x) => n + x, 0) / bh.length / 1000;
   if (E.art === 'b' && bh.length > 1) return { lang: `Hüter ${a}/${b} besiegt`, kurz: `Hüter ${a}/${b}`, k: 1 - hp };
@@ -2106,7 +2205,7 @@ function turmHud() {
     turmHudBuild();
   }
   const el = turmUi.el;
-  if (!run || run.slot < 0 || !run.st || !game.running) {
+  if (!run || run.slot < 0 || !run.st || !game.running || run.anweg) {
     if (!el.hidden) {
       el.hidden = true;
       turmUi.confirm = false;
@@ -2141,7 +2240,7 @@ function turmHud() {
       let nx = '';
       if (dead >= 0) nx = `<div class="nx">Gefallen – am Eingang zurück in ${dead} s</div>`;
       else if (st.ph === 'p') nx = `<div class="nx">Ebene ${st.e} beginnt in ${pause} s</div>`;
-      else if (st.ph === 'w') nx = `<div class="nx">Die Halle schließt in ${pause} s</div>`;
+      else if (st.ph === 'w') nx = `<div class="nx">Der Turm bringt euch in ${pause} s hinaus</div>`;
       else if (mech) nx = `<div class="nx ke">Seelenketten: noch ${st.mn | 0} Kettensteine – ${mech} s</div>`;
       else if (stun) nx = `<div class="nx ke">Kharzul ist benommen: ${stun} s</div>`;
       el.innerHTML = `<div class="hd"><b>${TURM.name}</b><span class="wv">Ebene ${st.e}/${TURM.ebenen}</span></div>` +
@@ -2218,12 +2317,12 @@ function turmWindowOpen(npc) {
   const lock = () => (instLockText(TURM.id) ? 'Sperre: ' + instLockText(TURM.id) : `Für dich frei. Die Sperre (${INST.lockMin} Min.) beginnt beim Betreten und gilt nur für den Turm.`);
   body.innerHTML =
     `<p class="quest-step raid-step">Gruppen-Instanz · ab Stufe ${TURM.level} · allein oder bis ${TURM.maxPlayers} Spieler</p><h3>${TURM.name}</h3>` +
-    '<p>Ein schwarzer Turm, in dem die Seelen der Verdammten gefangen sind. Elf Ebenen in einer einzigen Halle: fünf Wellen Verdammter, der Kettenhüter, vier Seelensteine, die Zwillingshüter, acht Trugsteine, die Schlüsseljagd auf die Glutwichte – und zuletzt <b>Kharzul, der Wächter der Verdammten</b>.</p>' +
-    '<p class="hint-text">Ebene 9: Nur zwei der acht Steine sind echt – ein falscher ruft eine Strafwelle. Ebene 10: Glutwichte lassen Schlüssel fallen; wer mit einem Schlüssel an ein verschlossenes Tor tritt, öffnet es. Der Wächter tanzt bei 75 % mit kreisendem Seelenfeuer (lauft in den Lücken mit), bei 50 % zeigt er seine wahre Gestalt – größer, viel schneller, mit neuen Angriffen – und ab 25 % brandmarkt er alle: lauft auseinander.</p>' +
+    '<p>Ein schwarzer Turm, in dem die Seelen der Verdammten gefangen sind. Fünfzehn Ebenen in einer einzigen Halle: Wellen von Verdammten, Schlächtern und Hauptleuten, der Kettenhüter, vier Seelensteine, die Zwillingshüter, acht Trugsteine, zwei Belagerungen, die Schlüsseljagd auf die Glutwichte, alle drei Hüter zugleich – und zuletzt <b>Kharzul, der Wächter der Verdammten</b>.</p>' +
+    '<p class="hint-text">Ebene 9: Nur zwei der acht Steine sind echt – ein falscher ruft eine Strafwelle. Ebene 10 und 14: Haltet stand, solange die Verdammten aus allen Toren strömen. Ebene 11: Glutwichte lassen Schlüssel fallen; wer mit einem Schlüssel an ein verschlossenes Tor tritt, öffnet es. Der Wächter tanzt bei 75 % mit kreisendem Seelenfeuer (lauft in den Lücken mit), bei 50 % zeigt er seine wahre Gestalt – größer, viel schneller, mit neuen Angriffen – und ab 25 % brandmarkt er alle: lauft auseinander.</p>' +
     '<p class="hint-text">Wer fällt, steht nach wenigen Sekunden am Eingang der Halle wieder auf. Fallen alle zugleich, beginnt die Ebene von vorn. Leben und Schaden der Gegner wachsen mit der Zahl der Spieler.</p>' +
     '<ul class="raid-roles">' + checks.map((c) => `<li>${c.ok ? '✅' : '❌'} ${c.text}</li>`).join('') + '</ul>' +
     `<p class="inst-lock" data-turmlock>${lock()}</p>` +
-    '<p><b class="legend-text">Beute:</b> Gold für jede geschaffte Ebene. Die Hüter lassen mit etwas Glück ein episches Teil fallen, der Wächter 2 epische Teile (Lv 80), mit Glück ein legendäres (Lv 80), dazu Seelensplitter, Ätherkerne und Schmiede-Teile. Echte Seelensteine geben ihre gewohnte Beute.</p>' +
+    '<p><b class="legend-text">Beute:</b> Gold für jede geschaffte Ebene. Die Hüter lassen mit etwas Glück ein episches Teil fallen. Nach dem Sieg erscheint die <b>Truhe des Wächters</b>: drei epische Teile (Lv 80), mit Glück ein legendäres (sonst ein viertes episches), Seelensplitter, Ätherkerne, Schmiede-Teile, oft ein Seelenstein und viel Gold. Dazu schmiedet der <b>Turm-Schmied</b> einmal für dich – +1 mit höherer Chance, ohne dass etwas zerbricht. Echte Seelensteine geben ihre gewohnte Beute.</p>' +
     (S ? `<p class="set-portal"><span>Klassen-Set:</span> <b style="color:${S.color}">${S.name}</b> <span>– legendäre Teile (Lv 80) von hier gehören meist dazu.</span></p>` : '') +
     '<p><strong>Laufende Durchgänge im Kanal</strong></p><div class="turm-runs" id="turmRuns"></div>' +
     '<div class="turm-art"><label><input type="radio" name="turmArt" value="0" ' + (turmUi.open ? '' : 'checked') + '> <span>Nur meine Gruppe</span></label>' +

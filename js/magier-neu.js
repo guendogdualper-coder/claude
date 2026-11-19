@@ -73,7 +73,8 @@ SKILL_TYPES.mcast = function (sk, pw, lvl) {
   input.walkTo = null;
   clearAttack();
   const dur = sk.castTime;
-  p.mcast = { sk, i: classSkills(p).indexOf(sk), t0: game.time, dur, target: t, pw, lvl, mana: skillMana(sk, p) };
+  // sk ist bei Rang-Boni die Kopie mit den Werten des Rangs (rankSk) – der Platz in der Leiste gehört zum Original
+  p.mcast = { sk, i: classSkills(p).indexOf(sk.base || sk), t0: game.time, dur, target: t, pw, lvl, mana: skillMana(sk.base || sk, p) };
   p.mcast.fx = addEffect({ type: 'mcast3', follow: p, ox: 0, oy: 0, owner: p, el: sk.el, dur: dur + 0.05 });
   p.mcast.bar = addEffect({ type: 'mcastbar', follow: p, ox: 0, oy: 26, name: sk.name, dur });
   return { cast: 1, d: dur };
@@ -120,7 +121,9 @@ function mageCastTick() {
   addEffect({ type: 'sparks3', x: p.x + p.facing.x * 14, y: feetY(p), h: 1, count: 14, color: '#ffb04a', speed: 2.6, up: 1, dur: 0.5 });
   shakeScreen(4);
   if (typeof snd !== 'undefined') snd.skill(sk, p);
-  netSkillFx(sk.id, 160, { rel: 1, tx: Math.round(tx), ty: Math.round(ty) });
+  // Rang mitschicken (Rang-Boni: Glutlache und Sternenfeuer sehen auch Mitspieler)
+  const crk = skillRank(c.lvl || 1);
+  netSkillFx(sk.id, 160, { rel: 1, tx: Math.round(tx), ty: Math.round(ty), ...(crk >= 0 ? { rk: crk } : {}) });
 }
 MAGE2_REMOTE.mcast = (rp, sk, d) => {
   if (d.cx) {
@@ -131,7 +134,7 @@ MAGE2_REMOTE.mcast = (rp, sk, d) => {
   if (d.rel) {
     if (rp.mcastFx) rp.mcastFx.dur = Math.max(0, game.time - rp.mcastFx.start);
     rp.mcastFx = null;
-    spawnProjectile({ ...mageBolt(rp, sk, null, 0, 1, false), big: sk.big, radius: 16, dir: null, aimAt: { x: d.tx, y: d.ty }, range: hyp(d.tx - rp.x, d.ty - rp.y) + 60 });
+    spawnProjectile({ ...mageBolt(rp, sk, null, 0, 1, false), big: sk.big, radius: 16, dir: null, aimAt: { x: d.tx, y: d.ty }, range: hyp(d.tx - rp.x, d.ty - rp.y) + 60, passTo: d.fo ? { x: d.tx, y: d.ty } : null });
     return;
   }
   rp.mcastFx = addEffect({ type: 'mcast3', follow: rp, ox: 0, oy: 0, owner: rp, el: sk.el, dur: (d.d || sk.castTime) + 0.3 });
@@ -180,6 +183,7 @@ SKILL_TYPES.mphoenix = function (sk, pw, lvl) {
 function phoenixFx(owner, x0, y0, x1, y1, sk, local, pw, target) {
   const len = Math.max(40, hyp(x1 - x0, y1 - y0));
   const fly = len / sk.speed;
+  if (sk.back || sk.reborn) phoenixRankFx(owner, x0, y0, x1, y1, sk, local, pw, fly);
   addEffect({ type: 'mphoenix3', x: (x0 + x1) / 2, y: (y0 + y1) / 2 + 9, x0, y0: y0 + 9, x1, y1: y1 + 9, fly, dur: fly + 0.9 });
   later(fly, () => {
     addEffect({ type: 'mburst3', x: x1, y: y1 + 9, R: sk.blast.r, dur: 2.6 });
@@ -200,13 +204,61 @@ function phoenixFx(owner, x0, y0, x1, y1, sk, local, pw, target) {
   }
   later(fly, () => {
     const main = target && !target.dead ? target : null;
+    let died = null;
     for (const m of enemiesInCircle(x1, y1, sk.blast.r)) {
       const burning = m.burn && m.burn.until > game.time;
       const mul = (m === main ? 1 : sk.blast.mul) * (burning ? 1 + sk.combust : 1);
       // seit 13.69 betäubt die Explosion (sk.stun)
       hitMonster(m, sk.dmg * mul * pw, { skill: sk.id, burn: sk.burn, stun: sk.stun, heavy: true, knockback: 30, from: { x: x1, y: y1 }, vfxColor: burning ? '#ffffff' : '#ffb04a' });
       if (burning) addEffect({ type: 'column3', x: m.x, y: feetY(m), r: 16, hgt: 1.8, color: '#ff6a1a', core: '#fff1c8', dur: 0.45 });
+      if (!died && m.dead && !m.duelProxy) died = m;
     }
+    if (sk.reborn && died) phoenixReborn(owner, died, sk, true, pw);
+  });
+}
+// Rang-Boni der Phönixflamme (docs/rang-boni.md): L Rückflug, V Phönix der Wiedergeburt (Mitspieler: nur Bild)
+function phoenixRankFx(owner, x0, y0, x1, y1, sk, local, pw, fly) {
+  if (sk.back) {
+    later(fly + 0.2, () => {
+      const vx = x1 - x0;
+      const vy = y1 - y0;
+      const l = hyp(vx, vy) || 1;
+      const xb = x1 - (vx / l) * sk.back.len;
+      const yb = y1 - (vy / l) * sk.back.len;
+      const f2 = sk.back.len / sk.speed;
+      addEffect({ type: 'mphoenix3', x: (x1 + xb) / 2, y: (y1 + yb) / 2 + 9, x0: x1, y0: y1 + 9, x1: xb, y1: yb + 9, fly: f2, dur: f2 + 0.9 });
+      if (!local) return;
+      const wx = xb - x1;
+      const wy = yb - y1;
+      const L2 = wx * wx + wy * wy || 1;
+      for (const m of enemiesNear((x1 + xb) / 2, (y1 + yb) / 2, Math.sqrt(L2) / 2 + sk.pathR)) {
+        const u = clamp01(((m.x - x1) * wx + (m.y - y1) * wy) / L2);
+        if (hyp(x1 + wx * u - m.x, y1 + wy * u - m.y) > sk.pathR + m.r) continue;
+        later(f2 * u, () => { if (!m.dead) hitMonster(m, sk.dmg * sk.pathMul * sk.back.mul * pw, { skill: sk.id, burn: sk.burn, rankEcho: true, vfxColor: '#ffd34d' }); });
+      }
+    });
+  }
+  // Mitspieler sehen den Wiedergeburts-Phönix, wenn in der Explosion ein Monster fällt (die Treffer rechnet der Werfer)
+  if (sk.reborn && !local) {
+    later(fly + 0.35, () => {
+      const died = game.monsters.find((m) => m.dead && hyp(m.x - x1, m.y - y1) <= sk.blast.r + (m.r || 0));
+      if (died) phoenixReborn(owner, died, sk, false, 0);
+    });
+  }
+}
+function phoenixReborn(owner, from, sk, local, pw) {
+  const t = enemiesNear(from.x, from.y, sk.reborn.r).filter((m) => !m.dead && m !== from && hyp(m.x - from.x, m.y - from.y) <= sk.reborn.r)
+    .sort((a, b) => hyp(a.x - from.x, a.y - from.y) - hyp(b.x - from.x, b.y - from.y))[0];
+  if (!t) return;
+  const fx = from.x;
+  const fy = from.y;
+  const f2 = Math.max(0.25, hyp(t.x - fx, t.y - fy) / (sk.speed * 1.2));
+  addEffect({ type: 'column3', x: fx, y: fy + 9, r: 20, hgt: 2.6, color: '#ffd34d', core: '#ffffff', dur: 0.5 });
+  addEffect({ type: 'mphoenix3', x: (fx + t.x) / 2, y: (fy + t.y) / 2 + 9, x0: fx, y0: fy + 9, x1: t.x, y1: t.y + 9, fly: f2, dur: f2 + 0.9 });
+  later(f2, () => {
+    addEffect({ type: 'sparks3', x: t.x, y: feetY(t), h: 0.8, count: 14, color: '#ffd34d', speed: 3, up: 1.4, dur: 0.6 });
+    if (!V3.on) particles(t.x, feetY(t) - 16, { count: 16, color: ['#fff1c8', '#ffd34d', '#ff6a2a'], speed: [80, 220], life: [0.3, 0.6], size: [2, 4], shape: 'ember', drag: 3 });
+    if (local && !t.dead) hitMonster(t, sk.dmg * sk.reborn.mul * pw, { skill: sk.id, burn: sk.burn, heavy: true, vfxColor: '#ffd34d' });
   });
 }
 MAGE2_REMOTE.mphoenix = (rp, sk, d) => phoenixFx(rp, d.x ?? rp.x, d.y ?? rp.y, d.tx, d.ty, sk, false, 0, null);
@@ -253,6 +305,16 @@ function spearFx(owner, x0, y0, x1, y1, sk, local, pw) {
     if (!V3.on) particles(x1, y1 - 14, { count: 12, color: ['#ffffff', '#fff7b0', '#8a5aff'], speed: [70, 190], life: [0.2, 0.4], size: [1.5, 3], shape: 'spark', drag: 4 });
   });
   if (owner === game.player) shakeScreen(2.5);
+  // Rang V (Himmelsspeer, docs/rang-boni.md): am Ende der Bahn fährt ein Himmelsblitz in Rot-Gold in den Boden
+  if (sk.sky) {
+    later(fly + 0.1, () => {
+      addEffect({ type: 'mstrike3', x: x1, y: y1 + 9, dur: 0.55, s: 1.5, col: '#ff8a4a', seed: Math.random() * 90 });
+      zapHitFx(x1, y1 + 9, 0.6, null, 1.3, 0);
+      if (owner === game.player) shakeScreen(3);
+      if (!local) return;
+      for (const m of enemiesInCircle(x1, y1, sk.sky.r)) hitMonster(m, sk.dmg * sk.sky.mul * pw, { skill: sk.id, heavy: true, rankEcho: true, vfxColor: '#ffd34d' });
+    });
+  }
   // Mitspieler: nur das Bild – wer auf der Bahn steht, zeigt ebenfalls die Lähmung
   const foes = local ? enemiesNear((x0 + x1) / 2, (y0 + y1) / 2, len / 2 + sk.width) : game.monsters;
   for (const m of foes) {
@@ -264,7 +326,11 @@ function spearFx(owner, x0, y0, x1, y1, sk, local, pw) {
       if (local) {
         // lähmt (sk.stun) und verlangsamt danach noch sk.slow.duration (die Verlangsamung läuft ab dem Treffer)
         hitMonster(m, sk.dmg * pw, { skill: sk.id, stun: sk.stun, slow: sk.slow && { amount: sk.slow.amount, duration: sk.stun + sk.slow.duration }, heavy: true, vfxColor: '#ffffff' });
-        if (!m.duelProxy) m.charged = game.time + sk.charge;
+        if (!m.duelProxy) {
+          m.charged = game.time + sk.charge;
+          // Rang L (Rang-Boni): doppelte Ladung – die nächste Entladung trifft um chargeBonus härter (boltHitMul)
+          m.chargeX = sk.chargeBonus || 0;
+        }
       }
       if (m.dead) return;
       paraFx(m, sk.stun);
@@ -312,10 +378,21 @@ function chainFirst(x, y, dir, reach, list) {
   }
   return best;
 }
-// nächster noch nicht getroffener Gegner im Sprungkreis um m
-function chainNext(m, list, hit) {
+// lebendes Monster am Punkt (x, y) aus list (höchstens r + 30 daneben), sonst null – Fokus-Ziel eines Mitspielers
+function nearestAt(list, x, y) {
   let best = null;
-  let bd = CHAIN_R;
+  let bd = Infinity;
+  for (const m of list) {
+    if (m.dead) continue;
+    const d = hyp(m.x - x, m.y - y);
+    if (d <= (m.r || 0) + 30 && d < bd) { bd = d; best = m; }
+  }
+  return best;
+}
+// nächster noch nicht getroffener Gegner im Sprungkreis um m (r: Sprungweite, Rang-Boni ab E größer)
+function chainNext(m, list, hit, r = CHAIN_R) {
+  let best = null;
+  let bd = r;
   for (const o of list) {
     if (o.dead || o === m || hit.has(o.id)) continue;
     const d = hyp(o.x - m.x, o.y - m.y);
@@ -331,7 +408,11 @@ function chainStrike(owner, sk, t, pw, lvl) {
   // Fokus respektieren: der erste Blitz schlägt im bewusst gewählten Ziel ein (Klick, Antippen, Tab), auch wenn Monster
   // davor stehen; erst die Sprünge gehen weiter zu den Nächsten
   const focus = t && !t.dead && !t.hidden && targetIsManual(t) && dist(owner, t) - (t.r || 0) <= reach ? t : null;
-  const first = focus || chainFirst(x0, y0, dir, reach, enemiesNear(x0 + dir.x * reach / 2, y0 + dir.y * reach / 2, reach / 2 + 80));
+  // steht der Fokus außer Reichweite (die Figur schaut zu ihm), fährt der Blitz in seine Richtung durch die Monster davor
+  // und verpufft – er springt nicht auf das erste Monster dazwischen (wie Geschosse, spawnProjectile)
+  const g = owner === game.player ? game.target : null;
+  const away = !focus && owner === game.player && targetIsManual(g) && !g.dead && !g.hidden && !g.duelProxy;
+  const first = focus || (away ? null : chainFirst(x0, y0, dir, reach, enemiesNear(x0 + dir.x * reach / 2, y0 + dir.y * reach / 2, reach / 2 + 80)));
   if (!first) {
     // ins Leere: der Blitz fährt in Blickrichtung und verpufft
     chainBoltFx(owner, null, { x: x0 + dir.x * reach, y: y0 + dir.y * reach }, 0);
@@ -339,28 +420,56 @@ function chainStrike(owner, sk, t, pw, lvl) {
   }
   const pr = { hit: new Set(), mul: sk.dmg * pw, color: mageElOf(sk.el).main };
   let left = sk.chain || 0;
+  // Rang-Boni (docs/rang-boni.md): ab E mehr Sprünge und weiter (chainR); die Sprünge über die normalen hinaus sind
+  // schwächer (chainX statt chainMul), V springt am Ende zurück (chainBack)
+  const CR = sk.chainR || CHAIN_R;
+  const base = sk.base ? sk.base.chain || 0 : sk.chain || 0;
+  const order = [];
   const strike = (src, m, k) => {
     chainBoltFx(k ? null : owner, src, m, k);
     pr.hit.add(m.id);
+    order.push(m);
     // Entladung aufgeladener Gegner (hitMul) und Aufräumen danach (afterHit) wie beim Geschoss
     const hm = boltHitMul(sk, m);
     hitMonster(m, pr.mul * hm, { stun: sk.stun, slow: sk.slow, burn: sk.burn, vfxColor: pr.color, skill: sk.id, duelMul: sk.duelMul });
     boltAfterHit(sk, m, pr, pw, lvl);
-    if (m.duelProxy || left <= 0) return;
+    if (m.duelProxy || left <= 0) { chainBack(sk, order, true, pw); return; }
     later(CHAIN_GAP, () => {
-      const next = chainNext(m, enemiesNear(m.x, m.y, CHAIN_R), pr.hit);
-      if (!next) return;
-      // jeder Sprung schwächer (Kettenblitz −20 %)
-      if (sk.chainMul) pr.mul *= sk.chainMul;
+      const next = chainNext(m, enemiesNear(m.x, m.y, CR), pr.hit, CR);
+      if (!next) { chainBack(sk, order, true, pw); return; }
+      // jeder Sprung schwächer (Kettenblitz −20 %, die Zusatzsprünge der Ränge −40 %)
+      if (sk.chainMul) pr.mul *= k + 1 > base && sk.chainX ? sk.chainX : sk.chainMul;
       left--;
       strike(m, next, k + 1);
     });
   };
   strike(null, first, 0);
 }
+// Rang V (Göttlicher Kettenblitz): vom letzten Ziel springt der Blitz in Rot-Gold zu bis zu sk.back schon getroffenen
+// Gegnern zurück (je backMul eines normalen Treffers, ohne erneute Entladung); über dem letzten Ziel bricht kurz eine
+// Krone aus Blitzbögen aus. Gegen Spieler halb (rankEcho), im Duell endet die Kette ohnehin am Gegner.
+function chainBack(sk, order, local, pw) {
+  if (!sk.back || order.length < 2) return;
+  const last = order[order.length - 1];
+  if (!last.dead) addEffect({ type: 'mkcrown3', follow: last, x: last.x, y: last.y, dur: 0.5, seed: Math.random() * 90 });
+  let from = last;
+  let j = 0;
+  for (let i = order.length - 2; i >= 0 && j < sk.back; i--) {
+    const to = order[i];
+    const src = from;
+    j++;
+    later(CHAIN_GAP * j, () => {
+      if (to.dead) return;
+      chainBoltFx(null, src, to, 1, { col: '#ff6a4a', core: true });
+      if (local) hitMonster(to, sk.dmg * sk.backMul * pw, { skill: sk.id, rankEcho: true, vfxColor: '#ffd34d' });
+    });
+    from = to;
+  }
+}
 // Bild: Blitz von der Hand (owner) bzw. vom letzten Getroffenen (src) nach dst (Gegner oder Punkt), dazu der Einschlag.
-// k = 0 der große Blitz, k > 0 die dünneren Sprünge
-function chainBoltFx(owner, src, dst, k) {
+// k = 0 der große Blitz, k > 0 die dünneren Sprünge. Rang-Boni: Sprünge in der Rangfarbe (E blauweiß, H violett und
+// länger nachglühend, L gold, V rot), o.col eigene Farbe (Rücksprung)
+function chainBoltFx(owner, src, dst, k, o) {
   const isFoe = dst.r != null;
   const bx = dst.x;
   const by = isFoe ? feetY(dst) : dst.y + 9;
@@ -379,8 +488,9 @@ function chainBoltFx(owner, src, dst, k) {
     ay = feetY(src);
     ah = Math.max(0.5, figureHeight(src) * 0.5 * U3);
   }
-  const s = k ? 0.62 : 1;
-  addEffect({ type: 'mkbolt3', x: (ax + bx) / 2, y: (ay + by) / 2, ax, ay, ah, bx, by, bh, to: isFoe ? dst : null, s, branch: k ? 1 : 3, dur: k ? 0.34 : 0.46, seed: Math.random() * 90 });
+  const s = k ? (o && o.core ? 0.8 : 0.62) : 1;
+  const col = (o && o.col) || (k && fxRank >= 0 ? SKILL_RANKS[fxRank].color : undefined);
+  addEffect({ type: 'mkbolt3', x: (ax + bx) / 2, y: (ay + by) / 2, ax, ay, ah, bx, by, bh, to: isFoe ? dst : null, s, branch: k ? 1 : 3, dur: k ? (fxRank >= 1 ? 0.55 : 0.34) : 0.46, col, seed: Math.random() * 90 });
   zapHitFx(bx, by, bh, isFoe ? dst : null, k ? 0.7 : 1.25, isFoe ? (k ? 0.3 : 0.45) : 0);
   if (owner === game.player) shakeScreen(3);
 }
@@ -401,24 +511,35 @@ function chainRemote(rp, sk, d) {
     const dir = far > 1 ? dirOf(d.tx - x0, d.ty - y0) : dirOf(rp.facing.x, rp.facing.y);
     const reach = Math.min(sk.range + 60, far + 30);
     const near = game.monsters.filter((m) => !m.dead && Math.abs(m.x - x0) < reach + CHAIN_R * 3 && Math.abs(m.y - y0) < reach + CHAIN_R * 3);
-    const first = chainFirst(x0, y0, dir, reach, near);
+    // auf den Fokus des Mitspielers (fo): der erste Blitz schlägt wie bei ihm im Monster am Zielpunkt ein
+    const first = (d.fo && nearestAt(near, d.tx, d.ty)) || chainFirst(x0, y0, dir, reach, near);
     if (!first) {
       // kein Monster dort (z. B. ein Spieler im Duell): der Blitz endet am gemeldeten Punkt
       chainBoltFx(rp, null, { x: d.tx, y: d.ty }, 0);
       return;
     }
     const hit = new Set([first.id]);
+    const order = [first];
+    const CR = sk.chainR || CHAIN_R;
     chainBoltFx(rp, null, first, 0);
     let from = first;
-    for (let k = 1; k <= (sk.chain || 0); k++) {
+    const n = sk.chain || 0;
+    for (let k = 1; k <= n; k++) {
       later(k * CHAIN_GAP, () => {
-        const next = from && chainNext(from, near, hit);
-        if (!next) { from = null; return; }
+        const next = from && chainNext(from, near, hit, CR);
+        if (!next) {
+          if (from) chainBack(sk, order, false, 0);
+          from = null;
+          return;
+        }
         hit.add(next.id);
+        order.push(next);
         chainBoltFx(null, from, next, k);
         from = next;
+        if (k === n) chainBack(sk, order, false, 0);
       });
     }
+    if (!n) chainBack(sk, order, false, 0);
   });
 }
 
@@ -451,7 +572,7 @@ function stormFx(owner, x, y, sk, local, pw) {
   const total = sk.form + sk.strikes * sk.every + 0.5;
   // seit der Überarbeitung des Blitzmagiers tobt unter der Wolke das Gewitterfeld (vorher beim Kugelblitz): bei jedem
   // Einschlag fahren mehrere Blitze vom Himmel ins Feld (strikes, every), zum Schluss (fin) besonders viele
-  addEffect({ type: 'mstorm3', x, y: y + 9, R: sk.radius, form: sk.form, strikes: sk.strikes, every: sk.every, fin: sk.form + sk.strikes * sk.every + 0.1, dur: total + 0.8, seed: Math.random() * 90 });
+  const se = addEffect({ type: 'mstorm3', x, y: y + 9, R: sk.radius, form: sk.form, strikes: sk.strikes, every: sk.every, fin: sk.form + sk.strikes * sk.every + 0.1, dur: total + 0.8, seed: Math.random() * 90 });
   const near = owner === game.player;
   for (let k = 0; k < sk.strikes; k++) {
     later(sk.form + k * sk.every, () => {
@@ -485,6 +606,17 @@ function stormFx(owner, x, y, sk, local, pw) {
     addEffect({ type: 'mstrike3', x, y: y + 9, dur: 0.6, s: 1.8, storm: true, seed: Math.random() * 90 });
     for (const m of caught) addEffect({ type: 'mpara3', follow: m, x: m.x, y: m.y, dur: sk.final.stun });
     if (near) shakeScreen(6);
+    // Rang H (Nebenblitz): ein zweiter Blitz fährt in einen der Getroffenen (wenn möglich nicht den ersten)
+    if (sk.side && caught.length) {
+      const tgt = caught[1] || caught[0];
+      later(0.15, () => {
+        if (tgt.dead) return;
+        addEffect({ type: 'mstrike3', x: tgt.x, y: tgt.y + 9, dur: 0.5, s: 1.3, storm: true, seed: Math.random() * 90 });
+        if (local) hitMonster(tgt, sk.final.dmg * sk.side * pw, { skill: sk.id, heavy: true, rankEcho: true, vfxColor: '#ffffff' });
+      });
+    }
+    // Rang V (Weltengewitter): die Wolke zieht dem nächsten Gegner nach und schlägt noch zweimal ein
+    if (sk.follow) stormFollow(owner, se, sk, local, pw);
     if (!local) return;
     for (const m of caught) {
       m.stormHit = 0;
@@ -493,6 +625,38 @@ function stormFx(owner, x, y, sk, local, pw) {
   });
 }
 MAGE2_REMOTE.mstorm = (rp, sk, d) => stormFx(rp, d.tx, d.ty, sk, false, 0);
+// Rang V der Gewitterwolke: die Wolke gleitet in kleinen Schritten zum nächsten Gegner (bis follow.r von ihrer Mitte)
+// und schlägt dort ein (je follow.mul eines Blitzes, rot-golden); sie bleibt so lange stehen
+function stormFollow(owner, se, sk, local, pw) {
+  const F = sk.follow;
+  se.dur = Math.max(se.dur, game.time - se.start + F.n * F.every + 0.9);
+  for (let j = 1; j <= F.n; j++) {
+    later((j - 1) * F.every, () => {
+      if (owner.dead) return;
+      let best = null;
+      let bd = F.r;
+      for (const m of enemiesNear(se.x, se.y, F.r)) {
+        if (m.dead) continue;
+        const d = hyp(m.x - se.x, m.y - (se.y - 9));
+        if (d < bd) { bd = d; best = m; }
+      }
+      if (!best) return;
+      const x0 = se.x;
+      const y0 = se.y;
+      const tx = best.x;
+      const ty = best.y + 9;
+      // gleiten: acht kleine Schritte über 0,6 s (die Wolke liest ihre Lage in jedem Bild aus e.x/e.y)
+      for (let s = 1; s <= 8; s++) later(s * 0.075, () => { const u = easeOut(s / 8); se.x = x0 + (tx - x0) * u; se.y = y0 + (ty - y0) * u; });
+      later(0.62, () => {
+        if (best.dead) return;
+        addEffect({ type: 'mstrike3', x: best.x, y: best.y + 9, dur: 0.55, s: 1.4, col: '#ff8a4a', seed: Math.random() * 90 });
+        addEffect({ type: 'mstrike3', x: best.x, y: best.y + 9, dur: 0.5, s: 1.2, storm: true, seed: Math.random() * 90 });
+        if (owner === game.player) shakeScreen(2.5);
+        if (local) hitMonster(best, sk.dmg * F.mul * pw, { skill: sk.id, heavy: true, rankEcho: true, vfxColor: '#ffd34d' });
+      });
+    });
+  }
+}
 
 // Blitzschritt (seit 11.5): Himmelsblitze schlagen hinter dir auf deinem Weg ein (von shiftFx aufgerufen)
 function blitzTrail(owner, a, b, sk, local, pw) {
@@ -536,11 +700,28 @@ function clashFx(owner, x, y, sk, local, pw) {
     addEffect({ type: 'smoke3', x, y: y + 9, count: 5, color: '#6a5a50', size: 0.8, dur: 0.8 });
     addEffect({ type: 'decal', kind: 'crack', x, y: y + 9, r: sk.radius * 0.5, dur: 2.5, color: '#1a1210' });
     if (owner === game.player) shakeScreen(5);
+    // Rang-Boni (docs/rang-boni.md): H Steinsplitter zu den Gegnern ringsum, V zweiter Einschlag (Bild für alle)
+    if (sk.shards) rankShards(owner, x, y, sk, { ...sk.shards, style: 'stone' }, local, pw);
+    if (sk.second) later(sk.second.delay, () => clashSecond(owner, x, y, sk, local, pw));
     if (!local) return;
     for (const m of enemiesInCircle(x, y, sk.radius)) {
       liftOf(m, sk.lift);
       hitMonster(m, sk.dmg * pw, { skill: sk.id, stun: sk.stun, heavy: true, duelMul: sk.duelMul, vfxColor: '#f0a830' });
     }
+  });
+}
+// Weltenschlag (Steinschlag V): ein glühender Brocken schlägt noch einmal in der Mitte ein
+function clashSecond(owner, x, y, sk, local, pw) {
+  const S = sk.second;
+  const d = dirOf(x - owner.x, y - owner.y);
+  addEffect({ type: 'mclash3', x, y: y + 9, ax: x + d.x * 90, ay: y - 110 + 9, bx: x - d.x * 90, by: y - 110 + 9, fly: 0.3, dur: 1.2 });
+  later(0.3, () => {
+    addEffect({ type: 'mdebris3', x, y: y + 9, n: 7, size: 0.1, dur: 0.9 });
+    addEffect({ type: 'sparks3', x, y: y + 9, h: 0.6, count: 16, color: '#ff8a4a', speed: 3, up: 1.6, dur: 0.6 });
+    if (!V3.on) particles(x, y - 6, { count: 18, color: ['#3e3532', '#f0a830', '#ff6a4a'], angle: -Math.PI / 2, spread: 1.2, speed: [90, 230], life: [0.3, 0.6], size: [2.5, 4.5], shape: 'square', drag: 2, glow: false, gravity: 500 });
+    if (owner === game.player) shakeScreen(4);
+    if (!local || owner.dead) return;
+    for (const m of enemiesInCircle(x, y, S.r)) hitMonster(m, sk.dmg * S.mul * pw, { skill: sk.id, heavy: true, rankEcho: true, duelMul: sk.duelMul, vfxColor: '#ffd34d' });
   });
 }
 MAGE2_REMOTE.mclash = (rp, sk, d) => clashFx(rp, d.tx, d.ty, sk, false, 0);
@@ -556,6 +737,31 @@ SKILL_TYPES.mspikes = function (sk, pw, lvl) {
 };
 function spikesFx(owner, x, y, sk, local, pw) {
   addEffect({ type: 'mspikes3', x, y: y + 9, R: sk.radius, seed: Math.random() * 100, dur: 1.5 });
+  // Rang H (docs/rang-boni.md): zweite Welle am Rand; Rang V: die Spitzen stoßen noch zweimal nach (Bild für alle)
+  if (sk.wave2) {
+    later(sk.wave2.delay, () => {
+      addEffect({ type: 'mspikes3', x, y: y + 9, R: sk.radius * 1.15, seed: Math.random() * 100, dur: 1.2 });
+      if (owner === game.player) shakeScreen(2);
+      if (!local || owner.dead) return;
+      for (const m of enemiesInCircle(x, y, sk.radius * 1.15)) {
+        if (hyp(m.x - x, m.y - y) < sk.radius * 0.5) continue;
+        hitMonster(m, sk.dmg * sk.wave2.mul * pw, { skill: sk.id, rankEcho: true, duelMul: sk.duelMul, vfxColor: '#f0a830' });
+      }
+    });
+  }
+  if (sk.stay) {
+    for (let j = 1; j <= sk.stay.n; j++) {
+      later(0.3 + j * sk.stay.every, () => {
+        addEffect({ type: 'mspikes3', x, y: y + 9, R: sk.radius * 0.85, seed: Math.random() * 100, dur: 1.1 });
+        addEffect({ type: 'sparks3', x, y: y + 9, h: 0.5, count: 12, color: '#ff6a4a', speed: 2.6, up: 1.4, dur: 0.6 });
+        if (owner === game.player) shakeScreen(2);
+        if (!local || owner.dead) return;
+        for (const m of enemiesInCircle(x, y, sk.radius)) {
+          hitMonster(m, sk.dmg * sk.stay.mul * pw, { skill: sk.id, slow: { amount: sk.stay.slow, duration: 1 }, rankEcho: true, duelMul: sk.duelMul, vfxColor: '#ffd34d' });
+        }
+      });
+    }
+  }
   addEffect({ type: 'decal', kind: 'crack', x, y: y + 9, r: sk.radius * 0.8, dur: 2.6, color: '#1a1210' });
   for (const [t, part] of [[0.08, 'out'], [0.3, 'in']]) {
     later(t, () => {
@@ -585,6 +791,43 @@ SKILL_TYPES.mmeteor = function (sk, pw, lvl) {
 function meteorFx(owner, x, y, sk, local, pw) {
   addEffect({ type: 'mmeteor3', x, y: y + 9, R: sk.radius, fall: sk.fall, dur: sk.fall + 1.4 });
   addEffect({ type: 'warn', x, y: y + 9, r: sk.radius, dur: sk.fall, color: '#f0a830' });
+  // Rang H (docs/rang-boni.md): drei Felsbrocken rollen nach außen; Rang V: zwei kleinere Brocken stürzen hinterher
+  if (sk.roll) {
+    later(sk.fall + 0.05, () => {
+      const a0 = Math.random() * Math.PI * 2;
+      for (let i = 0; i < sk.roll.n; i++) {
+        const a = a0 + (i / sk.roll.n) * Math.PI * 2;
+        // Start 30 neben der Mitte: wer dort steht, hat den Einschlag schon abbekommen
+        spawnProjectile({
+          owner: local ? 'player' : 'remote', x: x + Math.cos(a) * 30, y: y + Math.sin(a) * 30, target: null, dir: { x: Math.cos(a), y: Math.sin(a) }, aimAt: null, pierce: true,
+          speed: 380, range: sk.roll.len, mul: local ? sk.dmg * sk.roll.mul * pw : 0, color: '#f0a830', radius: 10, style: 'stone', el: 'erde', skill: sk.id,
+          duelMul: (sk.duelMul || 1) * RANK_PVP_ECHO, afterHit: (t) => shardHitFx(t, false), onRemoteHit: (t) => shardHitFx(t, false)
+        });
+      }
+    });
+  }
+  if (sk.more) {
+    const d = dirOf(x - owner.x, y - owner.y);
+    for (let i = 0; i < sk.more.n; i++) {
+      const s = i % 2 ? 1 : -1;
+      // 105 neben der Mitte: die Brocken treffen die Gegner ringsum, nicht noch einmal das Hauptziel
+      const mx = x - d.y * s * 105 + d.x * 20;
+      const my = y + d.x * s * 105 + d.y * 20;
+      later(sk.fall + sk.more.delay * (i + 0.5), () => {
+        addEffect({ type: 'mmeteor3', x: mx, y: my + 9, R: sk.more.r, fall: 0.45, dur: 1.6 });
+        addEffect({ type: 'warn', x: mx, y: my + 9, r: sk.more.r, dur: 0.45, color: '#ff6a4a' });
+        later(0.45, () => {
+          addEffect({ type: 'mdebris3', x: mx, y: my + 9, n: 7, size: 0.1, dur: 0.9 });
+          addEffect({ type: 'sparks3', x: mx, y: my + 9, h: 0.5, count: 12, color: '#ff8a4a', speed: 2.8, up: 1.5, dur: 0.6 });
+          if (owner === game.player) shakeScreen(5);
+          if (!local || owner.dead) return;
+          for (const m of enemiesInCircle(mx, my, sk.more.r)) {
+            hitMonster(m, sk.dmg * sk.more.mul * pw, { skill: sk.id, heavy: true, rankEcho: true, knockback: 40, from: { x: mx, y: my }, duelMul: sk.duelMul, vfxColor: '#ffd34d' });
+          }
+        });
+      });
+    }
+  }
   later(sk.fall, () => {
     addEffect({ type: 'mdebris3', x, y: y + 9, n: 12, size: 0.13, dur: 1.1 });
     addEffect({ type: 'smoke3', x, y: y + 9, count: 9, color: '#5a4a40', size: 1.1, dur: 1.2 });
@@ -631,12 +874,25 @@ function gravFx(owner, x, y, sk, local, pw) {
     addEffect({ type: 'mdebris3', x, y: y + 9, n: 10, size: 0.11, dur: 1 });
     addEffect({ type: 'smoke3', x, y: y + 9, count: 6, color: '#5a4a40', size: 0.9, dur: 0.9 });
     if (owner === game.player) shakeScreen(8);
+    // Rang V (Schwarzes Loch, docs/rang-boni.md): die Mitte kollabiert und hält alle darin fest (Bild für alle)
+    if (sk.hole) later(0.15, () => gravHole(owner, x, y, sk, local, pw));
     if (!local) return;
     for (const m of enemiesInCircle(x, y, sk.radius)) {
       liftOf(m, sk.last.lift);
-      hitMonster(m, sk.last.dmg * pw, { skill: sk.id, stun: sk.last.stun, heavy: true, duelMul: sk.duelMul, vfxColor: '#f0a830' });
+      // Rang L: nach dem Einsturz verlangsamt (sk.after)
+      hitMonster(m, sk.last.dmg * pw, { skill: sk.id, stun: sk.last.stun, slow: sk.after || null, heavy: true, duelMul: sk.duelMul, vfxColor: '#f0a830' });
     }
   });
+}
+function gravHole(owner, x, y, sk, local, pw) {
+  const H = sk.hole;
+  addEffect({ type: 'mhole3', x, y: y + 9, R: H.r, dur: H.hold + 0.6, seed: Math.random() * 90 });
+  if (owner === game.player) shakeScreen(4);
+  if (!local || owner.dead) return;
+  for (const m of enemiesInCircle(x, y, H.r)) {
+    const hold = canLift(m) ? H.hold : 0;
+    hitMonster(m, sk.last.dmg * H.mul * pw, { skill: sk.id, stun: hold, knockback: -20, from: { x, y }, rankEcho: true, duelMul: sk.duelMul, vfxColor: '#c84aff' });
+  }
 }
 MAGE2_REMOTE.mgrav = (rp, sk, d) => gravFx(rp, d.tx, d.ty, sk, false, 0);
 
@@ -884,7 +1140,7 @@ EXTRA_EFFECTS.mkbolt3 = (ctx, e, k) => {
   const by = e.by - e.bh * BLZ2_H;
   const len = hyp(bx - ax, by - ay);
   ctx.save();
-  blz2(ctx, ax, ay, bx, by, e.s * (2.4 + 3.8 * flash), Math.min(1, (1 - k) * 1.6), e.seed + Math.floor(t / 0.05), { segs: Math.max(3, Math.min(12, Math.round(len / 28))), jit: Math.min(len * 0.12, 6 + 8 * e.s), branch: e.branch });
+  blz2(ctx, ax, ay, bx, by, e.s * (2.4 + 3.8 * flash), Math.min(1, (1 - k) * 1.6), e.seed + Math.floor(t / 0.05), { segs: Math.max(3, Math.min(12, Math.round(len / 28))), jit: Math.min(len * 0.12, 6 + 8 * e.s), branch: e.branch, color: e.col });
   if (flash > 0 && e.s >= 0.9) {
     ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = 'lighter';
@@ -1071,14 +1327,14 @@ EXTRA_EFFECTS.mstrike3 = (ctx, e, k, x, y) => {
   }
   if (k > 0.5) return;
   ctx.save();
-  ctx.strokeStyle = '#fffbe0';
+  ctx.strokeStyle = e.col || '#fffbe0';
   ctx.lineWidth = 3 * (e.s || 1);
   ctx.beginPath();
   ctx.moveTo(x, y - 160);
   for (let i = 1; i <= 6; i++) ctx.lineTo(x + (Math.random() - 0.5) * 18, y - 160 + i * 26.6);
   ctx.stroke();
   ctx.restore();
-  glow2(ctx, x, y, 22 * (e.s || 1), '#fff7b0', 0.8 * (1 - k * 2));
+  glow2(ctx, x, y, 22 * (e.s || 1), e.col || '#fff7b0', 0.8 * (1 - k * 2));
 };
 const rock2 = (ctx, x, y, r) => {
   ctx.fillStyle = '#4a3e3a';
@@ -1555,7 +1811,7 @@ FX3_DRAW.mkbolt3 = function (h, e, k) {
   _n3a.set(e.ax * U3, e.ah, e.ay * U3);
   _n3b.set(e.bx * U3, e.bh, e.by * U3);
   const len = _n3a.distanceTo(_n3b);
-  n3Zap(h, _n3a, _n3b, e.s * (0.06 + 0.07 * flash), Math.min(1, (1 - k) * 1.6), e.seed + Math.floor(t / 0.05), { segs: Math.max(3, Math.min(low ? 7 : 14, Math.round(len / 0.7))), jit: Math.min(len * 0.14, 0.3 + 0.3 * e.s), branch: e.branch });
+  n3Zap(h, _n3a, _n3b, e.s * (0.06 + 0.07 * flash), Math.min(1, (1 - k) * 1.6), e.seed + Math.floor(t / 0.05), { segs: Math.max(3, Math.min(low ? 7 : 14, Math.round(len / 0.7))), jit: Math.min(len * 0.14, 0.3 + 0.3 * e.s), branch: e.branch, color: e.col });
   if (flash > 0 && e.s >= 0.9) {
     n3Glow(h, _n3a.x, _n3a.y, _n3a.z, 0.5 + 1.5 * flash, '#fff7b0', flash);
     n3Glow(h, _n3a.x, _n3a.y, _n3a.z, 0.3 + 0.6 * flash, '#ffffff', flash);
@@ -1766,7 +2022,7 @@ FX3_DRAW.mstrike3 = function (h, e) {
   } else if (k < 0.45 && (k < 0.12 || Math.random() < 0.6)) {
     _n3a.set(x + (Math.random() - 0.5) * 0.6, 5.2, z + (Math.random() - 0.5) * 0.4);
     _n3b.set(x, 0.05, z);
-    n3Bolt(h, _n3a, _n3b, 0.07 * s, '#ffe94a', 1, n3low() ? 7 : 12, 0.6);
+    n3Bolt(h, _n3a, _n3b, 0.07 * s, e.col || '#ffe94a', 1, n3low() ? 7 : 12, 0.6);
     if (!n3low()) {
       _n3c.set(x + (Math.random() - 0.5) * 1.4, 2.4, z + (Math.random() - 0.5) * 1.4);
       _n3d.set(x + (Math.random() - 0.5) * 1.8, 0.05, z + (Math.random() - 0.5) * 1.8);
@@ -1775,7 +2031,7 @@ FX3_DRAW.mstrike3 = function (h, e) {
   }
   const fade = Math.max(0, 1 - k);
   // Einschlag: Lichtblitz in Körperhöhe und Funken (nichts am Boden)
-  n3Glow(h, x, 0.8, z, 1.1 * s * fade, '#fff7b0', 0.75 * fade);
+  n3Glow(h, x, 0.8, z, 1.1 * s * fade, e.col || '#fff7b0', 0.75 * fade);
   if (!n3low() && k < 0.5) {
     for (let i = 0; i < 6; i++) {
       const a = i * 1.05 + e.start * 7;
@@ -2018,3 +2274,139 @@ function blitzShotHit(m) {
   addEffect({ type: 'mkhit3', x: m.x, y: b, hgt, s: 0.5, dur: 0.26, seed: Math.random() * 90 });
   if (!V3.on) particles(m.x, b - hgt * BLZ2_H, { count: 5, color: ['#ffffff', '#fff7b0', '#b89aff'], speed: [50, 140], life: [0.12, 0.26], size: [1.2, 2.4], shape: 'spark', drag: 4 });
 }
+
+// --- Rang-Boni (docs/rang-boni.md): zwei kleine Effektarten ---------------------------------------------------------
+// mkcrown3: Krone aus drei Blitzbögen über dem Kopf des letzten Ziels (Kettenblitz V), rot-gold, 0,5 s – in der Luft,
+// nichts am Boden. Höchstens ~30 Sprites (drei Bögen, drei Zacken, zwei Lichtflecken).
+// mglut3: Glutlache des Feuerballs (L): kleine Flammen züngeln 2 s aus dem Boden, unregelmäßig verteilt, kein Kreis.
+FX3_TYPES.add('mkcrown3');
+FX3_TYPES.add('mglut3');
+function crownPts(e, m, t) {
+  const pts = [];
+  for (let i = 0; i < 3; i++) {
+    const a = (i / 3) * Math.PI * 2 + t * 2.4 + e.seed;
+    pts.push([Math.cos(a), Math.sin(a)]);
+  }
+  return pts;
+}
+FX3_DRAW.mkcrown3 = function (h, e) {
+  const t = game.time - e.start;
+  const m = e.follow && !e.follow.dead ? e.follow : null;
+  const x = (m ? m.x : e.x) * U3;
+  const z = (m ? feetY(m) : e.y) * U3;
+  const y = (m ? figureHeight(m) * U3 : 1.6) + 0.35;
+  const f = clamp01(1 - t / e.dur) * clamp01(t / 0.06);
+  if (f <= 0) return;
+  const R = 0.38;
+  const P = crownPts(e, m, t);
+  const sd = e.seed + Math.floor(t / 0.05);
+  for (let i = 0; i < 3; i++) {
+    const [ca, sa] = P[i];
+    const [cb, sb] = P[(i + 1) % 3];
+    _n3a.set(x + ca * R, y, z + sa * R * 0.8);
+    _n3b.set(x + cb * R, y, z + sb * R * 0.8);
+    n3Zap(h, _n3a, _n3b, 0.03, f, sd + i, { segs: 3, jit: 0.08, rim: false, halo: false, color: '#ff6a4a' });
+    _n3b.set(x + ca * R * 0.8, y + 0.32, z + sa * R * 0.64);
+    n3Zap(h, _n3a, _n3b, 0.026, f, sd + i + 5, { segs: 2, jit: 0.05, rim: false, halo: false, color: '#ffd34d' });
+  }
+  n3Glow(h, x, y + 0.1, z, 0.9, '#ff8a4a', 0.55 * f);
+  n3Glow(h, x, y + 0.1, z, 0.35, '#ffffff', 0.8 * f);
+};
+EXTRA_EFFECTS.mkcrown3 = (ctx, e, k, x, y) => {
+  const t = game.time - e.start;
+  const m = e.follow && !e.follow.dead ? e.follow : null;
+  const cx = m ? m.x : x;
+  const cy = (m ? feetY(m) - figureHeight(m) : y - 50) - 14;
+  const f = clamp01(1 - k) * clamp01(t / 0.06);
+  if (f <= 0) return;
+  const P = crownPts(e, m, t);
+  const sd = e.seed + Math.floor(t / 0.05);
+  ctx.save();
+  for (let i = 0; i < 3; i++) {
+    const [ca, sa] = P[i];
+    const [cb, sb] = P[(i + 1) % 3];
+    blz2(ctx, cx + ca * 14, cy + sa * 5, cx + cb * 14, cy + sb * 5, 1.4, f, sd + i, { segs: 3, jit: 3, rim: false, color: '#ff6a4a' });
+    blz2(ctx, cx + ca * 14, cy + sa * 5, cx + ca * 11, cy + sa * 4 - 12, 1.1, f, sd + i + 5, { segs: 2, jit: 2, rim: false, color: '#ffd34d' });
+  }
+  ctx.globalCompositeOperation = 'lighter';
+  glow2(ctx, cx, cy - 4, 18, '#ff8a4a', 0.5 * f);
+  ctx.restore();
+};
+FX3_DRAW.mglut3 = function (h, e) {
+  const t = game.time - e.start;
+  const f = clamp01(t / 0.2) * clamp01((e.dur - t) / 0.5);
+  if (f <= 0) return;
+  const x = e.x * U3;
+  const z = e.y * U3;
+  const R = e.R * U3;
+  const n = n3low() ? 3 : 5;
+  for (let i = 0; i < n; i++) {
+    const a = n2h(i, e.seed) * 6.283;
+    const d = Math.sqrt(n2h(i, e.seed + 1)) * R * 0.85;
+    const fl = 0.75 + 0.25 * Math.sin(t * 13 + i * 2.1);
+    n3Flame(h, x + Math.cos(a) * d, 0.22 * fl, z + Math.sin(a) * d * 0.8, 0.28, 0.5 * fl, i % 2 ? FIRE3.main : FIRE3.deep, 0.85 * f, 0, true);
+  }
+  n3Glow(h, x, 0.15, z, R * 1.6, '#ff6a1a', 0.35 * f);
+};
+EXTRA_EFFECTS.mglut3 = (ctx, e, k, x, y) => {
+  const t = game.time - e.start;
+  const f = clamp01(t / 0.2) * clamp01((e.dur - t) / 0.5);
+  if (f <= 0) return;
+  ctx.save();
+  for (let i = 0; i < 4; i++) {
+    const a = n2h(i, e.seed) * 6.283;
+    const d = Math.sqrt(n2h(i, e.seed + 1)) * e.R * 0.85;
+    if (typeof flame2d === 'function') flame2d(ctx, x + Math.cos(a) * d, y + Math.sin(a) * d * 0.5, 12, 20 + 6 * Math.sin(t * 11 + i), t, i + e.seed, 0.85 * f);
+  }
+  ctx.globalCompositeOperation = 'lighter';
+  glow2(ctx, x, y - 4, e.R * 1.1, '#ff6a1a', 0.3 * f);
+  ctx.restore();
+};
+
+// mhole3 (Schwerkraftsiegel V): dunkle Kugel schwebt über der Mitte, violetter Saum, Funken und Staub stürzen hinein.
+// In der Luft, nichts am Boden; höchstens ~26 Sprites.
+FX3_TYPES.add('mhole3');
+FX3_DRAW.mhole3 = function (h, e) {
+  const t = game.time - e.start;
+  const f = clamp01(t / 0.12) * clamp01((e.dur - t) / 0.35);
+  if (f <= 0) return;
+  const x = e.x * U3;
+  const z = e.y * U3;
+  const y = 1.25;
+  const pulse = 1 + 0.08 * Math.sin(t * 18);
+  for (let i = 0; i < 3; i++) n3Smoke(h, x, y, z, (1.1 - i * 0.25) * pulse, i ? '#0a0410' : '#1a0828', 0.85 * f);
+  n3Glow(h, x, y, z, 1.9 * pulse, '#8a3aff', 0.35 * f);
+  const n = n3low() ? 8 : 14;
+  for (let i = 0; i < n; i++) {
+    const ph = (t * 1.8 + i / n) % 1;
+    const a = i * 2.399 + t * 3;
+    const r = (1 - ph) * e.R * U3 * 1.1;
+    n3Glow(h, x + Math.cos(a) * r, y + (1 - ph) * 0.6 - 0.2, z + Math.sin(a) * r * 0.8, 0.12 + 0.1 * ph, i % 3 ? '#c84aff' : '#ffd34d', f * ph);
+  }
+};
+EXTRA_EFFECTS.mhole3 = (ctx, e, k, x, y) => {
+  const t = game.time - e.start;
+  const f = clamp01(t / 0.12) * clamp01((e.dur - t) / 0.35);
+  if (f <= 0) return;
+  const cy = y - 34;
+  const R = 22 * (1 + 0.08 * Math.sin(t * 18));
+  ctx.save();
+  ctx.globalAlpha = f;
+  const g = ctx.createRadialGradient(x, cy, 2, x, cy, R * 1.6);
+  g.addColorStop(0, 'rgba(8,2,14,1)');
+  g.addColorStop(0.55, 'rgba(26,8,40,0.95)');
+  g.addColorStop(1, 'rgba(60,20,90,0)');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(x, cy, R * 1.6, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.globalCompositeOperation = 'lighter';
+  glow2(ctx, x, cy, R * 2, '#8a3aff', 0.35 * f);
+  for (let i = 0; i < 10; i++) {
+    const ph = (t * 1.8 + i / 10) % 1;
+    const a = i * 2.399 + t * 3;
+    const r = (1 - ph) * e.R * 0.9;
+    glow2(ctx, x + Math.cos(a) * r, cy + Math.sin(a) * r * 0.5 + (1 - ph) * 20, 4, i % 3 ? '#c84aff' : '#ffd34d', f * ph);
+  }
+  ctx.restore();
+};

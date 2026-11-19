@@ -468,7 +468,7 @@ function raidResolve(m, kind, circles, inner, atk = m.atk, lvl = m.level) {
   }
   // seit 14.68 ohne Bildschirmblitz bei Aelvyr (Flügelstoß mit Staubwelle statt dessen)
   // seit 14.80 auch ohne Blitz bei den Endbossen der Karten (Druckwelle aus Brocken und Staub, bosse3d.js)
-  if (kind === 'nova' && m.typeId !== 'aelvyr' && !(typeof isBoss3 === 'function' && isBoss3(m.typeId))) flashScreen(b.color, 0.35);
+  // kein Bildschirmblitz mehr bei Angriffen der Gegner (Flimmern am Handy: nur eigenes Tun darf aufhellen)
   if (p.dead) return;
   const fyp = feetY(p);
   const hit = circles.some((c) => {
@@ -517,7 +517,7 @@ function raidRoarFx(m, phase) {
     bossRoar(m);
     return;
   }
-  flashScreen(b.color, 0.4);
+  // kein Bildschirmblitz mehr bei Angriffen der Gegner (Flimmern am Handy: nur eigenes Tun darf aufhellen)
   addEffect({ type: 'ring', x: m.x, y: feetY(m), r: 380, dur: 0.9, color: b.color, width: 18, grow: true });
   addEffect({ type: 'ultbeam', x: m.x, y: feetY(m), w: 140, dur: 1.2, color: b.color });
 }

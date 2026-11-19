@@ -614,8 +614,8 @@ function wzParticles(dt) {
 }
 
 // --- Blitze (Donnerklamm) ----------------------------------------------------------------------------------
-// Ein Zickzack-Band vom Himmel zur Spitze einer Felsnadel, eine Abzweigung, kurzes Nachleuchten; dazu hellt das
-// Licht der Szene für einen Augenblick auf (WZ.flash, in wzHook nach der Stimmung)
+// Ein Zickzack-Band vom Himmel zur Spitze einer Felsnadel, eine Abzweigung, kurzes Nachleuchten. Das Licht der Szene
+// bleibt dabei gleich (früher hellte WZ.flash es auf – Aufblinken des ganzen Bildes, siehe wzHook)
 function wzBoltMesh() {
   const N = 48;
   const g = new THREE.BufferGeometry();
@@ -1208,14 +1208,10 @@ function wzHook() {
   if (WZ.warm) { WZ.warm = false; wzWarm(px, pz); }
   for (const fn of WZ.tick) fn(t, dt, px, pz);
   wzParticles(dt);
-  // Blitz: Licht der Szene kurz heller
-  // seit 14.91 deutlich sanfter und weicher (vorher +1,1 schlagartig: wirkte als weißes Aufflackern der ganzen Szene)
-  if (WZ.flash > 0) {
-    const f = WZ.flash * WZ.flash;
-    V3.hemi.intensity += f * 0.35;
-    V3.sun.intensity += f * 0.15;
-    WZ.flash = Math.max(0, WZ.flash - dt * 3);
-  }
+  // Blitz: seit 14.91 hellte er das Licht der ganzen Szene sanfter auf (+0,35 Himmel, +0,15 Sonne). Gemessen war das
+  // immer noch ein Aufblinken des ganzen Bildes alle paar Sekunden (Flimmer-Meldung, docs/leistung.md) – Wetter darf den
+  // Bildschirm nicht aufhellen. Jetzt leuchtet nur der Blitz selbst (wzStrike), das Licht der Szene bleibt.
+  if (WZ.flash > 0) WZ.flash = Math.max(0, WZ.flash - dt * 3);
   // Glühen der Luft in der Nähe (Vulkan): Nebel und Himmel färben sich
   const ft = WZ.fogTint;
   if (ft) {
@@ -1447,7 +1443,8 @@ WZ_MAPS[3] = (wm, T) => {
     wzStrike(bolt, g.x, g.y, g.z, Math.random);
     WZ.flash = 1;
     for (let i = 0; i < 16; i++) wzSpawn({ x: g.x, y: g.y, z: g.z, vx: (Math.random() - 0.5) * 7, vz: (Math.random() - 0.5) * 7, vy: Math.random() * 5, grav: 9, life: 0.7, s0: 0.2, s1: 0.04, c: '#e0ecff', add: true });
-    wzSpawn({ x: g.x, y: g.y, z: g.z, life: 0.5, s0: 3, s1: 1, c: '#8aa8ff', add: true });
+    // Schein am Einschlag kleiner und blasser (vorher 3 Einheiten groß, nah an der Kamera ein heller Fleck im Bild)
+    wzSpawn({ x: g.x, y: g.y, z: g.z, life: 0.5, s0: 1.8, s1: 0.8, c: '#8aa8ff', add: true, a: 0.7 });
   });
   // Wolkenschatten und Sturmböen
   wzMistLayer(wzMistMat('donner', '#0a0e16', 0.36, 0.022, 0.03), 0.07, 70);

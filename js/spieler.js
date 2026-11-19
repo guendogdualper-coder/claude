@@ -45,6 +45,51 @@ function skillRank(lvl) {
   return -1;
 }
 
+// --- Rang-Boni (docs/rang-boni.md) -------------------------------------------------------------------------------
+// Jede Fertigkeit kann je Rang eine kleine Mechanik dazubekommen: sk.rb = [E, H, L, V], jeder Eintrag ein Objekt mit
+// Werten, die ab diesem Rang die Werte der Fertigkeit ersetzen (kumulativ: H enthält E usw.), und t = Text für die
+// Anzeige. Verschachtelte Werte (burn, splash, trail …) werden zusammengeführt, nicht ersetzt.
+// rankSk(sk, lvl) liefert die Fertigkeit mit den Werten ihres Rangs – eine Kopie mit base = Original, bei Fertigkeiten
+// ohne rb oder unter E das Original selbst. RANK_BONUS.off schaltet alle Rang-Boni aus (Messung, tools/balance-sim.js).
+const RANK_BONUS = { off: false };
+const RANK_BONUS_CACHE = new Map();
+function rankSkR(sk, r) {
+  if (!sk || !Array.isArray(sk.rb) || RANK_BONUS.off || !(r >= 0)) return sk;
+  const rr = Math.min(r, sk.rb.length - 1, SKILL_RANKS.length - 1);
+  const key = sk.id + ':' + rr;
+  const hit = RANK_BONUS_CACHE.get(key);
+  if (hit && hit.base === sk) return hit;
+  const out = { ...sk, base: sk, rbRank: rr };
+  for (let i = 0; i <= rr; i++) {
+    const b = sk.rb[i];
+    if (!b) continue;
+    for (const [k, v] of Object.entries(b)) {
+      if (k === 't') continue;
+      const cur = out[k];
+      out[k] = v && typeof v === 'object' && !Array.isArray(v) && cur && typeof cur === 'object' && !Array.isArray(cur) ? { ...cur, ...v } : v;
+    }
+  }
+  RANK_BONUS_CACHE.set(key, out);
+  return out;
+}
+function rankSk(sk, lvl) {
+  return rankSkR(sk, skillRank(lvl || 1));
+}
+// Anzeige: je erreichtem Rang eine Zeile [„Rang E“, Text]; upTo = auch die Ränge bis dahin zeigen (Rangzeile)
+function rankBonusLines(sk, lvl) {
+  const base = sk && sk.base ? sk.base : sk;
+  if (!base || !Array.isArray(base.rb) || RANK_BONUS.off) return [];
+  const r = skillRank(lvl || 1);
+  const out = [];
+  for (let i = 0; i <= r && i < base.rb.length; i++) if (base.rb[i] && base.rb[i].t) out.push(['Rang ' + SKILL_RANKS[i].id, base.rb[i].t]);
+  return out;
+}
+// Text des Rang-Bonus genau eines Rangs (Rangzeile im Charakterfenster)
+function rankBonusText(sk, r) {
+  const base = sk && sk.base ? sk.base : sk;
+  return base && Array.isArray(base.rb) && base.rb[r] && base.rb[r].t ? base.rb[r].t : '';
+}
+
 // Anzeige: 12, E3, H10, L1, V
 function skillLevelText(lvl) {
   const r = skillRank(lvl);

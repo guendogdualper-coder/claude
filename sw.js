@@ -1,6 +1,6 @@
 // Service Worker: speichert das Spiel auf dem Gerät, damit es auch ohne Internet startet.
 // Bei jeder neuen Version VERSION erhöhen, dann holen sich installierte Apps die neuen Dateien.
-const VERSION = 'seelenstein-v379';
+const VERSION = 'seelenstein-v380';
 // Klänge und Musik (snd/, seit 14.8) liegen in einem eigenen Speicher, der Versionswechsel übersteht: einmal geladen,
 // sind sie offline da und werden nach einem Update nicht neu heruntergeladen. Große Musikdateien stehen bewusst
 // nicht in FILES (kein Vorabladen beim Installieren), sie kommen erst, wenn das Spiel sie braucht.
@@ -53,6 +53,7 @@ const FILES = [
   'js/ultimativ.js',
   'js/zeichnen.js',
   'js/lastschutz.js',
+  'js/waermeschutz.js',
   'js/three.min.js',
   'js/kartenladen.js',
   'js/drei-kern.js',
@@ -106,6 +107,7 @@ const FILES = [
   'js/flammenwoge.js',
   'js/klingenkreuz.js',
   'js/aderlass.js',
+  'js/klingenbogen.js',
   'js/fernninja.js',
   'js/koerperaura.js',
   'js/schneesturm.js',
@@ -173,6 +175,7 @@ const FILES = [
   'js/bossangriffe-bosse.js',
   'js/kharzul.js',
   'js/tribuene.js',
+  'js/turmfinale.js',
   'js/peerjs.min.js',
   'js/nativ.js',
   'js/spiel.js',

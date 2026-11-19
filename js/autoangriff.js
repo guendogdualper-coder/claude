@@ -30,6 +30,11 @@ function autoAttackClick() {
   autoAttackShow();
 }
 
+// Ist t das Ziel eines laufenden Auto-Angriffs? Dann bleibt es Fokus, auch wenn es weiter als sonst weg ist (pickTarget)
+function autoAttackHolds(t) {
+  return !!t && t === autoAtk.target && autoAttackOn();
+}
+
 // Tab während eines laufenden Auto-Angriffs: er geht auf das neue Ziel über
 function autoAttackRetarget(t) {
   if (autoAtk.target && t && targetIsManual(t)) autoAtk.target = t;

@@ -239,7 +239,8 @@ const CLASSES = {
     weapon: 'fan',
     base: { hp: 115, mp: 80, atk: 13, def: 3, crit: 0.06, speed: 132 },
     perLevel: { hp: 18, mp: 10, atk: 3.8, def: 1 },
-    basic: { range: 230, cooldown: 0.9, ranged: true, color: '#8fe3d8', style: 'wind' },
+    // Grundangriff seit dem Fokus-Update 300 statt 230 weit (Spielerwunsch: die Zauber der Caster sollen etwas weiter fliegen)
+    basic: { range: 300, cooldown: 0.9, ranged: true, color: '#8fe3d8', style: 'wind' },
     paths: [
       {
         id: 'drache', name: 'Weg des Drachen', role: 'PvE · Feuer, Blitz und Eis',
@@ -332,7 +333,8 @@ const CLASSES = {
     weapon: 'staff',
     base: { hp: 120, mp: 75, atk: 13, def: 3, crit: 0.05, speed: 130 },
     perLevel: { hp: 19, mp: 9, atk: 3.9, def: 1.1 },
-    basic: { range: 230, cooldown: 0.9, ranged: true, color: '#a7e37f' },
+    // Grundangriff mit dem Stab seit dem Fokus-Update 290 statt 230 weit (etwas unter Magier und Schamane: Diener und Lebensraub)
+    basic: { range: 290, cooldown: 0.9, ranged: true, color: '#a7e37f' },
     paths: [
       {
         id: 'seelen', name: 'Weg der Seelen', role: 'PvE · Beschwörung und Flächenschaden',
@@ -451,7 +453,8 @@ const CLASSES = {
     weapon: 'rod',
     base: { hp: 110, mp: 90, atk: 13.5, def: 2.5, crit: 0.06, speed: 130 },
     perLevel: { hp: 17, mp: 11, atk: 4.0, def: 0.95 },
-    basic: { range: 240, cooldown: 0.9, ranged: true, color: '#b8c4ff', style: 'mage' },
+    // Grundangriff seit dem Fokus-Update 310 statt 240 weit (alle vier Elemente; Spielerwunsch, Bogen bleibt mit 680 weit vorn)
+    basic: { range: 310, cooldown: 0.9, ranged: true, color: '#b8c4ff', style: 'mage' },
     paths: [
       {
         id: 'feuer', name: 'Weg der Flamme', role: 'PvE · Flächenschaden und Brand',
@@ -464,6 +467,13 @@ const CLASSES = {
             id: 'glutfeld', name: 'Glutfeld', short: 'GF', kind: 'angriff', unlock: 1, mp: 10, cooldown: 6,
             type: 'mfield', el: 'feuer', aim: true, range: 260, radius: 95, delay: 0.35, ticks: 5, every: 0.5, dmg: 0.68, stun: 0.35,
             burn: { dps: 0.38, duration: 3 }, anim: 'zauber', animDur: 0.45, color: '#e8362a',
+            // Rang-Boni (docs/rang-boni.md, rankSk in spieler.js): je Rang [E, H, L, V] Werte, die ab dort gelten, t = Anzeige
+            rb: [
+              { radius: 105, t: 'Feld größer: 105 statt 95' },
+              { pull: 10, t: 'Glutsog: Jeder Puls zieht die Gegner 10 zur Mitte' },
+              { burn: { duration: 4 }, t: 'Brand hält 4 statt 3 s' },
+              { pillar: { r: 80, mul: 0.5, lift: 14 }, t: 'Pforte zur Hölle: Zum Schluss bricht eine Feuersäule aus der Mitte (50 % eines Pulses im Umkreis 80) und schleudert hoch' }
+            ],
             text: 'Du wählst einen Ort (Kreis antippen): Dort reißt der Boden glühend auf: Ein Kreis aus Glutrissen mit Flammensaum, in dem 2,5 s lang Flammensäulen aus der Erde schlagen. Alle Gegner im Kreis (95 weit) nehmen fünfmal Feuerschaden und geraten jedes Mal kurz aus dem Tritt (0,35 s betäubt), der letzte Puls setzt sie 3 s in Brand.'
           },
           {
@@ -473,6 +483,13 @@ const CLASSES = {
             // seit 13.69 stößt der Einschlag das Ziel zurück (knockback) und die Explosion trifft mit 80 % statt 60 %
             type: 'mcast', el: 'feuer', castTime: 3, range: 400, speed: 430, dmg: 8.4, splash: { r: 115, mul: 0.8 }, burn: { dps: 0.6, duration: 4 }, knockback: 80,
             style: 'fireball', big: 2.1, anim: 'zauber', animDur: 3, color: '#e8362a',
+            // Rang-Boni (docs/rang-boni.md, rankSk in spieler.js): je Rang [E, H, L, V] Werte, die ab dort gelten, t = Anzeige
+            rb: [
+              { splash: { r: 125 }, t: 'Explosion größer: 125 statt 115' },
+              { splash: { mul: 0.9 }, t: 'Die Explosion trifft die Gegner ringsum mit 90 statt 80 %' },
+              { pool: { r: 60, ticks: 3, every: 0.6, mul: 0.02 }, t: 'Glutlache: 2 s lang brennt der Boden unter dem Ziel (dreimal 2 %)' },
+              { stars: { n: 3, r: 200, mul: 0.15 }, t: 'Sternenfeuer: Der Feuerball zerbirst in drei kleine Feuerkugeln, die zu anderen Gegnern bis 200 weit fliegen (je 15 %)' }
+            ],
             text: 'Zauberzeit 3 s: Zwischen deinen Händen wächst ein riesiger Feuerball. Danach fliegt er zum Ziel und explodiert – gewaltiger Schaden, das Ziel wird zurückgeschleudert, Gegner bis 115 weit darum bekommen etwas weniger ab, alle brennen 4 s. Bewegst du dich oder zauberst du etwas anderes, bricht er ab (Mana und Abklingzeit zurück).'
           },
           {
@@ -481,6 +498,13 @@ const CLASSES = {
             // (flammenwoge.js). Schaden je Gegner etwa wie vorher der Brand auf ein Ziel, dafür auf alle in der Bahn.
             id: 'flammenwoge', name: 'Flammenwoge', short: 'FW', kind: 'angriff', unlock: 5, mp: 16, cooldown: 7,
             type: 'mwave', el: 'feuer', length: 300, width: 120, speed: 520, dmg: 2.4, push: 42, burn: { dps: 0.7, duration: 4 },
+            // Rang-Boni (docs/rang-boni.md, rankSk in spieler.js): je Rang [E, H, L, V] Werte, die ab dort gelten, t = Anzeige
+            rb: [
+              { length: 330, t: 'Woge rollt 330 statt 300 weit' },
+              { push: 60, waveSlow: { amount: 0.3, duration: 1 }, t: 'Reißt weiter mit (60 statt 42) und verlangsamt 1 s um 30 %' },
+              { burn: { duration: 5 }, t: 'Brand hält 5 statt 4 s' },
+              { second: { delay: 0.4, mul: 0.25 }, t: 'Weltenbrandung: Eine zweite Woge folgt 0,4 s später (25 %)' }
+            ],
             anim: 'stoss', animDur: 0.4, color: '#e8362a',
             text: 'Eine Wand aus Feuer bricht vor dir aus dem Boden und rollt 300 weit nach vorn (zum Ziel, sonst in Blickrichtung). Jeder Gegner auf ihrem Weg wird einmal getroffen, ein Stück mitgerissen und brennt 4 s lang. Hinter der Woge glimmt der Boden kurz nach.'
           },
@@ -491,6 +515,13 @@ const CLASSES = {
             // seit 13.69 betäubt die Explosion am Ziel 1,5 s (stun, magier-neu.js)
             type: 'mphoenix', el: 'feuer', range: 400, speed: 470, dmg: 5.1, pathR: 42, pathMul: 0.6, blast: { r: 105, mul: 0.7 }, stun: 1.5,
             combust: 0.6, burn: { dps: 0.52, duration: 4 }, anim: 'stoss', animDur: 0.45, color: '#e8362a',
+            // Rang-Boni (docs/rang-boni.md, rankSk in spieler.js): je Rang [E, H, L, V] Werte, die ab dort gelten, t = Anzeige
+            rb: [
+              { pathR: 48, t: 'Breitere Flammenspur: 48 statt 42' },
+              { burn: { duration: 5 }, t: 'Brand hält 5 statt 4 s' },
+              { back: { len: 150, mul: 0.2 }, t: 'Der Phönix steigt wieder auf und fliegt 150 zurück – wer dort steht, brennt erneut (20 % der Spur)' },
+              { reborn: { r: 300, mul: 0.6 }, t: 'Phönix der Wiedergeburt: Stirbt ein Gegner in der Explosion, stößt ein kleiner Phönix auf den nächsten Gegner (60 %, einmal je Wirken)' }
+            ],
             text: 'Ein Phönix aus Flammen bricht aus deinem Zepter, fliegt zum Ziel und verbrennt alles auf seinem Weg. Am Ziel stürzt er herab und explodiert: Brennt das Ziel schon, lodert es auf und nimmt deutlich mehr Schaden, und alle bis 105 weit fangen Feuer und sind 1,5 s betäubt.'
           },
           {
@@ -499,6 +530,13 @@ const CLASSES = {
             id: 'feuertornado', name: 'Feuertornados', short: 'FT', kind: 'angriff', unlock: 10, mp: 30, cooldown: 12,
             type: 'mtornado', el: 'feuer', aim: true, range: 340, radius: 150, delay: 0.4, life: 4, every: 0.5, dmg: 0.75, hitR: 44,
             burn: { dps: 0.45, duration: 3 }, anim: 'zauber', animDur: 0.55, color: '#e8362a',
+            // Rang-Boni (docs/rang-boni.md, rankSk in spieler.js): je Rang [E, H, L, V] Werte, die ab dort gelten, t = Anzeige
+            rb: [
+              { t: 'Vier Tornados (bis Stufe 15: zwei oder drei)' },
+              { pull: 0.24, t: 'Fünf Tornados, sie ziehen stärker an' },
+              { burn: { duration: 4 }, t: 'Sechs Tornados, Brand hält 4 statt 3 s' },
+              { merge: { mul: 1.2, life: 0.9 }, t: 'Weltenbrand: Sieben Tornados; zum Schluss verschmelzen sie in der Mitte zu einem Feuerwirbel (120 % eines Tornadotreffers im ganzen Feld)' }
+            ],
             text: 'Du wählst einen Ort: Im Kreis erheben sich Feuertornados und wirbeln 4 s lang umher. Jeder Tornado trifft alles, was er berührt, zweimal pro Sekunde, zieht Gegner zu sich und setzt sie in Brand. Mehr Tornados je Stufe: 2, ab Stufe 8 drei, erweckt 4, heroisch 5, legendär 6, vollendet 7.'
           }
         ]
@@ -512,6 +550,13 @@ const CLASSES = {
             id: 'frostnova', name: 'Frostnova', short: 'FR', kind: 'angriff', unlock: 1, mp: 9, cooldown: 6,
             type: 'nova', el: 'frost', radius: 130, grow: 0.38, dmg: 1.89, freeze: 1.0, slow: { amount: 0.45, duration: 3 }, duelMul: 1.15,
             lock: 0.2, anim: 'nova', animDur: 0.5, color: '#3a7bff',
+            // Rang-Boni (docs/rang-boni.md, rankSk in spieler.js): je Rang [E, H, L, V] Werte, die ab dort gelten, t = Anzeige
+            rb: [
+              { t: 'Nachhall: Eine zweite, weitere Front folgt (35 %)' },
+              { dmg: 2.08, duelMul: 1.045, t: 'Die Nova trifft 10 % härter (gegen Spieler nicht)' },
+              { echoMul: 0.45, t: 'Der Nachhall trifft mit 45 statt 35 %' },
+              { thaw: { r: 55, mul: 0.2 }, t: 'Absoluter Nullpunkt: Eingefrorene zerspringen beim Auftauen und treffen Gegner bis 55 daneben (20 %)' }
+            ],
             text: 'Eiskristalle schießen von deinen Füßen waagrecht nach außen und überziehen den Boden mit Reif. Alle Gegner bis 130 weit frieren 1 s ein (wächst mit der Stufe) und sind danach 3 s langsamer. Bosse werden nur verlangsamt.'
           },
           {
@@ -519,6 +564,13 @@ const CLASSES = {
             id: 'eisstrahl', name: 'Eisstrahl', short: 'EI', kind: 'angriff', unlock: 3, mp: 6, cooldown: 1.5,
             type: 'beam', el: 'frost', channel: true, range: 300, width: 26, every: 0.2, maxDur: 6, minDur: 0.5, dmg: 0.46, mpPerSec: 9,
             slow: { amount: 0.3, max: 0.7, build: 0.25, duration: 1 }, duelMul: 1.1, color: '#9ff6ff',
+            // Rang-Boni (docs/rang-boni.md, rankSk in spieler.js): je Rang [E, H, L, V] Werte, die ab dort gelten, t = Anzeige
+            rb: [
+              { range: 320, t: 'Reichweite 320 statt 300' },
+              { width: 32, stau: { after: 3, mul: 0.05 }, t: 'Breiter (32 statt 26); nach 3 s im Strahl Kältestau: +5 % Schaden (gegen Spieler nicht)' },
+              { stau: { after: 2, mul: 0.08 }, t: 'Kältestau schon nach 2 s und stärker: +8 % (gegen Spieler nicht)' },
+              { shard: { every: 5, r: 120, mul: 0.3, self: 0.2 }, t: 'Atem des Winters: Jeder 5. Treffer schießt einen Eissplitter in einen weiteren Gegner bis 120 (30 %, verlangsamt); ohne weiteren Gegner ins Ziel (20 %)' }
+            ],
             // seit 13.64: Kombo gegen verlangsamte (slow) und eingefrorene oder betäubte (stun) Gegner, je Rang + step (eisstrahl.js)
             combo: { slow: 0.25, stun: 0.5, step: [0.05, 0.1] },
             text: 'Gedrückt halten: Ein eisiger Strahl schießt aus deinen Händen und trifft alle Gegner in einer Linie bis 300 weit, fünfmal pro Sekunde mit leichtem Schaden. Wer im Strahl steht, wird immer langsamer (30 % bis 70 %). Kombo: Gegen Gegner, die schon verlangsamt sind (etwa durch Frostnova oder Blizzard), trifft er 25 % härter, gegen eingefrorene oder betäubte 50 % – mehr je Rang, hellblaue Zahlen. Kostet laufend Mana; du kannst dabei langsam gehen. Loslassen beendet den Strahl.'
@@ -529,6 +581,13 @@ const CLASSES = {
             // seit 13.85 mit Zielkreis (aimAway): Fluchtweg frei wählbar, der Kreis beginnt hinter der Figur
             type: 'shift', el: 'frost', at: 'start', aim: true, aimAway: 160, aimMax: 160, aimR: 34, distance: 160, radius: 95, delayHit: 0.5, dmg: 1.22, freeze: 0.8,
             slow: { amount: 0.5, duration: 2.5 }, duelMul: 1.15, anim: 'schritt', animDur: 0.3, color: '#3a7bff',
+            // Rang-Boni (docs/rang-boni.md, rankSk in spieler.js): je Rang [E, H, L, V] Werte, die ab dort gelten, t = Anzeige
+            rb: [
+              { distance: 175, aimMax: 175, aimAway: 175, t: 'Weite 175 statt 160' },
+              { delayHit: 0.4, t: 'Die Eisfigur zerspringt schneller (nach 0,4 statt 0,5 s)' },
+              { dmg: 1.46, duelMul: 0.96, t: 'Die Eisfigur zerspringt mit 20 % mehr Schaden (gegen Spieler nicht)' },
+              { shards: { n: 6, r: 140, mul: 0.3 }, t: 'Geist des Eises: Die Eisfigur zerspringt in sechs Splitter, die zu Gegnern bis 140 fliegen (je 30 %, verlangsamen)' }
+            ],
             text: 'Du gleitest auf einer Eisbahn bis zu 160 weit davon. Wo du standest, bleibt eine Eisfigur zurück, die nach 0,5 s zerspringt: Alle Gegner bis 95 weit frieren kurz ein. Wohin, wählst du mit dem Zielkreis – er beginnt hinter dir, vom Gegner weg.'
           },
           {
@@ -538,6 +597,13 @@ const CLASSES = {
             id: 'eisgefaengnis', name: 'Eisgefängnis', short: 'EG', kind: 'angriff', unlock: 7, mp: 26, cooldown: 15,
             type: 'mprison', el: 'frost', aim: true, range: 380, radius: 115, delay: 0.45, dmg: 2.43, crack: 1.49, hold: 1.5, holdStep: 0.15,
             after: { amount: 0.4, duration: 2 }, bossSlow: 0.5, duelMul: 1.15, anim: 'zauber', animDur: 0.55, color: '#3a7bff',
+            // Rang-Boni (docs/rang-boni.md, rankSk in spieler.js): je Rang [E, H, L, V] Werte, die ab dort gelten, t = Anzeige
+            rb: [
+              { radius: 125, t: 'Länger eingefroren (heute +0,15 s je Rang) und Feld 125 statt 115' },
+              { crackOut: { r: 40, mul: 0.5 }, t: 'Zersplittern trifft auch Gegner bis 40 außerhalb (50 %)' },
+              { bossSlow: 0.6, t: 'Bosse werden 60 statt 50 % verlangsamt' },
+              { shards: { n: 5, r: 200, mul: 0.2 }, t: 'Ewige Starre: Beim Zersplittern fliegen fünf Eissplitter nach außen (je 20 %, verlangsamen)' }
+            ],
             text: 'Du wählst einen Ort: Der Boden überfriert und reißt blau leuchtend auf, dann bricht ein Gefängnis aus Eis hervor. Hohe Kristallsäulen schießen aus der Erde, um jeden Gegner im Kreis (115 weit) wachsen Eiszacken zusammen: Alle nehmen Frostschaden und sind im Eis gefangen – 1,5 s lang betäubt (erweckt 1,65 s, heroisch 1,8 s, legendär 1,95 s, vollendet 2,1 s). Dann zersplittert das Eis: noch einmal Schaden, danach sind sie 2 s langsamer. Bosse werden nicht eingefroren, nur stark verlangsamt. Reichweite 380.'
           },
           {
@@ -548,6 +614,13 @@ const CLASSES = {
             id: 'schneesturm', name: 'Blizzard', short: 'BZ', kind: 'angriff', unlock: 10, mp: 30, cooldown: 12,
             type: 'msnow', el: 'frost', aim: true, range: 340, radius: 150, delay: 0.5, ticks: 8, every: 0.5, dmg: 0.49, freeze: 0.8,
             slow: { amount: 0.25, max: 0.6, build: 0.07, duration: 1.2 }, duelMul: 1.1, anim: 'zauber', animDur: 0.55, color: '#3a7bff',
+            // Rang-Boni (docs/rang-boni.md, rankSk in spieler.js): je Rang [E, H, L, V] Werte, die ab dort gelten, t = Anzeige
+            rb: [
+              { radius: 160, t: 'Ein Puls mehr (heute je Rang) und Feld 160 statt 150' },
+              { slow: { build: 0.09 }, t: 'Die Kälte baut sich schneller auf' },
+              { dmg: 0.54, duelMul: 1, t: 'Die Pulse treffen 10 % härter (gegen Spieler nicht)' },
+              { icicle: { r: 70, mul: 0.5, freeze: 0.5 }, t: 'Ewiger Winter: Zum Schluss stürzt ein großer Eiszapfen in die Mitte (50 % eines Pulses im Umkreis 70, friert 0,5 s ein)' }
+            ],
             // seit 13.64 ohne Sturmwolke: blauweißer Schnee, Eissplitter, frostblaues Leuchten und Frostnebel
             text: 'Du wählst einen Ort: Dort bricht 4 s lang ein eisiger Schneesturm los – dichter blauweißer Schnee, wirbelnde Eissplitter, frostblaues Leuchten und Frostnebel am Boden. Alle Gegner im Kreis (150 weit) nehmen zweimal pro Sekunde Frostschaden und werden immer langsamer, je länger sie drinbleiben (25 % bis 60 %). Zum Schluss frieren sie kurz ein, Bosse werden nur verlangsamt. Je Rang tobt der Sturm 0,5 s länger: erweckt 4,5 s, heroisch 5 s, legendär 5,5 s, vollendet 6 s.'
           }
@@ -563,6 +636,13 @@ const CLASSES = {
             // Blitzmagier überarbeitet: Speer länger und weiter (390 → 520), lähmt 0,6 s (vorher 0,25 s) und verlangsamt danach 3 s um 40 %
             id: 'blitzspeer', name: 'Blitzspeer', short: 'SP', kind: 'angriff', unlock: 1, mp: 9, cooldown: 4,
             type: 'mspear', el: 'blitz', range: 520, width: 34, dmg: 2.32, stun: 0.6, slow: { amount: 0.4, duration: 3 }, charge: 5,
+            // Rang-Boni (docs/rang-boni.md, rankSk in spieler.js): je Rang [E, H, L, V] Werte, die ab dort gelten, t = Anzeige
+            rb: [
+              { width: 40, t: 'Speer breiter: 40 statt 34' },
+              { charge: 6, t: 'Ladung hält 6 statt 5 s' },
+              { chargeBonus: 0.15, t: 'Doppelte Ladung: Die nächste Entladung durch den Kettenblitz trifft 15 % härter' },
+              { sky: { r: 70, mul: 0.3 }, t: 'Himmelsspeer: Am Ende der Bahn schlägt ein Himmelsblitz ein (30 % im Umkreis 70)' }
+            ],
             anim: 'stoss', animDur: 0.35, color: '#ffe94a',
             text: 'Du schleuderst einen langen Speer aus reinem Blitz: Er durchschlägt alle Gegner in einer Linie bis 520 weit, lähmt sie 0,6 s und verlangsamt sie danach 3 s lang um 40 %. Getroffene sind 5 s aufgeladen – der Kettenblitz entlädt sie für mehr Schaden.'
           },
@@ -572,6 +652,14 @@ const CLASSES = {
             id: 'kettenblitz', name: 'Kettenblitz', short: 'KB', kind: 'angriff', unlock: 3, mp: 11, cooldown: 3,
             // Blitzmagier überarbeitet: kein fliegender Funke mehr – ein ganzer Blitz schlägt sofort ein (instant, chainBolt in magier-neu.js)
             type: 'mbolt', el: 'blitz', range: 340, speed: 950, dmg: 3.77, chain: 2, chainMul: 0.8, discharge: 0.3, stun: 0.2, instant: true,
+            // Zusatzsprünge über die zwei normalen hinaus je −40 % (chainX) statt −20 %; V springt zurück (back, backMul)
+            // Rang-Boni (docs/rang-boni.md, rankSk in spieler.js): je Rang [E, H, L, V] Werte, die ab dort gelten, t = Anzeige
+            rb: [
+              { chain: 3, chainR: 200, chainX: 0.6, t: '4 Ziele, Sprungweite 200 statt 180 (der zusätzliche Sprung −40 %)' },
+              { chain: 4, t: '5 Ziele' },
+              { chain: 5, stun: 0.3, t: '6 Ziele, Lähmung 0,3 statt 0,2 s' },
+              { back: 2, backMul: 0.25, t: 'Göttlicher Kettenblitz: Der Blitz springt zu zwei schon getroffenen Gegnern zurück (je 25 %)' }
+            ],
             style: 'arc', anim: 'stoss', animDur: 0.3, color: '#ffe94a',
             text: 'Aus deinem Zepter fährt ein gleißender, gezackter Blitz ins Ziel, schlägt krachend ein und springt zu zwei weiteren Gegnern (jeder Sprung etwas schwächer). Getroffene sind kurz betäubt. Aufgeladene Gegner entladen sich und nehmen mehr Schaden.'
           },
@@ -580,6 +668,13 @@ const CLASSES = {
             id: 'blitzschritt', name: 'Blitzschritt', short: 'BS', kind: 'angriff', unlock: 5, mp: 16, cooldown: 8,
             // 13.85–13.92 mit Zielkreis; seit 13.93 wieder ohne: sofort in Blickrichtung (facing), volle Weite
             type: 'shift', el: 'blitz', at: 'line', facing: true, distance: 200, width: 40, dmg: 2.17, stun: 0.5, trail: { n: 5, r: 44, dmg: 0.65, every: 0.08 },
+            // Rang-Boni (docs/rang-boni.md, rankSk in spieler.js): je Rang [E, H, L, V] Werte, die ab dort gelten, t = Anzeige
+            rb: [
+              { distance: 220, t: 'Weite 220 statt 200' },
+              { trail: { n: 6 }, t: 'Sechs statt fünf Himmelsblitze in der Spur' },
+              { cooldown: 7.5, t: 'Abklingzeit 7,5 statt 8 s' },
+              { orb: { r: 80, mul: 0.3 }, t: 'Lichtgeschwindigkeit: Am Ziel entlädt sich ein Kugelblitz (30 % im Umkreis 80)' }
+            ],
             anim: 'schritt', animDur: 0.3, color: '#ffe94a',
             text: 'Du wirst selbst zum Blitz und schlägst sofort bis zu 200 weit in Blickrichtung ein – ohne Zielen. Alle Gegner auf der Strecke werden getroffen und kurz betäubt. Hinter dir krachen fünf Blitze vom Himmel auf deinen Weg und treffen, wer dort steht.'
           },
@@ -589,6 +684,13 @@ const CLASSES = {
             id: 'gewitter', name: 'Gewitterwolke', short: 'GW', kind: 'angriff', unlock: 7, mp: 26, cooldown: 14,
             type: 'mstorm', el: 'blitz', aim: true, range: 460, radius: 165, form: 0.6, strikes: 6, every: 0.3, dmg: 1.6,
             final: { dmg: 3.19, stun: 1.5 }, anim: 'zauber', animDur: 0.55, color: '#ffe94a',
+            // Rang-Boni (docs/rang-boni.md, rankSk in spieler.js): je Rang [E, H, L, V] Werte, die ab dort gelten, t = Anzeige
+            rb: [
+              { radius: 175, t: 'Wolke größer: 175 statt 165' },
+              { side: 0.5, t: 'Nebenblitz: Bei der Entladung fährt ein zweiter Blitz in einen der Getroffenen (50 % der Entladung)' },
+              { final: { stun: 1.8 }, t: 'Entladung lähmt 1,8 statt 1,5 s' },
+              { follow: { n: 2, every: 0.8, mul: 0.3, r: 200 }, t: 'Weltengewitter: Die Wolke zieht danach 2 s dem nächsten Gegner nach und schlägt zweimal nach (je 30 % eines Blitzes)' }
+            ],
             // Blitzmagier überarbeitet: unter der Wolke tobt jetzt das Gewitterfeld (viele Blitze vom Himmel, vorher beim Kugelblitz)
             text: 'Über dem gewählten Ort ballt sich eine schwarze Gewitterwolke zusammen, darunter tobt ein Gewitter: Blitz um Blitz fährt vom Himmel ins Feld. Sechs Einschläge treffen nacheinander Gegner darunter – aufgeladene zuerst. Zum Schluss entlädt sich die ganze Wolke: Ein Netz aus Blitzen springt zwischen allen Gegnern im Feld hin und her und lähmt sie 1,5 s lang. Reichweite 460.'
           },
@@ -599,6 +701,13 @@ const CLASSES = {
             // schwebende Blitzkugel in der Mitte des Felds, aus der die Blitze in die Gegner schlagen (mkugel3, magier-neu.js)
             type: 'sigil', el: 'blitz', aim: true, range: 340, radius: 150, delay: 0.4, ticks: 6, every: 0.5, zaps: 3, dmg: 1.23, zapStun: 0.25,
             last: { stun: 0.8 }, anim: 'zauber', animDur: 0.55, color: '#ffe94a',
+            // Rang-Boni (docs/rang-boni.md, rankSk in spieler.js): je Rang [E, H, L, V] Werte, die ab dort gelten, t = Anzeige
+            rb: [
+              { radius: 160, t: 'Feld größer: 160 statt 150' },
+              { last: { stun: 1 }, t: 'Letzte Entladung betäubt 1 s statt 0,8 s' },
+              { zapSlow: { amount: 0.2, duration: 1 }, t: 'Entladungen verlangsamen 1 s um 20 %' },
+              { burst: { n: 4, r: 260, mul: 0.2, core: 1 }, t: 'Sonnensturm: Zum Schluss zerplatzt die Kugel in vier Blitze nach außen (je 20 %), der Kern schlägt ins nächste Ziel (100 % einer Entladung)' }
+            ],
             text: 'Über der Mitte des gewählten Felds schwebt eine grell knisternde Blitzkugel. 3 s lang schlagen jede halbe Sekunde Blitze aus ihr in die drei nächsten Gegner im Feld – aufgeladene zuerst – und betäuben sie kurz. Zum Schluss zerplatzt die Kugel: Der letzte Schlag betäubt länger.'
           }
         ]
@@ -614,6 +723,13 @@ const CLASSES = {
             // seit 13.69 (Balance): Steinschlag 1,7 → 1,9 und 0,6 s betäubt, Felsgeschoss 3,0 → 3,8, Erdspitzen 1,7 → 2,0 und 1 s betäubt,
             // Bergsturz 3,2 → 4,4, Schwerkraftsiegel-Einsturz 1,6 → 2,4; Steinhaut nach dem Weltenbruch hält 60 s (magier.js)
             type: 'mclash', el: 'erde', range: 360, radius: 90, dmg: 2.47, stun: 0.6, lift: 12, duelMul: 1.15,
+            // Rang-Boni (docs/rang-boni.md, rankSk in spieler.js): je Rang [E, H, L, V] Werte, die ab dort gelten, t = Anzeige
+            rb: [
+              { radius: 100, t: 'Umkreis 100 statt 90' },
+              { shards: { n: 3, r: 120, mul: 0.15 }, t: 'Drei Steinsplitter springen zu Gegnern bis 120 (je 15 %)' },
+              { stun: 0.8, t: 'Betäubung 0,8 statt 0,6 s' },
+              { second: { delay: 0.5, r: 60, mul: 0.2 }, t: 'Weltenschlag: 0,5 s später ein zweiter Einschlag (20 % im Umkreis 60)' }
+            ],
             anim: 'stoss', animDur: 0.4, color: '#f0a830',
             text: 'Du reißt zwei Felsbrocken aus der Erde und schleuderst sie von links und rechts auf dein Ziel zu (bis 360 weit). Dort krachen sie zusammen und zerbersten: Alle Gegner bis 90 weit werden getroffen, hochgeworfen und kurz betäubt.'
           },
@@ -623,6 +739,13 @@ const CLASSES = {
             id: 'steingeschoss', name: 'Felsgeschoss', short: 'FG', kind: 'angriff', unlock: 3, mp: 14, cooldown: 5,
             type: 'mbolt', el: 'erde', range: 340, speed: 380, dmg: 4.94, splash: { r: 80, mul: 0.6 }, knockback: 70, stun: 1.2,
             style: 'stone', big: 2.1, anim: 'stoss', animDur: 0.4, color: '#f0a830',
+            // Rang-Boni (docs/rang-boni.md, rankSk in spieler.js): je Rang [E, H, L, V] Werte, die ab dort gelten, t = Anzeige
+            rb: [
+              { splash: { r: 90 }, t: 'Splitter-Umkreis 90 statt 80' },
+              { roll: { len: 120, mul: 0.2 }, t: 'Der Fels rollt nach dem Einschlag 120 weiter (20 %)' },
+              { splash: { mul: 0.7 }, t: 'Die Splitter treffen mit 70 statt 60 %' },
+              { burst: { n: 4, len: 110, mul: 0.12 }, t: 'Sternenfels: Der Fels zerplatzt in vier Brocken im Fächer hinter dem Ziel (je 12 %)' }
+            ],
             text: 'Du schleuderst einen riesigen Basaltfelsen mit glühendem Bernsteinkern. Er trifft hart, betäubt das Ziel 1,2 s, stößt es zurück und zerbirst: Gegner bis 80 weit bekommen etwas weniger ab.'
           },
           {
@@ -632,6 +755,13 @@ const CLASSES = {
             // seit 13.85 mit Zielkreis (Ort frei wählbar)
             type: 'mspikes', el: 'erde', aim: true, range: 300, radius: 115, dmg: 2.6, stun: 1.0, lift: 18, duelMul: 1.15,
             anim: 'nova', animDur: 0.55, color: '#f0a830',
+            // Rang-Boni (docs/rang-boni.md, rankSk in spieler.js): je Rang [E, H, L, V] Werte, die ab dort gelten, t = Anzeige
+            rb: [
+              { radius: 125, t: 'Umkreis 125 statt 115' },
+              { wave2: { delay: 0.45, mul: 0.2 }, t: 'Eine zweite Welle bricht am Rand hervor (20 %)' },
+              { lift: 24, t: 'Schleudert höher (24 statt 18)' },
+              { stay: { n: 2, every: 1, mul: 0.1, slow: 0.3 }, t: 'Zähne des Weltenbergs: Die Spitzen bleiben 2 s stehen und stoßen zweimal nach (je 10 %, verlangsamen)' }
+            ],
             text: 'Du stampfst auf: Beim Ziel (oder vor dir) brechen in zwei Wellen spitze Basaltdornen aus der Erde – erst außen, dann in der Mitte. Alle Gegner bis 115 weit werden aufgespießt, hochgeworfen und kurz betäubt. Den Ort wählst du mit dem Zielkreis (er beginnt bei deinem Ziel).'
           },
           {
@@ -640,6 +770,13 @@ const CLASSES = {
             id: 'bergsturz', name: 'Bergsturz', short: 'BG', kind: 'angriff', unlock: 7, mp: 28, cooldown: 14,
             type: 'mmeteor', el: 'erde', aim: true, range: 380, radius: 125, fall: 0.9, dmg: 5.72, stun: 1.0, knockback: 90, duelMul: 1.15,
             anim: 'zauber', animDur: 0.55, color: '#f0a830',
+            // Rang-Boni (docs/rang-boni.md, rankSk in spieler.js): je Rang [E, H, L, V] Werte, die ab dort gelten, t = Anzeige
+            rb: [
+              { radius: 135, t: 'Umkreis 135 statt 125' },
+              { roll: { n: 3, len: 130, mul: 0.15 }, t: 'Drei Felsbrocken rollen nach außen (je 15 %)' },
+              { stun: 1.2, t: 'Betäubung 1,2 statt 1 s' },
+              { more: { n: 2, delay: 0.4, r: 70, mul: 0.2 }, t: 'Weltenfall: Zwei kleinere Brocken stürzen versetzt hinterher (je 20 % im Umkreis 70)' }
+            ],
             text: 'Du reißt einen Berggipfel aus dem Himmel: Ein gewaltiger Felsen mit glühenden Adern stürzt auf den gewählten Ort, zieht eine Staubfahne hinter sich her und schlägt mit einer Druckwelle ein. Hoher Schaden, alle bis 125 weit werden weggeschleudert und 1 s betäubt.'
           },
           {
@@ -648,6 +785,13 @@ const CLASSES = {
             // seit 11.5 ohne Bodensiegel: nur der Sog und ein Ring kreisender Felsen
             type: 'mgrav', el: 'erde', aim: true, range: 320, radius: 150, delay: 0.45, pull: 70, ticks: 3, every: 0.45, dmg: 0.78, rocks: 8,
             last: { dmg: 2.4, stun: 1.2, lift: 18 }, duelMul: 1.15, anim: 'zauber', animDur: 0.55, color: '#f0a830',
+            // Rang-Boni (docs/rang-boni.md, rankSk in spieler.js): je Rang [E, H, L, V] Werte, die ab dort gelten, t = Anzeige
+            rb: [
+              { radius: 160, t: 'Umkreis 160 statt 150' },
+              { pull: 85, t: 'Sog 85 statt 70' },
+              { after: { amount: 0.3, duration: 2 }, t: 'Nach dem Einsturz 2 s um 30 % verlangsamt' },
+              { hole: { r: 100, hold: 0.8, mul: 0.3 }, t: 'Schwarzes Loch: Zum Schluss kollabiert die Mitte: Alle bis 100 sind 0,8 s gefangen (30 % des Einsturzes)' }
+            ],
             text: 'Die Schwerkraft am gewählten Ort kippt: Acht Felsbrocken reißen sich aus dem Boden und kreisen immer enger um die Mitte, ziehen alle Gegner hinein und treffen sie dreimal. Zum Schluss krachen alle Felsen in der Mitte zusammen: hoher Schaden, die Gegner fliegen hoch und sind betäubt.'
           }
         ]

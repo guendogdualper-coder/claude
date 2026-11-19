@@ -1,6 +1,6 @@
 'use strict';
 
-// Kharzul, Wächter der Verdammten (Turm, Ebene 11) – neu seit 15.50 (vorher bei 75/50/25 % dreimal dieselben
+// Kharzul, Wächter der Verdammten (Turm, letzte Ebene: bis Phase 2 Ebene 11, jetzt 15) – neu seit 15.50 (vorher bei 75/50/25 % dreimal dieselben
 // „Seelenketten“: unverwundbar, Kettensteine in den Toren). Jetzt hat jede Schwelle ihre eigene Mechanik:
 //   75 %  Totentanz: er springt in die Mitte und rammt die Hellebarde in den Boden. Vier Arme aus Seelenfeuer liegen
 //         2,4 s als Warnfläche, dann kreisen sie 9 s lang durch die Halle – in den Lücken mitlaufen. Er bleibt dabei

@@ -367,8 +367,9 @@ FX3_TYPES.add('sgboden3');
 const _sgA = new THREE.Vector3();
 const _sgB = new THREE.Vector3();
 
-// Licht: eine der vier Punktlampen (wie fireLight3) in kaltem Weiß; dazu wird die ganze Szene beim Einschlag kurz
-// hell (sky) und während sich das Gewitter ballt etwas dunkler (dim). v3UpdateMood setzt beides im nächsten Bild zurück.
+// Licht: eine der vier Punktlampen (wie fireLight3) in kaltem Weiß; während sich das Gewitter ballt, wird die Szene
+// etwas dunkler (dim; sky hellte früher beim Einschlag alles auf, wird nicht mehr verwendet). v3UpdateMood setzt das
+// im nächsten Bild zurück.
 const SG3_L = { p: 0, x: 0, y: 0, z: 0, d: 14, sky: 0, dim: 0 };
 FX3_HOOKS.push({ parts: [], fn() {
   const L = SG3_L;
@@ -380,9 +381,11 @@ FX3_HOOKS.push({ parts: [], fn() {
     best.distance = Math.min(L.d, 16);
     best.intensity = Math.min(3, L.p) * (0.7 + 0.5 * (V3.nightK || 0));
   }
-  if ((L.sky > 0.01 || L.dim > 0.01) && V3.hemi && V3.sun) {
-    V3.hemi.intensity *= Math.max(0.45, 1 - 0.4 * L.dim) + 1.1 * L.sky;
-    V3.sun.intensity *= Math.max(0.35, 1 - 0.55 * L.dim) + 0.5 * L.sky;
+  // Einschlag ohne Aufhellen der ganzen Szene (Flimmer-Meldung: kein Blitz darf das Bild aufblinken lassen; das hier
+  // sehen nur noch Mitspieler mit alter Version) – nur das Abdunkeln beim Aufziehen des Gewitters bleibt
+  if (L.dim > 0.01 && V3.hemi && V3.sun) {
+    V3.hemi.intensity *= Math.max(0.45, 1 - 0.4 * L.dim);
+    V3.sun.intensity *= Math.max(0.35, 1 - 0.55 * L.dim);
   }
   L.p = 0;
   L.sky = 0;

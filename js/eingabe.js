@@ -260,15 +260,69 @@ function walkToScreen(clientX, clientY, mark) {
   if (mark) addEffect({ type: 'ring', x: w.x, y: w.y, r: 16, dur: 0.45, color: '#ffe08a', width: 3, grow: true });
 }
 
+// Monster oder Seelenstein unter dem Finger bzw. Mauszeiger – nach seinem Bild auf dem Schirm: eine Achse vom Fuß bis
+// zum Kopf, so breit wie die Figur (am Handy etwas großzügiger). Vorher zählte nur der Bodenpunkt unter dem Zeiger:
+// In 3D liegt der Boden hinter dem oberen Teil einer Figur aber weit hinter ihr – wer in der festen Kamera die obere
+// Hälfte eines Seelensteins antippte, wählte nichts aus (am PC lief die Figur stattdessen dorthin), im Schulterblick
+// traf nur das unterste Zehntel des Steins, und ein Tipp auf den Kopf eines Monsters wählte den Stein dahinter.
+// Rückgabe { m, s }: s = Abstand zur Achse im Verhältnis zur halben Breite (0 = mitten drauf, unter 1 = getroffen).
+const PICK_SCREEN = { far: 2200, minW: 10, minWTouch: 16, wide: 0.28 };
+function monsterAtScreen(sx, sy) {
+  const p = game.player;
+  const touch = input.touchUi;
+  const r = renderer;
+  // 3D: Bildpunkte je Weltpixel entlang der Bildwaagerechten (wie v3Anchor) an der Stelle der Figur
+  const yaw = V3.on ? V3.yaw || 0 : 0;
+  const ex = Math.cos(yaw) * 32;
+  const ey = -Math.sin(yaw) * 32;
+  const a = {};
+  const b = {};
+  const c = {};
+  let best = null;
+  let bestS = 1;
+  for (const m of game.monsters) {
+    if (m.dead || m.hidden) continue;
+    if (p && (Math.abs(m.x - p.x) > PICK_SCREEN.far || Math.abs(m.y - p.y) > PICK_SCREEN.far)) continue;
+    const h = figureHeight(m);
+    // Fußpunkt: Seelensteine stehen auf ihrer Mitte (zeichnen.js drawStone, drei-figuren.js syncStone3), Monster auf feetY
+    const fy = m.isStone ? m.y + 8 : feetY(m);
+    let k;
+    if (V3.on) {
+      v3Project(m.x, fy, 0, a);
+      v3Project(m.x, fy, h * U3 * (m.isStone ? 1.05 : 1), b);
+      if (!(a.z > -1 && a.z < 1 && b.z > -1 && b.z < 1)) continue;
+      v3Project(m.x + ex, fy + ey, 0, c);
+      k = hyp(c.x - a.x, c.y - a.y) / 32;
+    } else {
+      k = r.zoom;
+      a.x = (m.x - r.camX) * k;
+      a.y = (fy - r.camY) * k;
+      b.x = a.x;
+      b.y = a.y - h * k;
+    }
+    const half = Math.max(touch ? PICK_SCREEN.minWTouch : PICK_SCREEN.minW, k * Math.max((m.r || 12) + 4, h * PICK_SCREEN.wide));
+    // Abstand zur Strecke Fuß–Kopf
+    const vx = b.x - a.x;
+    const vy = b.y - a.y;
+    const L2 = vx * vx + vy * vy;
+    const u = L2 > 0 ? Math.max(0, Math.min(1, ((sx - a.x) * vx + (sy - a.y) * vy) / L2)) : 0;
+    const s = hyp(sx - (a.x + vx * u), sy - (a.y + vy * u)) / half;
+    if (s < bestS) { best = m; bestS = s; }
+  }
+  return best ? { m: best, s: bestS } : null;
+}
+
 // Mausklick oder Tippen: Monster als Ziel wählen oder mit einem Dorfbewohner sprechen.
 // Gibt zurück, was getroffen wurde: 'monster', 'player', 'npc' oder nichts.
 function selectAt(clientX, clientY) {
   if (!game.running) return null;
   {
     const w = screenToWorld(clientX, clientY);
+    const pick = monsterAtScreen(clientX, clientY);
     // Mitspieler antippen: im Duell als Ziel, sonst öffnet sich oben die Spielerkarte
+    // (ein Monster oder Seelenstein, das genau unter dem Finger liegt, geht der Spielerkarte vor)
     const pid = remotePlayerAt(w.x, w.y);
-    if (pid) {
+    if (pid && !(pick && pick.s < 0.5 && !(duelFighting() && game.duel.pid === pid) && !(typeof pvpProxyFor === 'function' && pvpProxyFor(pid)))) {
       if (duelFighting() && game.duel.pid === pid) {
         setTarget(game.duel.proxy, true);
         return 'monster';
@@ -282,22 +336,12 @@ function selectAt(clientX, clientY) {
       pcard.open(pid);
       return 'player';
     }
-    // Wer am besten unter dem Zeiger liegt, gewinnt (große Figuren etwas weiter um ihre Mitte). Vorher gewann der
-    // Letzte in der Liste, der knapp in Reichweite lag – ein Klick auf einen Seelenstein wählte so oft ein Monster
-    // daneben oder dahinter.
-    let best = null;
-    let bestS = Infinity;
-    for (const m of game.monsters) {
-      if (m.dead) continue;
-      const h = figureHeight(m);
-      const cy = m.isStone ? m.y - 18 : feetY(m) - h / 2;
-      const d = hyp(m.x - w.x, cy - w.y);
-      const s = d - h * 0.2;
-      if (d < Math.max(m.r + 10, h * 0.5) && s < 40 && s < bestS) { best = m; bestS = s; }
-    }
-    if (best) {
+    // Wer am besten unter dem Zeiger liegt, gewinnt (monsterAtScreen: nach dem Bild der Figur, auch in 3D und im
+    // Schulterblick). Vorher gewann der Letzte in der Liste, der knapp in Reichweite lag – ein Klick auf einen
+    // Seelenstein wählte so oft ein Monster daneben oder dahinter.
+    if (pick) {
       // seit 13.85 als bewusster Fokus (setTarget, kampf.js)
-      setTarget(best, true);
+      setTarget(pick.m, true);
       return 'monster';
     }
     // seit 14.16: Teleportstein antippen (nah dran: sofort, sonst hinlaufen; teleportsteine.js)
@@ -335,6 +379,13 @@ function setupTouch() {
   let origin = null;
   let moved = false;
   let downAt = 0;
+  // Zeitpunkt des Ereignisses selbst (nicht, wann es abgearbeitet wird): Ruckelt das Spiel (warmes Handy, langsame
+  // Bilder), kamen Aufsetzen und Loslassen eines schnellen Tipps oft erst 300 ms und mehr auseinander an – der Tipp auf
+  // ein Monster oder einen Seelenstein in der linken Bildhälfte wählte dann nichts aus (und startete keinen Auto-Angriff)
+  const evAt = (e) => {
+    const now = performance.now();
+    return e && e.timeStamp > 0 && e.timeStamp <= now + 50 && e.timeStamp > now - 60000 ? e.timeStamp : now;
+  };
 
   const placeStick = (x, y) => {
     stick.style.left = x - stick.offsetWidth / 2 + 'px';
@@ -353,9 +404,9 @@ function setupTouch() {
   };
   const releaseStick = (e) => {
     if (e.pointerId !== stickId) return;
-    // Kurzes Antippen ohne Ziehen wählt wie gewohnt ein Monster aus
+    // Kurzes Antippen ohne Ziehen (unter 350 ms nach den Zeitstempeln der Ereignisse) wählt wie gewohnt ein Monster aus
     // (seit 14.2: bei offenem Zielkreis wirkt es dort – die linke Bildhälfte gehört sonst ganz dem Knüppel)
-    if (!moved && performance.now() - downAt < 300) {
+    if (!moved && evAt(e) - downAt < 350) {
       const w = game.aim ? screenToWorld(e.clientX, e.clientY) : null;
       if (w && isFinite(w.x) && isFinite(w.y)) aimFire(w.x, w.y);
       else if (selectAt(e.clientX, e.clientY) === 'monster' && typeof autoAttackClick === 'function') autoAttackClick();
@@ -373,7 +424,7 @@ function setupTouch() {
     zone.setPointerCapture(e.pointerId);
     origin = { x: e.clientX, y: e.clientY };
     moved = false;
-    downAt = performance.now();
+    downAt = evAt(e);
     placeStick(e.clientX, e.clientY);
     stick.classList.add('active');
     moveStick(e);
