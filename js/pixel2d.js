@@ -567,8 +567,10 @@ function pixelRenderTilt(r, fx, fy) {
       continue;
     }
     e.__tiltOut = false;
-    // senkrechte Mauern (Nord–Süd) liegen fast nur als Dach in Laufrichtung da: senkrecht wie der Boden verkürzt
-    // (cy·s), sonst schieben sich die Stücke übereinander und die Mauer zerfällt in Stufen
+    // senkrechte, schräge und runde Mauern als Körper entlang der Mauerlinie (seit 15.59, tiltWall); gerade
+    // waagrechte Stücke bleiben Bilder – ihre Vorderseite liegt genau quer zur Blickrichtung, dort passt das Bild
+    if (e.worldObj === 'wall' && (e.dir === 'v' || e.ln) && tiltWall(p, e, pu, U)) continue;
+    // sonst (Kristallwand): senkrecht wie der Boden verkürzt (cy·s), damit die Stücke nicht übereinanderrutschen
     const ky = e.worldObj === 'wall' && e.dir === 'v' ? k * T.cy * _tp.s : k;
     p.setTransform(k, 0, 0, ky, px - k * e.x, py - ky * by);
     drawSceneEntity(p, e);
@@ -598,6 +600,162 @@ function pixelRenderTilt(r, fx, fy) {
   m.setTransform(r.dpr, 0, 0, r.dpr, 0, 0);
   drawTexts(m);
   drawGuide(m);
+}
+
+// --- Mauern als Körper in der schrägen Sicht (seit 15.59) ---------------------------------------------------------
+// Ein senkrechtes Mauerstück als aufrechtes Bild sah gekippt aus wie eine Treppe aus Klötzen: die Stücke stehen
+// gerade, die Mauerlinie läuft aber perspektivisch schräg zur Bildmitte. Jetzt wird jedes Stück als Körper gezeichnet:
+// Schichten (Sockel, Wand, Dach, First) als Kästen entlang der Mauerlinie, je Kasten die zur Kamera gewandte Seite
+// (links der Bildmitte die Ostseite, rechts die Westseite, genau in der Mitte keine), die Oberseite und am südlichen
+// Ende die Stirnseite. Höhen wie die waagrechten Mauerstücke (Sockel 9, Wand bis 31, Dach bis 41, First bis 45).
+// Schichten: [halbe Breite, Höhe unten, Höhe oben, Farbe]
+const TILT_WALL = {
+  stein: [[9, 0, 9, '#7a746a'], [7, 9, 31, '#dccaa4'], [11, 31, 41, '#3e4656'], [3.5, 41, 45, '#2a303c']],
+  terrasse: [[7, 0, 15, '#8a8a92'], [7.6, 15, 18, '#f4f8fc']],
+  sonnenstein: [[7, 0, 16, '#e2dccc'], [7.6, 16, 19, '#ece6d6']],
+  palisade: [[3.2, 0, 38, '#7a5434']],
+  kristall: [[7, 0, 12, '#2e2850'], [5.5, 12, 40, '#6a5ac8']]
+};
+// Umrissfarbe je Mauerart (Sonnenstein mit goldener Kante wie die Bilder) und Schmuck der Wand: [Abstand, Farbe, Breite]
+const TILT_WALL_OUT = { sonnenstein: '#b8902e' };
+const TILT_WALL_DECO = { stein: [16, '#5a3a22', 1.2], kristall: [11, '#d8d0ff', 1], palisade: [5.5, '#4e3420', 0.8] };
+const _tw = [{}, {}, {}, {}];
+function tiltWall(p, e, pu, U) {
+  const prof = TILT_WALL[e.style || 'stein'];
+  if (!prof) return false;
+  const w = game.world;
+  // Mauerlinie des Stücks: gerade von Kachelkante zu Kachelkante, an schrägen Mauern entlang der Mauerlinie (wallLine)
+  let ax = e.x;
+  let ay = e.y - TILE;
+  let bx = e.x;
+  let by = e.y;
+  let endS = false;
+  if (e.ln) {
+    const L = e.ln;
+    const mx = e.x + L.ox * TILE;
+    const my = e.y - TILE / 2 + L.oy * TILE;
+    let dx = Math.cos(L.a) * L.len * TILE / 2;
+    let dy = Math.sin(L.a) * L.len * TILE / 2;
+    if (dy < 0) { dx = -dx; dy = -dy; }
+    ax = mx - dx; ay = my - dy; bx = mx + dx; by = my + dy;
+  } else {
+    const tx = Math.floor(e.x / TILE);
+    const ty = Math.floor(e.y / TILE);
+    endS = ty >= MAP_H || w.obj[ty * MAP_W + tx] !== OBJ.WALL;
+  }
+  let dx = bx - ax;
+  let dy = by - ay;
+  const dl = Math.hypot(dx, dy) || 1;
+  dx /= dl;
+  dy /= dl;
+  // Normale (+n zeigt bei Nord–Süd-Richtung nach Westen)
+  const nx = -dy;
+  const ny = dx;
+  const pt = (o, x, y, h) => {
+    worldToScreen2d(x, y, _tp);
+    o.x = _tp.x / pu;
+    o.y = _tp.y / pu - (h * _tp.s) / U;
+    return o;
+  };
+  const [q0, q1, q2, q3] = _tw;
+  const quad = (col) => {
+    p.fillStyle = col;
+    p.beginPath();
+    p.moveTo(q0.x, q0.y);
+    p.lineTo(q1.x, q1.y);
+    p.lineTo(q2.x, q2.y);
+    p.lineTo(q3.x, q3.y);
+    p.closePath();
+    p.fill();
+  };
+  p.setTransform(1, 0, 0, 1, 0, 0);
+  const a0 = p.globalAlpha;
+  if (typeof occludesPlayer === 'function' && occludesPlayer(e)) p.globalAlpha = a0 * 0.5;
+  for (let li = 0; li < prof.length; li++) {
+    const [hw, h0, h1, col] = prof[li];
+    const c = pixGradeHex(col);
+    // Seite +n (Westen): sichtbar, wenn sie auf dem Bild „von vorn“ zu sehen ist (Umlaufsinn der Ecken)
+    pt(q0, ax + nx * hw, ay + ny * hw, h0);
+    pt(q1, bx + nx * hw, by + ny * hw, h0);
+    pt(q2, bx + nx * hw, by + ny * hw, h1);
+    pt(q3, ax + nx * hw, ay + ny * hw, h1);
+    const area = (q0.x * q1.y - q1.x * q0.y) + (q1.x * q2.y - q2.x * q1.y) + (q2.x * q3.y - q3.x * q2.y) + (q3.x * q0.y - q0.x * q3.y);
+    const sg = area >= 0 ? -1 : 1;
+    if (sg < 0) {
+      pt(q0, ax - nx * hw, ay - ny * hw, h0);
+      pt(q1, bx - nx * hw, by - ny * hw, h0);
+      pt(q2, bx - nx * hw, by - ny * hw, h1);
+      pt(q3, ax - nx * hw, ay - ny * hw, h1);
+    }
+    // Seiten, die nach Süden schauen, im Licht wie die Vorderseite der Bilder, sonst etwas dunkler
+    const south = sg * ny > 0.35;
+    quad(pixGradeHex(south ? col : darker(col, 0.2)));
+    // Schmuck auf der sichtbaren Wandseite: Fachwerk (Steinmauer: Pfosten alle 16 Einheiten und ein Balken unter dem
+    // Dach), Lichtkanten der Kristalle, Fugen zwischen den Pfählen der Palisade
+    const deco = TILT_WALL_DECO[e.style || 'stein'];
+    if (deco && li === Math.min(1, prof.length - 1)) {
+      const trim = pixGradeHex(deco[1]);
+      const ox = nx * hw * sg;
+      const oy = ny * hw * sg;
+      p.strokeStyle = trim;
+      p.lineWidth = deco[2];
+      for (let t = 0; t <= dl + 0.1; t += deco[0]) {
+        const x = ax + dx * t + ox;
+        const y = ay + dy * t + oy;
+        pt(q0, x, y, h0 + (e.style === 'kristall' ? 3 : 0));
+        pt(q1, x, y, h1 - (e.style === 'kristall' ? 4 : 0));
+        p.beginPath();
+        p.moveTo(q0.x, q0.y);
+        p.lineTo(q1.x, q1.y);
+        p.stroke();
+      }
+      if (!e.style) {
+        pt(q0, ax + ox, ay + oy, h1 - 3);
+        pt(q1, bx + ox, by + oy, h1 - 3);
+        p.beginPath();
+        p.moveTo(q0.x, q0.y);
+        p.lineTo(q1.x, q1.y);
+        p.stroke();
+      }
+    }
+    // Stirnseite am südlichen Ende einer Mauer
+    if (endS) {
+      pt(q0, bx + nx * hw, by + ny * hw, h0);
+      pt(q1, bx - nx * hw, by - ny * hw, h0);
+      pt(q2, bx - nx * hw, by - ny * hw, h1);
+      pt(q3, bx + nx * hw, by + ny * hw, h1);
+      quad(c);
+    }
+    // Oberseite
+    pt(q0, ax + nx * hw, ay + ny * hw, h1);
+    pt(q1, bx + nx * hw, by + ny * hw, h1);
+    pt(q2, bx - nx * hw, by - ny * hw, h1);
+    pt(q3, ax - nx * hw, ay - ny * hw, h1);
+    quad(pixGradeHex(lighter(col, 0.12)));
+  }
+  // Pixel-Umriss wie bei den Bildern: Traufkanten des obersten breiten Teils (Dach) und Fußlinie der sichtbaren Seite;
+  // auf dem Dach Ziegelreihen alle 8 Einheiten (wie das flache Bild)
+  const top = prof.length > 2 ? prof[2] : prof[prof.length - 1];
+  const [thw, , th1, tcol] = top;
+  const line = (x0, y0, h0, x1, y1, h1, col) => {
+    pt(q0, x0, y0, h0);
+    pt(q1, x1, y1, h1);
+    p.strokeStyle = col;
+    p.beginPath();
+    p.moveTo(q0.x, q0.y);
+    p.lineTo(q1.x, q1.y);
+    p.stroke();
+  };
+  p.lineWidth = 1;
+  if (prof.length > 2) {
+    const tc = pixGradeHex(darker(tcol, 0.3));
+    for (let t = 4; t < dl; t += 8) line(ax + dx * t + nx * thw * 0.8, ay + dy * t + ny * thw * 0.8, th1, ax + dx * t - nx * thw * 0.8, ay + dy * t - ny * thw * 0.8, th1, tc);
+  }
+  const out = TILT_WALL_OUT[e.style] || 'rgb(' + PIX_OUT.join(',') + ')';
+  line(ax + nx * thw, ay + ny * thw, th1, bx + nx * thw, by + ny * thw, th1, out);
+  line(ax - nx * thw, ay - ny * thw, th1, bx - nx * thw, by - ny * thw, th1, out);
+  p.globalAlpha = a0;
+  return true;
 }
 
 // Höhe des Namens über dem Fußpunkt (wie drawLabel, zeichnen.js)

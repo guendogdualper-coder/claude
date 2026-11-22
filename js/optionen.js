@@ -234,10 +234,14 @@ const options = {
         (typeof rettenOptHtml === 'function' && game.running ? rettenOptHtml() : '') +
         (typeof quitGameHtml === 'function' ? quitGameHtml() : '');
     }
+    // „Spiel beenden“ (Desktop) oder „Spiel verlassen“ wurde links angeklickt: die Abfrage oben im gerade offenen Reiter
+    if (QUIT.state && tab !== 'spiel') pane = quitGameHtml() + pane;
+    if (LEAVE.ask) pane = leaveGameHtml() + pane;
     body.innerHTML =
       `<nav class="opt-tabs" role="tablist" aria-label="Kategorien">` +
       tabs.map((t) => `<button type="button" role="tab" id="optTab-${t.id}" class="opt-tab${t.id === tab ? ' on' : ''}" aria-selected="${t.id === tab}" aria-controls="optPane" data-tab="${t.id}">` +
         `<span class="opt-tab-ico" aria-hidden="true">${t.icon}</span><span class="opt-tab-name">${t.label}</span></button>`).join('') +
+      optQuickHtml() +
       `</nav><div class="opt-pane" id="optPane" role="tabpanel" aria-labelledby="optTab-${tab}" data-tab="${tab}">${pane}</div>`;
     const nav = body.querySelector('.opt-tabs');
     const paneEl = body.querySelector('.opt-pane');
@@ -259,6 +263,15 @@ const options = {
       this.render();
     }));
     if (typeof wireQuitGame === 'function') wireQuitGame(body, () => this.render());
+    body.querySelectorAll('[data-leave]').forEach((b) => b.addEventListener('click', () => {
+      if (b.dataset.leave === 'no') {
+        LEAVE.ask = false;
+        this.render();
+        return;
+      }
+      b.disabled = true;
+      leaveGame();
+    }));
     body.querySelectorAll('[data-seg]').forEach((b) => b.addEventListener('click', () => {
       const [k, v] = b.dataset.seg.split(':');
       if (k === 'view') {
@@ -304,6 +317,16 @@ const options = {
       if (go === 'help') ui.toggle('panelHelp');
       if (go === 'intro') { ui.closePanels(); introStart(true); }
       if (go === 'stuck' && typeof rettenFeststecken === 'function') rettenFeststecken();
+      // seit 15.59: „Spiel verlassen“ links unter den Reitern – in der Desktop-App die bekannte Abfrage „Spiel beenden“,
+      // sonst zurück zum Titelbildschirm (Browser und Handy-Apps lassen sich nicht selbst schließen)
+      if (go === 'leave') {
+        if (IS_DESKTOP_APP) QUIT.state = 'ask';
+        else LEAVE.ask = true;
+        this.render();
+        const no = body.querySelector('[data-quit="no"], [data-leave="no"]');
+        if (no) no.focus({ preventScroll: true });
+        return;
+      }
       if (go === 'start') {
         // bewusst zur Auswahl: nach dem Neuladen nicht automatisch weiterspielen (retten.js)
         if (typeof rettenWeiterAus === 'function') rettenWeiterAus();
@@ -316,6 +339,36 @@ const options = {
     }));
   }
 };
+
+// Schnellknöpfe unter den Reitern (seit 15.59): Charakter wechseln, Wiki, Spiel verlassen – in jedem Reiter sichtbar,
+// vorher lag „Charakter wechseln“ versteckt im Reiter „Figur und Spiel“ und das Wiki nur beim Ratgeber
+const LEAVE = { ask: false };
+function optQuickHtml() {
+  const run = typeof game !== 'undefined' && game.running;
+  const act = (go, ico, label) => `<button type="button" class="opt-tab opt-act" data-go="${go}"><span class="opt-tab-ico" aria-hidden="true">${ico}</span><span class="opt-tab-name">${label}</span></button>`;
+  return `<div class="opt-acts">` +
+    (run ? act('start', '⏏', 'Charakter wechseln') : '') +
+    `<a class="opt-tab opt-act" href="wiki/" target="_blank" rel="noopener"><span class="opt-tab-ico" aria-hidden="true">📖</span><span class="opt-tab-name">Wiki</span></a>` +
+    (run || IS_DESKTOP_APP ? act('leave', '⏻', IS_DESKTOP_APP ? 'Spiel beenden' : 'Spiel verlassen') : '') +
+    `</div>`;
+}
+function leaveGameHtml() {
+  return `<section class="opt-group quit-group"><div class="quit-box" role="alertdialog" aria-labelledby="leaveQ" aria-describedby="leaveD"><strong id="leaveQ">Spiel verlassen?</strong>` +
+    `<small id="leaveD">Dein Spielstand wird gespeichert, danach geht es zurück zum Titelbildschirm.</small>` +
+    `<div class="opt-btns"><button type="button" class="btn btn-ghost" data-leave="no">Abbrechen</button><button type="button" class="btn quit-yes" data-leave="yes">Verlassen</button></div></div></section>`;
+}
+// Speichern, Kanal verlassen, mit Konto hochladen, dann neu laden – diesmal mit Titelbildschirm (titel.js zeigt ihn
+// einmal je Sitzung; die Markierung wird gelöscht) und ohne automatisches Weiterspielen (retten.js)
+async function leaveGame() {
+  try {
+    if (typeof rettenWeiterAus === 'function') rettenWeiterAus();
+    if (game.running) saveGame();
+    if (typeof netOnline === 'function' && netOnline()) netStop(true);
+    if (typeof accountOn === 'function' && accountOn()) await cloudPush(true);
+  } catch (e) { /* trotzdem verlassen: der Stand liegt auf dem Gerät */ }
+  try { sessionStorage.removeItem(typeof TITEL !== 'undefined' ? TITEL.key : 'seelenstein.titelDurch'); } catch (e) { /* privat */ }
+  location.reload();
+}
 
 // Spiel beenden (seit 14.32): nur in der Desktop-App (Electron, desktop/main.js lädt das Spiel mit ?quelle=desktop).
 // Erkannt wie in konto.js (MS_STORE_PWA) am „Electron/“ im User-Agent. Im Browser und am Handy gibt es keinen

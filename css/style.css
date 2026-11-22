@@ -2374,6 +2374,10 @@ kbd {
 .opt-tab-ico { flex: 0 0 22px; text-align: center; font-size: 16px; line-height: 1; }
 .opt-tab-name { min-width: 0; overflow-wrap: anywhere; }
 .opt-pane { flex: 1 1 auto; min-width: 0; min-height: 0; overflow-y: auto; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; overscroll-behavior: contain; }
+/* seit 15.59: Schnellknöpfe unter den Reitern (Charakter wechseln, Wiki, Spiel verlassen) */
+.opt-acts { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--brass-dim); }
+.opt-act { font-weight: 600; text-decoration: none; color: #e8d6a8; }
+.opt-act[data-go="leave"] { color: #ffb4a0; }
 .opt-pane .opt-group { margin-bottom: 0; }
 @media (max-width: 560px) {
   #optsBody.opts { flex-direction: column; }
@@ -2381,14 +2385,19 @@ kbd {
   .opt-tabs::-webkit-scrollbar { display: none; }
   .opt-tab { flex: 0 0 auto; min-height: 38px; padding: 6px 11px; white-space: nowrap; border-color: rgba(201, 163, 90, 0.3); }
   .opt-tab-name { overflow-wrap: normal; }
+  .opt-acts { flex-direction: row; gap: 6px; margin: 0 0 0 4px; padding: 0 0 0 8px; border-top: 0; border-left: 1px solid var(--brass-dim); }
   .opt-pane { padding: 10px 12px; }
   /* Auswahlknöpfe unter den Text statt daneben, damit die Erklärung nicht zur schmalen Spalte wird */
   .opt-row:has(.opt-seg) .opt-text { flex-basis: 100%; }
 }
 /* Handy quer: wenig Höhe – Reiter links bleiben, aber flacher */
 @media (orientation: landscape) and (max-height: 520px) and (min-width: 561px) {
-  .opt-tabs { width: 158px; padding: 6px; gap: 3px; }
-  .opt-tab { min-height: 34px; padding: 5px 8px; font-size: 13px; }
+  .opt-tabs { width: 172px; padding: 6px; gap: 2px; }
+  .opt-act .opt-tab-name { white-space: nowrap; }
+  /* seit 15.59 flacher, damit die Schnellknöpfe unter „Konto“ ohne Bildlauf zu sehen sind */
+  .opt-tab { min-height: 27px; padding: 3px 8px; font-size: 12.5px; }
+  .opt-tab-ico { font-size: 14px; }
+  .opt-acts { gap: 2px; margin-top: 4px; padding-top: 4px; }
 }
 
 /* --- Version 3.8: kein Zoomen beim Doppeltippen, Installationshilfe ------------------------ */
