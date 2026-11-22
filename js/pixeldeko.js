@@ -207,3 +207,136 @@ if (typeof drawWorldObject === 'function') {
     if (o.worldObj === 'house' && typeof PIX !== 'undefined' && PIX.inWorld) dekoSmoke(ctx, o.house, o.x, o.y);
   };
 }
+
+// --- Hühner und Schafe (seit 15.60) --------------------------------------------------------------------------------
+// Kleine Tiere als Stimmung in den Städten und Lagern (2D): Hühnergruppen auf Wiesen nahe Häusern und Feldern,
+// Schafherden auf freien Weiden. Reiner Schmuck – keine Kollision, kein Antippen, nicht im Netz. Wo eine Gruppe steht,
+// folgt fest aus der Kachel (dekoHash); wie sich jedes Tier bewegt, ist eine Rechnung aus der Zeit (Wegpunkte um den
+// Heimatplatz, je Abschnitt laufen, dann picken bzw. grasen) – nichts wird gespeichert oder je Bild fortgeschrieben.
+const TIER = {
+  huhn: { p: 0.03, n: [2, 4], r: 28, T: 2.8, walk: 0.9, s: 1.3, bounds: { x: -12, y: -21, w: 25, h: 23 } },
+  schaf: { p: 0.022, n: [2, 3], r: 40, T: 6.5, walk: 2.2, s: 1, bounds: { x: -17, y: -24, w: 34, h: 26 } }
+};
+function tierHome(w, x, y) {
+  // Hühner und Schafe nur auf großen freien Wiesen (3×3 frei), Schafe nicht mitten in Feldern
+  const hh = dekoHash(x, y, 21);
+  const hs = dekoHash(x, y, 22);
+  if (hh >= TIER.huhn.p && hs >= TIER.schaf.p) return null;
+  if (!dekoFieldFree(w, x, y)) return null;
+  if (hh < TIER.huhn.p) return 'huhn';
+  return dekoFieldKind(w, x, y) ? null : 'schaf';
+}
+// Lage, Richtung und Haltung eines Tiers zur Zeit t
+const _tierPos = { x: 0, y: 0, dir: 1, frame: 'steh' };
+function tierAt(kind, hx, hy, seed, t) {
+  const D = TIER[kind];
+  const T = D.T * (0.85 + 0.3 * dekoHash(seed, 1, 31));
+  const tt = t + seed * 7.3;
+  const k = Math.floor(tt / T);
+  const ph = tt / T - k;
+  const wp = (j) => [hx + (dekoHash(seed, j, 32) * 2 - 1) * D.r, hy + (dekoHash(seed, j, 33) * 2 - 1) * D.r * 0.7];
+  const [ax, ay] = wp(k);
+  const [bx, by] = wp(k + 1);
+  const wf = D.walk / T;
+  const o = _tierPos;
+  if (ph < wf) {
+    const u = ph / wf;
+    const s = u * u * (3 - 2 * u);
+    o.x = ax + (bx - ax) * s;
+    o.y = ay + (by - ay) * s;
+    o.frame = Math.floor(tt * (kind === 'huhn' ? 9 : 5)) % 2 ? 'lauf1' : 'lauf0';
+    o.dir = bx >= ax ? 1 : -1;
+  } else {
+    o.x = bx;
+    o.y = by;
+    // Hühner picken in kurzen Stößen, Schafe grasen lange mit gesenktem Kopf
+    const idle = (ph - wf) / (1 - wf);
+    o.frame = kind === 'huhn' ? (Math.floor(tt * 3) % 3 === 0 ? 'steh' : 'pick') : idle > 0.15 && idle < 0.85 ? 'pick' : 'steh';
+    o.dir = dekoHash(seed, k, 34) < 0.5 ? 1 : -1;
+    if (kind === 'huhn' && dekoHash(seed, k, 35) < 0.3) o.dir = bx >= ax ? 1 : -1;
+  }
+  return o;
+}
+
+const TIER_ART = {
+  huhn(ctx, frame) {
+    const pick = frame === 'pick';
+    const leg = frame === 'lauf0' ? 1.6 : frame === 'lauf1' ? -1.6 : 0;
+    stroke(ctx, '#e0902a', 1.1, [[-1, -4], [-1 + leg, 0]]);
+    stroke(ctx, '#e0902a', 1.1, [[1.6, -4], [1.6 - leg, 0]]);
+    // Schwanzfedern, Körper, Flügel
+    poly(ctx, [[-4, -7], [-8.5, -12], [-7.5, -7.5], [-4.5, -5]], '#e8e2d4');
+    oval(ctx, 0, -7, 5.2, 4.2, '#f6f2ea');
+    oval(ctx, -0.6, -6.6, 3, 2, '#dcd4c4');
+    const hx = pick ? 5.2 : 3.6;
+    const hy = pick ? -4.2 : -11.2;
+    oval(ctx, hx, hy, 2.6, 2.6, '#f6f2ea');
+    // Kamm, Kehllappen, Schnabel, Auge
+    oval(ctx, hx - 0.3, hy - 2.4, 1.4, 1.1, '#d8302a');
+    oval(ctx, hx + 1.3, hy + 1.9, 0.8, 1, '#d8302a');
+    poly(ctx, [[hx + 2.2, hy - 0.5], [hx + 4.4, hy + 0.3], [hx + 2.2, hy + 1]], '#f0b030');
+    dot(ctx, hx + 0.9, hy - 0.5, 0.55, 0.55, '#1a1210');
+  },
+  schaf(ctx, frame) {
+    const graze = frame === 'pick';
+    const leg = frame === 'lauf0' ? 1.4 : frame === 'lauf1' ? -1.4 : 0;
+    for (const [x, s] of [[-8, 1], [-4, -1], [4, 1], [8, -1]]) stroke(ctx, '#3a3434', 2, [[x, -6], [x + leg * s, 0]]);
+    // Wolle aus mehreren Bällchen, oben heller
+    for (const [x, y, r] of [[-9, -10, 4.6], [-4, -13, 5.2], [2, -13, 5.2], [7.5, -10.5, 4.6], [-6, -7.5, 4.4], [0, -8, 5], [5.5, -7.5, 4.4]]) oval(ctx, x, y, r, r * 0.92, '#ece8de');
+    for (const [x, y, r] of [[-4, -14.5, 2.6], [2, -14.5, 2.6], [-8.5, -11.5, 2]]) oval(ctx, x, y, r, r * 0.8, '#fbf9f3');
+    // Kopf (gesenkt beim Grasen), Ohr, Auge
+    const hx = graze ? 12 : 11;
+    const hy = graze ? -5 : -13;
+    oval(ctx, hx, hy, 3.4, 4, '#4a4242');
+    oval(ctx, hx - 2.8, hy - 1.6, 2, 1, '#3a3434');
+    dot(ctx, hx + 1.2, hy - 1, 0.6, 0.6, '#f0e8d8');
+    oval(ctx, hx - 1.5, hy - 3.4, 2.4, 1.6, '#fbf9f3');
+  }
+};
+function tierSprite(kind, frame) {
+  return getSprite('tier:' + kind + ':' + frame, TIER[kind].bounds, (c) => {
+    c.scale(TIER[kind].s, TIER[kind].s);
+    TIER_ART[kind](c, frame);
+  });
+}
+
+if (typeof collectWorldObjects === 'function') {
+  const _tierCollect = collectWorldObjects;
+  collectWorldObjects = function (list, x0, y0, x1, y1) {
+    _tierCollect(list, x0, y0, x1, y1);
+    if (!game.world || (typeof V3 !== 'undefined' && V3.on)) return;
+    const w = game.world;
+    const t = game.time;
+    for (let y = Math.max(2, y0 - 2); y <= Math.min(MAP_H - 3, y1 + 2); y++) {
+      for (let x = Math.max(2, x0 - 2); x <= Math.min(MAP_W - 3, x1 + 2); x++) {
+        const kind = tierHome(w, x, y);
+        if (!kind) continue;
+        const D = TIER[kind];
+        const n = D.n[0] + Math.floor(dekoHash(x, y, 23) * (D.n[1] - D.n[0] + 1));
+        for (let i = 0; i < n; i++) {
+          const seed = x * 31 + y * 17 + i * 7;
+          const p = tierAt(kind, x * TILE + 16 + (i - n / 2) * 10, y * TILE + 16 + (i % 2) * 8, seed, t);
+          list.push({ worldObj: 'pxtier', kind, x: p.x, y: p.y, dir: p.dir, frame: p.frame });
+        }
+      }
+    }
+  };
+}
+if (typeof drawWorldObject === 'function') {
+  const _tierDraw = drawWorldObject;
+  drawWorldObject = function (ctx, o) {
+    if (o.worldObj !== 'pxtier') {
+      _tierDraw(ctx, o);
+      return;
+    }
+    const sp = tierSprite(o.kind, o.frame);
+    softShadow(ctx, o.x, o.y, o.kind === 'huhn' ? 6 : 13, o.kind === 'huhn' ? 2.4 : 4.2, 0.3);
+    if (o.dir < 0) {
+      ctx.save();
+      ctx.translate(o.x, o.y);
+      ctx.scale(-1, 1);
+      ctx.drawImage(sp.img, sp.bounds.x, sp.bounds.y, sp.bounds.w, sp.bounds.h);
+      ctx.restore();
+    } else ctx.drawImage(sp.img, o.x + sp.bounds.x, o.y + sp.bounds.y, sp.bounds.w, sp.bounds.h);
+  };
+}

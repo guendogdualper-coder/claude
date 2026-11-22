@@ -62,7 +62,9 @@ Struktur). Übernommen ist nur der allgemeine Stil, keine Figuren, Bilder oder O
   gewürfelt, ohne Kollision).
 - **Schornsteinrauch**: aus jedem Haus mit Schornstein steigen ein paar Rauchwolken und ziehen mit dem Wind.
 - **Pixel-Wasser**: Wasser mit Wellenstreifen im Pixel-Raster.
-- Kleine Tiere (Hühner, Schafe) stehen noch aus.
+- **Tiere (15.60)**: Hühner trippeln in kleinen Gruppen über Felder und Wiesen, bleiben stehen und picken; Schafe
+  grasen zu zweit oder dritt und ziehen langsam weiter. Wohin sie laufen, ergibt sich aus der Kachel und der Spielzeit
+  (bei allen Spielern gleich, ohne Netzverkehr). Nur in 2D.
 
 ### Zoom und schräge Sicht (15.57, Wunsch vom 22.11.)
 
