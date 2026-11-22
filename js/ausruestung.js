@@ -2252,8 +2252,10 @@ const gear = {
     // seit 15.06: ein bis vier Pfeile je nach Größe des Unterschieds (compareGrade)
     const score = worn ? 0 : compareGrade(item);
     const arrow = score ? `<span class="tile-cmp ${score > 0 ? 'up' : 'down'} g${Math.abs(score)}">${compareArrowsSvg(score)}</span>` : '';
+    // seit 15.64: Platz des angelegten Teils, das beim Drüberfahren daneben steht (passt die Klasse nicht, kein Vergleich)
+    const cs = !worn && item.slot && game.player.equipment[equipSlotOf(item)] && canCompare(item, game.player) ? equipSlotOf(item) : '';
     // Rahmen und Leuchten in der Farbe der Seltenheit (rar-0 … rar-4, css/seltenheit.css)
-    return `<button type="button" class="item-tile rar-${rarityOf(item)}${item.plus >= 8 ? ' sparkle' : ''}" ${attrs}${slot ? ` data-slot="${slot}"` : ''} data-info="${escTip(itemTipHtml(item))}">` +
+    return `<button type="button" class="item-tile rar-${rarityOf(item)}${item.plus >= 8 ? ' sparkle' : ''}" ${attrs}${slot ? ` data-slot="${slot}"` : ''}${cs ? ` data-cmp="${cs}"` : ''} data-info="${escTip(itemTipHtml(item))}">` +
       `<img src="${itemIconUrl(item)}" alt="${itemFullName(item)}">` + arrow +
       // seit 14.32: Seltenheit auch ohne Farbe erkennbar – 1 bis 4 Punkte oben links (css/seltenheit.css)
       (rarityOf(item) > 0 ? `<span class="rar-pips" aria-hidden="true"></span>` : '') +

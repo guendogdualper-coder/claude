@@ -2,7 +2,8 @@
 // Platz, erscheint daneben ein kleines Feld mit Namen und Werten. Am Handy: Gegenstand gedrückt halten.
 // Jedes Element mit data-info zeigt dessen Inhalt (fertiges HTML); gear.tile und die Leiste setzen es.
 
-const tipBox = { el: null, target: null, hold: null, swallow: false };
+// cmp (seit 15.64): zweites Feld mit dem angelegten Teil desselben Platzes
+const tipBox = { el: null, cmp: null, target: null, hold: null, swallow: false };
 
 const escTip = (html) => String(html).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
@@ -154,18 +155,49 @@ function tipEl() {
   }
   return tipBox.el;
 }
+// Vergleichsfeld (seit 15.64): fährt man über ein Teil in der Tasche, beim Händler oder im Auktionshaus, steht das
+// angelegte Teil desselben Platzes daneben (wie in klassischen MMOs) – auf der vom Zeiger abgewandten Seite
+function tipCmpEl() {
+  if (!tipBox.cmp) {
+    tipBox.cmp = document.createElement('div');
+    tipBox.cmp.className = 'hover-tip item-tip tip-cmp';
+    tipBox.cmp.hidden = true;
+    document.body.append(tipBox.cmp);
+  }
+  return tipBox.cmp;
+}
 function placeTip(x, y) {
   const el = tipEl();
   const w = el.offsetWidth;
   const h = el.offsetHeight;
   const vw = window.innerWidth;
   const vh = window.innerHeight;
+  const c = tipBox.cmp && !tipBox.cmp.hidden ? tipBox.cmp : null;
+  const cw = c ? c.offsetWidth + 6 : 0;
+  const H = Math.max(h, c ? c.offsetHeight : 0);
+  // beide rechts vom Zeiger, sonst beide links davon; reicht keine Seite für beide, steht das Feld wie bisher und
+  // der Vergleich auf der Seite mit Platz (oder gar nicht)
   let left = x + 16;
+  let side = 1;
+  if (left + w + cw > vw - 6) {
+    left = x - w - 14;
+    side = -1;
+    if (left - cw < 6) {
+      left = Math.max(6, x + 16 + w <= vw - 6 ? x + 16 : x - w - 14);
+      side = left + w + cw <= vw - 6 ? 1 : left - cw >= 6 ? -1 : 0;
+    }
+  }
   let top = y + 14;
-  if (left + w > vw - 6) left = x - w - 14;
-  if (top + h > vh - 6) top = Math.max(6, y - h - 12);
-  el.style.left = Math.max(6, left) + 'px';
-  el.style.top = Math.max(6, top) + 'px';
+  if (top + H > vh - 6) top = Math.max(6, y - H - 12);
+  left = Math.max(6, left);
+  top = Math.max(6, top);
+  el.style.left = left + 'px';
+  el.style.top = top + 'px';
+  if (c) {
+    c.style.visibility = side ? '' : 'hidden';
+    c.style.left = (side > 0 ? left + w + 6 : left - cw) + 'px';
+    c.style.top = Math.max(6, Math.min(top, vh - 6 - c.offsetHeight)) + 'px';
+  }
 }
 function showTip(target, x, y) {
   const html = target && target.dataset.info;
@@ -175,6 +207,14 @@ function showTip(target, x, y) {
     el.innerHTML = html;
     // Ausrüstung (seit 15.63) im eigenen dunklen Rahmen mit silbernem Rand
     el.classList.toggle('item-tip', html.startsWith('<div class="icard"'));
+    // das angelegte Teil daneben (data-cmp setzt gear.tile, seit 15.64)
+    const p = game.player;
+    const worn = target.dataset.cmp && p && p.equipment ? p.equipment[target.dataset.cmp] : null;
+    if (worn) {
+      const c = tipCmpEl();
+      c.innerHTML = itemTipHtml(worn);
+      c.hidden = false;
+    } else if (tipBox.cmp) tipBox.cmp.hidden = true;
   }
   tipBox.target = target;
   el.hidden = false;
@@ -183,6 +223,7 @@ function showTip(target, x, y) {
 function hideTip() {
   tipBox.target = null;
   if (tipBox.el) tipBox.el.hidden = true;
+  if (tipBox.cmp) tipBox.cmp.hidden = true;
 }
 
 function setupTips() {
