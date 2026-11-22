@@ -262,12 +262,10 @@ function showInspect(d) {
   $('inspectBody').querySelectorAll('[data-insp]').forEach((b) => b.addEventListener('click', () => {
     const item = who.equipment[b.dataset.insp];
     if (!item) return;
-    const bonuses = (item.bonuses || []).map((x, i) => `<li><span class="bn">${i + 1}</span>${bonusText(x)}</li>`).join('') +
-      (item.specials || []).map((x, i) => `<li class="special"><span class="bn">${6 + i}</span>${bonusText(x, true)}</li>`).join('');
-    $('inspDetail').innerHTML = `<div class="item-detail"><img src="${itemIconUrl(item)}" alt="">` +
-      `<div class="item-info"><strong style="color:${itemColor(item)}">${itemFullName(item)}</strong>` + rarityLineHtml(item) +
-      `<small>${itemKindText(item)} · ab Stufe ${ITEM_TIERS[item.tier].level}</small>` +
-      `<span>${gear.statsList(item)}</span>` + (bonuses ? `<ul class="bonus-list">${bonuses}</ul>` : '<small class="hint-text">Keine Boni.</small>') + setInfoHtml(item) +
+    // seit 15.63 im klaren Aufbau (itemCardHtml in tipps.js); Klasse und Stufe rot, wenn sie für dich nicht passen
+    $('inspDetail').innerHTML = `<div class="item-detail rar-${rarityOf(item)}"><img src="${itemIconUrl(item)}" alt="">` +
+      `<div class="item-info">` + itemCardHtml(item, game.player, { numbered: true, hint: false }) +
+      ((item.bonuses || []).length ? '' : '<small class="hint-text">Keine Boni.</small>') +
       compareHtml(item, 'Im Vergleich zu deinem') + `</div></div>`;
   }));
 }
@@ -482,9 +480,9 @@ const trade = {
       if (!item) return;
       $('tradeDetail').innerHTML = isBook(item)
         ? `<div class="item-detail"><img src="${bookIconUrl(item.book)}" alt=""><div class="item-info"><strong>Fertigkeitsbuch: ${skillEntry(item.book).sk.name} × ${item.count}</strong></div></div>`
-        : `<div class="item-detail"><img src="${itemIconUrl(item)}" alt=""><div class="item-info"><strong style="color:${itemColor(item)}">${itemFullName(item)}</strong>` + rarityLineHtml(item) +
-          `<small>${itemKindText(item)} · ab Stufe ${ITEM_TIERS[item.tier].level}</small><span>${gear.statsList(item)}</span>` +
-          `<ul class="bonus-list">${(item.bonuses || []).map((x, i) => `<li><span class="bn">${i + 1}</span>${bonusText(x)}</li>`).join('')}</ul>${setInfoHtml(item)}${compareHtml(item)}</div></div>`;
+        // seit 15.63 im klaren Aufbau (itemCardHtml in tipps.js), jetzt auch mit Bonus 6 und 7
+        : `<div class="item-detail rar-${rarityOf(item)}"><img src="${itemIconUrl(item)}" alt=""><div class="item-info">` +
+          itemCardHtml(item, game.player, { numbered: true, hint: false }) + `${compareHtml(item)}</div></div>`;
     }));
     body.querySelectorAll('[data-tpage]').forEach((b) => b.addEventListener('click', () => { this.page = Number(b.dataset.tpage); this.render(); }));
     $('tradeGold').addEventListener('change', (e) => {

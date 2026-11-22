@@ -6,6 +6,71 @@ const tipBox = { el: null, target: null, hold: null, swallow: false };
 
 const escTip = (html) => String(html).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
+// --- Infofeld eines Ausrüstungsteils (seit 15.63) ---------------------------------------------------------------
+// Klarer Aufbau wie in klassischen Online-Rollenspielen, aber mit eigenem Rahmen: Name in der Farbe der Seltenheit,
+// Itemlevel, Einhand/Zweihand und Waffenart, Schaden mit Tempo und Schaden pro Sekunde, Grundwerte weiß, Boni grün,
+// Bonus 6/7 orange, Klasse und benötigte Stufe (rot, wenn sie nicht passen), Set und Verkaufswert mit Münze.
+// Gilt beim Drüberfahren, im Rucksack (auch am Handy), beim Betrachten anderer Spieler und im Handel.
+const icNum = (n) => Math.round(n).toLocaleString('de-DE');
+// Grundangriff mit dieser Waffe: Sekunden je Schlag (nur die Waffe, ohne Boni und Statuspunkte) und Faktor der Art
+// (Dolche und Bögen treffen je Schlag schwächer, dafür öfter bzw. aus der Ferne – wie basicAttack in kampf.js)
+function weaponSwing(item, st = itemStats(item)) {
+  const basic = (item.cls !== 'magier' && typeof KIND_BASIC !== 'undefined' && KIND_BASIC[item.kind]) ||
+    (CLASSES[item.cls] && CLASSES[item.cls].basic) || { cooldown: 0.8 };
+  return { sec: basic.cooldown / Math.max(0.25, 1 + (st.atkSpeed || 0)), mul: basic.mul || 1 };
+}
+// o.worn: „Angelegt“ oben · o.slotName: Platz statt Einhand/Zweihand (Nebenhand) · o.numbered: Boni mit Nummer
+// o.hint: freie Boni als kurze Zeile (Standard an) · o.extra: HTML vor dem Verkaufswert · o.sell: Verkaufswert zeigen
+function itemCardHtml(item, p = game.player, o = {}) {
+  const st = itemStats(item);
+  const R = rarityInfo(item);
+  const T = ITEM_TIERS[item.tier] || ITEM_TIERS[0];
+  const weapon = item.slot === 'waffe';
+  const k = weapon ? WEAPON_KINDS[item.kind] || { name: 'Waffe' } : null;
+  // falsche Klasse oder falscher Weg (die Stufe hat ihre eigene Zeile)
+  const clsBad = !!p && !canCompare(item, p);
+  const row = (a, b, cls) => `<div class="ic-row"><span>${a}</span>${b ? `<span${cls ? ` class="${cls}"` : ''}>${b}</span>` : ''}</div>`;
+  let h = (o.worn ? '<em class="ic-worn">Angelegt</em>' : '') +
+    `<strong class="ic-name" style="color:${itemColor(item)}">${itemFullName(item)}</strong>` +
+    `<small class="ic-rar"><b style="color:${R.color}">${R.name}</b> · <span>${T.label}</span></small>` +
+    `<span class="ic-ilvl">Itemlevel ${itemIlvl(item)}</span>`;
+  if (weapon) {
+    h += row(o.slotName || (k.twoHanded ? 'Zweihand' : 'Einhand'), k.name);
+    if (st.dmg) {
+      const sw = weaponSwing(item, st);
+      h += row(`${icNum(st.dmg[0])} – ${icNum(st.dmg[1])} Schaden`, `Tempo ${sw.sec.toFixed(2).replace('.', ',')}`);
+      h += `<span class="ic-dps">(${icNum((((st.dmg[0] + st.dmg[1]) / 2) * sw.mul) / sw.sec)} Schaden pro Sekunde)</span>`;
+    }
+  } else {
+    const who = item.cls ? CLASSES[item.cls].name : isQuiver(item) ? '' : 'alle Klassen';
+    h += row(o.slotName || slotNameOf(item.slot), who, !item.cls ? 'ic-dim' : clsBad ? 'ic-bad' : '');
+  }
+  if (isQuiver(item)) h += `<small class="ic-note">${itemKindText(item)}</small>`;
+  // Grundwerte (das Angriffstempo einer Waffe steckt schon im Tempo)
+  const base = sortedStats(st).filter(([s]) => s !== 'dmg' && !(weapon && s === 'atkSpeed'));
+  if (base.length) h += `<div class="ic-stats">${base.map(([s, v]) => `<span>${statText(s, v)}</span>`).join('')}</div>`;
+  const bn = (i) => (o.numbered ? `<i class="bn">${i}</i>` : '');
+  const bon = (item.bonuses || []).map((b, i) => `<span class="ic-bonus">${bn(i + 1)}<span>${bonusText(b)}</span></span>`).join('') +
+    (item.specials || []).map((b, i) => `<span class="ic-special">${bn(6 + i)}<span>${bonusText(b, true)}</span></span>`).join('');
+  if (bon) h += `<div class="ic-bonuses">${bon}</div>`;
+  if (o.hint !== false) {
+    const f = bonusFreeInfo(item);
+    const m = f && MATERIALS.find((x) => x.id === f.mat);
+    if (m) h += `<small class="ic-free"><span>✦ ${f.text}</span> <span>(${m.name})</span></small>`;
+  }
+  if (weapon && item.cls && CLASSES[item.cls]) {
+    const path = k.path != null && CLASSES[item.cls].paths[k.path] ? CLASSES[item.cls].paths[k.path].name : '';
+    h += `<span class="ic-class${clsBad ? ' ic-bad' : ''}"><span>Klasse: ${CLASSES[item.cls].name}</span>${path ? ` <span>(${path})</span>` : ''}</span>`;
+  }
+  h += `<span class="ic-req">${reqLevelHtml(item, p)}</span>`;
+  if (item.legend && item.raidMat && MOB_MATS[item.raidMat]) {
+    h += `<small class="ic-note">Ab +${LEGEND_MAT_START} braucht der Schmied ${MOB_MATS[item.raidMat].name} aus der Map des Endbosses.</small>`;
+  }
+  h += setInfoHtml(item, p) + (o.extra || '');
+  if (o.sell) h += `<div class="ic-sell"><span>Verkaufswert:</span> <b>${icNum(sellValue(item))}</b><i class="ic-coin"></i></div>`;
+  return `<div class="icard">${h}</div>`;
+}
+
 // --- Inhalte -------------------------------------------------------------------------------------------
 function itemTipHtml(item) {
   if (!item) return '';
@@ -26,21 +91,12 @@ function itemTipHtml(item) {
       `<small>Fertigkeitsbuch · ${where}</small><span>${info}</span>`;
   }
   if (!item.slot || !ITEM_TIERS[item.tier]) return '';
-  const bonuses = (item.bonuses || []).map((b) => `<li>${bonusText(b)}</li>`).join('') +
-    (item.specials || []).map((b) => `<li class="special">${bonusText(b, true)}</li>`).join('');
   const worn = p && Object.values(p.equipment).includes(item);
   const score = worn || !p ? 0 : compareGrade(item);
-  // seit 13.56: Seltenheit in ihrer Farbe („Episch · Göttlich (Lv 60)“)
-  return `<strong style="color:${itemColor(item)}">${itemFullName(item)}</strong>` + rarityLineHtml(item) +
-    // seit 14.32: „Benötigte Stufe“ (zum Anlegen) getrennt vom Itemlevel in der Zeile darüber
-    `<small>${itemKindText(item)} · ${reqLevelHtml(item, p)}</small>` +
-    `<span>${gear.statsList(item)}</span>` + (bonuses ? `<ul>${bonuses}</ul>` : '') + bonusHintHtml(item, p, true) +
-    setInfoHtml(item, p) + // seit 14.55: Set-Name, Teile und Stufen
-    (item.legend && item.raidMat && MOB_MATS[item.raidMat] ? `<small>Ab +${LEGEND_MAT_START} braucht der Schmied ${MOB_MATS[item.raidMat].name} aus der Map des Endbosses.</small>` : '') +
-    (worn ? '<em>Angelegt</em>' : score > 0 ? `<em class="up">${compareArrows(score)} ${CMP_WORDS[score]} besser als dein angelegtes Teil</em>` : score < 0 ? `<em class="down">${compareArrows(score)} ${CMP_WORDS[-score]} schwächer als dein angelegtes Teil</em>` : '') +
-    (worn || !p ? '' : ilvlCompareHtml(item, p.equipment[equipSlotOf(item)])) +
-    // Verkaufswert (seit 13.5) direkt im Hinweis
-    (worn ? '' : `<span class="tip-sell">Verkaufswert <b>${sellValue(item).toLocaleString('de-DE')} Gold</b></span>`);
+  // seit 15.63 im klaren Aufbau (itemCardHtml); Vergleich mit dem angelegten Teil und Verkaufswert (seit 13.5) unten
+  const cmp = worn ? '' : (score > 0 ? `<em class="up">${compareArrows(score)} ${CMP_WORDS[score]} besser als dein angelegtes Teil</em>` : score < 0 ? `<em class="down">${compareArrows(score)} ${CMP_WORDS[-score]} schwächer als dein angelegtes Teil</em>` : '') +
+    (p ? ilvlCompareHtml(item, p.equipment[equipSlotOf(item)]) : '');
+  return itemCardHtml(item, p, { worn, sell: !worn, extra: cmp ? `<div class="ic-cmp">${cmp}</div>` : '' });
 }
 
 // Vorräte im Inventar (seit 11.0): Tränke und Segensschriftrollen
@@ -115,7 +171,11 @@ function showTip(target, x, y) {
   const html = target && target.dataset.info;
   if (!html) return hideTip();
   const el = tipEl();
-  if (tipBox.target !== target || el.hidden) el.innerHTML = html;
+  if (tipBox.target !== target || el.hidden) {
+    el.innerHTML = html;
+    // Ausrüstung (seit 15.63) im eigenen dunklen Rahmen mit silbernem Rand
+    el.classList.toggle('item-tip', html.startsWith('<div class="icard"'));
+  }
   tipBox.target = target;
   el.hidden = false;
   placeTip(x, y);

@@ -2970,8 +2970,6 @@ const gear = {
         (offIdle ? `<button type="button" class="mini-btn" data-act="equipOff">Nebenhand</button>` : '') +
         (offOk ? `<button type="button" class="mini-btn" data-act="equipOff" ${blocked ? 'disabled' : ''}>Nebenhand</button>` : '') +
         `<button type="button" class="mini-btn ${this.sellArmed ? 'danger' : ''}" data-act="sell" ${trader ? '' : 'disabled title="Nur bei einem Händler"'}>${this.sellArmed ? 'Wirklich verkaufen?' : 'Verkaufen (' + sellValue(item).toLocaleString('de-DE') + ' Gold)'}</button>`;
-    const bonuses = (item.bonuses || []).map((b, i) => `<li><span class="bn">${i + 1}</span>${bonusText(b)}</li>`).join('') +
-      (item.specials || []).map((b, i) => `<li class="special"><span class="bn">${6 + i}</span>${bonusText(b, true)}</li>`).join('');
     const can = {
       boniPlus: (item.bonuses || []).length < 4,
       boni5: (item.bonuses || []).length === 4,
@@ -2986,13 +2984,12 @@ const gear = {
         `<img src="${materialIconUrl(m.id)}" alt=""><span>${m.tag}</span><b>${have}</b></button>`;
     }).join('');
     el.innerHTML = `<div class="item-detail rar-${rarityOf(item)}"><img src="${itemIconUrl(item)}" alt="">` +
-      `<div class="item-info"><strong style="color:${itemColor(item)}">${itemFullName(item)}</strong>` + rarityLineHtml(item) +
-      `<small>${slotName} · ${itemKindText(item)} · ${reqLevelHtml(item, p)}</small>` +
+      // seit 15.63 im gleichen klaren Aufbau wie das Infofeld beim Drüberfahren (itemCardHtml in tipps.js)
+      `<div class="item-info">` + itemCardHtml(item, p, { slotName: inOff ? slotName : '', numbered: true, hint: false, worn: this.selected.where === 'equip' }) +
       (canWear(item, p) ? '' : `<small class="need">${wearProblem(item, p)} Du kannst es verkaufen.</small>`) +
       (inOff ? `<small class="hint-text">Nebenhand: ${Math.round(offhandRules(p).atk * 100)} % des Angriffs, +${Math.round(offhandRules(p).atkSpeed * 100)} % Angriffstempo, Boni zur Hälfte, kein Blocken.</small>` : '') +
       (offIdle ? `<small class="need">${offhandProblem(p, item)}</small>` : '') +
-      `<span>${this.statsList(item)}</span>` +
-      (bonuses ? `<ul class="bonus-list">${bonuses}</ul>` : '') + bonusHintHtml(item, p) + setInfoHtml(item, p) +
+      bonusHintHtml(item, p) +
       (this.selected.where === 'bag' ? compareHtml(item) + (offOk ? compareHtml(item, 'In der Nebenhand', 'off') : '') : '') +
       `</div><div class="item-actions">${actions}</div></div>` +
       `<div class="mat-row" id="matRow">${matBtns}</div>`;

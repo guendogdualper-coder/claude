@@ -6742,4 +6742,10 @@
 "Pixel": "Pixel",
 "Fein": "Smooth",
 "Pixel: scharfkantige Pixelgrafik mit Umrissen und Pixel-Boden (Grashalme, Kiesel), wie in klassischen Rollenspielen. Fein: die bisherige weiche Zeichnung. Gilt nur für die 2D-Ansicht.": "Pixel: crisp pixel art with outlines and a pixel ground (grass blades, pebbles), like classic role-playing games. Smooth: the previous soft drawing. Only applies to the 2D view.",
+"Einhand": "One-Hand",
+"Zweihand": "Two-Hand",
+"{0} – {1} Schaden": "{0} – {1} Damage",
+"({0} Schaden pro Sekunde)": "({0} damage per second)",
+"Tempo {0}": "Speed {0}",
+"Noch {0} von {1} Boni frei": "{0} of {1} bonuses still free",
 };
