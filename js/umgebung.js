@@ -685,9 +685,19 @@ function wallArt(ctx, dir) {
   }
   box(ctx, -8, -40, 16, 40, 1, '#dccaa4');
   box(ctx, -8, -12, 16, 12, 1, '#7a746a');
-  paintShape(ctx, () => { ctx.beginPath(); ctx.rect(-10.5, -50, 21, 36); }, WALL_ROOF, -10.5, -50, 21, 36);
-  for (let y = -46; y < -14; y += 5) stroke(ctx, darker(WALL_ROOF, 0.4), 0.7, [[-10, y], [10, y]]);
-  box(ctx, -2, -51, 4, 37, 1, darker(WALL_ROOF, 0.35));
+  // seit 15.58 nahtlos aneinander: Dach mit First in Laufrichtung, links die helle, rechts die dunkle Dachseite, ohne
+  // Verlauf (der wiederholte sich vorher je Kachel als Streifen); Ziegelreihen alle 8 Einheiten, das passt in die 32
+  // Einheiten je Kachel, so laufen die Reihen über die Fugen weiter
+  ctx.fillStyle = lighter(WALL_ROOF, 0.12);
+  ctx.fillRect(-10.5, -50, 10.5, 36);
+  ctx.fillStyle = darker(WALL_ROOF, 0.16);
+  ctx.fillRect(0, -50, 10.5, 36);
+  for (let y = -46; y < -14; y += 8) {
+    stroke(ctx, darker(WALL_ROOF, 0.3), 0.9, [[-9.5, y], [-2.5, y]]);
+    stroke(ctx, darker(WALL_ROOF, 0.42), 0.9, [[2.5, y], [9.5, y]]);
+  }
+  ctx.fillStyle = lighter(WALL_ROOF, 0.3);
+  ctx.fillRect(-1.6, -50, 3.2, 36);
 }
 
 // Mauerarten der Städte mit eigener Form (seit 14.16, welt.js WALL_STYLE): Palisade aus angespitzten Pfählen,
@@ -719,8 +729,17 @@ const WALL2 = {
       box(ctx, -17, -18, 34, 5, 2.5, '#f4f8fc');
       return;
     }
-    box(ctx, -7, -24, 14, 24, 1, st);
-    box(ctx, -7.5, -26, 15, 8, 3, '#f4f8fc');
+    // seit 15.58 ohne Lücken: die Oberseite (Schnee) läuft über die ganze Kachel und deckt die Stirnseite des
+    // Stücks dahinter; die Stirnseite selbst sieht man nur am Ende einer Mauer
+    box(ctx, -7, -18, 14, 18, 1, st);
+    ctx.fillStyle = darker(st, 0.12);
+    ctx.fillRect(-7.5, -52, 15, 35);
+    ctx.fillStyle = '#f4f8fc';
+    ctx.fillRect(-6, -52, 12, 35);
+    // Schneewehen: leicht bläuliche Mulden, im Takt von 16 Einheiten (passt zur Kachel)
+    ctx.fillStyle = '#d8e4f0';
+    for (const y of [-47, -31]) ctx.fillRect(-4, y, 5, 3);
+    for (const y of [-40, -24]) ctx.fillRect(1, y, 4, 2.5);
   },
   kristall(ctx, dir) {
     const c = '#6a5ac8';

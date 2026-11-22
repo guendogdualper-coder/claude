@@ -82,3 +82,6 @@ Wunsch: „beim Rauszoomen so mäßig 3D-Ansicht … wie auf dem Spiel“. Umset
   dichten Wäldern am Kartenrand deutlich mehr (Tausende Bäume im Bild); was außerhalb des Bildes steht, wird
   verworfen, neue Bodenblöcke werden höchstens fünf je Bild gebacken.
 - Im Stil „Fein“ zoomt die Ansicht nur flach (ohne Kippen); 3D ist unberührt.
+- **15.58 Mauern**: Nord-Süd-Mauern zerfielen (vor allem schräg) in gestapelte Klötze. Jetzt ein durchgehendes Band:
+  Pixel-Umriss nur links/rechts, kein Licht-Verlauf je Stück, Dach mit First und Ziegelreihen im Takt der Kachel; in
+  der schrägen Sicht senkrecht wie der Boden verkürzt, damit die Stücke genau aneinanderstoßen.

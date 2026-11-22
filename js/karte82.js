@@ -170,8 +170,14 @@ if (typeof WALL2 !== 'undefined') {
       box(ctx, -17, -19, 34, 4, 2, '#d0b056');
       return;
     }
-    box(ctx, -7, -25, 14, 25, 1, st);
-    box(ctx, -7.5, -27, 15, 5, 2.5, '#d0b056');
+    // seit 15.58 ohne Lücken: Oberseite über die ganze Kachel (Stein mit goldenen Kanten), Stirnseite nur am Ende
+    box(ctx, -7, -18, 14, 18, 1, st);
+    ctx.fillStyle = '#d0b056';
+    ctx.fillRect(-7.5, -52, 15, 35);
+    ctx.fillStyle = lighter(st, 0.06);
+    ctx.fillRect(-5.5, -52, 11, 35);
+    // Steinplatten im Takt von 16 Einheiten (passt zur Kachel)
+    for (const y of [-50, -34]) stroke(ctx, darker(st, 0.2), 0.8, [[-5, y], [5, y]]);
   };
 }
 if (typeof MAP_WALL_LOOK !== 'undefined') MAP_WALL_LOOK.sonnenstein = ['#7a7468', '#e2dccc', '#e8c870'];

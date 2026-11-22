@@ -103,7 +103,8 @@ function getSprite(key, bounds, draw, scale, cpu) {
     const k = key + '|px';
     let sp = spriteCache.get(k);
     if (!sp) {
-      sp = bakePixelSprite(bounds, draw);
+      // senkrechte Mauerstücke ohne Umriss oben/unten: aneinandergereiht ein durchgehendes Band statt Klötze (15.58)
+      sp = bakePixelSprite(bounds, draw, key.startsWith('wall:v'));
       spriteCache.set(k, sp);
     }
     return sp;

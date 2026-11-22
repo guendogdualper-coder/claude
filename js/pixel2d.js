@@ -87,7 +87,9 @@ function pixGradeHex(hex) {
   return c;
 }
 const PIX_OUT = [0x1a, 0x12, 0x10];
-function bakePixelSprite(bounds, draw) {
+// sideOnly (seit 15.58): Umriss nur links und rechts (senkrechte Mauerstücke, die sich oben und unten nahtlos
+// aneinanderreihen – mit Umriss oben lag an jeder Kachelfuge ein dunkler Strich, die Mauer sah aus wie Klötze)
+function bakePixelSprite(bounds, draw, sideOnly) {
   const S = 1 / PIX.units;
   const w = Math.max(1, Math.ceil(bounds.w * S));
   const h = Math.max(1, Math.ceil(bounds.h * S));
@@ -97,7 +99,8 @@ function bakePixelSprite(bounds, draw) {
   b.lineJoin = 'round';
   b.lineCap = 'round';
   draw(b);
-  shadeSprite(c, b, w, h, S, true);
+  // senkrechte Mauerstücke ohne Licht-Verlauf je Stück (sonst Streifen an jeder Kachel)
+  if (!sideOnly) shadeSprite(c, b, w, h, S, true);
   const img = b.getImageData(0, 0, w, h);
   const d = img.data;
   for (let i = 0; i < d.length; i += 4) {
@@ -117,7 +120,7 @@ function bakePixelSprite(bounds, draw) {
     for (let x = 0; x < w; x++) {
       const i = y * w + x;
       if (src[i]) continue;
-      if ((x > 0 && src[i - 1]) || (x < w - 1 && src[i + 1]) || (y > 0 && src[i - w]) || (y < h - 1 && src[i + w])) {
+      if ((x > 0 && src[i - 1]) || (x < w - 1 && src[i + 1]) || (!sideOnly && ((y > 0 && src[i - w]) || (y < h - 1 && src[i + w])))) {
         const j = i * 4;
         d[j] = PIX_OUT[0];
         d[j + 1] = PIX_OUT[1];
@@ -564,7 +567,10 @@ function pixelRenderTilt(r, fx, fy) {
       continue;
     }
     e.__tiltOut = false;
-    p.setTransform(k, 0, 0, k, px - k * e.x, py - k * by);
+    // senkrechte Mauern (Nord–Süd) liegen fast nur als Dach in Laufrichtung da: senkrecht wie der Boden verkürzt
+    // (cy·s), sonst schieben sich die Stücke übereinander und die Mauer zerfällt in Stufen
+    const ky = e.worldObj === 'wall' && e.dir === 'v' ? k * T.cy * _tp.s : k;
+    p.setTransform(k, 0, 0, ky, px - k * e.x, py - ky * by);
     drawSceneEntity(p, e);
   }
   p.setTransform(1, 0, 0, 1, 0, 0);
