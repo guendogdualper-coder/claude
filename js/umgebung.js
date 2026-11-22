@@ -31,8 +31,9 @@ const groundAt = (x, y) => (x < 0 || y < 0 || x >= MAP_W || y >= MAP_H ? -1 : ga
 // Natürlicher Boden (Gras, Wald, Sand, Asche) als Bild mit einem Pixel pro Kachel.
 // Weich vergrößert ergibt das fließende Übergänge statt sichtbarer Kacheln.
 let groundImage = null;
+let groundImagePix = null; // seit 15.56: dasselbe mit den kräftigeren Farben des Pixel-Stils (pixel2d.js)
 
-function buildGroundImage() {
+function buildGroundImage(grade) {
   const w = game.world;
   const c = newCanvas(MAP_W, MAP_H);
   const cx = c.getContext('2d');
@@ -46,7 +47,8 @@ function buildGroundImage() {
     else if (g === GROUND.BOG) g = GROUND.SWAMP;
     if (g === GROUND.PATH || g === GROUND.PLAZA) g = GROUND[ZONES[w.zoneIdx[i]].ground];
     // seit 13.85 mit Ersatzfarbe, falls eine Bodenart (noch) keine Farben hat (sonst bricht das ganze Bild ab)
-    img.data.set([...rgb((GROUND_PALETTE[g] || GROUND_PALETTE[GROUND.BASALT])[w.shade[i] >> 5]), 255], i * 4);
+    const c = rgb((GROUND_PALETTE[g] || GROUND_PALETTE[GROUND.BASALT])[w.shade[i] >> 5]);
+    img.data.set([...(grade ? pixGradeRGB(c[0], c[1], c[2]) : c), 255], i * 4);
   }
   cx.putImageData(img, 0, 0);
   return c;
@@ -76,7 +78,7 @@ function renderGroundChunk(cx, cy) {
   const sy = Math.max(0, ty0 - 1);
   const sw = Math.min(MAP_W, tx0 + CHUNK + 1) - sx;
   const sh = Math.min(MAP_H, ty0 + CHUNK + 1) - sy;
-  ctx.drawImage(groundImage, sx, sy, sw, sh, sx * TILE + TILE / 2 - TILE / 2, sy * TILE + TILE / 2 - TILE / 2, sw * TILE, sh * TILE);
+  ctx.drawImage(pix ? groundImagePix : groundImage, sx, sy, sw, sh, sx * TILE + TILE / 2 - TILE / 2, sy * TILE + TILE / 2 - TILE / 2, sw * TILE, sh * TILE);
   for (let y = ty0; y < Math.min(MAP_H, ty0 + CHUNK); y++) {
     for (let x = tx0; x < Math.min(MAP_W, tx0 + CHUNK); x++) {
       const i = y * MAP_W + x;
@@ -90,12 +92,14 @@ function renderGroundChunk(cx, cy) {
         continue;
       }
       if (g === GROUND.PATH || g === GROUND.PLAZA || LIQUID.has(g) || g === GROUND.ICE || g === GROUND.FLAGSTONE) {
-        ctx.fillStyle = (GROUND_PALETTE[g] || GROUND_PALETTE[GROUND.BASALT])[Math.min(7, (w.shade[i] >> 6) + 3)];
+        const fc = (GROUND_PALETTE[g] || GROUND_PALETTE[GROUND.BASALT])[Math.min(7, (w.shade[i] >> 6) + 3)];
+        ctx.fillStyle = pix ? pixGradeHex(fc) : fc;
         ctx.fillRect(px, py, TILE + 0.6, TILE + 0.6);
       }
       if (LIQUID.has(g) && w.deco[i] !== DECO.BRIDGE) drawShore(ctx, x, y, px, py, g);
       else if (g === GROUND.ICE) drawIceTile(ctx, px, py, h);
-      else if (g === GROUND.PLAZA || g === GROUND.FLAGSTONE) drawPlazaTile(ctx, px, py, h);
+      // im Pixel-Stil legt pixelGroundPass Kopfsteinpflaster aus einzelnen Steinen statt der Plattenfugen
+      else if ((g === GROUND.PLAZA || g === GROUND.FLAGSTONE) && !pix) drawPlazaTile(ctx, px, py, h);
       // Schatten unter Dungeon-Wänden
       if (wallAt(x, y - 1)) {
         const sg = ctx.createLinearGradient(0, py, 0, py + 14);
@@ -109,6 +113,7 @@ function renderGroundChunk(cx, cy) {
   }
   // Pixel-Stil: Bodenmuster (Grashalme, Kiesel, Sprenkel) über den Boden, unter Schmuck und Brücken
   if (pix && typeof pixelGroundPass === 'function') pixelGroundPass(ctx, tx0, ty0);
+  if (pix && typeof pixelFences === 'function') pixelFences(ctx, tx0, ty0);
   for (let y = ty0; y < Math.min(MAP_H, ty0 + CHUNK); y++) {
     for (let x = tx0; x < Math.min(MAP_W, tx0 + CHUNK); x++) {
       const i = y * MAP_W + x;
@@ -180,6 +185,7 @@ function drawCaveWall(ctx, x, y, px, py, h, dg) {
 function drawGround(ctx, x0, y0, x1, y1) {
   const w = game.world;
   if (!groundImage) groundImage = buildGroundImage();
+  if (typeof PIX !== 'undefined' && PIX.inWorld && !groundImagePix) groundImagePix = buildGroundImage(true);
   const size = CHUNK * TILE;
   for (let cy = Math.floor(y0 / CHUNK); cy <= Math.floor(y1 / CHUNK); cy++) {
     for (let cx = Math.floor(x0 / CHUNK); cx <= Math.floor(x1 / CHUNK); cx++) {

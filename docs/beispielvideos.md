@@ -42,5 +42,17 @@ Struktur). Übernommen ist nur der allgemeine Stil, keine Figuren, Bilder oder O
 - **Einstellung**: Grafik → „2D-Stil“: Pixel (Standard) oder Fein (die bisherige weiche Zeichnung). 3D ist unberührt.
 - **Leistung**: gemessen 2–5 ms je Bild wie vorher; es werden viel weniger Bildpunkte gemalt.
 
-Mögliche nächste Schritte: kräftigere Farben je Gegend, Holzzäune und Kopfsteinpflaster-Wege mit einzelnen Steinen,
-Dächer mit Schindeln, Bildpunkt-Schrift für Gegenstands-Fenster.
+### Etappe 2 (15.56)
+
+- **Farbstimmung**: Sättigung +12 %, Kontrast +7 %, ein Hauch Wärme; grelles Gelbgrün (Wiese) etwas tiefer –
+  für Pixel-Bilder (beim Backen) und den Boden (eigenes Bodenbild `groundImagePix`).
+- **Kopfsteinpflaster**: Plätze in Städten aus einzelnen Steinen (Muster aus verschobenen Gitterpunkten, nahtlos):
+  dunkle Fugen, Steine leicht heller/dunkler, Lichtkante oben links, Schatten unten rechts.
+- **Erdwege**: Flecken, Sprenkel, Kiesel mit Licht und Schatten, einzelne Grashalme.
+- **Gras**: zusätzlich kleine Grasbüschel (dunkles V mit hellen Spitzen).
+- **Holzzäune**: in Städten und Lagern an jeder Gras-Kante zu einem Erdweg (Pfosten, zwei Latten, Umriss), reiner
+  Schmuck ohne Kollision, beim Backen der Bodenblöcke gemalt (kostet beim Spielen nichts).
+- Gemessen: Bodenblock backen ~1,4 ms (wie vorher), Bild 2–5 ms.
+
+Mögliche nächste Schritte: Dächer mit Schindeln und Schornsteinrauch, Fässer/Kisten/Heu als Stadtschmuck, Felder,
+kleine Tiere (Hühner, Schafe) als Stimmung, Pixel-Wasser mit Wellenkanten.
