@@ -4228,54 +4228,175 @@ function dragonWing2d(ctx, sx, sy, k, col, edge, tip = '#c08a44') {
 function dragonPreviewUrl(color) {
   return `bilder/drache-${DRAGON2D_FARBEN[color] ? color : 'rot'}.webp`;
 }
-// o.saddle: Satteldecke (Klassenfarbe), o.color (seit 14.39): Drachenfarbe (DRAGON2D_FARBEN)
-function dragonMountArt(ctx, frame, o = {}) {
-  const F = DRAGON2D_FARBEN[o.color] || DRAGON2D_FARBEN.rot;
-  const red = F.body;
-  const redD = F.bodyD;
-  const belly = F.belly;
-  const bronze = F.horn;
-  const k = [-1, 0, 1, 0][frame];
-  const by = -38;
-  // ferner Flügel hinter dem Rumpf
-  dragonWing2d(ctx, -1, by - 7, k * 0.85, F.far, F.farEdge, bronze);
-  // Schwanz mit Bronzeblatt
-  const tw = k * 1.5;
+// Großer Flügel (seit 15.61): Oberarm und Unterarm bis zum Handgelenk, vier Fingerknochen, dazwischen die Flughaut mit
+// eingebuchtetem Hinterrand, Daumenkralle am Handgelenk. k: −1 oben, 0 Mitte, 1 unten (Flügelschlag).
+function dragonWingBig(ctx, sx, sy, k, skin, bone, claw, far) {
+  const th = k < 0 ? 0.44 + (-k) * (1.31 - 0.44) : 0.44 - k * (0.44 + 0.61);
+  const dir = (a, L) => [-Math.cos(a) * L, -Math.sin(a) * L];
+  const d1 = dir(th, 12);
+  const E = [sx + d1[0], sy + d1[1]];
+  const d2 = dir(th - 0.2, 12);
+  const W = [E[0] + d2[0], E[1] + d2[1]];
+  const tips = [[0.15, 17], [-0.35, 20], [-0.9, 18], [-1.5, 13]].map(([o, L]) => { const d = dir(th + o, L); return [W[0] + d[0], W[1] + d[1]]; });
+  const R = [sx - 16, sy + 4];
+  const xs = [sx, E[0], W[0], R[0], ...tips.map((t) => t[0])];
+  const ys = [sy, E[1], W[1], R[1], ...tips.map((t) => t[1])];
+  const bx = Math.min(...xs) - 2;
+  const byy = Math.min(...ys) - 2;
   paintShape(ctx, () => {
     ctx.beginPath();
-    ctx.moveTo(-14, by - 3);
-    ctx.quadraticCurveTo(-34, by + 2, -50, by - 4 + tw);
-    ctx.lineTo(-49, by + tw);
-    ctx.quadraticCurveTo(-32, by + 7, -12, by + 4);
+    ctx.moveTo(sx, sy);
+    ctx.lineTo(E[0], E[1]);
+    ctx.lineTo(W[0], W[1]);
+    ctx.lineTo(tips[0][0], tips[0][1]);
+    // Hinterrand zwischen den Fingerspitzen zum Handgelenk hin eingebuchtet
+    let prev = tips[0];
+    for (let i = 1; i < tips.length; i++) {
+      const t = tips[i];
+      const mx = (prev[0] + t[0]) / 2;
+      const my = (prev[1] + t[1]) / 2;
+      ctx.quadraticCurveTo(mx + (W[0] - mx) * 0.32, my + (W[1] - my) * 0.32, t[0], t[1]);
+      prev = t;
+    }
+    const mx = (prev[0] + R[0]) / 2;
+    const my = (prev[1] + R[1]) / 2;
+    ctx.quadraticCurveTo(mx + (W[0] - mx) * 0.25, my + (W[1] - my) * 0.25, R[0], R[1]);
     ctx.closePath();
-  }, red, -52, by - 8, 42, 16);
-  poly(ctx, [[-49, by - 4 + tw], [-57, by - 8 + tw], [-54, by - 2 + tw], [-58, by + 3 + tw], [-48, by + tw]], bronze);
-  // angelegte Hinterbeine und Vorderpfoten
-  oval(ctx, -9, by + 7, 6, 4, redD);
-  poly(ctx, [[-14, by + 9], [-19, by + 11], [-13, by + 11]], F.claw);
-  oval(ctx, 9, by + 7, 4.5, 3.5, redD);
-  // Rumpf mit hellem Bauch und Bronzeplatten
-  oval(ctx, 0, by, 19, 9, red);
-  oval(ctx, 2, by + 4.5, 14, 4, belly);
-  for (const x of [-15, -10, -5]) poly(ctx, [[x - 2.5, by - 7], [x, by - 11], [x + 2.5, by - 7]], bronze);
-  // Hals und Kopf
-  poly(ctx, [[9, by - 7], [19, by - 18], [26, by - 16], [17, by + 3]], red);
-  poly(ctx, [[14, by + 1], [22, by - 13], [25, by - 12], [17, by + 3]], belly);
-  paintShape(ctx, () => { ctx.beginPath(); ctx.ellipse(30, by - 18, 8.5, 4.4, 0.18, 0, Math.PI * 2); }, red, 21, by - 24, 19, 12);
-  poly(ctx, [[27, by - 15], [38, by - 13], [36, by - 11.5], [27, by - 12.5]], belly);
-  // Hörner: nach hinten geschwungen, an der Spitze aufgebogen
-  poly(ctx, [[25, by - 21], [17, by - 26], [15, by - 31], [19, by - 26.5], [28, by - 22.5]], bronze);
-  poly(ctx, [[27, by - 22], [21, by - 28], [20, by - 32], [23, by - 27.5], [30, by - 22.5]], F.hornHi);
-  dot(ctx, 31, by - 19.5, 1.6, 1.2, F.eye);
-  dot(ctx, 36.5, by - 17, 0.8, 0.8, '#1c0c0c');
-  // Sattel in der Farbe der Klasse
+  }, skin, bx, byy, Math.max(...xs) - bx + 2, Math.max(...ys) - byy + 2);
+  // Knochen: Arm kräftig, Finger dünn; feine Adern der Flughaut
+  stroke(ctx, bone, far ? 1.6 : 2, [[sx, sy], E, W]);
+  for (const t of tips) stroke(ctx, bone, far ? 0.8 : 1, [W, t]);
+  if (!far) stroke(ctx, lighter(skin, 0.18), 0.6, [[sx - 2, sy + 1], [E[0] - 1, E[1] + 1.5]]);
+  // Daumenkralle und Gelenkhöcker
+  poly(ctx, [[W[0] + 0.5, W[1] - 1], [W[0] + 3.5, W[1] - 3.2], [W[0] + 1.8, W[1] + 0.4]], claw);
+  dot(ctx, E[0], E[1], 1.2, 1.2, bone);
+}
+
+// o.saddle: Satteldecke (Klassenfarbe), o.color (seit 14.39): Drachenfarbe (DRAGON2D_FARBEN)
+// seit 15.61 neu gezeichnet: gehörnter Kopf mit Kiefer, Zähnen und glühendem Auge, S-förmiger Hals, kräftige Brust,
+// Bauchschuppen, angelegte Beine mit Krallen, Rückenzacken, langer Schwanz mit Hornblatt, große Flügel mit Knochen.
+// Kopf nach rechts, Rumpfmitte bei (0, −38), Sattel an derselben Stelle wie vorher (der Reiter sitzt darauf).
+function dragonMountArt(ctx, frame, o = {}) {
+  const F = DRAGON2D_FARBEN[o.color] || DRAGON2D_FARBEN.rot;
+  const body = F.body;
+  const bodyD = F.bodyD;
+  const belly = F.belly;
+  const horn = F.horn;
+  const k = [-1, 0, 1, 0][frame];
+  const by = -38;
+  const tw = k * 1.6;
+  const spike = (x, y, h, w, c, lean = -0.35) => poly(ctx, [[x - w, y], [x + lean * h, y - h], [x + w, y]], c);
+  // ferner Flügel hinter dem Rumpf (dunkler)
+  dragonWingBig(ctx, -2, by - 9, k * 0.85, F.far, F.farEdge, F.claw, true);
+  // ferne Beine (dunkel, halb verdeckt)
+  oval(ctx, -9, by + 8, 5, 4, darker(bodyD, 0.2));
+  poly(ctx, [[17, by + 5], [21, by + 10], [18, by + 11]], darker(bodyD, 0.2));
+  // Schwanz: dicke Wurzel an der Hüfte, Bogen nach unten, Spitze wieder hoch, Hornblatt am Ende
+  paintShape(ctx, () => {
+    ctx.beginPath();
+    ctx.moveTo(-14, by - 7);
+    ctx.quadraticCurveTo(-30, by - 6, -40, by + 1 + tw * 0.5);
+    ctx.quadraticCurveTo(-49, by + 7 + tw, -57, by + 1 + tw);
+    ctx.lineTo(-56.5, by + 4 + tw);
+    ctx.quadraticCurveTo(-48, by + 12 + tw, -38, by + 8 + tw * 0.4);
+    ctx.quadraticCurveTo(-28, by + 4, -12, by + 6);
+    ctx.closePath();
+  }, body, -58, by - 8, 47, 22);
+  stroke(ctx, belly, 1.1, [[-14, by + 5], [-27, by + 4.5], [-37, by + 7 + tw * 0.4], [-47, by + 9 + tw], [-55, by + 3.6 + tw]]);
+  poly(ctx, [[-56, by + 1.2 + tw], [-61, by - 4 + tw], [-63.5, by + 2 + tw], [-61, by + 7.5 + tw], [-56, by + 4.2 + tw]], horn);
+  poly(ctx, [[-57, by + 2 + tw], [-61, by - 1.5 + tw], [-62, by + 2.4 + tw], [-57, by + 3.4 + tw]], F.hornHi);
+  for (const [x, h] of [[-19, 3.6], [-26, 3.2], [-33, 2.8], [-40, 2.4], [-46, 2], [-51, 1.6]]) {
+    const yy = x > -38 ? by - 6.6 - (x + 19) * 0.03 : by + (x + 38) * -0.55 - 0.5 + tw * ((-38 - x) / 19);
+    spike(x, yy, h, 1.6, horn);
+  }
+  // Hinterbein angelegt: Oberschenkel, Unterschenkel nach hinten, Krallen
+  paintShape(ctx, () => { ctx.beginPath(); ctx.ellipse(-12, by + 5, 8, 6.5, -0.3, 0, Math.PI * 2); }, body, -20, by - 2, 16, 13);
+  poly(ctx, [[-16, by + 8], [-24, by + 12], [-26, by + 15], [-21, by + 14.5], [-12, by + 11]], bodyD);
+  for (const dx of [0, 2.2, 4.4]) poly(ctx, [[-26.5 + dx, by + 14], [-28.5 + dx, by + 16.6], [-25.2 + dx, by + 15.4]], F.claw);
+  // Rumpf: Rücken, Hüfte, Bauch, breite Brust
+  paintShape(ctx, () => {
+    ctx.beginPath();
+    ctx.moveTo(-19, by - 3);
+    ctx.bezierCurveTo(-12, by - 11, 6, by - 12.5, 14, by - 9.5);
+    ctx.quadraticCurveTo(23, by - 5, 22, by + 3);
+    ctx.quadraticCurveTo(20, by + 9, 13, by + 9.5);
+    ctx.quadraticCurveTo(0, by + 12.5, -13, by + 8.5);
+    ctx.quadraticCurveTo(-22, by + 4, -19, by - 3);
+    ctx.closePath();
+  }, body, -22, by - 13, 46, 26);
+  // Bauchschuppen: helles Band mit Querrillen
+  paintShape(ctx, () => {
+    ctx.beginPath();
+    ctx.moveTo(20, by + 1);
+    ctx.quadraticCurveTo(19, by + 8, 12, by + 9.6);
+    ctx.quadraticCurveTo(0, by + 12.6, -12, by + 8.6);
+    ctx.quadraticCurveTo(0, by + 9, 11, by + 6.2);
+    ctx.quadraticCurveTo(17, by + 4.5, 20, by + 1);
+    ctx.closePath();
+  }, belly, -12, by + 1, 32, 12);
+  for (const x of [-7, -2, 3, 8, 13]) stroke(ctx, darker(belly, 0.28), 0.6, [[x, by + 8.2 + Math.abs(x - 3) * 0.05], [x - 0.6, by + 11.2 - Math.abs(x - 3) * 0.06]]);
+  // Schuppenreihen an der Flanke
+  for (let r = 0; r < 2; r++) for (let i = 0; i < 5; i++) {
+    const x = -12 + i * 6 + r * 3;
+    const y = by - 3 + r * 4;
+    stroke(ctx, darker(body, 0.22), 0.55, [[x - 1.6, y], [x, y + 1.2], [x + 1.6, y]]);
+  }
+  // Vorderbein angelegt mit Krallen nach vorn
+  poly(ctx, [[13, by + 2], [18, by + 8], [24, by + 10.5], [25.5, by + 12.5], [20, by + 12], [12, by + 7]], bodyD);
+  for (const dx of [0, 1.9, 3.8]) poly(ctx, [[24 + dx * 0.3, by + 10.4 + dx * 0.5], [27.5 + dx * 0.3, by + 11.2 + dx * 0.6], [24.6 + dx * 0.3, by + 12 + dx * 0.5]], F.claw);
+  // Hals: S-Bogen nach vorn oben, vorn helle Kehlschuppen
+  paintShape(ctx, () => {
+    ctx.beginPath();
+    ctx.moveTo(11, by - 9);
+    ctx.quadraticCurveTo(20, by - 14, 22, by - 22);
+    ctx.quadraticCurveTo(24, by - 30, 30, by - 31);
+    ctx.lineTo(35, by - 26);
+    ctx.quadraticCurveTo(29, by - 22, 28, by - 13);
+    ctx.quadraticCurveTo(26, by - 3, 20, by + 2);
+    ctx.closePath();
+  }, body, 10, by - 32, 26, 35);
+  stroke(ctx, belly, 1.6, [[21, by + 0.5], [25.6, by - 6], [27, by - 15], [29.5, by - 22], [33.5, by - 25.5]]);
+  for (const [x, y, h] of [[13.5, by - 10.4, 3.6], [17.6, by - 13.2, 3.4], [20.4, by - 17.6, 3.2], [22, by - 22.6, 3], [24.4, by - 27.4, 2.6]]) spike(x, y, h, 1.5, horn, -0.6);
+  // Rückenzacken hinter dem Sattel
+  for (const [x, h] of [[-11, 3.8], [-15.5, 3.4]]) spike(x, by - 9.5 - (x + 11) * -0.12, h, 1.7, horn);
+  // Kopf: Schädel mit Stirnwulst, langer Schnauze und Unterkiefer
+  const hx = 29;
+  const hy = by - 28;
+  paintShape(ctx, () => {
+    ctx.beginPath();
+    ctx.moveTo(hx, hy - 1);
+    ctx.quadraticCurveTo(hx + 3, hy - 6.5, hx + 9, hy - 6);
+    ctx.lineTo(hx + 15.5, hy - 2.6);
+    ctx.quadraticCurveTo(hx + 18.6, hy - 1.6, hx + 18.2, hy + 0.6);
+    ctx.lineTo(hx + 11, hy + 1.6);
+    ctx.lineTo(hx + 16, hy + 2.6);
+    ctx.quadraticCurveTo(hx + 15, hy + 5.4, hx + 10.5, hy + 5.2);
+    ctx.quadraticCurveTo(hx + 4, hy + 5, hx + 1, hy + 3);
+    ctx.closePath();
+  }, body, hx - 1, hy - 7, 20, 13);
+  // Maul: dunkle Spalte, kleine Zähne, Unterkiefer hell
+  stroke(ctx, F.edge, 0.8, [[hx + 18, hy + 0.7], [hx + 10.6, hy + 1.7], [hx + 7, hy + 2.6]]);
+  for (const x of [12.5, 14.6, 16.6]) poly(ctx, [[hx + x - 0.7, hy + 1.2], [hx + x, hy + 2.6], [hx + x + 0.7, hy + 1.1]], F.claw);
+  stroke(ctx, belly, 1, [[hx + 5, hy + 4.4], [hx + 10, hy + 4.7], [hx + 14.5, hy + 3.2]]);
+  // Nüster, Stirnwulst, glühendes Auge
+  dot(ctx, hx + 16.4, hy - 1.4, 0.8, 0.6, F.edge);
+  stroke(ctx, darker(body, 0.35), 1.1, [[hx + 5, hy - 4.6], [hx + 9.4, hy - 4.2], [hx + 11.6, hy - 2.8]]);
+  dot(ctx, hx + 9, hy - 2.6, 1.9, 1.1, F.eye);
+  dot(ctx, hx + 9.4, hy - 2.6, 0.5, 1, '#1c0c0c');
+  dot(ctx, hx + 8.3, hy - 3, 0.5, 0.4, '#ffffff');
+  // Hörner: zwei nach hinten geschwungen, dazu kleine Zacken am Kiefer
+  poly(ctx, [[hx + 2, hy - 4.5], [hx - 5, hy - 8.5], [hx - 10.5, hy - 14], [hx - 6, hy - 10.6], [hx + 4.4, hy - 6.6]], horn);
+  poly(ctx, [[hx + 4.5, hy - 5.8], [hx, hy - 11], [hx - 1.8, hy - 16.5], [hx + 1.6, hy - 11.2], [hx + 7, hy - 6.2]], F.hornHi);
+  for (const [x, y] of [[hx + 1, hy + 2.4], [hx + 3.5, hy + 4.4]]) poly(ctx, [[x, y], [x - 4, y + 1.4], [x + 0.6, y + 1.6]], horn);
+  // Sattel in der Farbe der Klasse mit Gurt
   if (o.saddle) {
-    box(ctx, -7, by - 12, 14, 5, 2.2, o.saddle);
-    box(ctx, -5, by - 8, 10, 4, 1.4, darker(o.saddle, 0.25));
-    stroke(ctx, '#2a1a10', 1, [[0, by - 7], [0, by + 6]]);
+    box(ctx, -7, by - 13, 14, 5, 2.2, o.saddle);
+    box(ctx, -5, by - 9, 10, 4, 1.4, darker(o.saddle, 0.25));
+    stroke(ctx, '#2a1a10', 1, [[0, by - 8], [0, by + 9]]);
+    stroke(ctx, '#c8a050', 0.8, [[-1.2, by + 4], [1.2, by + 4]]);
   }
   // naher Flügel vor dem Rumpf
-  dragonWing2d(ctx, 3, by - 6, k, red, F.edge, bronze);
+  dragonWingBig(ctx, 2, by - 8, k, body, F.edge, F.claw, false);
 }
 
 function monsterSprite(typeId, frame) {

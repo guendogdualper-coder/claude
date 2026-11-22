@@ -3,8 +3,9 @@
 Die Videos dienten als Vorbild dafür, *wie* etwas aussehen oder klingen kann. Übernommen wurden Techniken und Ideen,
 keine Bilder, Töne oder Figuren: alles ist selbst gebaut (Code, selbst erzeugte Klänge).
 
-Zwei der sieben Videos (DfSZuNNoIpN, Df1WHwQhLdE) ließ Instagram ohne Anmeldung nicht laden (Abruf-Sperre). Einen Skill
-namens „pixelfx“ gibt es in dieser Umgebung nicht; die 2D-Ideen sind direkt im Spielcode umgesetzt.
+Das Video DfSZuNNoIpN ließ sich am 22.11. beim zweiten Versuch laden (Df1WHwQhLdE weiterhin nicht). Es zeigt eine Sammlung
+von Pixel-Effekten. Angesehen wurden nur Stil und Ablauf; Code und Bilder daraus sind nicht im Spiel, die 2D-Effekte
+sind eigener Code (siehe „Pixel-Effekte“ unten).
 
 ## 2D
 
@@ -91,3 +92,24 @@ Wunsch: „beim Rauszoomen so mäßig 3D-Ansicht … wie auf dem Spiel“. Umset
 - **15.58 Mauern**: Nord-Süd-Mauern zerfielen (vor allem schräg) in gestapelte Klötze. Jetzt ein durchgehendes Band:
   Pixel-Umriss nur links/rechts, kein Licht-Verlauf je Stück, Dach mit First und Ziegelreihen im Takt der Kachel; in
   der schrägen Sicht senkrecht wie der Boden verkürzt, damit die Stücke genau aneinanderstoßen.
+
+## Pixel-Effekte (15.61, nach dem Video DfSZuNNoIpN)
+
+Wunsch: „die 2D-Effekte so animieren wie die Attacken oder auf dem Video“, besonders die Inferno-Ulti. Was am Video
+auffiel und wie es umgesetzt ist (alles eigener Code in `js/pixelfx.js`):
+
+- **Wenige Farbstufen statt Verlauf**: Flammen haben einen fast weißen Kern, dann Gelb, Orange, Rot, Dunkelrot. Jede
+  Flamme ist eine Bildfolge aus acht Bildern, die aus Rauschen berechnet und einmal gebacken wird (nahtlos im Kreis,
+  Bildpunkt für Bildpunkt, Übergänge mit geordnetem Raster). Abgespielt wird sie mit 12 Bildern je Sekunde – das
+  typische Flackern von Pixel-Feuer.
+- **Leuchten in Ringen**: statt eines weichen Lichtflecks vier Helligkeitsstufen mit gerastertem Übergang.
+- **Rauch als Ballen** mit Licht oben links und ausgefranstem Rand, durchscheinend gerastert.
+- **Funken als Pixelstriche**, Teilchen als harte Bildpunkte, die zum Ende flackern statt zu verblassen.
+- **Treffer**: heller Kern, der in der Trefferfarbe abkühlt, dazu kurze Splitter in zufällige Richtungen.
+- **Explosion** als Bildfolge: Feuerball wächst, kühlt ab, zerfällt; dann steigt Rauch auf.
+- **Inferno neu**: Glut zieht sich zur Figur zusammen (Ausholen), eine Feuerhose aus Flammen auf einer Schraube bricht
+  aus, drei Flammenwände (zwei Reihen) rollen genau im Takt der Treffer nach außen, Glut fliegt hoch, der Boden reißt
+  glühend auf und kühlt mit Glutnestern ab. Flammen stehen zwischen den Figuren (was davor steht, verdeckt).
+- Betroffen sind alle Fertigkeiten, die diese Bausteine benutzen (Feuer, Leuchten, Funken, Teilchen, Treffer). 3D und
+  der 2D-Stil „Fein“ bleiben unverändert. Grafik „Niedrig“: halb so viele Flammen bei Inferno.
+- Gemessen (Testrechner ohne Grafikkarte): Feuertornado 4,4 ms je Bild (vorher 7,8), Inferno 8,9 ms (vorher 5,4).
