@@ -1660,6 +1660,89 @@ function v3UpdateHome(fx, fy) {
   full3Switch(oldHome, V3.home);
 }
 
+// Abstand jeder Felskachel zur nächsten offenen Kachel (Schachbrett-Abstand, höchstens 15), je Halle (V3.home)
+// einmal berechnet – nur ihr Rechteck, außerhalb gilt alles als Fels
+const CAVEDEPTH3 = { key: '', world: null, d: null, x0: 0, y0: 0, w: 0, h: 0 };
+function caveDepth3(x, y) {
+  const w = game.world;
+  const H = V3.home;
+  if (!H) return 0;
+  const C = CAVEDEPTH3;
+  if (C.key !== H.key || C.world !== w) {
+    C.key = H.key;
+    C.world = w;
+    C.x0 = Math.max(0, H.x0);
+    C.y0 = Math.max(0, H.y0);
+    C.w = Math.max(1, Math.min(MAP_W, H.x1) - C.x0);
+    C.h = Math.max(1, Math.min(MAP_H, H.y1) - C.y0);
+    const W = C.w;
+    const d = new Uint8Array(W * C.h);
+    for (let yy = 0; yy < C.h; yy++) for (let xx = 0; xx < W; xx++) d[yy * W + xx] = w.obj[(C.y0 + yy) * MAP_W + C.x0 + xx] === OBJ.CAVEWALL ? 15 : 0;
+    // zwei Durchläufe (vorwärts, rückwärts) mit den acht Nachbarn
+    for (let yy = 0; yy < C.h; yy++) for (let xx = 0; xx < W; xx++) {
+      const k = yy * W + xx;
+      if (!d[k]) continue;
+      let m = d[k];
+      if (xx > 0) m = Math.min(m, d[k - 1] + 1);
+      if (yy > 0) {
+        m = Math.min(m, d[k - W] + 1);
+        if (xx > 0) m = Math.min(m, d[k - W - 1] + 1);
+        if (xx < W - 1) m = Math.min(m, d[k - W + 1] + 1);
+      }
+      d[k] = m;
+    }
+    for (let yy = C.h - 1; yy >= 0; yy--) for (let xx = W - 1; xx >= 0; xx--) {
+      const k = yy * W + xx;
+      if (!d[k]) continue;
+      let m = d[k];
+      if (xx < W - 1) m = Math.min(m, d[k + 1] + 1);
+      if (yy < C.h - 1) {
+        m = Math.min(m, d[k + W] + 1);
+        if (xx < W - 1) m = Math.min(m, d[k + W + 1] + 1);
+        if (xx > 0) m = Math.min(m, d[k + W - 1] + 1);
+      }
+      d[k] = m;
+    }
+    C.d = d;
+  }
+  const lx = x - C.x0;
+  const ly = y - C.y0;
+  if (lx < 0 || ly < 0 || lx >= C.w || ly >= C.h) return 15;
+  return C.d[ly * C.w + lx];
+}
+// weiches Rauschen je Kachel (Grate und Kuppen über mehrere Kacheln)
+function caveNoise3(x, y, cell, s) {
+  const fx = x / cell;
+  const fy = y / cell;
+  const ix = Math.floor(fx);
+  const iy = Math.floor(fy);
+  const ax = fx - ix;
+  const ay = fy - iy;
+  const ux = ax * ax * (3 - 2 * ax);
+  const uy = ay * ay * (3 - 2 * ay);
+  const q = (a, b) => {
+    let v = (a * 374761393 + b * 668265263 + s * 982451653) | 0;
+    v = Math.imul(v ^ (v >>> 13), 1274126177);
+    return ((v ^ (v >>> 16)) >>> 0) / 4294967296;
+  };
+  const a0 = q(ix, iy);
+  const b0 = q(ix + 1, iy);
+  const c0 = q(ix, iy + 1);
+  const d0 = q(ix + 1, iy + 1);
+  return a0 + (b0 - a0) * ux + (c0 - a0) * uy + (a0 - b0 - c0 + d0) * ux * uy;
+}
+function caveRock3(x, y, out) {
+  const dd = caveDepth3(x, y);
+  if (dd <= 1) return;
+  const n1 = caveNoise3(x, y, 5, 3);
+  const n2 = caveNoise3(x, y, 2.2, 4);
+  const rise = Math.min(4.6, (dd - 1) * 0.62) * (0.55 + 0.75 * n1) + (n2 - 0.5) * 0.5 * Math.min(1, (dd - 1) / 3);
+  out.h = WALL3_H + Math.max(0, rise);
+  // terrainJob hellt hohen Fels auf (je Wandhöhe +25 %) – das hier ausgleichen, dazu nach innen dunkler, fleckig
+  const k = (1.25 / (1 + (out.h / WALL3_H) * 0.25)) * (1 - Math.min(0.3, (dd - 1) * 0.035)) * (0.9 + 0.2 * n2);
+  out.r *= k; out.g *= k; out.b *= k;
+}
+
 function tileSample(x, y, out) {
   const w = game.world;
   // Hinter dem Rand der Map: Boden der nächsten Randkachel als ansteigende Böschung (ohne Wasser und Lava)
@@ -1706,6 +1789,9 @@ function tileSample(x, y, out) {
     // seit 13.86: auch eigene Wandfarben ohne Dungeon (zone.wallLook, Hallen der Turnierarena)
     _c.set(lighter(zone.dungeon ? zone.dungeon.wall.top : zone.wallLook ? zone.wallLook.wall.top : '#3a3430', 0.22));
     out.r = _c.r; out.g = _c.g; out.b = _c.b;
+    // seit 15.62: in Dungeons und Hallen steigt der Fels mit dem Abstand zum Höhlenboden zu Graten und Kuppen an
+    // und wird dunkler – statt einer glatten, hellen Platte um die Halle (von weit oben sah das wie „nichts“ aus)
+    if (V3.home && V3.home.dungeon) caveRock3(x, y, out);
     return out;
   }
   if (LIQUID.has(g)) out.h = -(LIQUID3_DEPTH[g] || WATER3_DEPTH);

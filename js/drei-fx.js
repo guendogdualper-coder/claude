@@ -2642,6 +2642,70 @@ function regionRect3(x, y) {
   }
   return null;
 }
+// Felsmuster für den Kasten um Dungeon-Hallen (seit 15.62): grau, die Farbe kommt aus dem Material (Wandfarbe des
+// Dungeons). top: Felsdecke von oben (Flecken, Risse, Geröll), face: Klippe (waagrechte Schichten, Spalten)
+function boundsRockTex3(kind) {
+  const N = 256;
+  const c = document.createElement('canvas');
+  c.width = N;
+  c.height = N;
+  const g = c.getContext('2d');
+  const img = g.createImageData(N, N);
+  const d = img.data;
+  const h = (x, y, s) => {
+    let v = (x * 374761393 + y * 668265263 + s * 982451653) | 0;
+    v = Math.imul(v ^ (v >>> 13), 1274126177);
+    return ((v ^ (v >>> 16)) >>> 0) / 4294967296;
+  };
+  // gekacheltes Wertrauschen (nahtlos über den Rand)
+  const nz = (x, y, cell, s) => {
+    const P = N / cell;
+    const fx = x / cell;
+    const fy = y / cell;
+    const ix = Math.floor(fx);
+    const iy = Math.floor(fy);
+    const ax = fx - ix;
+    const ay = fy - iy;
+    const ux = ax * ax * (3 - 2 * ax);
+    const uy = ay * ay * (3 - 2 * ay);
+    const q = (a, b) => h(((a % P) + P) % P, ((b % P) + P) % P, s);
+    const a0 = q(ix, iy);
+    const b0 = q(ix + 1, iy);
+    const c0 = q(ix, iy + 1);
+    const d0 = q(ix + 1, iy + 1);
+    return a0 + (b0 - a0) * ux + (c0 - a0) * uy + (a0 - b0 - c0 + d0) * ux * uy;
+  };
+  for (let y = 0; y < N; y++) {
+    for (let x = 0; x < N; x++) {
+      let v;
+      if (kind === 'face') {
+        // Schichten: waagrechte Bänder, leicht gewellt, dazu senkrechte Spalten
+        const band = nz(x, y * 4, 64, 3);
+        const wave = Math.sin((y + nz(x, y, 32, 4) * 18) * 0.21) * 0.5 + 0.5;
+        v = 0.55 + 0.25 * band + 0.16 * wave + 0.12 * (nz(x, y, 8, 5) - 0.5);
+        if (nz(x * 3, y, 32, 6) > 0.78) v *= 0.62;
+      } else {
+        v = 0.5 + 0.32 * nz(x, y, 64, 1) + 0.18 * nz(x, y, 16, 2) + 0.12 * (nz(x, y, 4, 7) - 0.5);
+        // Risse: schmale dunkle Täler im Rauschen
+        const r = Math.abs(nz(x, y, 32, 8) - 0.5);
+        if (r < 0.022) v *= 0.55;
+        // Geröll: helle Punkte mit Schatten darunter
+        if (h(x >> 2, y >> 2, 9) > 0.985) v *= (y & 3) < 2 ? 1.3 : 0.7;
+      }
+      const k = Math.max(0, Math.min(255, v * 255));
+      const o = (y * N + x) * 4;
+      d[o] = k;
+      d[o + 1] = k;
+      d[o + 2] = k;
+      d[o + 3] = 255;
+    }
+  }
+  g.putImageData(img, 0, 0);
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = THREE.RepeatWrapping;
+  t.wrapT = THREE.RepeatWrapping;
+  return t;
+}
 function v3SyncBounds() {
   const p = game.player;
   if (!p || !game.running) return;
@@ -2650,8 +2714,14 @@ function v3SyncBounds() {
     const lidMat = new THREE.MeshBasicMaterial({ color: 0x000000, fog: false, side: THREE.DoubleSide });
     BOUNDS3.lidMat = lidMat;
     BOUNDS3.walls = [];
+    // seit 15.62: jede Fläche mit eigenem Felsmaterial (Muster je nach Größe wiederholt), Farbe der Dungeonwand
+    BOUNDS3.texTop = boundsRockTex3('top');
+    BOUNDS3.texFace = boundsRockTex3('face');
     for (let k = 0; k < 8; k++) {
-      const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), k < 4 ? BOUNDS3.mat : lidMat);
+      const tex = (k < 4 ? BOUNDS3.texFace : BOUNDS3.texTop).clone();
+      tex.needsUpdate = true;
+      const rock = new THREE.MeshLambertMaterial({ color: 0x888888, map: tex, side: k < 4 ? THREE.FrontSide : THREE.DoubleSide });
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), rock);
       m.renderOrder = -1;
       V3.scene.add(m);
       BOUNDS3.walls.push(m);
@@ -2693,13 +2763,23 @@ function v3SyncBounds() {
   const HS = 1.4;
   const FAR = 260;
   const [wn, ws, ww, we, ln, ls, lw, le] = BOUNDS3.walls;
+  // Felsfarbe aus der Wand des Dungeons (bzw. der Arenahalle), Klippen dunkler als die Decke
+  const zi = game.world.zoneIdx[Math.min(MAP_H - 1, ry + (rh >> 1)) * MAP_W + Math.min(MAP_W - 1, rx + (rw >> 1))];
+  const zone = ZONES[zi] || {};
+  const look = (zone.dungeon && zone.dungeon.wall) || (zone.wallLook && zone.wallLook.wall) || { top: '#3a3430', face: '#1c1816' };
+  // Decke wie der Fels tief im Berg (caveRock3: hell gezeichnet, nach innen bis 30 % dunkler), Klippen etwas heller
+  const topC = darker(lighter(look.top, 0.22), 0.24);
+  const faceC = lighter(mixColor(look.face || darker(look.top, 0.4), look.top, 0.6), 0.12);
+  for (let k = 0; k < 8; k++) BOUNDS3.walls[k].material.color.set(k < 4 ? faceC : topC);
   // Wände: Vorderseite zeigt nach innen (von außen unsichtbar)
   wn.scale.set(x1 - x0 + 2, H + 1, 1); wn.position.set((x0 + x1) / 2, H / 2 - 0.5, z0); wn.rotation.set(0, 0, 0);
   ws.scale.set(x1 - x0 + 2, HS + 1, 1); ws.position.set((x0 + x1) / 2, HS / 2 - 0.5, z1); ws.rotation.set(0, Math.PI, 0);
   ww.scale.set(z1 - z0, H + 1, 1); ww.position.set(x0, H / 2 - 0.5, (z0 + z1) / 2); ww.rotation.set(0, Math.PI / 2, 0);
   we.scale.set(z1 - z0, H + 1, 1); we.position.set(x1, H / 2 - 0.5, (z0 + z1) / 2); we.rotation.set(0, -Math.PI / 2, 0);
   // Deckel über allem außerhalb
-  const lid = (m, cx, cz, sx, sz, h) => { m.scale.set(sx, sz, 1); m.position.set(cx, h, cz); m.rotation.set(-Math.PI / 2, 0, 0); };
+  const lid = (m, cx, cz, sx, sz, h) => { m.scale.set(sx, sz, 1); m.position.set(cx, h, cz); m.rotation.set(-Math.PI / 2, 0, 0); m.material.map.repeat.set(sx / 9, sz / 9); };
+  // Muster der Klippen: etwa alle 6 Einheiten wiederholt
+  for (const m of [wn, ws, ww, we]) m.material.map.repeat.set(m.scale.x / 6, m.scale.y / 6);
   lid(ln, (x0 + x1) / 2, z0 - FAR / 2, x1 - x0 + FAR * 2, FAR, H);
   lid(ls, (x0 + x1) / 2, z1 + FAR / 2, x1 - x0 + FAR * 2, FAR, HS);
   lid(lw, x0 - FAR / 2, (z0 + z1) / 2, FAR, z1 - z0, H);
