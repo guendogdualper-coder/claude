@@ -154,3 +154,16 @@ Damit hat jede Karte mit einem 3D-Wahrzeichen auch eines in 2D (`js/wahrzeichen2
 
 Nichts davon hat eine Kollision: Pfeiler, Laternen und Nadel stehen auf Lava, Wasser oder in der Schlucht, die Krone
 schwebt. Die Mondsichel (Map 11) glänzt seit 15.69 mit weichen runden Lichtern statt Kreuzsternen.
+
+## 2D: die großen Wahrzeichen der Lichtseite (seit 15.70)
+
+Bis 15.69 standen in 2D nur die Wahrzeichen an den Städten. Die großen Stücke draußen auf der Karte gab es nur in 3D –
+in 2D war dort nur Fläche (beim Feuerberg ein riesiger flacher Lavasee). Jetzt, an denselben Stellen wie in 3D:
+
+| Map | Wahrzeichen | 2D |
+|---|---|---|
+| 9 Feuerberg | Vulkan im Lavasee (`wz2dVolcano`) | Kegel aus dunklem Fels mit Rinnen und Schichten, Lichtseite links; Krater mit glühendem See, vier Lavaströme mit wandernden hellen Stellen, Widerschein und glühender Saum am Fuß, Felsbrocken, Rauchsäule nach rechts, alle 2,6 s fliegen Lavabrocken. Grundfläche wie der Boden geneigt (Ellipse), auf 60 % der 3D-Größe verkleinert, damit der ganze Berg ins Bild passt |
+| 8 Totenmoor | toter Riesenbaum (`wz2dDeadTree`) | krummer, oben abgebrochener Stamm mit Rinde, Astlöchern und Moos, Wurzeln im Moor, sieben kahle Äste mit Zweigen und Moosbärten; an drei Astenden Geisterlaternen (`wz2dHangLantern`, wie an den Kanälen), drei Irrlichter kreisen vor und hinter dem Stamm |
+| 3 Donnerklamm | acht weitere Felsnadeln | wie die Sturmnadel (`wz2dSturmnadel`), Höhe wie in 3D; jede dritte mit Blitzableiter (eigener Takt), die zwei breitesten mit Wasserfall aus einer Kerbe in die Tiefe |
+| 10 Kristallabgrund | vier Kristall-Monolithen (`wz2dMonolith`) | großer doppelendiger Kristall (`wz2dCrystal2`) schwebt über dem Abgrund, drei kleinere am Fuß, sechs Splitter kreisen, Lichtsäule aus der Tiefe, aufsteigende Funken |
+
