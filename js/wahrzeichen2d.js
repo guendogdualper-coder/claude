@@ -918,12 +918,12 @@ function wz2dMoonUp(ctx, o, t) {
   ctx.lineWidth = 1.6;
   ctx.stroke();
   ctx.restore();
-  // Sterne an der Sichel funkeln
+  // Glanzpunkte an der Sichel (weiche runde Lichter, keine Sternformen)
   for (const [px, py, ph] of [[-54, 34, 0], [0, -70, 2], [54, 34, 4]]) {
     const a = 0.5 + 0.5 * Math.sin(t * 2.4 + ph);
+    wz2dGlow(ctx, px * sx, cy + py, 7, '255,255,255', 0.55 * a);
     ctx.fillStyle = `rgba(255,255,255,${a})`;
-    ctx.fillRect(px * sx - 1, cy + py - 4, 2, 8);
-    ctx.fillRect(px * sx - 4, cy + py - 1, 8, 2);
+    ctx.fillRect(px * sx - 1, cy + py - 1, 2, 2);
   }
   // Mondstaub steigt auf
   ctx.fillStyle = '#e8eeff';
@@ -1044,4 +1044,613 @@ function wz2dShipUp(ctx, o, t) {
   ctx.fillRect(-hw - 6, 1, L + 16, 7);
   ctx.fillStyle = 'rgba(220,235,250,0.6)';
   ctx.fillRect(-hw - 6, 1, L + 16, 1.2);
+}
+
+// --- Feuerberg: vier Glutpfeiler aus Basalt in den Ecken des Lavagrabens, oben Feuerkörbe, vorn Banner -------------
+// Drei Basalttrommeln, leicht versetzt aufeinander, sechskantig (links Licht, Mitte, rechts Schatten); aus den Fugen
+// und Rissen glüht die Lava, am Fuß staut sie sich hell und wirft Blasen.
+WZ2D_MAPS[9] = (wm) => {
+  const F = wzField(wm, 'liq', false);
+  const town = wzTown(wm);
+  const out = [];
+  for (const [sx, sy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+    let best = null;
+    let bs = -1e9;
+    for (let dy = -9; dy <= 9; dy++) for (let dx = -9; dx <= 9; dx++) {
+      if (Math.sign(dx) !== sx || Math.sign(dy) !== sy) continue;
+      const x = town.cx + dx;
+      const y = town.cy + dy;
+      if (!wzFree('liq', y * MAP_W + x)) continue;
+      const s = -Math.abs(Math.abs(dx) - Math.abs(dy)) * 2 - Math.abs(Math.hypot(dx, dy) - 7) + F.at(x, y);
+      if (s > bs) { bs = s; best = [x + 0.5, y + 0.5]; }
+    }
+    if (best) out.push({ x: best[0] * TILE, y: best[1] * TILE, reach: 44, h: 150, seed: sx * 3 + sy, ground: wz2dGlutGround, draw: wz2dGlutPfeiler });
+  }
+  return out;
+};
+function wz2dGlutGround(ctx, o, t) {
+  wz2dGlow(ctx, 0, 2, 36, '255,140,40', 0.5 + 0.1 * Math.sin(t * 2 + o.seed));
+  ctx.fillStyle = 'rgba(255,206,110,0.5)';
+  ctx.beginPath();
+  ctx.ellipse(0, 2, 19, 11, 0, 0, Math.PI * 2);
+  ctx.fill();
+  for (let i = 0; i < 3; i++) {
+    const u = (t * 0.45 + i * 0.37 + o.seed * 0.11 + 5) % 1;
+    const a = i * 2.1 + o.seed;
+    ctx.fillStyle = `rgba(255,232,160,${(1 - u) * 0.85})`;
+    ctx.beginPath();
+    ctx.arc(Math.cos(a) * 21, Math.sin(a) * 13 + 3, 1.4 + u * 2.6, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+function wz2dGlutPfeiler(ctx, o, t) {
+  const H = 3 * TILE * 0.85;
+  const dh = H / 3;
+  const glow = 0.62 + 0.3 * Math.sin(t * 2 + o.seed);
+  for (let i = 0; i < 3; i++) {
+    const ox = [0, -1.5, 1.2][i];
+    const hw = [15.5, 14.5, 15][i];
+    const y0 = -(i + 1) * dh;
+    const y1 = i ? -i * dh : 4;
+    ctx.fillStyle = '#1c1614';
+    ctx.fillRect(ox - hw, y0, hw * 2, y1 - y0);
+    ctx.fillStyle = '#2e2622';
+    ctx.fillRect(ox - hw, y0, hw * 1.25, y1 - y0);
+    ctx.fillStyle = '#4a3c34';
+    ctx.fillRect(ox - hw, y0, hw * 0.55, y1 - y0);
+    ctx.fillStyle = 'rgba(130,104,88,0.55)';
+    ctx.fillRect(ox - hw * 0.45, y0, 1, y1 - y0);
+    ctx.fillRect(ox + hw * 0.25, y0, 1, y1 - y0);
+    ctx.fillStyle = '#6a564a';
+    ctx.fillRect(ox - hw, y0, hw * 2, 2);
+    ctx.fillStyle = '#8c7262';
+    ctx.fillRect(ox - hw, y0, hw * 0.55, 2);
+  }
+  // Fugen: dort quillt Glut heraus
+  for (let i = 1; i < 3; i++) {
+    const y = -i * dh;
+    ctx.fillStyle = `rgba(255,110,30,${0.55 * glow})`;
+    ctx.fillRect(-17, y - 1.5, 34, 3.5);
+    ctx.fillStyle = `rgba(255,214,120,${0.9 * glow})`;
+    ctx.fillRect(-15, y - 0.5, 30, 1.2);
+  }
+  // Glutrisse
+  const cracks = [[-10, -6, -7, -14, -11, -22], [7, -10, 10, -18, 6, -24], [-6, -31, -9, -40, -5, -50], [8, -36, 5, -44], [-9, -60, -6, -68, -10, -77], [6, -62, 9, -72]];
+  for (const [w, col] of [[3.4, `rgba(255,90,20,${0.45 * glow})`], [1.3, `rgba(255,224,140,${0.95 * glow})`]]) {
+    ctx.strokeStyle = col;
+    ctx.lineWidth = w;
+    ctx.beginPath();
+    for (const c of cracks) {
+      ctx.moveTo(c[0], c[1]);
+      for (let j = 2; j < c.length; j += 2) ctx.lineTo(c[j], c[j + 1]);
+    }
+    ctx.stroke();
+  }
+  wz2dGlow(ctx, 0, 2, 28, '255,120,40', 0.45);
+  // Kapitell mit Schatten darunter
+  ctx.fillStyle = '#241c18';
+  ctx.fillRect(-17, -H + 1, 34, 3);
+  ctx.fillStyle = '#3a2e28';
+  ctx.fillRect(-19, -H - 6, 38, 8);
+  ctx.fillStyle = '#5e4c44';
+  ctx.fillRect(-19, -H - 6, 38, 2);
+  ctx.fillStyle = '#8c7262';
+  ctx.fillRect(-19, -H - 6, 13, 2);
+  // Banner vorn: dunkelrot mit goldenem Rand, weht leicht
+  const sw = Math.sin(t * 1.6 + o.seed) * 2;
+  ctx.fillStyle = '#6a1410';
+  ctx.beginPath();
+  ctx.moveTo(-10, -H + 3);
+  ctx.lineTo(10, -H + 3);
+  ctx.lineTo(10 + sw, -H + 34);
+  ctx.lineTo(sw, -H + 28);
+  ctx.lineTo(-10 + sw, -H + 34);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = '#e8a040';
+  ctx.lineWidth = 1.4;
+  ctx.stroke();
+  ctx.fillStyle = '#9a2a1c';
+  ctx.fillRect(-8, -H + 5, 5, 22);
+  ctx.fillStyle = '#e8a040';
+  ctx.beginPath();
+  ctx.moveTo(sw * 0.5, -H + 9);
+  ctx.lineTo(4 + sw * 0.5, -H + 16);
+  ctx.lineTo(sw * 0.5, -H + 23);
+  ctx.lineTo(-4 + sw * 0.5, -H + 16);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = '#ffd890';
+  ctx.fillRect(-1 + sw * 0.5, -H + 13, 2, 6);
+  wz2dBrazier(ctx, 0, -H - 6, 1.25, t, o.seed);
+}
+
+// --- Totenmoor: Totenlaternen an den vier Kreuzungen der Kanäle (knorrige Pfähle, schaukelnde Laternen) ------------
+// Toter, krummer Stamm mit Wurzeln im Wasser, abgebrochenem Ast, Moosfäden und einem angenagelten Schädel; am Arm
+// schaukelt eine Käfiglaterne mit grüner Flamme, zwei Irrlichter kreisen, auf dem Wasser liegt ihr Spiegelschein.
+WZ2D_MAPS[8] = (wm) => {
+  const F = wzField(wm, 'liq', false);
+  const town = wzTown(wm);
+  const out = [];
+  for (const [sx, sy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+    let best = null;
+    let bs = -1e9;
+    for (let dy = 2; dy <= 9; dy++) for (let dx = 2; dx <= 9; dx++) {
+      const x = town.cx + sx * dx;
+      const y = town.cy + sy * dy;
+      if (!wzFree('liq', y * MAP_W + x)) continue;
+      const s = F.at(x, y) * 2 - Math.abs(dx - dy) * 0.5 - Math.hypot(dx, dy) * 0.3;
+      if (s > bs) { bs = s; best = [x + 0.5, y + 0.5]; }
+    }
+    if (best) out.push({ x: best[0] * TILE, y: best[1] * TILE, reach: 56, h: 150, sx, seed: sx * 3 + sy, ground: wz2dLaterneGround, draw: wz2dLaterne });
+  }
+  return out;
+};
+function wz2dLaterneGround(ctx, o, t) {
+  const fl = 0.75 + 0.25 * Math.sin(t * 9 + o.seed) * Math.sin(t * 5.3);
+  const x = o.sx * 30;
+  wz2dGlow(ctx, x, 10, 34, '106,255,168', 0.26 * fl);
+  // Spiegelschein: kurze Glanzstriche unter der Laterne, die auf dem Wasser zittern
+  ctx.fillStyle = `rgba(170,255,205,${0.45 * fl})`;
+  for (let i = 0; i < 5; i++) {
+    const w = 10 - i * 1.6 + Math.sin(t * 3 + i * 1.7 + o.seed) * 2;
+    ctx.fillRect(x - w / 2 + Math.sin(t * 2 + i) * 1.5, 6 + i * 5, w, 1.6);
+  }
+}
+function wz2dSkullSmall(ctx, x, y) {
+  ctx.fillStyle = '#6a6a72';
+  ctx.fillRect(x - 0.6, y - 7.5, 1.2, 3);
+  ctx.fillStyle = '#d8ccac';
+  ctx.beginPath();
+  ctx.ellipse(x, y - 2, 4.4, 4.1, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillRect(x - 2.7, y + 0.5, 5.4, 3.2);
+  ctx.fillStyle = '#f3ecd8';
+  ctx.fillRect(x - 3, y - 4.6, 2, 2);
+  ctx.fillStyle = '#1a1410';
+  ctx.fillRect(x - 2.7, y - 2.2, 2.1, 2.1);
+  ctx.fillRect(x + 0.6, y - 2.2, 2.1, 2.1);
+  ctx.fillRect(x - 0.5, y + 0.4, 1, 1.2);
+  ctx.fillRect(x - 2, y + 2.6, 4, 0.8);
+}
+function wz2dLaterne(ctx, o, t) {
+  const H = 4.1 * TILE * 0.82;
+  const s = o.sx;
+  const seed = o.seed;
+  ctx.lineCap = 'round';
+  // Wurzeln greifen ins Wasser
+  ctx.strokeStyle = '#1e1812';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(-2, -1);
+  ctx.quadraticCurveTo(-8, 1, -14, 6);
+  ctx.moveTo(2, -1);
+  ctx.quadraticCurveTo(8, 2, 13, 5);
+  ctx.moveTo(0, 0);
+  ctx.quadraticCurveTo(-2, 5, 2, 8);
+  ctx.stroke();
+  // knorriger Stamm: unten dick, oben dünn, krumm, oben leicht vom Arm weg geneigt
+  const P = (k) => [Math.sin(k * 5.2 + seed) * 3 * (1 - k * 0.4) - k * k * 3 * s, -H * k];
+  const L = [];
+  const R = [];
+  for (let i = 0; i <= 12; i++) {
+    const k = i / 12;
+    const [x, y] = P(k);
+    const w = (5.2 - k * 2.8) * (1 + 0.16 * Math.sin(i * 2.7 + seed));
+    L.push([x - w, y]);
+    R.push([x + w, y]);
+  }
+  const poly = (pts, col) => {
+    ctx.fillStyle = col;
+    ctx.beginPath();
+    pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+    ctx.closePath();
+    ctx.fill();
+  };
+  poly(L.concat(R.slice().reverse()), '#1c1610');
+  poly(L.concat(L.map(([x, y], i) => [(x + R[i][0]) / 2 - 0.5, y]).reverse()), '#3a3024');
+  ctx.strokeStyle = '#5a4a3a';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  L.forEach(([x, y], i) => (i ? ctx.lineTo(x + 0.8, y) : ctx.moveTo(x + 0.8, y)));
+  ctx.stroke();
+  ctx.fillStyle = '#100c08';
+  for (const k of [0.3, 0.62]) {
+    const [x, y] = P(k);
+    ctx.beginPath();
+    ctx.ellipse(x + 1, y, 1.6, 2.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  // abgebrochener Ast zur anderen Seite
+  const [bx, by] = P(0.76);
+  ctx.strokeStyle = '#241c14';
+  ctx.lineWidth = 2.6;
+  ctx.beginPath();
+  ctx.moveTo(bx, by);
+  ctx.quadraticCurveTo(bx - s * 8, by - 5, bx - s * 14, by - 14);
+  ctx.stroke();
+  ctx.lineWidth = 1.4;
+  ctx.beginPath();
+  ctx.moveTo(bx - s * 9, by - 7);
+  ctx.lineTo(bx - s * 6, by - 16);
+  ctx.stroke();
+  // Arm zur Seite, gebogen wie ein Ast
+  const [tx, ty] = P(1);
+  const ax = s * 30;
+  const ay = ty + 4;
+  ctx.strokeStyle = '#1c1610';
+  ctx.lineWidth = 4.2;
+  ctx.beginPath();
+  ctx.moveTo(tx, ty + 9);
+  ctx.bezierCurveTo(tx + s * 8, ty - 6, s * 20, ty - 6, ax, ay);
+  ctx.stroke();
+  ctx.strokeStyle = '#4a3c2e';
+  ctx.lineWidth = 1.3;
+  ctx.beginPath();
+  ctx.moveTo(tx, ty + 7.5);
+  ctx.bezierCurveTo(tx + s * 8, ty - 7.5, s * 20, ty - 7.5, ax, ay - 1.5);
+  ctx.stroke();
+  // Moosfäden hängen vom Arm
+  ctx.strokeStyle = '#3e5a36';
+  ctx.lineWidth = 1.3;
+  for (let i = 0; i < 4; i++) {
+    const u = 0.22 + i * 0.2;
+    const mx = tx + (ax - tx) * u;
+    const my = ty + 2 + (ay - ty) * u - Math.sin(u * Math.PI) * 5;
+    const len = 8 + wz2dHash(seed * 7 + i) * 11;
+    const sw = Math.sin(t * 1.4 + i + seed) * 1.6;
+    ctx.beginPath();
+    ctx.moveTo(mx, my);
+    ctx.quadraticCurveTo(mx + sw, my + len * 0.5, mx + sw * 1.7, my + len);
+    ctx.stroke();
+  }
+  ctx.lineCap = 'butt';
+  const [kx, ky] = P(0.55);
+  wz2dSkullSmall(ctx, kx + s, ky);
+  // Laterne schaukelt an einer Kette
+  const swing = Math.sin(t * 1.6 + seed) * 0.2;
+  const C = 22;
+  const lx = ax + Math.sin(swing) * C;
+  const ly = ay + Math.cos(swing) * C;
+  ctx.fillStyle = '#4a463e';
+  for (let j = 1; j < 6; j++) {
+    const u = j / 6;
+    ctx.fillRect(ax + (lx - ax) * u - 1, ay + (ly - 15 - ay) * u - 1, 2, 2);
+  }
+  const fl = 0.75 + 0.25 * Math.sin(t * 9 + seed) * Math.sin(t * 5.3);
+  wz2dGlow(ctx, lx, ly, 48, '106,255,168', 0.5 * fl);
+  ctx.save();
+  ctx.translate(lx, ly);
+  ctx.rotate(swing);
+  ctx.fillStyle = `rgba(140,255,190,${0.55 + 0.3 * fl})`;
+  ctx.fillRect(-6, -9, 12, 17);
+  ctx.fillStyle = '#d8ffe4';
+  ctx.beginPath();
+  ctx.moveTo(0, -6 - 2 * fl);
+  ctx.quadraticCurveTo(4, 0, 0, 4.5);
+  ctx.quadraticCurveTo(-4, 0, 0, -6 - 2 * fl);
+  ctx.fill();
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(-1, -1, 2, 3);
+  ctx.fillStyle = '#22221c';
+  for (const qx of [-7, -1, 5]) ctx.fillRect(qx, -9, 2, 17);
+  ctx.fillRect(-8, -12, 16, 3);
+  ctx.fillRect(-8, 8, 16, 3);
+  ctx.fillRect(-1, 11, 2, 4);
+  ctx.beginPath();
+  ctx.moveTo(-7, -12);
+  ctx.lineTo(0, -18);
+  ctx.lineTo(7, -12);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = '#6a665a';
+  ctx.fillRect(-8, -12, 16, 1);
+  ctx.fillRect(-1, -19, 2, 2);
+  ctx.restore();
+  // zwei Irrlichter kreisen um die Laterne
+  for (let i = 0; i < 2; i++) {
+    const a = t * (1.1 + i * 0.45) + seed + i * 3;
+    const wx = lx + Math.cos(a) * (18 + i * 7);
+    const wy = ly - 4 - i * 9 + Math.sin(a) * 7;
+    wz2dGlow(ctx, wx, wy, 7, '190,255,215', 0.65);
+    ctx.fillStyle = '#eafff2';
+    ctx.fillRect(wx - 1, wy - 1, 2, 2);
+  }
+}
+
+// --- Donnerklamm: Sturmnadel vor der Nordmauer der Gratfeste, Blitzableiter, alle paar Sekunden schlägt es ein -------
+// Felsnadel aus der Schlucht: Schichten mit Absätzen, links Licht, rechts Schatten, unten verliert sie sich in der Tiefe;
+// zwei Eisenbänder halten den Blitzableiter (Kupferwicklung, Querstange), blaue Adern glühen nach jedem Einschlag nach.
+WZ2D_MAPS[3] = (wm) => {
+  const F = wzField(wm, 'liq', false);
+  const town = wzTown(wm);
+  const near = wzPick(F, { cx: town.cx - 10, cy: town.cy - town.H - 6, R: 12, min: 1.4, cap: 3, distK: 0.1 });
+  if (!near) return [];
+  const r = Math.max(1, Math.min(near.r - 0.5, 2.8));
+  return [{ x: near.x * TILE, y: near.y * TILE, r: r * TILE, reach: r * TILE + 34, h: 320, draw: wz2dSturmnadel }];
+};
+function wz2dSturmnadel(ctx, o, t) {
+  const R = Math.min(o.r * 0.75, 52);
+  const H = 215;
+  const cyc = 6.3;
+  const ph = t % cyc;
+  const strike = ph < 0.22;
+  const after = strike ? 1 : Math.max(0, 1 - (ph - 0.22) / 1.8);
+  const vein = Math.max(after, 0.22 + 0.1 * Math.sin(t * 1.7));
+  // Umriss: je Schicht unten etwas breiter als oben (Absätze); die Schichten liegen schräg (rechts tiefer als links),
+  // damit die Nadel nicht wie ein gestufter Baum aussieht
+  const BL = [-0.15, 0.1, 0.22, 0.35, 0.5, 0.64, 0.78, 0.9];
+  const BR = [-0.15, 0.06, 0.17, 0.31, 0.44, 0.59, 0.72, 0.86];
+  const w0 = (k) => R * Math.pow(Math.max(0, 1 - k), 1.25);
+  const side = (sd, bands) => {
+    const pts = [];
+    for (let i = 0; i < bands.length; i++) {
+      const a = bands[i];
+      const b = i + 1 < bands.length ? bands[i + 1] : 1;
+      const j = 1 + 0.06 * Math.sin(i * 2.9 + sd * 1.7);
+      pts.push([sd * w0(Math.max(a, 0)) * 1.05 * j, -H * a]);
+      const m = (a + b) / 2;
+      pts.push([sd * w0(m) * (1 + 0.06 * Math.sin(i * 4.1 + sd * 2)) * j, -H * m]);
+      if (b < 1) pts.push([sd * w0(b) * 0.95 * j, -H * b]);
+    }
+    pts.push([0, -H]);
+    return pts;
+  };
+  const Lp = side(-1, BL);
+  const Rp = side(1, BR);
+  const shape = () => {
+    ctx.beginPath();
+    Lp.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+    for (let i = Rp.length - 1; i >= 0; i--) ctx.lineTo(Rp[i][0], Rp[i][1]);
+    ctx.closePath();
+  };
+  const face = (f, col) => {
+    ctx.fillStyle = col;
+    ctx.beginPath();
+    Lp.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+    for (let i = Lp.length - 1; i >= 0; i--) ctx.lineTo(Lp[i][0] * f, Lp[i][1]);
+    ctx.closePath();
+    ctx.fill();
+  };
+  ctx.fillStyle = '#24212a';
+  shape();
+  ctx.fill();
+  face(-0.1, '#4a4548');
+  face(0.5, '#6c645e');
+  // schräge Schichtfugen: Schatten unter dem Überhang, heller Rand auf der Lichtseite
+  for (let i = 1; i < BL.length; i++) {
+    const yl = -H * BL[i];
+    const yr = -H * BR[i];
+    const wl = w0(BL[i]);
+    const wr = w0(BR[i]);
+    ctx.strokeStyle = 'rgba(14,12,18,0.7)';
+    ctx.lineWidth = 2.4;
+    ctx.beginPath();
+    ctx.moveTo(-wl * 0.97, yl + 1.6);
+    ctx.lineTo(wr * 0.97, yr + 1.6);
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(170,160,150,0.5)';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(-wl * 1.02, yl - 0.6);
+    ctx.lineTo(-wl * 0.15, yl + (yr - yl) * 0.43 - 0.6);
+    ctx.stroke();
+  }
+  // ein paar helle Felsbrocken auf der Lichtseite
+  ctx.fillStyle = 'rgba(150,140,128,0.5)';
+  for (const [u, k] of [[0.7, 0.05], [0.55, 0.27], [0.62, 0.45], [0.5, 0.6]]) ctx.fillRect(-w0(k) * u, -H * k - 3, 3, 2);
+  // Risse
+  ctx.strokeStyle = 'rgba(16,14,20,0.8)';
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  ctx.moveTo(-R * 0.3, -H * 0.04);
+  ctx.lineTo(-R * 0.22, -H * 0.14);
+  ctx.lineTo(-R * 0.34, -H * 0.2);
+  ctx.moveTo(R * 0.25, -H * 0.4);
+  ctx.lineTo(R * 0.15, -H * 0.47);
+  ctx.lineTo(R * 0.2, -H * 0.56);
+  ctx.moveTo(-R * 0.12, -H * 0.66);
+  ctx.lineTo(-R * 0.18, -H * 0.72);
+  ctx.stroke();
+  // blaue Adern: glühen nach jedem Einschlag nach
+  const veins = [[-0.18, 0.02, -0.08, 0.16, -0.2, 0.3, -0.1, 0.45, -0.16, 0.6, -0.06, 0.74, -0.08, 0.86], [0.22, 0.12, 0.12, 0.26, 0.2, 0.4, 0.08, 0.55]];
+  for (const [w, col] of [[4, `rgba(110,150,255,${0.35 * vein})`], [1.4, `rgba(200,220,255,${0.9 * vein})`]]) {
+    ctx.strokeStyle = col;
+    ctx.lineWidth = w;
+    ctx.beginPath();
+    for (const v of veins) {
+      for (let j = 0; j < v.length; j += 2) {
+        const k = v[j + 1];
+        const x = v[j] * w0(k) * 2;
+        if (j) ctx.lineTo(x, -H * k);
+        else ctx.moveTo(x, -H * k);
+      }
+    }
+    ctx.stroke();
+  }
+  // unten verliert sich die Nadel in der Tiefe der Schlucht
+  ctx.save();
+  shape();
+  ctx.clip();
+  const fg = ctx.createLinearGradient(0, -H * 0.04, 0, H * 0.15);
+  fg.addColorStop(0, 'rgba(8,10,18,0)');
+  fg.addColorStop(1, 'rgba(8,10,18,0.95)');
+  ctx.fillStyle = fg;
+  ctx.fillRect(-R * 1.3, -H * 0.04, R * 2.6, H * 0.2);
+  if (strike) {
+    ctx.fillStyle = 'rgba(220,232,255,0.35)';
+    ctx.fillRect(-R * 1.3, -H - 4, R * 2.6, H * 1.2);
+  }
+  ctx.restore();
+  // Nebel aus der Tiefe
+  for (let i = 0; i < 3; i++) {
+    ctx.fillStyle = 'rgba(150,170,210,0.09)';
+    ctx.beginPath();
+    ctx.ellipse(Math.sin(t * 0.3 + i * 2.1) * R * 0.6, H * 0.06 - i * 7, R * (0.9 + i * 0.2), 7, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  // zwei Eisenbänder mit Nieten
+  for (const k of [0.6, 0.72]) {
+    const y = -H * k;
+    const w = w0(k) * 1.04;
+    ctx.fillStyle = '#1c1c22';
+    ctx.fillRect(-w, y - 2, w * 2, 4.5);
+    ctx.fillStyle = '#7a7a88';
+    ctx.fillRect(-w, y - 2, w, 1);
+    ctx.fillStyle = '#9a9aa8';
+    for (let x = -w + 2; x < w - 1; x += 5) ctx.fillRect(x, y, 1.5, 1.5);
+  }
+  // Blitzableiter: Eisenstange, Kupferwicklung, Querstange mit zwei Zinken, leuchtende Spitze
+  ctx.fillStyle = '#2a2a30';
+  ctx.fillRect(-1.5, -H - 46, 3, 50);
+  ctx.fillStyle = '#5a5a68';
+  ctx.fillRect(-1.5, -H - 46, 1, 50);
+  ctx.fillStyle = '#b8743e';
+  for (let y = -H - 4; y > -H - 20; y -= 3) ctx.fillRect(-2.5, y, 5, 1.3);
+  ctx.fillStyle = '#2a2a30';
+  ctx.fillRect(-7, -H - 34, 14, 2);
+  ctx.fillRect(-7, -H - 41, 1.6, 7);
+  ctx.fillRect(5.4, -H - 41, 1.6, 7);
+  wz2dGlow(ctx, 0, -H - 46, strike ? 64 : 18, '207,224,255', strike ? 0.9 : 0.45 + 0.2 * Math.sin(t * 4) + 0.3 * after);
+  ctx.fillStyle = '#e4eeff';
+  ctx.fillRect(-2.5, -H - 49, 5, 5);
+  // knisternde Funken zwischen den Einschlägen
+  if (!strike && wz2dHash(Math.floor(t * 12)) > 0.72) {
+    const zx = (wz2dHash(Math.floor(t * 12) + 5) - 0.5) * 14;
+    ctx.strokeStyle = '#dfe8ff';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, -H - 47);
+    ctx.lineTo(zx * 0.5, -H - 52);
+    ctx.lineTo(zx, -H - 49);
+    ctx.stroke();
+  }
+  if (strike) {
+    // Blitz im Zickzack von oben in die Spitze, mit Abzweig
+    const seed = Math.floor(t / cyc) * 7;
+    const pts = [];
+    let x = (wz2dHash(seed) - 0.5) * 60;
+    for (let i = 0; i <= 8; i++) {
+      const y = -H - 46 - 320 * (1 - i / 8);
+      pts.push([i === 8 ? 0 : x, y]);
+      x = x * 0.6 + (wz2dHash(seed + i * 3) - 0.5) * 34;
+    }
+    for (const [col, w] of [['rgba(160,190,255,0.6)', 7], ['#e8f0ff', 3], ['#ffffff', 1.4]]) {
+      ctx.strokeStyle = col;
+      ctx.lineWidth = w;
+      ctx.beginPath();
+      pts.forEach(([px, py], i) => (i ? ctx.lineTo(px, py) : ctx.moveTo(px, py)));
+      ctx.stroke();
+    }
+    const b = pts[3];
+    ctx.strokeStyle = '#e8f0ff';
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.moveTo(b[0], b[1]);
+    ctx.lineTo(b[0] + 26, b[1] + 30);
+    ctx.lineTo(b[0] + 20, b[1] + 52);
+    ctx.stroke();
+  }
+}
+
+// --- Kristallabgrund: zerbrochene Riesenkristall-Krone schwebt über der Zitadelle von Lichtwacht ----------------------
+// Ein dicker Kristallreif (vier Fünftel eines Kreises, die Lücke ist abgebrochen) mit zehn Kristallen obenauf und
+// kleinen Zapfen darunter dreht sich langsam hoch in der Luft; ein Lichtstrahl fällt auf den Boden, Funken rieseln.
+WZ2D_MAPS[10] = (wm) => {
+  const town = wzTown(wm);
+  return [{ x: town.cx * TILE, y: (town.cy - 12.5) * TILE, reach: 150, h: 345, ground: wz2dKroneGround, draw: wz2dKrone }];
+};
+function wz2dKroneGround(ctx, o, t) {
+  const g = ctx.createRadialGradient(0, 0, 0, 0, 0, 112);
+  g.addColorStop(0, `rgba(226,214,255,${0.34 + 0.08 * Math.sin(t * 0.8)})`);
+  g.addColorStop(0.6, 'rgba(200,184,255,0.12)');
+  g.addColorStop(1, 'rgba(200,184,255,0)');
+  ctx.fillStyle = g;
+  ctx.save();
+  ctx.scale(1, 0.42);
+  ctx.beginPath();
+  ctx.arc(0, 0, 112, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+function wz2dKrone(ctx, o, t) {
+  const cy = -232 + Math.sin(t * 0.6) * 6;
+  const RX = 114;
+  const RY = 30;
+  const rot = t * 0.05;
+  const ARC = Math.PI * 2 * 0.8;
+  // Lichtstrahl nach unten
+  const bg = ctx.createLinearGradient(0, cy, 0, 0);
+  bg.addColorStop(0, 'rgba(214,200,255,0.3)');
+  bg.addColorStop(0.7, 'rgba(200,184,255,0.11)');
+  bg.addColorStop(1, 'rgba(200,184,255,0.03)');
+  ctx.fillStyle = bg;
+  ctx.beginPath();
+  ctx.moveTo(-RX * 0.86, cy);
+  ctx.lineTo(RX * 0.86, cy);
+  ctx.lineTo(RX * 0.96, 0);
+  ctx.ellipse(0, 0, RX * 0.96, RY, 0, 0, Math.PI);
+  ctx.closePath();
+  ctx.fill();
+  // Funken rieseln im Strahl
+  ctx.fillStyle = '#f2eeff';
+  for (let i = 0; i < 9; i++) {
+    const u = (t * 0.11 + i / 9) % 1;
+    ctx.globalAlpha = Math.sin(u * Math.PI) * 0.85;
+    ctx.fillRect(Math.sin(i * 2.3) * RX * 0.72 + Math.sin(t + i) * 4 - 1, cy + 12 + u * (-cy - 12) - 1, 2, 2);
+  }
+  ctx.globalAlpha = 1;
+  wz2dGlow(ctx, 0, cy, 136, '154,136,255', 0.34);
+  const P = (a) => [Math.cos(a) * RX, cy + Math.sin(a) * RY];
+  const band = (front, w, col, dy) => {
+    ctx.strokeStyle = col;
+    ctx.lineWidth = w;
+    ctx.beginPath();
+    let on = false;
+    for (let i = 0; i <= 48; i++) {
+      const a = rot + (i / 48) * ARC;
+      if ((Math.sin(a) >= 0) !== front) { on = false; continue; }
+      const [x, y] = P(a);
+      if (on) ctx.lineTo(x, y + dy);
+      else { ctx.moveTo(x, y + dy); on = true; }
+    }
+    ctx.stroke();
+  };
+  const ring = [];
+  for (let k = 0; k < 10; k++) {
+    const a = rot + (k / 9.5) * ARC;
+    ring.push({ a, k, big: k % 3 === 1, front: Math.sin(a) >= 0 });
+  }
+  ring.sort((p, q) => Math.sin(p.a) - Math.sin(q.a));
+  const shard = (p) => {
+    const a = p.a + ARC / 19;
+    if (a > rot + ARC) return;
+    const [x, y] = P(a);
+    wz2dCrystal(ctx, x, y + 3, 7, 13 + wz2dHash(p.k + 3) * 9, Math.PI - Math.cos(a) * 0.2, '#b4a4ff', '#6a54c8', '#ffffff', '#3a2a78');
+  };
+  const crystal = (p) => {
+    const [x, y] = P(p.a);
+    const L = p.big ? 62 : 38 + wz2dHash(p.k) * 8;
+    const w = p.big ? 16 : 11;
+    wz2dCrystal(ctx, x, y - 2, w, L, Math.cos(p.a) * 0.35, p.k % 2 ? '#c8b8ff' : '#a8d8ff', p.k % 2 ? '#7a64d8' : '#5a8ad8', '#ffffff', '#3a2a78');
+  };
+  ctx.lineCap = 'round';
+  for (const p of ring) if (!p.front) shard(p);
+  band(false, 9, '#5e4cae', 0);
+  band(false, 2, '#a898e8', -3);
+  for (const p of ring) if (!p.front) crystal(p);
+  for (const p of ring) if (p.front) shard(p);
+  band(true, 11, '#9686e6', 0);
+  band(true, 3, '#f4f0ff', -3.5);
+  band(true, 2, '#4a3a9a', 4.5);
+  ctx.lineCap = 'butt';
+  for (const p of ring) if (p.front) crystal(p);
+  // abgebrochene Stücke treiben in der Lücke
+  const ga = rot + ARC + (Math.PI * 2 - ARC) / 2;
+  for (let k = 0; k < 3; k++) {
+    const [gx, gy] = P(ga);
+    const fx = gx * (1.06 + k * 0.1) + Math.sin(t * 0.7 + k) * 4;
+    const fy = gy - 14 + k * 12 + Math.sin(t * 0.8 + k * 2) * 6;
+    wz2dCrystal(ctx, fx, fy, 8, 18 + k * 5, 0.6 * k - 0.4 + Math.sin(t * 0.5 + k) * 0.2, '#c8b8ff', '#7a64d8', '#ffffff', '#3a2a78');
+  }
 }

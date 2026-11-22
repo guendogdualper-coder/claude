@@ -130,7 +130,7 @@ Neu in `js/wahrzeichen2d.js` (Lage wie in 3D aus `wzField`/`wzPick` bzw. den Mau
 
 | Map | Stadt | 2D |
 |---|---|---|
-| 11 Mondfall | Mondsichel | Sockel in Stufen im Mondsee, silberne Sichel (Hörner nach unten) mit blauem Schein und funkelnden Sternen, Mondlicht als weicher Strahl, Spiegelbild des Mondes mit Glitzerbahn im See, Mondstaub |
+| 11 Mondfall | Mondsichel | Sockel in Stufen im Mondsee, silberne Sichel (Hörner nach unten) mit blauem Schein und weichen Glanzpunkten, Mondlicht als weicher Strahl, Spiegelbild des Mondes mit Glitzerbahn im See, Mondstaub |
 | 12 Aschewald | Palisadenstern | Pfähle mit Eisenbändern und Feuerkörben auf den acht Spitzen, im Norden das große Signalfeuer mit Streben; Flammenzungen, Schein, Funken (`wz2dFire`, `wz2dBrazier`) |
 | 13 Knochenwüste | Schädelbrunnen | gehörnter Schädel von vorn (Rillen an den Hörnern, Risse, Augenhöhlen mit Glanz, Nasenloch, Zahnreihen, offener Kiefer), Wasserschwall aus dem Maul mit Gischt, Wellenringe und Spiegel im Teich |
 | 15 Nachtfrost | Kreuzfeste | Eiskristall-Gruppen auf den vier inneren Ecken, schwebendes Frostherz über dem Weltentor mit kreisenden Splittern und Lichtfaden; dunkle Umrisse, damit sie vor dem Schnee stehen (`wz2dCrystal`) |
@@ -141,3 +141,16 @@ Jetzt glatte Kuppel, Brauenwulst, tiefe Augenhöhlen mit schwachem Leuchten, Nas
 und unten mit Fängen, Risse im Schädeldach, Rillen an den Hörnern; der Wasserschwall ist breiter und schäumt beim
 Aufprall.
 
+## 2D-Wahrzeichen der Lichtseite (seit 15.69)
+
+Damit hat jede Karte mit einem 3D-Wahrzeichen auch eines in 2D (`js/wahrzeichen2d.js`, Lage wie in 3D):
+
+| Map | Stadt | 2D |
+|---|---|---|
+| 3 Donnerklamm | Sturmnadel vor der Gratfeste | Felsnadel aus der Schlucht (unten verliert sie sich in der Tiefe, Nebel), schräge Gesteinsschichten mit Absätzen, links Licht, rechts Schatten; zwei Eisenbänder mit Nieten, Blitzableiter mit Kupferwicklung und Querstange; alle 6,3 s schlägt ein Blitz ein (Zickzack mit Abzweig, die Nadel hellt auf), danach glühen blaue Adern 1,8 s nach, dazwischen knistern Funken an der Spitze |
+| 8 Totenmoor | Totenlaternen an den vier Kanal-Kreuzungen | knorriger toter Stamm mit Wurzeln im Wasser, Astlöchern, abgebrochenem Ast, Moosfäden und angenageltem Schädel; am Arm schaukelt eine Käfiglaterne mit flackernder grüner Flamme, zwei Irrlichter kreisen, Spiegelschein auf dem Wasser |
+| 9 Feuerberg | vier Glutpfeiler in den Ecken des Lavagrabens | drei Basalttrommeln, sechskantig schattiert, Glut quillt aus Fugen und Rissen; Kapitell mit Feuerkorb, kurzes Banner; am Fuß staut sich die Lava hell und wirft Blasen |
+| 10 Kristallabgrund | Kristallkrone über der Zitadelle von Lichtwacht | dicker Kristallreif (vier Fünftel eines Kreises, in der Lücke treiben Bruchstücke) mit zehn Kristallen obenauf und Zapfen darunter, dreht sich langsam hoch in der Luft; Lichtstrahl mit rieselnden Funken, heller Fleck am Boden |
+
+Nichts davon hat eine Kollision: Pfeiler, Laternen und Nadel stehen auf Lava, Wasser oder in der Schlucht, die Krone
+schwebt. Die Mondsichel (Map 11) glänzt seit 15.69 mit weichen runden Lichtern statt Kreuzsternen.
