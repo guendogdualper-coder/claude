@@ -410,7 +410,9 @@ function fx3Raid(h) {
     fx3Color(base, '#bfe8ff', 0.7);
   }
   // Taumeln nach dem Bruch: Sterne kreisen über dem Boss
-  for (const m of game.monsters) {
+  // seit Wärme 2 nur die Endbosse aus dem Gebietsverzeichnis (raidScan oben hat es schon aufgefrischt); vorher ging
+  // diese Schleife je Bild alle ~8.700 Monster der Welt durch
+  for (const m of MON_INDEX.raids) {
     if (!m.type || !m.type.raid || m.dead || !(m.staggerFx > t) || !v3InView(m.x, m.y, 200)) continue;
     const y = raidChest3(m) * 1.6;
     for (let i = 0; i < 5; i++) {

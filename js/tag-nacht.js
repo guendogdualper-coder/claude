@@ -65,6 +65,9 @@ function v3NightMood(zone) {
 }
 // 2D: dunkle, bläuliche Färbung über dem Bild
 // seit 14.88: Farbe als [r, g, b, a] (oder null), damit 2D Nacht und Gebietsfärbung in einem Zug malen kann
+// seit Wärme 2 ein wiederverwendetes Feld (je Bild aufgerufen, auch für die Färbung in der 3D-Szene: umgebung.js
+// zoneTintRGBA, drei-kern.js v3SyncTint) – sofort verwenden, nicht aufheben
+const _nightTint = [10, 16, 46, 0];
 function nightTintRGBA() {
   const p = game.player;
   if (!p) return null;
@@ -72,7 +75,8 @@ function nightTintRGBA() {
   const nk = zone.dungeon || zone.pvp ? 0 : nightAmount();
   if (nk < 0.01) return null;
   // in 3D dunkeln schon Licht und Himmel ab, dort nur ein Hauch
-  return [10, 16, 46, (V3.on ? 0.12 : 0.45) * nk];
+  _nightTint[3] = (V3.on ? 0.12 : 0.45) * nk;
+  return _nightTint;
 }
 function drawNightTint(ctx, w, h) {
   const c = nightTintRGBA();
@@ -108,9 +112,18 @@ function updateDayIcon() {
 const nightMob = (m) => !!(m.night || (m.type && m.type.night));
 const NIGHT_SCALE = 2.4; // Gruppen je Eintrag (die Maps sind groß, tagsüber sind es 3,8 je Eintrag)
 
+// seit Wärme 2 zählen topUpNightMonsters, retreatNightMonsters und clearDeadNight (alle 2 s) über die Nachtmonster
+// aus dem Gebietsverzeichnis (MON_INDEX.night, gegner.js); eine neue Monsterliste entsteht nur noch, wenn wirklich eins
+// verschwindet. Vorher liefen alle 2 s zwei bis drei Schleifen über alle ~8.700 Monster der Welt, jede mit einer
+// neuen Kopie der Liste (danach baute sich auch das Gebietsverzeichnis neu auf).
+function nightList() {
+  if (typeof monsterIndex !== 'function') return game.monsters;
+  monsterIndex();
+  return MON_INDEX.night;
+}
 function topUpNightMonsters() {
   const alive = new Map();
-  for (const m of game.monsters) {
+  for (const m of nightList()) {
     if (!nightMob(m) || m.dead) continue;
     const k = m.zone.id + ':' + m.typeId;
     alive.set(k, (alive.get(k) || 0) + 1);
@@ -147,6 +160,10 @@ function topUpNightMonsters() {
 
 // Tagesanbruch: Nachtmonster außer Sicht verschwinden (wer gerade kämpft, bleibt bis zum Ende)
 function retreatNightMonsters() {
+  const stay = (m) => (!m.dead && m.state && m.state !== 'idle' && m.state !== 'return') || (!m.dead && playerNearSpot(m.x, m.y, 700));
+  let any = false;
+  for (const m of nightList()) if (nightMob(m) && !stay(m)) { any = true; break; }
+  if (!any) return;
   const gone = [];
   game.monsters = game.monsters.filter((m) => {
     if (!nightMob(m)) return true;
@@ -160,6 +177,13 @@ function retreatNightMonsters() {
 
 // Besiegte Nachtmonster nach kurzer Zeit aufräumen (sie kommen nicht wieder, es erscheinen neue)
 function clearDeadNight() {
+  let due = false;
+  for (const m of nightList()) {
+    if (!nightMob(m) || !m.dead) continue;
+    if (!m.goneAt) m.goneAt = game.time + 6;
+    if (game.time >= m.goneAt) due = true;
+  }
+  if (!due) return;
   const gone = [];
   game.monsters = game.monsters.filter((m) => {
     if (!nightMob(m) || !m.dead) return true;

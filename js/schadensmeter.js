@@ -139,7 +139,9 @@ function dmBossNow(t) {
   const p = game.player;
   let best = null;
   let bd = 1e9;
-  for (const m of game.monsters) {
+  // seit Wärme 2 nur Seelensteine und Bosse aus dem Gebietsverzeichnis (gegner.js) statt aller Monster der Welt
+  monsterIndex();
+  for (const m of MON_INDEX.big) {
     if (!dmBig(m) || !(m.hp < m.maxHp)) continue;
     const d = hyp(m.x - p.x, m.y - p.y);
     if (d < 620 && d < bd) { bd = d; best = m; }

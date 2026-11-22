@@ -1413,11 +1413,27 @@ const snd = {
 
   // Jedes Bild: Monster in der Nähe beobachten – Angriff, Treffer, Tod und erster Angriff auf dich.
   // So hören alle im Kanal dieselben Laute, egal wer das Monster führt oder trifft.
+  // Seit Wärme 2 nur die Monster der Gebiete in der Nähe (monstersNear, gegner.js) statt aller ~8.700 der Welt.
+  // Wer im vorigen Durchlauf nicht dabei war (neues Gebiet nach Teleport oder Kartenwechsel, neu entstanden), wird
+  // still übernommen – sein Zustand gilt als schon gehört. Vorher führte jedes Bild _sDead für alle fernen Monster
+  // der Welt nach, damit beim Betreten einer Karte kein Todeslaut für längst Besiegte kommt; das leistet jetzt tick.
+  tick: 0,
   update() {
     if (!sfx.on || !sfx.ctx || !game.player || !game.running) return;
     const p = game.player;
     const t = game.time;
-    for (const m of game.monsters) {
+    const tick = ++this.tick;
+    for (const m of monstersNear(p.x, p.y, 900)) {
+      const fresh = m._sTick !== tick - 1;
+      m._sTick = tick;
+      if (fresh) {
+        m._sDead = m.dead;
+        const s0 = m._snd || (m._snd = { atk: false, hit: 0, hurtAt: -9, aggroAt: -99, state: m.state });
+        s0.hit = m.hitFlash || 0;
+        s0.atk = m.attackAnim > 0;
+        s0.state = m.state;
+        continue;
+      }
       const dx = m.x - p.x;
       const dy = m.y - p.y;
       if (dx * dx + dy * dy > 810000) {

@@ -91,7 +91,15 @@ function resizeRenderer() {
   r.dpr = Math.min(window.devicePixelRatio || 1, r.maxDpr || 2);
   // In 3D zeichnet diese Fläche nur Namen, Balken und Zahlen über der Welt: immer scharf (mindestens 2-fach),
   // auch wenn die 3D-Welt ihre Auflösung zum Flüssighalten senkt (13.23)
-  if (typeof V3 !== 'undefined' && V3.on) r.dpr = Math.min(window.devicePixelRatio || 1, Math.max(2, r.maxDpr || 2));
+  // seit Wärme 2 mit der Sparoptik (Grafik „Niedrig“): halbe Gerätedichte ab 2,6-fach (iPhone 13/14: 1,5 statt 2 –
+  // 1266×585 statt 1688×780 Bildpunkte, 44 % weniger zu leeren, zu malen, hochzuladen und zusammenzusetzen; genau
+  // doppelt hochskaliert wie die 3D-Welt mit „Akku schonen“), sonst höchstens 1,5. Namen und Zeichen sind fertige
+  // Bilder mit doppelter Dichte dieser Fläche (labelBild) und bleiben lesbar.
+  if (typeof V3 !== 'undefined' && V3.on) {
+    const dev = window.devicePixelRatio || 1;
+    if (typeof sparOptik === 'function' && sparOptik()) r.dpr = dev >= 2.6 ? dev / 2 : Math.min(dev, 1.5);
+    else r.dpr = Math.min(dev, Math.max(2, r.maxDpr || 2));
+  }
   // seit 14.88: 2D am Handy höchstens 1,6-fach (Mittel und Hoch). Bei 2-fach wurde jedes Bild mit rund 1,6 Millionen
   // Bildpunkten mehrfach übermalt (Boden, Figuren, Nacht- und Gebietsfärbung) – das schafften viele Handys nicht in
   // 33 ms (Ruckeln im 2D-Modus, Video vom 13.11.). Die Anzeigen (HUD) sind HTML und bleiben gestochen scharf.
@@ -160,9 +168,13 @@ function render() {
   if (game.target && !game.target.dead) drawTargetRing(ctx, game.target);
 
   const list = [];
-  for (const m of game.monsters) if (!m.dead && inView(m)) list.push(m);
+  // seit Wärme 2 nur Monster der Gebiete am Bild (monstersNear, gegner.js) und NPCs in der Nähe (npcsNear) – vorher
+  // je Bild alle ~8.700 Monster und ~580 NPCs der Welt
+  const vcx = (view.x0 + view.x1) / 2;
+  const vcy = (view.y0 + view.y1) / 2;
+  for (const m of monstersNear(vcx, vcy, hyp(view.x1 - view.x0, view.y1 - view.y0) / 2)) if (!m.dead && inView(m)) list.push(m);
   for (const a of game.allies) list.push(a);
-  for (const n of game.world.npcs) if (inView(n)) list.push(n);
+  for (const n of npcsNear()) if (inView(n)) list.push(n);
   if (game.player && game.running && !game.player.dead) list.push(game.player);
   for (const rp of net.players.values()) if (!rp.dead && !remoteHidden(rp) && inView(rp)) list.push(rp);
   // Diener der Mitspieler (seit 8.5)
@@ -212,6 +224,53 @@ function render() {
 
 // --- Hilfsfunktionen ------------------------------------------------------------
 // Boden, Bäume und Häuser zeichnet umgebung.js.
+
+// NPCs in der Nähe des Kamerafokus (seit Wärme 2): im Umkreis der Sichtweite wie bei v3Monsters (drei-kern.js) plus
+// 8 Kacheln. Die Welt hat rund 580 NPCs; die Suche nach dem nächsten NPC (updatePlayer), Namen und Zeichen
+// (drawOverlay3), 3D-Figuren (v3SyncActors) und das 2D-Bild gingen vorher in jedem Bild alle durch.
+// Neu gebaut nach 0,5 s, wenn game.world.npcs ersetzt wurde oder seine Länge sich geändert hat (Risse, Turm-NPCs,
+// Tag und Nacht), nach mehr als 4 Kacheln Weg des Fokus und wenn die Sichtweite wächst (Herauszoomen).
+// Jeder Neubau legt eine neue Liste an: wer gerade eine alte durchläuft, behält sie unverändert.
+const NPCS_NEAR = { list: [], at: -1e9, arr: null, len: -1, x: 0, y: 0, R: 0 };
+function npcsNear() {
+  const w = game.world;
+  const N = NPCS_NEAR;
+  if (!w || !w.npcs) return N.list.length ? (N.list = []) : N.list;
+  const r = renderer;
+  const v3 = typeof V3 !== 'undefined' && V3.on;
+  let fx;
+  let fy;
+  if (v3) {
+    fx = V3.focus.x;
+    fy = V3.focus.y;
+  } else if (game.player && game.running) {
+    fx = game.player.x;
+    fy = game.player.y;
+  } else {
+    fx = r.camX + r.w / Math.max(0.5, r.zoom || 1) / 2;
+    fy = r.camY + r.h / Math.max(0.5, r.zoom || 1) / 2;
+  }
+  const R = (Math.max(r.w, r.h) / Math.max(0.5, r.zoom || 1) + 40 * TILE) * ((v3 && V3.zoomMul) || 1) + 8 * TILE;
+  const npcs = w.npcs;
+  const now = performance.now();
+  if (N.arr !== npcs || N.len !== npcs.length || now - N.at > 500 || now < N.at || R > N.R
+    || Math.abs(fx - N.x) > 4 * TILE || Math.abs(fy - N.y) > 4 * TILE || !(fx === fx && fy === fy)) {
+    N.arr = npcs;
+    N.len = npcs.length;
+    N.at = now;
+    N.x = fx;
+    N.y = fy;
+    N.R = R;
+    const L = [];
+    for (let i = 0; i < npcs.length; i++) {
+      const n = npcs[i];
+      // ohne gültigen Fokus (NaN) alle, wie bisher
+      if (!(Math.abs(n.x - fx) > R || Math.abs(n.y - fy) > R)) L.push(n);
+    }
+    N.list = L;
+  }
+  return N.list;
+}
 
 function circle(ctx, x, y, r) {
   ctx.beginPath();
@@ -1050,26 +1109,28 @@ function drawNpc(ctx, n) {
 }
 
 // Symbol über Händlern und Ausrufezeichen bei offenen Missionen
+// seit Wärme 2 Plakette, Schein und Zeichen als ein fertiges Bild (npcMarkBild), am NPC gemerkt; in 3D mit der
+// Sparoptik wippt es in ganzen Pixeln und im gemeinsamen 4-Hz-Takt (wippZeit) – das Overlay muss dann höchstens
+// viermal je Sekunde neu malen, nicht in jedem Bild (drawOverlay3)
+const wippStill = () => V3.on && typeof sparOptik === 'function' && sparOptik();
+const wippZeit = (still) => (still ? Math.floor(game.time * 4) / 4 : game.time);
 function drawNpcMarks(ctx, n) {
-  const fy = feetY(n);
-  const bob = Math.sin(game.time * 3) * 2;
-  if (NPC_ICONS[n.id]) blitSprite(ctx, npcIconSprite(n.id), n.x, fy - 60 + bob, false);
+  const icon = NPC_ICONS[n.id] ? n.id : '';
   // Ausrufezeichen (neuer Auftrag) oder Fragezeichen (abgeben, seit 8.8): golden bei Hauptmissionen,
   // grün bei Nebenmissionen
   const mk = questMarkChar(n);
-  if (mk) {
-    const x = n.x + (NPC_ICONS[n.id] ? 13 : 0);
-    const y = fy - 64 + bob;
-    glow(ctx, x, y - 5, 13, mk.color === '#ffd34d' ? '#ffc93a' : '#5ae05a', 0.55);
-    ctx.font = '900 20px "Alegreya Sans", sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'alphabetic';
-    ctx.lineWidth = 3.5;
-    ctx.strokeStyle = '#1a1210';
-    ctx.strokeText(mk.ch, x, y);
-    ctx.fillStyle = mk.color;
-    ctx.fillText(mk.ch, x, y);
+  if (!icon && !mk) return;
+  const ch = mk ? mk.ch : '';
+  const col = mk ? mk.color : '';
+  const s = labelScale();
+  let c = n.__mkb;
+  if (!c || c.icon !== icon || c.ch !== ch || c.col !== col || c.s !== s || c.gen !== LABEL_FONT.gen) {
+    c = n.__mkb = { icon, ch, col, s, gen: LABEL_FONT.gen, lab: npcMarkBild(icon, ch, col) };
   }
+  const still = wippStill();
+  let bob = Math.sin(wippZeit(still) * 3) * 2;
+  if (still) bob = Math.round(bob);
+  ovImg(ctx, c.lab, n.x, feetY(n) + bob);
 }
 
 // Geist des Totenrufs (seit 10.0): das Monster bleich und durchscheinend.
@@ -1182,6 +1243,11 @@ function drawIceBlock(ctx, m, fy, h) {
 }
 
 // Betäubt: kreisende Sterne; vergiftet oder brennend: aufsteigende Tropfen
+// Malt drawMonsterStatus gerade etwas (alles davon bewegt sich)? Für das Overlay über der 3D-Welt (drawOverlay3)
+function monsterStatusLive(m) {
+  return (m.stun > 0 && !(m.frozen > game.time)) || !!(m.toxin && m.toxin.until > game.time) || !!(m.poison || m.burn) ||
+    (!V3.on && !!(m.bleed && m.bleed.until > game.time));
+}
 function drawMonsterStatus(ctx, m) {
   const fy = feetY(m);
   const h = figureHeight(m);
@@ -1693,61 +1759,356 @@ function drawSpeech(ctx, x, y, text) {
   ctx.strokeStyle = 'rgba(10,8,6,0.85)';
 }
 
-// Monsterbeschriftung einmal als kleines Bild vorbereiten statt jedes Bild neu zu schreiben;
-// bei vielen Monstern spart das spürbar Zeit. Schlüssel: Text, Größe und Farben.
+// --- Beschriftungen als fertige Bilder (seit Wärme 2) ----------------------------------------------------------
+// Namen, Stufen, Gilden, Questzeichen, die Restzeit am Riss und der Text des Wegweisers werden je Inhalt einmal in ein
+// kleines Bild gemalt und danach nur noch kopiert (drawImage). Vorher setzte das Overlay je Bild und Schild Schrift,
+// Randbreite und Farben und malte jeden Schriftzug zweimal (Rand + Füllung) – am Handy (WebKit rastert Canvas 2D auf
+// dem Prozessor) einer der größten Posten der 2D-Ebene, dazu rund 390 Schriftwechsel je Sekunde. Monster haben das
+// seit 15.x (damals fest 3-fach). Bildschärfe: doppelte Dichte der Zeichenfläche (renderer.dpr), in halben Schritten.
+// Lebensbalken und Sprechblasen bleiben live; die Tarnung (halb durchsichtig) gilt beim Kopieren (globalAlpha).
 const LABEL_CACHE = new Map();
-const LABEL_SCALE = 3;
-function monsterLabel(lv, name, big, lvColor, nameColor) {
-  const key = lv + '|' + name + '|' + big + '|' + lvColor + '|' + nameColor;
-  let lab = LABEL_CACHE.get(key);
-  if (lab) return lab;
-  if (LABEL_CACHE.size > 400) LABEL_CACHE.clear();
-  const size = big ? 12 : 10;
-  const font = (big ? '700 ' : '600 ') + size + 'px "Alegreya Sans", sans-serif';
-  const m = document.createElement('canvas').getContext('2d');
-  m.font = font;
-  const lw = m.measureText(lv + ' ').width;
-  const pad = 3;
-  const w = Math.ceil(lw + m.measureText(name).width) + pad * 2;
-  const h = size + pad * 2 + 3;
-  const c = document.createElement('canvas');
-  c.width = w * LABEL_SCALE;
-  c.height = h * LABEL_SCALE;
-  const x = c.getContext('2d');
-  x.scale(LABEL_SCALE, LABEL_SCALE);
-  x.font = font;
-  x.lineJoin = 'round';
-  x.lineWidth = big ? 3 : 2.5;
-  x.strokeStyle = 'rgba(10,8,6,0.85)';
-  const base = pad + size;
-  x.strokeText(lv, pad, base);
-  x.strokeText(name, pad + lw, base);
-  x.fillStyle = lvColor;
-  x.fillText(lv, pad, base);
-  x.fillStyle = nameColor;
-  x.fillText(name, pad + lw, base);
-  lab = { c, w, h, base };
-  LABEL_CACHE.set(key, lab);
+const LABEL_FONT = { gen: 0, m: null };
+try {
+  // Schrift erst nachgeladen: mit der Ersatzschrift gemalte Bilder verwerfen
+  if (document.fonts && document.fonts.addEventListener) {
+    document.fonts.addEventListener('loadingdone', () => {
+      LABEL_FONT.gen++;
+      LABEL_CACHE.clear();
+    });
+  }
+} catch (e) { /* ohne Schrift-Schnittstelle bleiben die Bilder */ }
+const labelScale = () => Math.max(1, Math.round((renderer.dpr || 1) * 4) / 2);
+const labelFont = (weight, size) => weight + ' ' + size + 'px "Alegreya Sans", sans-serif';
+// key: Inhalt (Text, Schrift, Farben …) ohne Schärfe. plan(m) bekommt eine Messfläche und liefert die Ausdehnung in
+// CSS-Pixeln um den Bezugspunkt { x0, y0, x1, y1 } und paint(g), das in diesen Koordinaten malt.
+// slot (wahlweise): eigenes, wiederverwendetes Bild für oft wechselnde Texte (Restzeit am Riss, Entfernung am
+// Wegweiser) statt eines neuen Bildes je Text. lab.v zählt das Neumalen (Vergleich im Overlay, drawOverlay3).
+function labelBild(key, plan, slot) {
+  const s = labelScale();
+  let lab = slot;
+  if (lab) {
+    if (lab.c && lab.key === key && lab.s === s && lab.gen === LABEL_FONT.gen) return lab;
+  } else {
+    const k = s + '|' + key;
+    lab = LABEL_CACHE.get(k);
+    if (lab) return lab;
+    if (LABEL_CACHE.size > 400) LABEL_CACHE.clear();
+    lab = { c: null, key: '', s: 0, gen: 0, v: 0, x0: 0, y0: 0, w: 0, h: 0 };
+    LABEL_CACHE.set(k, lab);
+  }
+  const m = LABEL_FONT.m || (LABEL_FONT.m = document.createElement('canvas').getContext('2d'));
+  m.textAlign = 'center';
+  m.textBaseline = 'alphabetic';
+  const p = plan(m);
+  const cw = Math.max(1, Math.ceil((p.x1 - p.x0) * s));
+  const ch = Math.max(1, Math.ceil((p.y1 - p.y0) * s));
+  const c = lab.c || (lab.c = document.createElement('canvas'));
+  if (c.width !== cw || c.height !== ch) {
+    c.width = cw;
+    c.height = ch;
+  }
+  const g = c.getContext('2d');
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  g.clearRect(0, 0, cw, ch);
+  g.setTransform(s, 0, 0, s, -p.x0 * s, -p.y0 * s);
+  g.globalAlpha = 1;
+  g.lineJoin = 'round';
+  g.textAlign = 'center';
+  g.textBaseline = 'alphabetic';
+  p.paint(g);
+  lab.key = key;
+  lab.s = s;
+  lab.gen = LABEL_FONT.gen;
+  lab.v = (lab.v || 0) + 1;
+  lab.x0 = p.x0;
+  lab.y0 = p.y0;
+  lab.w = cw / s;
+  lab.h = ch / s;
   return lab;
+}
+// Ausdehnung eines Schriftzugs um den Ausrichtungspunkt (Messfläche mit Schrift, Ausrichtung und Grundlinie gesetzt)
+function labelBox(m, text, size, pad) {
+  const t = m.measureText(text);
+  const half = t.width / 2;
+  const mid = m.textBaseline === 'middle';
+  const asc = t.actualBoundingBoxAscent > 0 ? t.actualBoundingBoxAscent : mid ? size * 0.6 : size;
+  const desc = t.actualBoundingBoxDescent > 0 ? t.actualBoundingBoxDescent : mid ? size * 0.6 : size * 0.3;
+  return {
+    w: t.width,
+    x0: -Math.max(half, t.actualBoundingBoxLeft || 0) - pad,
+    x1: Math.max(half, t.actualBoundingBoxRight || 0) + pad,
+    y0: -asc - pad,
+    y1: desc + pad
+  };
+}
+// Ein Schriftzug mit dunklem Rand, mittig am Bezugspunkt (Grundlinie bei y = 0, mit base 'middle' mittig)
+function textBild(weight, size, text, color, lw, stroke, base, slot) {
+  const font = labelFont(weight, size);
+  return labelBild(font + '|' + lw + '|' + stroke + '|' + color + '|' + (base || '') + '|' + text, (m) => {
+    m.font = font;
+    if (base) m.textBaseline = base;
+    const b = labelBox(m, text, size, lw / 2 + 1.5);
+    return {
+      x0: b.x0, y0: b.y0, x1: b.x1, y1: b.y1,
+      paint: (g) => {
+        g.font = font;
+        if (base) g.textBaseline = base;
+        g.lineWidth = lw;
+        g.strokeStyle = stroke;
+        g.strokeText(text, 0, 0);
+        g.fillStyle = color;
+        g.fillText(text, 0, 0);
+      }
+    };
+  }, slot);
+}
+
+// Monsterbeschriftung: Stufe in der Stufenfarbe und Name hell, Bezugspunkt oben in der Mitte über dem Monster
+function monsterLabel(lv, name, big, lvColor, nameColor) {
+  return labelBild(lv + '|' + name + '|' + big + '|' + lvColor + '|' + nameColor, (m) => {
+    const size = big ? 12 : 10;
+    const font = labelFont(big ? '700' : '600', size);
+    m.font = font;
+    const lw = m.measureText(lv + ' ').width;
+    const pad = 3;
+    const w = Math.ceil(lw + m.measureText(name).width) + pad * 2;
+    const h = size + pad * 2 + 3;
+    const base = pad + size;
+    return {
+      x0: -w / 2, y0: -base, x1: w / 2, y1: h - base,
+      paint: (x) => {
+        x.font = font;
+        x.textAlign = 'left';
+        x.lineWidth = big ? 3 : 2.5;
+        x.strokeStyle = 'rgba(10,8,6,0.85)';
+        const x0 = -w / 2 + pad;
+        x.strokeText(lv, x0, 0);
+        x.strokeText(name, x0 + lw, 0);
+        x.fillStyle = lvColor;
+        x.fillText(lv, x0, 0);
+        x.fillStyle = nameColor;
+        x.fillText(name, x0 + lw, 0);
+      }
+    };
+  });
+}
+
+// Schild der Spieler (eigene Figur und Mitspieler): Rang-Stein und „LVL 80“, darüber die Gilde, darunter der Name.
+// Bezugspunkt: Mitte der Namens-Grundlinie. Gleiche Lagen, Schriften und Farben wie vorher die einzelnen Schriftzüge.
+function playerLabelBild(mate, lvText, tier, guild, nameColor, label) {
+  return labelBild('pl|' + (mate ? 1 : 0) + '|' + lvText + '|' + (tier ? tier.color + tier.dark : '') + '|' + guild + '|' + nameColor + '|' + label, (m) => {
+    const lvY = -(mate ? 14 : 11);
+    const lvFont = labelFont('700', mate ? 11 : 9);
+    const gFont = labelFont('700', 9);
+    const nFont = labelFont(mate ? '800' : '600', mate ? 13 : 10);
+    const nLw = mate ? 3.5 : 2.5;
+    m.font = lvFont;
+    const bl = labelBox(m, lvText, mate ? 11 : 9, 2.5);
+    let x0 = bl.x0;
+    let x1 = bl.x1;
+    let y0 = lvY + bl.y0;
+    if (tier) x0 = Math.min(x0, -bl.w / 2 - 7 - 6.5);
+    let gl = '';
+    if (guild) {
+      gl = '‹' + guild + '›';
+      m.font = gFont;
+      const bg = labelBox(m, gl, 9, 2.5);
+      x0 = Math.min(x0, bg.x0);
+      x1 = Math.max(x1, bg.x1);
+      y0 = Math.min(y0, lvY - 10 + bg.y0);
+    }
+    m.font = nFont;
+    const bn = labelBox(m, label, mate ? 13 : 10, nLw / 2 + 1.5);
+    x0 = Math.min(x0, bn.x0);
+    x1 = Math.max(x1, bn.x1);
+    const half = Math.max(-x0, x1);
+    return {
+      x0: -half, y0, x1: half, y1: Math.max(bn.y1, 4),
+      paint: (g) => {
+        g.strokeStyle = 'rgba(10,8,6,0.85)';
+        g.font = lvFont;
+        g.lineWidth = 2.5;
+        g.strokeText(lvText, 0, lvY);
+        g.fillStyle = '#ffd98a';
+        g.fillText(lvText, 0, lvY);
+        if (tier && typeof pvpDrawGem === 'function') pvpDrawGem(g, -g.measureText(lvText).width / 2 - 7, lvY - 3.5, tier);
+        if (gl) {
+          g.font = gFont;
+          g.strokeText(gl, 0, lvY - 10);
+          g.fillStyle = guildColor(guild);
+          g.fillText(gl, 0, lvY - 10);
+        }
+        g.font = nFont;
+        g.lineWidth = nLw;
+        g.strokeText(label, 0, 0);
+        g.fillStyle = nameColor;
+        g.fillText(label, 0, 0);
+      }
+    };
+  });
+}
+
+// Questzeichen über NPCs (drawNpcMarks): Plakette, Schein und „!“/„?“ in einem Bild. Bezugspunkt: Fußpunkt + Wippen.
+function npcMarkBild(icon, ch, color) {
+  return labelBild('mk|' + icon + '|' + ch + '|' + color, (m) => {
+    const xg = icon ? 13 : 0;
+    let x0 = icon ? -15 : 0;
+    let x1 = icon ? 15 : 0;
+    let y0 = icon ? -75 : -64;
+    let y1 = icon ? -45 : -64;
+    const font = labelFont('900', 20);
+    if (ch) {
+      m.font = font;
+      const b = labelBox(m, ch, 20, 3.5 / 2 + 1.5);
+      x0 = Math.min(x0, xg - 14, xg + b.x0);
+      x1 = Math.max(x1, xg + 14, xg + b.x1);
+      y0 = Math.min(y0, -83, -64 + b.y0);
+      y1 = Math.max(y1, -55, -64 + b.y1);
+    }
+    return {
+      x0, y0, x1, y1,
+      paint: (g) => {
+        if (icon) blitSprite(g, npcIconSprite(icon), 0, -60, false);
+        if (!ch) return;
+        glow(g, xg, -69, 13, color === '#ffd34d' ? '#ffc93a' : '#5ae05a', 0.55);
+        g.font = font;
+        g.lineWidth = 3.5;
+        g.strokeStyle = '#1a1210';
+        g.strokeText(ch, xg, -64);
+        g.fillStyle = color;
+        g.fillText(ch, xg, -64);
+      }
+    };
+  });
+}
+
+// --- Aufzeichnen statt Malen (Overlay über der 3D-Welt, seit Wärme 2) -----------------------------------------------
+// drawOverlay3 (drei-kern.js) sammelt die Schilder eines Bildes zuerst als kurze Schrittliste (OVL.rec): Lage je Schild
+// (Ankerpunkt auf dem Bildschirm, Maßstab), Bilder, Balkenwerte, Sprechblasen, Zielpfeil. Mit der Sparoptik vergleicht
+// es die Liste mit der des letzten Bildes – gleich und sonst nichts Bewegtes im Overlay: die Fläche behält ihr Bild
+// (kein Leeren, kein Malen, kein neues Hochladen). Sonst wird die Liste in der alten Reihenfolge gemalt (ovReplay).
+// In 2D (und außerhalb von drawOverlay3) malen dieselben Helfer sofort.
+// Schritte: 1 Lage (a, Ankerpunkt x/y in Geräte-Pixeln, Anker-Weltpunkt ax/ay) · 2 Bild (lab, lab.v, x, y, Deckkraft)
+// · 3 Balken (schnell?, x, y, Breite, Anteil, Farbe, Deckkraft) · 4 eigener Balken (x, y, Größe, Anteil, Farbe,
+// Deckkraft) · 5 Sprechblase (x, y, Text, Deckkraft) · 6 Zielpfeil (x, y) · 7 Zustand am Monster (bewegt, m) · 8 Schein
+// (Farbe, x, y, Radius, Deckkraft) · 9 Wegweiser (nur zum Vergleich, karte.js guideOps)
+const OVL = { rec: null, live: false, spar: false };
+function ovWith(ctx, al, fn, a, b, c, d, e, f) {
+  if (al === 1) return fn(ctx, a, b, c, d, e, f);
+  const ga = ctx.globalAlpha;
+  ctx.globalAlpha = ga * al;
+  fn(ctx, a, b, c, d, e, f);
+  ctx.globalAlpha = ga;
+}
+const ovPaintImg = (ctx, lab, x, y) => ctx.drawImage(lab.c, x + lab.x0, y + lab.y0, lab.w, lab.h);
+function ovImg(ctx, lab, x, y, al = 1) {
+  const R = OVL.rec;
+  if (R) R.push(2, lab, lab.v, x, y, al);
+  else ovWith(ctx, al, ovPaintImg, lab, x, y);
+}
+function ovBar(ctx, fast, x, y, w, frac, color, al = 1) {
+  const R = OVL.rec;
+  if (R) {
+    // Balkenwerte in Hundertsteln (Vergleich mit dem letzten Bild)
+    R.push(3, fast ? 1 : 0, x, y, w, OVL.spar ? Math.round(frac * 100) / 100 : frac, color, al);
+  } else ovWith(ctx, al, fast ? drawBarFast : drawBar, x, y, w, frac, color);
+}
+function ovPaintSelfBar(ctx, x, y, k, frac, color) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(k, k);
+  drawBar(ctx, 0, 2, 32, frac, color);
+  ctx.restore();
+}
+function ovSelfBar(ctx, x, y, k, frac, color, al = 1) {
+  const R = OVL.rec;
+  if (R) R.push(4, x, y, k, OVL.spar ? Math.round(frac * 100) / 100 : frac, color, al);
+  else ovWith(ctx, al, ovPaintSelfBar, x, y, k, frac, color);
+}
+function ovSpeech(ctx, x, y, text, al = 1) {
+  const R = OVL.rec;
+  if (R) R.push(5, x, y, text, al);
+  else ovWith(ctx, al, drawSpeech, x, y, text);
+}
+function ovPaintArrow(ctx, x, by) {
+  ctx.save();
+  ctx.lineJoin = 'round';
+  ctx.lineWidth = 2.5;
+  ctx.strokeStyle = 'rgba(20,6,4,0.9)';
+  ctx.fillStyle = '#ff3a2a';
+  ctx.beginPath();
+  ctx.moveTo(x - 7, by - 8);
+  ctx.lineTo(x + 7, by - 8);
+  ctx.lineTo(x, by);
+  ctx.closePath();
+  ctx.stroke();
+  ctx.fill();
+  ctx.restore();
+}
+function ovArrow(ctx, x, by) {
+  const R = OVL.rec;
+  if (R) R.push(6, x, by);
+  else ovPaintArrow(ctx, x, by);
+}
+function ovGlow(ctx, x, y, r, hex, alpha) {
+  const R = OVL.rec;
+  if (R) R.push(8, hex, x, y, r, alpha);
+  else glow(ctx, x, y, r, hex, alpha);
+}
+// gesammelte Schritte malen (Reihenfolge wie beim direkten Malen)
+function ovReplay(ctx, R) {
+  ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'alphabetic';
+  for (let i = 0; i < R.length;) {
+    switch (R[i]) {
+      case 1: {
+        const a = R[i + 1];
+        ctx.setTransform(a, 0, 0, a, R[i + 2] - R[i + 4] * a, R[i + 3] - R[i + 5] * a);
+        i += 6;
+        break;
+      }
+      case 2: ovWith(ctx, R[i + 5], ovPaintImg, R[i + 1], R[i + 3], R[i + 4]); i += 6; break;
+      case 3: ovWith(ctx, R[i + 7], R[i + 1] ? drawBarFast : drawBar, R[i + 2], R[i + 3], R[i + 4], R[i + 5], R[i + 6]); i += 8; break;
+      case 4: ovWith(ctx, R[i + 6], ovPaintSelfBar, R[i + 1], R[i + 2], R[i + 3], R[i + 4], R[i + 5]); i += 7; break;
+      case 5: ovWith(ctx, R[i + 4], drawSpeech, R[i + 1], R[i + 2], R[i + 3]); ctx.textAlign = 'center'; i += 5; break;
+      case 6: ovPaintArrow(ctx, R[i + 1], R[i + 2]); i += 3; break;
+      case 7: drawMonsterStatus(ctx, R[i + 1]); i += 2; break;
+      case 8: glow(ctx, R[i + 2], R[i + 3], R[i + 4], R[i + 1], R[i + 5]); i += 6; break;
+      case 9: i += 9; break; // Kennwerte des Wegweisers (karte.js guideOps), gemalt wird er von drawGuide
+      default: return;
+    }
+  }
+}
+// gleiche Schrittliste wie im letzten Bild?
+function ovSame(a, b) {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+  return true;
 }
 
 // Namen in der gewählten Sprache (seit 13.9, sprache.js)
 const trName = (s) => (typeof trText === 'function' && s ? trText(s) : s);
+// Bild eines einzelnen Schriftzugs, am Objekt gemerkt (kein Schlüssel-Text je Bild, solange sich nichts ändert)
+function heldText(e, slotKey, weight, size, text, color, lw, stroke) {
+  const s = labelScale();
+  const c = e[slotKey];
+  if (c && c.t === text && c.col === color && c.s === s && c.gen === LABEL_FONT.gen) return c.lab;
+  const lab = textBild(weight, size, text, color, lw, stroke);
+  e[slotKey] = { t: text, col: color, s, gen: LABEL_FONT.gen, lab };
+  return lab;
+}
 function drawLabel(ctx, e) {
-  ctx.textAlign = 'center';
-  ctx.lineWidth = 3;
-  ctx.strokeStyle = 'rgba(10,8,6,0.85)';
   const p = game.player;
   if (e === p || e.remote) {
     if (e.remote && remoteHidden(e)) return;
     // Elementsprung: mit der Figur verschwindet auch der Name
     if (e.blinkHide > game.time) return;
     // getarnt: der Ninja selbst, seine Gruppe und Freunde sehen den Namen blass
-    ctx.save();
-    if (e === p ? game.stats.invisible : e.invisible) ctx.globalAlpha *= 0.5;
+    const al = (e === p ? game.stats.invisible : e.invisible) ? 0.5 : 1;
     // seit 13.20: „Level 70“ als eigene kleine Zeile über dem Namen, der Name selbst etwas kleiner
     const label = trName(e.name);
-    const lvText = 'LVL ' + e.level;
     // der Spitzhut des Magiers ist höher: Name etwas darüber
     // seit 14.39: in 3D steckt die Höhe auf dem Drachen schon in der Kopfhöhe (v3HeadHeight) – dort nur noch ein
     // kleiner Abstand statt der ganzen 2D-Reithöhe (sonst schwebte der Name weit über dem Reiter und lief hoch oben
@@ -1755,44 +2116,30 @@ function drawLabel(ctx, e) {
     // seit 14.53: in 2D wächst der Abstand mit der Körpergröße (in 3D steckt sie schon in der Kopfhöhe)
     const y = feetY(e) - (e.classId === 'magier' ? 68 : 60) * (V3.on ? 1 : lookSize(e.look)) - (V3.on && e.riding && rideTierOf(e) === 3 ? 14 : rideHeight(e));
     // Gruppenmitglieder: größerer, leuchtend grüner Name und ein breiter Lebensbalken
-    const mate = e.remote && inMyParty(e.name);
+    const mate = !!(e.remote && inMyParty(e.name));
     // seit 13.86: in der Turnierarena Name und Leben in der Teamfarbe, vor der Stufe ein kleiner Rang-Stein
     const pv = typeof pvpLabelInfo === 'function' ? pvpLabelInfo(e) : null;
     const lvY = y - (mate ? 14 : 11);
-    ctx.font = (mate ? '700 11px' : '700 9px') + ' "Alegreya Sans", sans-serif';
-    ctx.lineWidth = 2.5;
-    ctx.strokeText(lvText, e.x, lvY);
-    ctx.fillStyle = '#ffd98a';
-    ctx.fillText(lvText, e.x, lvY);
-    if (pv && pv.tier) pvpDrawGem(ctx, e.x - ctx.measureText(lvText).width / 2 - 7, lvY - 3.5, pv.tier); // seit 14.54 ohne Stein für die andere Seite
     // Gildenname in der Gildenfarbe über der Stufe
-    const guild = e === p ? (p.guild ? p.guild.name : '') : e.guild;
-    if (guild) {
-      ctx.font = '700 9px "Alegreya Sans", sans-serif';
-      const gl = '‹' + guild + '›';
-      ctx.strokeText(gl, e.x, lvY - 10);
-      ctx.fillStyle = guildColor(guild);
-      ctx.fillText(gl, e.x, lvY - 10);
+    const guild = (e === p ? (p.guild ? p.guild.name : '') : e.guild) || '';
+    const nameColor = pv ? pv.color : mate ? '#5dff6e' : e.remote ? '#a8f0a0' : '#9fe0ff';
+    const tier = pv && pv.tier ? pv.tier : null; // seit 14.54 ohne Stein für die andere Seite
+    // seit Wärme 2 ein fertiges Bild (Stufe, Stein, Gilde, Name), am Spieler gemerkt
+    const s = labelScale();
+    let c = e.__plb;
+    if (!c || c.lv !== e.level || c.nm !== label || c.mate !== mate || c.tier !== tier || c.g !== guild || c.col !== nameColor || c.s !== s || c.gen !== LABEL_FONT.gen) {
+      c = e.__plb = { lv: e.level, nm: label, mate, tier, g: guild, col: nameColor, s, gen: LABEL_FONT.gen, lab: playerLabelBild(mate, 'LVL ' + e.level, tier, guild, nameColor, label) };
     }
-    ctx.font = (mate ? '800 13px' : '600 10px') + ' "Alegreya Sans", sans-serif';
-    ctx.lineWidth = mate ? 3.5 : 2.5;
-    ctx.strokeText(label, e.x, y);
-    ctx.fillStyle = pv ? pv.color : mate ? '#5dff6e' : e.remote ? '#a8f0a0' : '#9fe0ff';
-    ctx.fillText(label, e.x, y);
+    ovImg(ctx, c.lab, e.x, y, al);
     // Mitspieler zeigen ihr Leben unter dem Namen
-    if (e.remote) drawBar(ctx, e.x, y + 4, mate ? 58 : 34, e.hp / Math.max(1, e.maxHp), pv ? pv.bar : mate ? '#3ee05a' : '#4ad04a');
+    if (e.remote) ovBar(ctx, false, e.x, y + 4, mate ? 58 : 34, e.hp / Math.max(1, e.maxHp), pv ? pv.bar : mate ? '#3ee05a' : '#4ad04a', al);
     // seit 13.85: eigener Lebensbalken über der Figur (Einstellung „Eigener Lebensbalken“, Größe einstellbar)
     if (e === p && opts.selfBar && !p.dead) {
       const k = Math.max(0.5, Math.min(2, +opts.selfBarSize || 1));
       const frac = p.hp / Math.max(1, (game.stats && game.stats.maxHp) || p.hp || 1);
-      ctx.save();
-      ctx.translate(e.x, y + 4);
-      ctx.scale(k, k);
-      drawBar(ctx, 0, 2, 32, frac, frac < 0.3 ? '#e0402a' : frac < 0.6 ? '#e0b02a' : '#3ee05a');
-      ctx.restore();
+      ovSelfBar(ctx, e.x, y + 4, k, frac, frac < 0.3 ? '#e0402a' : frac < 0.6 ? '#e0b02a' : '#3ee05a', al);
     }
-    if (e.say && e.sayUntil > game.time) drawSpeech(ctx, e.x, lvY - (guild ? 22 : 12), e.say);
-    ctx.restore();
+    if (e.say && e.sayUntil > game.time) ovSpeech(ctx, e.x, lvY - (guild ? 22 : 12), e.say, al);
     return;
   }
   if (e.id === 'riss') {
@@ -1801,35 +2148,23 @@ function drawLabel(ctx, e) {
     const label = `${trName(DUNGEONS[e.dungeon].name)} · ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
     // in 3D über dem Steinring (sonst läge der Name mitten auf dem Wirbel), in 2D darunter
     const ly = V3.on ? feetY(e) - figureHeight(e) - 8 : feetY(e) + 16;
-    ctx.font = '700 12px "Alegreya Sans", sans-serif';
-    ctx.textAlign = 'center';
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = 'rgba(0,0,0,0.8)';
-    ctx.strokeText(label, e.x, ly);
-    ctx.fillStyle = lighter(DUNGEONS[e.dungeon].portal, 0.35);
-    ctx.fillText(label, e.x, ly);
+    // eigenes Bild am Riss, neu gemalt, wenn sich die Restzeit ändert (einmal je Sekunde)
+    const lab = textBild('700', 12, label, lighter(DUNGEONS[e.dungeon].portal, 0.35), 3, 'rgba(0,0,0,0.8)', '', e.__rsl || (e.__rsl = {}));
+    ovImg(ctx, lab, e.x, ly);
     return;
   }
   if (e.ally || e.remoteAlly) {
     // Diener: Name in Grün (freundlich), eigene mit Lebensbalken
     const y = feetY(e) - figureHeight(e) - 8;
-    if (e.name) {
-      ctx.font = '700 10px "Alegreya Sans", sans-serif';
-      ctx.strokeText(trName(e.name), e.x, y - 5);
-      ctx.fillStyle = '#8ff0a8';
-      ctx.fillText(trName(e.name), e.x, y - 5);
-    }
-    if (e.ally) drawBar(ctx, e.x, y, 26, Math.max(0, e.hp) / e.maxHp, '#7fe3a0');
+    if (e.name) ovImg(ctx, heldText(e, '__alb', '700', 10, trName(e.name), '#8ff0a8', 3, 'rgba(10,8,6,0.85)'), e.x, y - 5);
+    if (e.ally) ovBar(ctx, false, e.x, y, 26, Math.max(0, e.hp) / e.maxHp, '#7fe3a0');
     return;
   }
   if (!e.type && !e.isStone) {
     if (!e.name || (!opts.names && e.id !== 'riss')) return;
     // Dungeon-Tore sind in 3D hoch: Name über dem Bogen statt mitten auf dem Wirbel
     const ny = V3.on && e.id === 'eingang' ? feetY(e) - figureHeight(e) - 6 : feetY(e) + 15;
-    ctx.font = '600 11px "Alegreya Sans", sans-serif';
-    ctx.strokeText(trName(e.name), e.x, ny);
-    ctx.fillStyle = '#f0cf6a';
-    ctx.fillText(trName(e.name), e.x, ny);
+    ovImg(ctx, heldText(e, '__nlb', '600', 11, trName(e.name), '#f0cf6a', 3, 'rgba(10,8,6,0.85)'), e.x, ny);
     return;
   }
   if (!p || !game.running) return;
@@ -1843,32 +2178,22 @@ function drawLabel(ctx, e) {
   const nameColor = e.isStone || targeted ? '#fff3d8' : boss ? '#ffb08a' : 'rgba(240,232,214,0.92)';
   // seit 15.16: das Schild hängt am Monster, solange Stufe, Name, Größe und Farben gleich bleiben – vorher wurde je
   // Monster und Bild ein Schlüssel aus fünf Teilen zusammengesetzt (neuer Speicher) und nachgeschlagen
+  const s = labelScale();
   let lc = e.__lab;
-  if (!lc || lc.lv !== e.level || lc.nm !== e.name || lc.big !== big || lc.c1 !== lvColor || lc.c2 !== nameColor) {
-    lc = e.__lab = { lab: monsterLabel('LVL ' + e.level, e.name, big, lvColor, nameColor), lv: e.level, nm: e.name, big, c1: lvColor, c2: nameColor };
+  if (!lc || lc.lv !== e.level || lc.nm !== e.name || lc.big !== big || lc.c1 !== lvColor || lc.c2 !== nameColor || lc.s !== s || lc.gen !== LABEL_FONT.gen) {
+    lc = e.__lab = { lab: monsterLabel('LVL ' + e.level, e.name, big, lvColor, nameColor), lv: e.level, nm: e.name, big, c1: lvColor, c2: nameColor, s, gen: LABEL_FONT.gen };
   }
   const lab = lc.lab;
-  ctx.drawImage(lab.c, e.x - lab.w / 2, top - lab.base, lab.w, lab.h);
+  ovImg(ctx, lab, e.x, top);
   if (e.hp < e.maxHp || targeted || e.isStone) {
-    (LOAD.fastBars && !targeted && !e.isStone && !boss ? drawBarFast : drawBar)(ctx, e.x, top + 4, e.isStone ? 52 : 36, e.hp / e.maxHp, e.isStone ? e.stoneType.look.glow : '#e0302a');
+    ovBar(ctx, LOAD.fastBars && !targeted && !e.isStone && !boss, e.x, top + 4, e.isStone ? 52 : 36, e.hp / e.maxHp, e.isStone ? e.stoneType.look.glow : '#e0302a');
   }
   // Ziel (seit 13.62): roter, wippender Zielpfeil über dem Namen – das gewählte Monster (Tab oder Antippen) ist
   // auf einen Blick zu erkennen, auch im Gedränge
   if (targeted) {
-    const by = top - lab.base - 7 - Math.abs(Math.sin(game.time * 5)) * 4;
-    ctx.save();
-    ctx.lineJoin = 'round';
-    ctx.lineWidth = 2.5;
-    ctx.strokeStyle = 'rgba(20,6,4,0.9)';
-    ctx.fillStyle = '#ff3a2a';
-    ctx.beginPath();
-    ctx.moveTo(e.x - 7, by - 8);
-    ctx.lineTo(e.x + 7, by - 8);
-    ctx.lineTo(e.x, by);
-    ctx.closePath();
-    ctx.stroke();
-    ctx.fill();
-    ctx.restore();
+    let by = top + lab.y0 - 7 - Math.abs(Math.sin(game.time * 5)) * 4;
+    if (OVL.rec && OVL.spar) by = Math.round(by);
+    ovArrow(ctx, e.x, by);
   }
 }
 

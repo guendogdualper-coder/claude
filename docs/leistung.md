@@ -684,3 +684,477 @@ Bildrate „Auto“, nachher zusätzlich „Leistung: Akku schonen“), Hauptthr
 - Geänderter Hinweis bei „Bildrate“: „Auto: so viele Bilder, wie die Einstellung „Leistung“ vorsieht (ist das Gerät zu
   langsam, gleichmäßig 30). Max: …“
 - Chat: „Das Gerät wird warm: Die Grafik spart jetzt etwas Leistung.“ und „Akku fast leer: Das Spiel spart jetzt Strom.“
+
+## Wärme 2 – Sparoptik („Handy wird auf den niedrigsten Optionen sehr schnell heiß“)
+
+Spieler (iPhone-App) mit Qualität „Niedrig“, Bildrate „30 (Akku)“, Leistung „Akku schonen“. Gemessen am emulierten
+iPhone 13 (Chromium mit SwiftShader, Dichte 3, Hauptthread 4-fach gedrosselt; Skripte unter
+`scratchpad/waerme2/messen/`). Wärme = Arbeit je Sekunde von Prozessor, Grafikkarte und Compositor (Stil, Paint,
+Rastern, Zusammensetzen der Ebenen), nicht nur Bildzeit.
+
+### Ursachen (gemessen an 15.52)
+
+- **Endlos-Animationen der Oberfläche** hielten den Compositor auf bis zu 60 Zusammensetzungen je Sekunde, obwohl das
+  Spiel nur 30 Bilder zeichnet: Glanz auf Leben/Mana/Ziel/EP (`bar-sheen`), pulsierende Ulti (`ult-charged`),
+  fehlender Segen (`segen-off`), Statuspunkt-Knopf (`orb-pulse`), im Inventar zusätzlich Gold-Seltenheit
+  (`rar-gold`), Sternchen ab +8 (`twinkle`) und Goldglanz (`gold-shine`) – 6 laufende Animationen in der Stadt, 47 im
+  Inventar. Die box-shadow-Animationen lassen in jedem Takt die bildschirmgroße HUD-Sammelebene neu malen und rastern.
+  Folge: 2,2–3,5 Zusammensetzungen je Spielbild, im Inventar 4,5–8.
+- **„30 (Akku)“ ohne Ruhe-Drosselung:** `frameCap` gab bei „30“ immer 30 zurück, die Ruhe (Fenster, große Karte,
+  Stillstand → 20) galt nur für „Auto“.
+- **Überblendung nach Teleport:** `#warpFade` blieb nach dem Aufziehen mit Deckkraft 0 als Vollbild-Ebene im
+  Compositor, bis zum Neuladen.
+- **Vignette** (`.light-fx`): eine Vollbild-Verlaufsebene über der Welt.
+
+### Änderungen
+
+- `js/waermeschutz.js`: `sparOptik()` (= Grafik „Niedrig“) und `sparOptikAnwenden()` (Klasse `spar-fx` an `<html>`),
+  einmal beim Laden, außerdem in `applyOpts` (`js/optionen.js`) – ein Grafikwechsel greift ohne Neuladen.
+  Ruhe-Logik aus `leistungCap` in `leistungRuheCap(cap)` ausgelagert (Wärmeschutz-Endstufe 24, Ruhe 20 bei „Akku
+  schonen“/30 bei „Ausgewogen“, `qualityPause` beim Wechsel); `leistungCap` nutzt sie unverändert.
+- `js/spiel.js` `frameCap`: Startbildschirm 30; „30 (Akku)“ → `leistungRuheCap(30)`. Ergebnis bei „30 (Akku)“ +
+  „Akku schonen“: 30 im Spiel, 20 in Fenstern, auf der großen Karte und im Stillstand (20 s ohne Eingabe, Figur steht,
+  kein Kampf), 24 als Endstufe des Wärmeschutzes. „Auto“ und „Max“ unverändert.
+- `css/style.css`, Block „Sparoptik“ am Ende (alles unter `.spar-fx`): kein Balkenglanz, keine Übergänge an den
+  Balken (sonst startet jedes Setzen der Füllung eine Compositor-Animation); Ulti bereit = fester Goldring, Segen fehlt
+  = fester hellblauer Ring (heller Stand der Keyframes); Statuspunkt-Knopf, Verstärkung, Tagesbelohnung, fertige
+  Aufträge, Erwecken mit festem Schein statt Pulsieren (die Statuskugel im Charakterfenster bleibt im hellen Stand);
+  laufender Buff an der Fertigkeit als ganzer Lichtring statt drehendem Bogen (Restzeit bleibt); Auto-Angriff läuft =
+  festes Leuchten; kein Goldglanz, feste Sternchen im Inventar; Vignette aus. `css/seltenheit.css`: Gold-Seltenheit
+  fest im hellen Stand. Bewusst geblieben (kurz und wichtig): wenig Leben/Herzschlag, Buff läuft ab, Fertigkeit
+  bereit, Tauschen, Schmied, Zonen-Banner.
+- `js/drei-kern.js` `warpFade`: beim Start sichtbar, nach dem Aufziehen (`transitionend`, Ersatz nach 650 ms, nur wenn
+  die Deckkraft dann wirklich 0 ist) `hidden` – für alle Grafikstufen, sieht gleich aus.
+- **Nicht übernommen:** `will-change: transform` an den großen HUD-Gruppen (Gate). Gemessen: Stadt 14 → 26 Ebenen,
+  sichtbare Fläche nur 5,31 → 4,87 Bildschirme (Ziel: −1), im Kampf sogar 5,50 → 5,97. `.hud-bottom` ist am Handy
+  bildschirmgroß (wird selbst zur Vollbild-Ebene), und `#chatBox` enthält fest positionierte Kinder (die eine
+  Transformation an der Gruppe verschieben würde).
+
+### Messung vorher/nachher
+
+Gesamtprofil (`messen/alles.sh`, ohne 3D-Dreiecke außer „GPU mit Dreiecken“; Zeiten streuen – andere Messungen liefen
+parallel, die Zähler sind exakt). Vorher 15.52, nachher 15.52 + Sparoptik, gleiche Lagen:
+
+| Kennzahl | stehen | laufen | kämpfen | Inventar | 2D kämpfen |
+|---|---:|---:|---:|---:|---:|
+| Endlos-Animationen (Zähler-Probe) | 6 → 0 | – | 9 → 0 | 47 → 0 | 8 → 0 |
+| Ebenen (Zähler-Probe) | 22 → 9 | – | 28 → 12 | 54 → 14 | 30 → 8 |
+| Zusammensetzungen je Spielbild | 2,2 → 0,6 | 3,1 → 0,9 | 2,6 → 1,0 | 4,5 → 0,4 | 1,9 → 1,3 |
+| Paints/s | 75,3 → 0 | 37,2 → 1,1 | 62,2 → 50,6 | 29,9 → 0 | 17,6 → 12,8 |
+| Raster-Aufgaben/s | 41,3 → 0 | 22,4 → 1,4 | 54,4 → 24 | 10,2 → 0 | 19,5 → 8,5 |
+| Stil-Neuberechnungen/s | 24,8 → 3,1 | 12,3 → 3,8 | 11,9 → 13,3 | 2,7 → 3,1 | 5,3 → 5,6 |
+| GPU-Prozess ms je Spielbild (ohne Dreiecke) | 109 → 50 | 125 → 57 | 214 → 162 | 906 → 81 | – |
+| GPU-Prozess ms je Spielbild (mit Dreiecken) | 656 → 650 | 598 → 621 | 865 → 835 | 1487 → 823 | – |
+| Spielbilder/s (Grenze) | 23,8 (30) → 22,1 (20, Ruhe) | 10,5 → 25,9 | 6,5 → 14,1 | 2,6 (30) → 16,1 (20) | 4,5 → 10,9 |
+
+- Vorher war der GPU-Prozess (SwiftShader) durch das Zusammensetzen der Animationen ausgelastet, der Hauptthread
+  wartete auf ihn („Canvas/WebGL-Übergabe“ 52–81 % der Hauptthread-Zeit) – darum liefen damals weniger Spielbilder.
+  Nachher schafft die Emulation fast die volle Rate; Kennzahlen je Sekunde steigen dadurch teils (mehr Spielbilder),
+  vergleichbar sind die Werte **je Spielbild**.
+- Stehen ohne Ruhe (jede Sekunde eine Eingabe, im selben Zeitfenster gemessen): GPU-Prozess ms je Spielbild 15.52
+  97,8 → Gegentest „alle CSS-Animationen aus“ 51,5 → Sparoptik 45,6. Die Sparoptik erreicht also den Gegentest.
+- Hauptthread Stil + Paint (DOM) + Commit je Spielbild, stehen: 8,8 → 4,3 ms (49 %). Den Rest macht jetzt fast nur der
+  Commit (rund einer je rAF-Aufruf, auch bei übersprungenen Bildern – siehe Offen).
+- Kampf: Zusammensetzungen je Spielbild 1,0 wie im Gegentest (15.52: 3,0). Die GPU-Zeit je Spielbild im Kampf ist
+  unter Last nicht stabil messbar (162 bei 14 Bildern/s, 304 bei 4 Bildern/s; 15.52 im selben Fenster 285); sie
+  stammt dort vor allem aus der 2D-Ebene (Schadenszahlen, Beschriftungen) und DOM-Änderungen, nicht aus CSS.
+
+HUD/DOM/CSS (`messen/domcss-alles.sh`, Krieger, Gerätesprache Deutsch):
+
+| Kennzahl | Stadt stehen | Stadt laufen | Kampf | Inventar | 2D Kampf | 2D Stadt |
+|---|---:|---:|---:|---:|---:|---:|
+| laufende Animationen | 5 → 0 | 5 → 0 | 10 → 0 | 48 → 0 | 8 → 0 | 6 → 0 |
+| Ebenen | 27 → 14 | 27 → 14 | 41 → 17 | 64 → 20 | 35 → 12 | 27 → 12 |
+| Vollbild-Ebenen | 6 → 5 | 6 → 5 | 6 → 6 | 9 → 7 | 5 → 4 | 5 → 4 |
+| sichtbare Fläche (Bildschirme) | 6,36 → 5,31 | 6,36 → 5,31 | 6,80 → 6,86 | 9,96 → 8,07 | 5,75 → 4,36 | 5,70 → 4,31 |
+| Zusammensetzungen je Spielbild | 3,46 → 0,78 | 2,10 → 0,69 | 1,61 → 0,94 | 8,07 → 0,91 | 2,40 → 0,78 | 2,79 → 0,72 |
+| Zusammensetz-Fläche je Spielbild (Mio. Geräte-Px) | 65 → 12 | 39 → 11 | 33 → 19 | 238 → 22 | 41 → 10 | 47 → 9 |
+| Zusammensetz-Fläche je Sekunde (Mio. Geräte-Px) | 678 → 310 | 450 → 304 | 202 → 224 | 333 → 385 | 164 → 150 | 311 → 282 |
+| Spielbilder/s im Messfenster | 10,4 → 25,4 | 11,4 → 28,1 | 6,2 → 11,7 | 1,4 → 17,7 | 4 → 14,9 | 6,6 → 30,6 |
+
+- `#warpFade` taucht nach einem Teleport nicht mehr in der Ebenenliste auf (vorher Vollbild-Ebene „Overlap“).
+- Die Vignette weg bringt keine Ebene weniger: Ohne sie wird `#hud` selbst zur bildschirmgroßen Overlap-Ebene (fast
+  leer). Mit sichtbarer Vignette brauchte der GPU-Prozess im selben Aufbau aber 1457 statt 1317 ms/s bei gleicher
+  Bildrate (eine Messung) – der volle Verlauf muss in jedem Bild mit verrechnet werden.
+- Gegentest „alle Animationen und Übergänge aus“ auf dem neuen Stand: in der Stadt keine Änderung mehr
+  (Zusammensetzungen je Spielbild 0,72 → 0,69).
+
+Bildtakt (`messen/logik.js`, Arbeitsstand): Inventar offen Grenze 30 → 20 (17,1 Spielbilder/s), Stadt mit Eingabe 30.
+Kurztest in der Seite: Spiel 30, Fenster 20, nach 25 s ohne Eingabe 20, nach einem Tipp wieder 30, Wärmeschutz-
+Endstufe 24; „Ausgewogen“ bleibt in Fenstern bei 30; „Auto“ unverändert (30 / Fenster 20).
+
+Höhere Optionen unverändert (Grafik „Mittel“, Bildrate „Auto“, Stadt): keine Klasse `spar-fx`, 5 laufende
+Animationen, 27 Ebenen, 6,36 Bildschirme, Grenze 30 – identisch mit 15.52. Der HUD-Bearbeitungsmodus (verschieben,
+skalieren) funktioniert mit der Sparoptik unverändert.
+
+### Offen
+
+- Je rAF-Aufruf (60/s) läuft ein Commit samt PrePaint/Layerize, auch wenn `frame` das Bild überspringt (gemessen rund
+  ein Commit je rAF in der Stadt). Ursache nicht geklärt; ein Takt ohne rAF für übersprungene Bilder wäre ein eigenes
+  Paket (Risiko ungleichmäßiger Bilder).
+- Kampf: GPU-Arbeit je Spielbild hängt jetzt an 2D-Ebene und DOM-Paints (Abklingzeiten, Schadenszahlen), nicht mehr
+  am CSS.
+- Nicht auf einem echten iPhone gemessen; WebKit setzt Ebenen anders zusammen als Chromium. Die Zähler (laufende
+  Animationen, Zusammensetzungen je Spielbild, Paints) sind aber unabhängig vom Browser die Arbeit, die wegfällt.
+
+### Neue Texte
+
+Keine.
+
+## Wärme 2 – Fenster: Figurenbild steht still, Welt hinter Vollbild-Fenstern ruht
+
+Gleicher Spieler, gleiche Einstellungen (Grafik „Niedrig“, „30 (Akku)“, „Akku schonen“). Gemessen im Inventar (Kazehana,
+Inventar offen) war nach der Sparoptik der größte Posten das **lebende Figurenbild**: `portraitLive3` zeichnete die Figur
+etwa 6-mal je Sekunde in ein eigenes Zielbild und las es jedes Mal synchron von der Grafikkarte zurück
+(`readRenderTargetPixels` + `putImageData`, eigene rAF-Schleife `tick`). Der Hauptthread wartete dabei auf die
+Grafikkarte (`CommandBufferProxyImpl::WaitForGetOffset` 392 ms/s, `readPixels` 41 % der CPU-Zeit). Dazu zeichnete die
+3D-Welt hinter dem Inventar mit voller Rate weiter, obwohl das Fenster am Handy 88 % des Bildes fast deckend verdeckt.
+
+### Änderungen
+
+- `js/drei-figuren.js` `v3Portrait`: mit der Sparoptik (`sparOptik()`, Grafik „Niedrig“) kein lebendes Bild mehr – die
+  Figur wird einmal gezeichnet, am Handy werden Zielbild und Auslesepuffer danach sofort freigegeben (`v3PortraitFree`).
+  Neu gezeichnet wird wie bisher beim Öffnen, bei jedem Ausrüstungswechsel und beim Antippen (Drehen) – `drawDoll`
+  (Inventar, Schmied, Betrachten, Charakterfenster) und die Aussehens-Vorschau rufen `v3Portrait` dann ohnehin auf.
+  `portraitLive3`/`tick` endet, sobald die Sparoptik gilt (Grafik bei offenem Fenster auf „Niedrig“ gestellt).
+  Grafik „Mittel“ und höher: lebendes Bild wie bisher (12 Bilder/s).
+- `js/waermeschutz.js`: `leistungVerdeckt()` – wahr, wenn die Sparoptik gilt, das Spiel läuft, ein offenes `.panel`
+  (außer `#panelDeath`) mindestens 70 % des Bildschirms deckt (`getBoundingClientRect`, höchstens alle 500 ms gemessen)
+  und keine Laufeingabe aktiv ist (Steuerknüppel, Lauftaste, Laufziel per Maus; `leistungLaufEingabe`, jedes Bild).
+  Schließt das gemerkte Fenster auf irgendeinem Weg (`hidden`), wird sofort neu geprüft; `leistungFensterWechsel()`
+  setzt die Messung (und die Ruhe-Prüfung `HEAT.panelAt`) zurück.
+- `js/oberflaeche.js` `ui.closePanels` (läuft auch bei jedem `ui.toggle`): ruft `leistungFensterWechsel()`.
+- `js/spiel.js` `frame`: Ist die Welt verdeckt, wird `render()` nur gezeichnet, wenn das letzte gezeichnete Bild 250 ms
+  zurückliegt (rund 4 Bilder/s). `update()` läuft unverändert im Ruhetakt 20/s (Kampf, Ton, Netz), `tickBigMap` auch.
+  Die Zeichenflächen behalten ihr letztes Bild. Ein Bild, in dem sich die Größe der Zeichenflächen ändert
+  (`renderer.resizeDue` zu Beginn, Größe der 2D-Fläche oder `V3.sizeKey` danach – auch durch `checkViewSize` oder
+  `adaptQuality` im selben Bild), wird immer gezeichnet: das Setzen der Größe leert die Flächen (weißes Aufblitzen).
+
+### Messung vorher/nachher
+
+`messen/messen.js --lagen inventar,stand` und `messen/probe-zaehler.js --lagen inventar` (emuliertes iPhone 13,
+Hauptthread 4-fach gedrosselt, SwiftShader; Fenster 1–4 ohne 3D-Dreiecke). „Vorher“ = 15.52 + Sparoptik, im selben
+Zeitfenster direkt danach gemessen. Parallel liefen Messungen anderer Helfer; die Zähler sind exakt.
+
+| Kennzahl (Inventar offen) | vorher | nachher | Änderung |
+|---|---:|---:|---:|
+| gezeichnete Spielbilder/s (Grenze 20) | 13,8 | 3,7 | −73 % |
+| Zeichenaufrufe/s | 1104 | 300 | −73 % (−81 % gegenüber vollen 20 Bildern/s) |
+| Dreiecke/s (Mio.) | 4,98 | 1,35 | −73 % |
+| 2D-Bildpunkte/s (Mio.) | 18,2 | 4,9 | −73 % |
+| `readPixels` / `putImageData` je s (Zähler-Probe) | 3 / 3 (42 480 Bildpunkte je Auslesen) | 0 / 0 | −100 % |
+| rAF-Schleifen (Zähler-Probe) | Spiel + `tick` | nur Spiel | |
+| Hauptthread beschäftigt ms/s (Trace) | 973 | 475 | −51 % |
+| davon Warten auf die Grafikkarte (`WaitForGetOffset`) ms/s | 392 | 0 | −100 % |
+| Hauptthread Canvas/GPU-Übergabe ms/s | 437 | 7,7 | −98 % |
+| JS im Spieltakt ms/s | 430 | 285 | −34 % |
+| GPU-Prozess ms/s (ohne Dreiecke) | 1014 | 211 | −79 % |
+| Compositor-Bilder/s (DrawFrame) | 12,9 | 3,8 | −71 % |
+| WebGL-Aufrufe/s (Zählfenster) | 3756 | 1557 | −59 % |
+| GPU mit Dreiecken: ms je gezeichnetem Bild | 846 | 424 | −50 % |
+
+- Im Profil (Selbstzeit) steht `readPixels` nicht mehr (vorher 41,2 % an erster Stelle); oben stehen jetzt die
+  Spiel-Logik im Ruhetakt (`snd.update`, `update`, `updateMonsters`) – Thema der Logik-Pakete.
+- Der Hauptthread ist im Inventar jetzt zur Hälfte frei (Leerlauf 27 → 525 ms/s). Dadurch läuft rAF mit der vollen
+  Bildschirmrate (25 → 56 Aufrufe/s; übersprungene Bilder kosten fast nichts, die zugehörigen Commits werden meist
+  abgebrochen: `MainFrameAborted` 51/s, 14 ms/s) – siehe „Offen“ im Abschnitt Sparoptik.
+- Lage „stehen“ (kein Fenster) ist unverändert: je Spielbild gleich viele Funktionsaufrufe (44 900 / 44 600),
+  Canvas-Aufrufe (485 / 481) und Zeichenaufrufe; die Raten je Sekunde schwanken mit der Last der anderen Messungen.
+
+Bildtakt und Logik (`messen/logik.js --lagen fenster`: Feld, Monster ringsum, Inventar offen; gleiche Zeitfenster):
+
+| Kennzahl | vorher | nachher |
+|---|---:|---:|
+| `update` je s (Ruhetakt) | 17,9 | 19,4 |
+| `render` / `renderDrei` je s | 17,9 | 3,4 |
+| `gl.render` je s (Welt + Figurenbild) | 23,7 | 3,4 |
+| rAF-Schleifen | `frame` (spiel.js) + `tick` (drei-figuren.js) | nur `frame` |
+| `frame` ms/s (4× gedrosselt) | 626 | 376 |
+| davon `render` ms/s | 440 | 110 |
+| CPU-Profil: beschäftigt / Leerlauf (10 s) | 11 101 / 772 ms | 6 670 / 5 169 ms |
+| CPU-Profil: `readPixels` | 14,5 % | – |
+| Grafikprozess, alle Threads (SwiftShader, Viz) ms/s | 1 235 | 225 |
+
+### Funktionsprüfung (iPhone 13 quer, Grafik „Niedrig“)
+
+- Inventar: Figur sichtbar (97,6 % der Fläche gezeichnet), kein leeres oder graues Bild; Helm abgelegt → Bild neu;
+  Antippen → Figur dreht sich (je ein Auslesen). Schmied, Betrachten: Bild vorhanden. Im Fenster 18,6 Spielbilder/s
+  (`update`), 3,6 gezeichnete Bilder/s, 0 × `readPixels`, Zielbild freigegeben.
+- Schließen: das erste Spielbild danach zeichnet (`update` 32 ms, `render` 33 ms nach dem Schließen), Bildschirmfotos
+  direkt danach ohne weißes oder leeres Bild (Helligkeit wie vor dem Öffnen).
+- Drehen bei offenem Inventar (hochkant und zurück): nach dem Schließen stimmen 2D- und 3D-Fläche (1688×780 bzw.
+  844×390 @ 1,25).
+- Monster greifen bei offenem Inventar an: Leben sinkt, das Tod-Fenster erscheint, die Welt wird danach wieder gezeichnet.
+- Grafik „Mittel“, Bildrate „Auto“: lebendes Bild (`tick` läuft, Auslesen wie bisher), die Welt wird hinter dem Fenster in
+  jedem Spielbild gezeichnet. Wechsel auf „Niedrig“ bei offenem Inventar: `tick` endet, Welt ruht.
+- 2D: im Inventar 20 Spielbilder/s, 3,8 gezeichnet; Schließen zeichnet sofort.
+
+### Offen
+
+- Der Hauptthread bleibt im Inventar bei rund 475 ms/s (4-fach gedrosselt), Ziel waren 300. Der Rest ist die
+  Spiel-Logik im Ruhetakt 20/s (`snd.update`, `update`, `updateMonsters` mit Durchläufen über alle Monster der Welt)
+  und der rAF-Takt mit 56 Aufrufen/s – beides eigene Pakete.
+- Das stehende Figurenbild wird bei einer Größenänderung des Fensters (Drehen mit offenem Inventar) nicht neu gezeichnet,
+  bis man es antippt, die Ausrüstung wechselt oder das Fenster neu öffnet (die Fläche wird dann nur skaliert).
+- Nicht auf einem echten iPhone gemessen. WebKit zeigt wie Chromium das zuletzt gezeigte WebGL-Bild weiter, solange
+  nicht neu gezeichnet wird (Standardverhalten ohne `preserveDrawingBuffer`).
+
+### Neue Texte
+
+Keine.
+
+## Wärme 2 – Spiel-Logik ohne Weltschleifen (Gebietsverzeichnis und Nähe-Listen)
+
+Gleicher Spieler, gleiche Einstellungen. Nach Sparoptik und Fenster-Paket war die Spiel-Logik der größte
+CPU-Posten außerhalb der Grafik: Die Welt hat rund 8.700 Monster, 580 NPCs und 2.350 Lichtpunkte, und je Spielbild
+liefen 4–12 Schleifen über **alle** Monster der Welt (Monsterlaute, 3D-Haken von Endboss und Instanzen,
+Aufräumen in `updateMonsters`, Schadensmesser, Bossbalken, Karte, 2D-Bild, Geschosse), dazu je Bild alle NPCs
+(nächster NPC, Namen, 3D-Figuren) und alle Lichtpunkte. Das kostete Rechenzeit **und** Speicher (Speicherbereinigung).
+Seit 14.26 zeichnet `v3Monsters` nur die Gebiete (Maps, Dungeons), deren Rechteck um die Startplätze in die Nähe der
+Kamera reicht; diese Regel gilt jetzt für alle diese Stellen, auf jeder Grafikstufe und in 2D gleich.
+
+### Änderungen
+
+- `js/gegner.js` `monsterIndex()` (Neuaufbau bei geänderter Liste, sonst seit diesem Paket nur noch alle 10 s statt
+  alle 2 s – jede Änderung der Liste ersetzt das Feld oder ändert seine Länge) legt zusätzlich an: `MON_INDEX.big`
+  (Seelensteine, Monster mit `type.boss`, `type.raid`, `type.raidBoss`), `MON_INDEX.inst` (`type.inst`),
+  `MON_INDEX.night` (Nachtmonster) und je Gebiet ein Rechteck um die Startplätze ± `MON_AREA_PAD` (die größte
+  Verfolgungsstrecke, bisher `MONS3_PAD` in drei-kern.js), `MON_INDEX.gen` zählt die Neuaufbauten.
+  Neu `monstersNear(x, y, R)`: alle Monster der Gebiete, deren Rechteck den Kasten (x ± R, y ± R) schneidet. Die Liste
+  wird nie verändert (ein Gebiet: dessen Liste; mehrere: zusammengesetzt und bis zum nächsten Neuaufbau aufgehoben),
+  darum stören sich verschachtelte Aufrufe nicht (Treffer in einer Geschoss-Schleife fragt `enemiesNear`).
+  Ende von `updateMonsters`: tote Wellenmonster je Bild nur in den gerechneten Gebieten (`MON_INDEX.list`) suchen;
+  für die ganze Welt gilt, was der letzte Neuaufbau dabei gesehen hat (`MON_INDEX.gone`, kein eigener Durchlauf).
+- `js/drei-kern.js` `v3Monsters()` = `monstersNear(V3.focus, R)` mit dem bisherigen R. `v3UpdateLights`: Nähe-Liste der
+  Lichtpunkte (|dx|, |dz| < `LIGHT_REACH3` + 12), neu alle 0,5 s oder nach mehr als 2 Einheiten Weg; die Paare
+  [Abstand, Licht] werden wiederverwendet. `drawOverlay3`: NPCs aus `npcsNear()`.
+- `js/zeichnen.js`: neu `npcsNear()` – NPCs im Umkreis der Sichtweite (wie R in `v3Monsters`) + 8 Kacheln um den
+  Kamerafokus; neu gebaut nach 0,5 s, wenn `game.world.npcs` ersetzt wurde oder seine Länge sich ändert, nach mehr als
+  4 Kacheln Weg oder wenn die Sichtweite wächst. `render` (2D): Monster aus `monstersNear(Kameramitte, halbe
+  Sichtdiagonale)`, NPCs aus `npcsNear()`.
+- `js/spiel.js` `updatePlayer` (nächster NPC in 70 px), `js/drei-figuren.js` `v3SyncActors`: `npcsNear()`.
+- `js/klang-welt.js` `snd.update`: `monstersNear(Figur, 900)`. Wer im vorigen Durchlauf nicht dabei war (Zähler
+  `tick`), wird still übernommen (`_sDead`, `_snd.hit/atk/state` gesetzt, kein Laut) – kein Todeslaut beim Betreten
+  einer Karte oder nach einem Teleport. Das bisherige Nachführen von `_sDead` für alle fernen Monster entfällt.
+- `js/kampf.js`: `enemiesNear` baut `NEAR_FOES` aus `monstersNear(Figur, NEAR_FOES_R)`; der Rückfall
+  `aliveEnemies(x, y, r)` nimmt nur die lebenden Monster aus `monstersNear(x, y, r + 160)` (plus Duellgegner und
+  `pvpFoes` wie bisher). `updateProjectiles`: beide Trefferschleifen (Geschosse der Mitspieler, eigene Geschosse) über
+  `monstersNear(Geschoss, Radius + 200)` statt je Geschoss und Bild über alle Monster.
+- Bosse und Seelensteine über `MON_INDEX.big`: `js/schadensmeter.js` `dmBossNow`, `js/musik.js` `bossNear`,
+  `js/oberflaeche.js` `updateBossBar`, `js/klang-dateien.js` `prefetch`.
+- `js/endboss.js` `fx3Raid` (Taumel-Sterne): `MON_INDEX.raids`. `js/instanzen.js` `fx3Inst`, `instWatch` (Vorstellung
+  der Wächter) und `instScan`: `MON_INDEX.inst`.
+- `js/karte.js` `drawMapMarks` (Minikarte und große Karte): `monstersNear(Mitte des Ausschnitts, halbe Diagonale)`.
+- `js/turmfinale.js` `tfNpcs`: Truhe und Schmied werden in `turmFinaleSieg` gemerkt und in `tfNpcsWeg` vergessen
+  (gilt nur für die Welt, in der sie entstanden sind) – vorher filterte `tfTick` je Bild alle NPCs.
+- `js/nekro-totenruf.js` `graveTick`: sofort zurück, wenn die Klasse keinen Totenruf hat und keine Gräber liegen.
+- `js/netz.js`: `netSnapshotFor` (Host, je Mitspieler 10-mal je s) über `monstersNear(Mitspieler, NET_VIEW)`, der
+  Kasten-Test bleibt. `netMirrorMonsters` (Mitspieler, jedes Bild) nur `monstersNear(Figur, NET_VIEW + 600)`; einmal
+  je Sekunde ein voller Durchlauf, der `hitFlash/attackAnim/windup` ferner Monster auf 0 setzt und sie an `tx/ty` stellt.
+- Zusätzlich (nicht im Plan, gleiche Regel): `js/tag-nacht.js` – `topUpNightMonsters`, `retreatNightMonsters` und
+  `clearDeadNight` (alle 2 s) zählen über `MON_INDEX.night`; eine neue Monsterliste (Kopie aller Monster, danach
+  Neuaufbau des Verzeichnisses) entsteht nur noch, wenn wirklich ein Nachtmonster verschwindet.
+
+### Messung vorher/nachher
+
+`messen/logik.js --lagen stadt,feld,fenster,karte,feld2d --quelle arbeit` (emuliertes iPhone 13 quer, Hauptthread
+4-fach gedrosselt, Grafik „Niedrig“, „30 (Akku)“, „Akku schonen“, Ton an). Vorher = Arbeitsstand vor diesem Paket
+(15.52 + Sparoptik + Fenster-Paket, eingefroren), nachher = derselbe Stand + diese Dateien; drei Paare abwechselnd im
+selben Zeitfenster. In Paar 1 lief gleichzeitig die Funktionsprüfung (Zeiten von „nachher“ verfälscht), Paar 1 und 2
+noch mit Neuaufbau alle 2 s und eigenem Aufräum-Durchlauf. Unten Paar 3 (Endstand). Zeiten streuen stark (4 Kerne,
+andere Messungen parallel); die Zähler sind exakt. „ms je Bild“ = ms je s ÷ gezeichnete Bilder je s.
+
+| Kennzahl | Stadt vorher | Stadt nachher | Feld (Kampf) vorher | Feld nachher |
+|---|---:|---:|---:|---:|
+| Durchläufe über alle Monster der Welt je Bild | 4,46 | 0,01 | 4,73 | 0,03 |
+| Monster-Schritte dieser Durchläufe je s | 923.500 | 2.600 (−99,7 %) | 527.900 | 16.100 (−97 %) |
+| Speicher je Bild (KB) | 579 | 247 (−57 %) | 1.262 | 801 (−37 %) |
+| kleine Speicherbereinigungen je s | 0,50 | 0,17 | 0,50 | 0,33 |
+| `update` ms je Bild | 8,6 | 3,0 (35 %) | 17,1 | 7,0 (41 %) |
+| `frame` ms je Bild | 31,8 | 19,9 (63 %) | 63,6 | 52,1 (82 %) |
+| `render` ms je Bild | 21,3 | 14,7 | 44,1 | 42,4 |
+| `snd.update` ms je Bild | 2,79 | 0,12 | 4,59 | 1,12 |
+| `v3SyncFx` ms je Bild | 4,41 | 0,68 | 14,0 | 13,6 (Kampfeffekte) |
+| `hyp` je Bild | 6.096 | 3.221 (−47 %) | 9.489 | 5.499 |
+| `v3InView` je Bild | 2.350 | 1.270 | 3.700 | 2.535 |
+| Bilder je s (Grenze 30) | 23,9 | 28,7 | 12,6 | 14,9 |
+
+Weitere Lagen (Paar 3): Inventar offen („fenster“) Durchläufe je Bild 12,1 → 0,07, Speicher 3.664 → 1.444 KB je Bild,
+`update` 75 → 36 ms je Bild; große Karte offen 8,4 → 0,33 (bei 1,1 gezeichneten Bildern je s), Speicher 2.876 → 1.503
+KB; 2D-Kampf 3,3 → 0,33, Speicher 1.317 → 754 KB, `update` 18,7 → 8,4 ms.
+
+- Der eine Durchlauf, der nachher noch je Zählfenster übrig bleibt (`monsterIndex`), stammt vom Messskript selbst: Es
+  hängt zum Zählen einen Proxy an `game.monsters`, das ersetzt das Feld und löst einmal den Neuaufbau aus. In der Karte
+  und im 2D-Kampf (3 gezeichnete Bilder im Zählfenster) wird daraus 0,33 je Bild. Spielcode läuft in keiner Lage mehr
+  über alle Monster. Ebenfalls vom Messskript: `.find ?` (Zielsuche der Kampfschleife in logik-seite.js, Feld 0,09).
+- Paar 1/2 (Neuaufbau alle 2 s): Stadt 0,05 Durchläufe je Bild, `update` 6,9 → 4,4 bzw. 10,6 → 4,0 ms, `frame`
+  35,1 → 24,3 ms je Bild (Paar 2). Gleiche Zähler für `hyp`, `v3InView` und Speicher wie Paar 3.
+- Höhere Optionen (`--grafik mittel --fps auto --leistung max --lagen stadt`): Durchläufe 4,42 → 0,01 je Bild,
+  Bilder je s 21,5 → 22,0, `update` 8,5 → 3,3 ms, Speicher 541 → 249 KB je Bild.
+- Was die Logik spart, nutzt der Hauptthread am Handy teils für mehr rAF-Runden (Stadt 29,6 → 51,2 je s, gezeichnet
+  bleibt es bei der Grenze 30) – das ist das letzte Paket (rAF-Schlaf).
+
+### Funktionsprüfung
+
+Playwright, iPhone 13 quer, `Math.random` mit festem Startwert, die alten Funktionen (aus dem Stand vorher) als Referenz
+in derselben Seite auf demselben Zustand (Skripte unter `scratchpad/waerme2/w1/`, `funktion.js`):
+
+- Monsterlaute im Feld (10 Monster, 30 s, neue und alte `snd.update` im selben Bild, alte mit eigenen Feldern):
+  Angriff/Schmerz/Tod/Schrei/Einschlag 4/20/0/0/39 gegen 4/20/0/0/39 – gleich. Stadt 8 s: 0 und 0.
+- Teleport in ein fremdes Gebiet mit 10 toten Monstern im Umkreis von 900 px: 0 Todeslaute (neu und alt).
+- Boss (Kriegsherr Gor'thak) und Endboss (Ursus): `music.mood()` und `music.key` = `boss`, Bossbalken sichtbar.
+- Seelenstein angeschlagen: `DMETER.boss[0]` = dieser Stein.
+- Instanz (Molgrath): `fx3Inst` 5 Teile neu wie alt; Endboss mit `staggerFx`: `fx3Raid` 5 Teile (Sterne) neu wie alt.
+- Minikarte und große Karte (Stadt, Feld, 2D): gleich viele Punkte (28/590, 29/600, 32) mit neuer und alter
+  `drawMapMarks`.
+- 2D `render`: gleich viele gezeichnete Monster und NPCs (Stadt 0/10, Feld 10/0).
+- `enemiesNear` an 200 Zufallspunkten (126 im schnellen Weg, Rest Rückfall): im Umkreis r + 160 dieselbe Menge
+  (200/200); im schnellen Weg genau dieselbe Liste. Der Rückfall liefert statt aller ~8.000 lebenden Monster der Welt
+  nur noch die Gebiete in der Nähe (im Mittel 481 statt 3.261 Einträge).
+- `updateProjectiles`: 73 Stichproben während Kämpfen (Bogen-Ninja, Feuer- und Blitzmagier), dieselben Geschosse mit
+  neuer und alter Funktion 45 Schritte weitergerechnet – dieselbe Trefferfolge in allen 73 (eigene und als
+  Mitspieler-Geschosse). Feste 30-s-Kämpfe (900 Schritte `update(1/30)`): Geschoss-Treffer Feuer 28/29, Bogen 47/42.
+- Nächster NPC (`game.nearNpc`) an 30 Stellen in Kazehana richtig; Nähe-Liste und alle NPCs liefern im selben
+  Augenblick denselben NPC (30/30). NPC-Zeichen in `drawOverlay3`: dieselben 17 NPCs.
+- `v3Monsters`: dieselben 596 Monster wie der alte Rechteck-Test.
+- Turmsieg: Truhe und Schmied stehen in `game.world.npcs` und in `tfNpcs()`; ohne Lauf entfernt `tfTick` beide wieder.
+- Nekromant (Weg der Seelen): 4 getötete Monster → 4 Gräber (neu wie alt). Magier: `graveTick` kehrt sofort zurück.
+- Wellenmonster: tote im eigenen Gebiet sind im nächsten Bild weg, tote in einem fremden Gebiet beim nächsten Neuaufbau.
+- Netz: `netMirrorMonsters` 600 Bilder neu gegen alt auf denselben Monsterlagen (76 nah, 8.582 fern): Endlagen gleich
+  (Abweichung 0 px), Zustände gleich. `netSnapshotFor` an 3 Stellen: dieselben Einträge.
+- Kontrollbilder (niedrig 3D Stadt, Plus 3D Kampf, niedrig 2D Kampf, niedrig 3D Kampf): Figuren, Namen, Zeichen,
+  Minikarte wie vorher. Keine Seitenfehler.
+
+### Offen
+
+- `solidObstacles` (welt.js) baut viermal je Sekunde ein Raster aus allen ~1.100 Seelensteinen der Welt (rund
+  750 KB/s Speicher, 6 % der Zuteilung in der Stadt) – mit `monstersNear` auf die Gebiete der Spieler beschränkbar.
+- `instWatch` sucht den Instanzboss alle 0,5 s noch über alle Monster (`find`, nur in einer Instanz).
+- Optional aus dem Plan nicht gemacht: Rechteck-Ausschluss in `v3InView` (die Zahl der Aufrufe ist schon halbiert).
+- Die Rechtecke gelten nur, solange kein Monster weiter als die größte Verfolgungsstrecke (+ 4 Kacheln) von den
+  Startplätzen seines Gebiets weg kommt; sonst wäre es (wie in 3D schon seit 14.26) unsichtbar, unhörbar und nicht
+  mehr zu treffen.
+
+### Neue Texte
+
+Keine.
+
+## Wärme 2 – 2D-Ebene über der 3D-Welt: halbe Dichte, Schrift als Bilder, unverändert nicht neu malen, Nachtfärbung in 3D
+
+Gleicher Spieler, gleiche Einstellungen (Grafik „Niedrig“, „30 (Akku)“, „Akku schonen“, 3D). Über der 3D-Welt liegt die
+2D-Zeichenfläche `#welt` (Namen, Balken, Zeichen, Schadenszahlen, Wegweiser). Sie war am iPhone 13 1688×780 Bildpunkte
+groß (Dichte 2, Regel aus 13.23), wurde in jedem Spielbild ganz geleert und neu bemalt, schrieb jeden Namen zweimal
+(Rand + Füllung, rund 21 Schriftwechsel und 22 Schriftzüge je Bild in der Stadt) und war damit nie unverändert – der
+Compositor musste sie in jedem Bild neu hochladen und zusammensetzen. Nachts füllte die Nachtfärbung sie zusätzlich ganz
+(bemalt 100 % statt rund 4 %). WebKit rastert Canvas 2D am iPhone auf dem Prozessor.
+
+### Änderungen
+
+- `js/zeichnen.js` `resizeRenderer`: Mit der Sparoptik und in 3D hat die 2D-Ebene die halbe Gerätedichte ab 2,6-fach
+  (iPhone 13/14: 1,5 → 1266×585 statt 1688×780, −44 % Bildpunkte), sonst höchstens 1,5. Grafik „Mittel“ und höher
+  unverändert mindestens 2. `applyOpts` ruft `resizeRenderer` auf, ein Grafikwechsel greift sofort. `v3Anchor`,
+  `drawOverlay3`, die Durchsicht um die Figur (`V3.fadeScreen` rechnet mit der Dichte der 3D-Fläche) und das Antippen
+  (`v3ScreenToWorld`, CSS-Pixel) nutzen nur `renderer.dpr` bzw. CSS-Pixel – geprüft.
+- `js/zeichnen.js`, Beschriftungen als fertige Bilder (alle Grafikstufen, 2D und 3D): `LABEL_CACHE`/`monsterLabel`
+  verallgemeinert zu `labelBild(schlüssel, plan, slot)` (Schärfe = doppelte Dichte der Zeichenfläche in halben Schritten,
+  im Schlüssel; nach dem Nachladen der Schrift werden alle Bilder verworfen, `document.fonts` „loadingdone“). Als Bild:
+  NPC-Namen, eigene Figur und Mitspieler (Rang-Stein, „LVL 80“, Gilde in Gildenfarbe, Name in Gruppen-/PvP-/Normalfarbe –
+  ein Bild je Kombination, am Spieler gemerkt; Sprache über `trName`), Diener-Namen, Riss-Name mit Restzeit (eigenes,
+  wiederverwendetes Bild, neu gemalt einmal je Sekunde), Questzeichen (`drawNpcMarks`: Plakette, Schein und „!“/„?“ in
+  einem Bild), das Ratgeber-„?“ (`js/ratgeber.js`, Schein bleibt live) und der Text des Wegweisers (`js/karte.js`
+  `drawGuide`, eigenes Bild, neu nur bei neuem Text). Gemalt wird nur noch per `drawImage`; die Tarnung gilt beim
+  Kopieren (`globalAlpha` 0,5). Lebensbalken (`drawBar`) und Sprechblasen bleiben live.
+- `js/zeichnen.js` + `js/drei-kern.js` `drawOverlay3`, Overlay nur bei Änderung neu malen (nur mit der Sparoptik): zwei
+  Durchgänge. 1. Sammeln: je Schild der Ankerpunkt (`v3AnchorAt`, Lage in ganzen Geräte-Pixeln, Maßstab gerundet), die
+  Bilder, Balkenwerte in Hundertsteln, Sprechblasen, Zielpfeil als kurze Schrittliste (`OVL`, `ovImg`/`ovBar`/…), dazu
+  die Kameramatrix (gerundet) und die Kennwerte des Wegweisers (`guideOps`). 2. Malen in der alten Reihenfolge
+  (`ovReplay`). Sind keine Effekte im Overlay, Geschosse, Teilchen, Zahlen, Duell, Treffer-Rand, Bildschirmblitz und
+  keine bewegten Auren (Nekromant, Magier, Knochenschild) aktiv – auch im Bild davor nicht – und ist alles gleich wie im
+  letzten Bild, entfallen `clearRect` und Malen: die Fläche behält ihr Bild. Ein Größenwechsel der Flächen zeichnet
+  immer, außerdem spätestens alle 2 s ein Bild. Grafik „Mittel“ und höher: jedes Bild wie bisher (dieselbe Schrittliste,
+  ungerundet).
+- Damit das Überspringen in der Stadt überhaupt greift (in 3D mit der Sparoptik): Questzeichen und Ratgeber-„?“ wippen in
+  ganzen Pixeln im gemeinsamen 4-Hz-Takt (`wippZeit`), der Schein des „?“ pulsiert in ganzen Pixeln. **Abweichung vom
+  Plan:** Der Wegweiser (`drawGuide`) ist praktisch immer aktiv (automatisch aus den Aufträgen) und hätte als „aktiv“ jedes
+  Überspringen verhindert. Mit der Sparoptik in 3D steht er deshalb still (kein Wippen, kein Pulsieren, die zwei Vorläufer
+  fest auf halbem Weg – wie die festen Leuchtzeichen der CSS-Sparoptik) und steht in der Schrittliste.
+- Nacht- und Gebietsfärbung in 3D (nur Sparoptik und 3D): `drawZoneTint` entfällt im Overlay. Stattdessen
+  `v3SyncTint` (`js/drei-kern.js`): eine Fläche direkt vor der Kamera in der Szene (`MeshBasicMaterial`, durchsichtig,
+  ohne Tiefentest/-schreiben, ohne Nebel und Tonwertanpassung, `renderOrder` zuletzt), Farbe und Deckkraft aus
+  `zoneTintRGBA()` (`js/umgebung.js`, dieselbe Mischung aus `nightTintRGBA()` (`js/tag-nacht.js`, jetzt ein
+  wiederverwendetes Feld) und `ambientState.tint`), sichtbar ab a > 0,005. Namen und Zahlen liegen nun über der Färbung
+  (vorher um 12 % mitgefärbt). Grafik „Mittel“ und 2D unverändert. `drawHurtVignette` und `drawScreenFlash` bleiben im
+  Overlay (ein aktiver Blitz/Rand verhindert das Überspringen).
+
+### Messung vorher/nachher
+
+A/B im selben Zeitfenster: vorher = Arbeitsstand nach dem Logik-Paket (eingefroren, `scratchpad/waerme2/repo-w1`), nachher
+= derselbe Stand + diese Dateien (`repo-w2`). Emuliertes iPhone 13 quer (Dichte 3), Hauptthread 4-fach gedrosselt,
+SwiftShader, Krieger Stufe 80. Zeiten streuen (4 Kerne, andere Messungen parallel); Zähler sind exakt. Skripte und
+Rohdaten unter `scratchpad/waerme2/w2/` (`messen/domcss.js`, `messen/render-alles.sh`, `kern.py`, `probe.js`).
+
+DOM/CSS-Messung (`domcss.js`, Lagen Stadt stehen / Stadt laufen / Kampf; nachts mit `dayNight.force=1`; „NPCs stehen“
+mit angehaltenen Stadtbewohnern). „je Spielbild“ = ms je s ÷ Spielbilder je s:
+
+| Kennzahl | vorher | nachher |
+|---|---:|---:|
+| 2D-Ebene (Puffer) | 1688×780 = 1,32 Mio. Bp | 1266×585 = 0,74 Mio. Bp (56 %) |
+| Schriftwechsel je Bild / Schriftzüge (strokeText) je Bild, Stadt | 21 / 22 | 0 / 0 |
+| 2D-Aufrufe je Overlay-Bild, Stadt | 67 | 38 |
+| `RasterCHROMIUM` Hauptthread, Stadt laufen | 261,6 ms/s | 14,2 ms/s (5 %) |
+| geleerte Fläche je Overlay-Bild | 1,32 Mio. Bp | 0,74 Mio. Bp (56 %) |
+| GPU-Prozess ms je Bildschirm-Bild, Tag: stehen / laufen / Kampf | 64,2 / 53,8 / 120,4 | 42,7 / 46,1 / 111,6 (67 / 86 / 93 %) |
+| Nacht: Overlay bemalt (Anteil der Fläche), stehen / laufen / Kampf | 100 / 100 / 100 % | 4,2 / 2,6 / 7,4 % |
+| Nacht: GPU-Prozess ms je Spielbild, stehen / laufen / Kampf | 67,4 / 70,4 / 258,2 | 37,2 / 35,9 / 142,3 (55 / 51 / 55 %) |
+| NPCs stehen: Overlay neu gemalt je Spielbild | 1,0 | 0,20 |
+| NPCs stehen: geleert MPx/s / GPU-Prozess ms je Spielbild | 25,2 / 48,0 | 2,96 / 27,4 (12 / 57 %) |
+| NPCs stehen: `RasterCHROMIUM` Hauptthread | 18,0 ms/s | 1,9 ms/s |
+
+Render-Messung (`render-alles.sh`, umgerechnet auf 30 Bilder/s; iPhone 13):
+
+| Kennzahl | vorher | nachher |
+|---|---:|---:|
+| 2D-Ebene löschen Bp/s (Mio.), alle 3D-Lagen | 39,5 | 22,2 (56 %) |
+| Canvas 2D beschrieben Bp/s (Mio.), stehen / laufen / Kampf | 43,0 / 42,6 / 55,3 | 26,5 / 26,8 / 31,0 (61 / 63 / 56 %) |
+| Schriftwechsel/s, stehen / Kampf | 390 / 83,7 | 0 / 7,2 |
+| Canvas-2D-Aufrufe/s, stehen | 5.370 | 3.570 |
+| Hochladen KB/s, Kampf | 11.460 | 6.831 |
+| iPhone 14 Pro Max, 2D-Ebene löschen Bp/s (Mio.) | 48,1 | 27,1 |
+| 2D-Ansicht (Kampf): Canvas 2D beschrieben Bp/s | 85,1 | 88,1 (unverändert, eigene Fläche) |
+
+- In der Messlage „Stadt stehen“ laufen Stadtbewohner durchs Bild – deren Schilder bewegen sich, das Overlay malt dann
+  in jedem Bild neu (0,99 je Spielbild). Stehen keine NPCs im Bild, sinkt es auf 0,20 (Questzeichen-Takt 4 Hz und die
+  Auffrischung alle 2 s). Die Probe ohne Drosselung (`probe.js`) zählt in der Stadt mit laufenden NPCs 13 von 24 Bildern
+  gemalt, mit stehenden 6 von 31.
+- Nachts entfällt die Vollflächen-Füllung ganz; die Färbung kostet in der 3D-Szene eine zusätzliche, fast leere
+  Zeichenfläche (eine Fläche, 2 Dreiecke), die die Grafikkarte im selben Durchgang mischt.
+- Die GPU-Zeit am Tag beim Laufen (86 %) und im Kampf (93 %) liegt über dem Ziel (75 % bzw. 90 %); Zeiten streuen unter
+  der Last stark, die Zähler (Bildpunkte, Schriftzüge, Hochladen) sinken wie erwartet.
+
+### Funktionsprüfung (Bilder unter `scratchpad/waerme2/w2/bilder*/`, jeweils vor/nach)
+
+- iPhone 13 (Dichte 3) und mit Dichte 2: Stadt, Nacht, Kampf (Grafik „Niedrig“), Stadt bei „Mittel“ und „Hoch“, 2D Stadt
+  und Nacht. Namen (9–11 px) gleich lesbar, keine Reste beim Laufen/Kämpfen (Zahlen, Balken, Zielpfeil wandern mit).
+- Schild-Varianten (`schilder.js`, Testfläche): eigene Figur mit Gilde und eigenem Balken, Gruppenmitglied (groß, grün),
+  Turnierarena (Teamfarbe, Rang-Stein, Gilde), getarntes Gruppenmitglied (halb durchsichtig, mit Sprechblase),
+  Questzeichen, Ratgeber-„?“, Monster als Ziel mit Pfeil – vor/nach gleich.
+- Sprache Englisch: NPC-Namen englisch („Village Elder Bao“ …); ein Sprachwechsel lädt die Seite neu, alle Bilder neu.
+- Nachtfarbe (Mittelwert eines Weltausschnitts): Dichte 3 Helligkeit 93,3 → 93,4, RGB 87,7/93,6/106,3 → 88,2/93,7/105,9;
+  Dichte 2 93,0 → 93,4. „Mittel“ nachts: 92,6 → 92,5, Overlay wie bisher voll bemalt (Färbung dort).
+- Grafik „Mittel“/„Hoch“: Overlay-Dichte 2 (1688×780), jedes Bild gemalt, keine Färbung in 3D, keine Schriftzüge mehr
+  (fertige Bilder). Wechsel „Niedrig“ → „Mittel“ im laufenden Spiel: Dichte und Färbung wechseln sofort.
+
+### Offen
+
+- Laufende Stadtbewohner im Bild verhindern das Überspringen (ihre Schilder bewegen sich). Weiter ginge es nur mit
+  Schildern als 3D-Sprites oder einem gröberen Takt für ferne Schilder.
+- Mit Nekromant, Magier oder Knochenschild malt das Overlay jedes Bild (Seelenfunken, Schein am Zepter, Knochen kreisen –
+  bewegte Auren im Overlay).
+- Die Schild-Bilder sind bei „Mittel“ 4-fach (vorher Monster fest 3-fach) – je Bild bis rund 100 KB, der Vorrat wird
+  ab 400 Bildern geleert.
+- Nicht auf einem echten iPhone gemessen. WebKit rastert Canvas 2D auf dem Prozessor und lädt eine unveränderte Fläche
+  nicht neu hoch; die Zähler (Bildpunkte, Schriftzüge, Neuzeichnungen) gelten unabhängig vom Browser.
+
+### Neue Texte
+
+Keine.

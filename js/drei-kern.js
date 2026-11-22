@@ -1230,49 +1230,17 @@ const _vc = { x: 0, y: 0 };
 // Figuren, Namen, Zustandsanzeigen und Vorwärmen in jedem Bild alle durch. Jetzt nur die Gebiete (Maps, Dungeons),
 // deren Monster in der Nähe der Kamera stehen können – aus dem Gebietsverzeichnis von gegner.js (monsterIndex).
 // Je Gebiet ein Rechteck um die Startplätze plus die größte Verfolgungsstrecke (Leine, mehr gehen Monster nicht weg).
-const MONS3 = { list: [], frame: -1, map: null, boxes: new Map() };
-const MONS3_PAD = LEASH * 2 * 1.7 * 1.5 + 4 * TILE;
+// Seit Wärme 2 stehen die Rechtecke im Gebietsverzeichnis selbst (monstersNear, gegner.js): dieselbe Regel gilt jetzt
+// auch für Monsterlaute, Kampf, Geschosse, Karte, 2D-Bild und Netz.
+const MONS3 = { list: null, frame: -1 };
 function v3Monsters() {
   const M = MONS3;
-  if (M.frame === V3.frame) return M.list;
+  if (M.frame === V3.frame && M.list) return M.list;
   M.frame = V3.frame;
-  const idx = typeof monsterIndex === 'function' ? monsterIndex() : null;
-  const L = M.list;
-  // Liste nur kürzen statt leeren (leeren gäbe ihren Speicher frei, das Auffüllen legte ihn jedes Bild neu an)
-  let n = 0;
-  if (!idx) {
-    for (const m of game.monsters) L[n++] = m;
-    L.length = n;
-    return L;
-  }
-  if (M.map !== idx) {
-    M.map = idx;
-    M.boxes.clear();
-    for (const [k, l] of idx) {
-      let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-      for (const m of l) {
-        const hx = m.homeX ?? m.x;
-        const hy = m.homeY ?? m.y;
-        if (hx < x0) x0 = hx;
-        if (hx > x1) x1 = hx;
-        if (hy < y0) y0 = hy;
-        if (hy > y1) y1 = hy;
-      }
-      M.boxes.set(k, [x0 - MONS3_PAD, y0 - MONS3_PAD, x1 + MONS3_PAD, y1 + MONS3_PAD]);
-    }
-  }
   const r = renderer;
   const R = (Math.max(r.w, r.h) / Math.max(0.5, r.zoom || 1) + 40 * TILE) * (V3.zoomMul || 1);
-  const fx = V3.focus.x;
-  const fy = V3.focus.y;
-  for (const k of idx.keys()) {
-    const b = M.boxes.get(k);
-    if (b && (fx + R < b[0] || fx - R > b[2] || fy + R < b[1] || fy - R > b[3])) continue;
-    const l = idx.get(k);
-    for (let i = 0; i < l.length; i++) L[n++] = l[i];
-  }
-  if (L.length !== n) L.length = n;
-  return L;
+  M.list = typeof monstersNear === 'function' ? monstersNear(V3.focus.x, V3.focus.y, R) : game.monsters;
+  return M.list;
 }
 
 // Liegt ein Weltpunkt im Bild? Feste Kamera: Rechteck mit mehr Sicht nach Norden; Schulterblick: Kreis
@@ -1551,6 +1519,14 @@ const _fadeC = {};
 // Kamera; ein Punkt knapp vor ihrer Bildebene bekam den Maßstab 1000–7000, ein Pollenkorn (2 px, leuchtend addiert)
 // wurde zur Scheibe über den ganzen Bildschirm – für ein Bild war alles weißlich („flackert ab und zu weiß“).
 function v3Anchor(ctx, wx, wy, h = 0, ax = wx, ay = wy) {
+  const ok = v3AnchorAt(wx, wy, h, _anc);
+  ctx.setTransform(_anc.a, 0, 0, _anc.a, _anc.x - ax * _anc.a, _anc.y - ay * _anc.a);
+  return ok;
+}
+// Ankerpunkt ohne Zeichenfläche (seit Wärme 2, für das Sammeln der Schilder in drawOverlay3): Bildschirmpunkt des
+// Weltpunkts in Geräte-Pixeln (out.x, out.y) und Maßstab out.a (Geräte-Pixel je Weltpixel); Rückgabe wie v3Anchor
+const _anc = { a: 1, x: 0, y: 0 };
+function v3AnchorAt(wx, wy, h, out) {
   v3Project(wx, wy, h, _pa);
   // seit 15.31: Maßstab entlang der Bildwaagerechten der Kamera statt entlang der Welt-X-Achse – bei gedrehter
   // Kamera (Schulterblick, rechte Maustaste) schrumpften Namen, Balken und Zahlen sonst bis zum Verschwinden
@@ -1561,7 +1537,9 @@ function v3Anchor(ctx, wx, wy, h = 0, ax = wx, ay = wy) {
   const k = Math.max(0.05, dx) / 32;
   const r = renderer;
   const d = r.dpr;
-  ctx.setTransform(k * d, 0, 0, k * d, (_pa.x - ax * k) * d, (_pa.y - ay * k) * d);
+  out.a = k * d;
+  out.x = _pa.x * d;
+  out.y = _pa.y * d;
   // nah an der Kamera wächst der Maßstab ins Unendliche: mehr als h/12 Pixel je Weltpixel kommt im Bild nicht vor
   // (gemessen: feste Kamera bis 2,7, Schulterblick am Bildrand unten etwa h/26)
   return _pa.z > -1 && _pa.z < 1 && hyp(dx, _pb.y - _pa.y) / 32 < r.h / 12 + 2 &&
@@ -2797,25 +2775,49 @@ const lightSpots3 = [];
 // Feuerbecken flackern ruhiger (zwei langsame Wellen statt einer schnellen) und waschen den Boden nicht weiß.
 const LIGHT_REACH3 = 18;
 const _near3 = [];
+// seit Wärme 2: Lichtpunkte in der Nähe (|dx|, |dz| < LIGHT_REACH3 + 12 Einheiten), neu gesammelt alle 0,5 s, nach
+// mehr als 2 Einheiten Weg oder wenn sich die Liste der Lichtpunkte ändert – vorher je Bild alle ~2.350 der Welt mit
+// Wurzel. Die Paare [Abstand, Licht] werden wiederverwendet statt je Bild neu angelegt.
+const LIGHTS3_NEAR = { list: [], at: -1e9, x: 0, z: 0, len: -1, pairs: [] };
 function v3UpdateLights(fx, fy) {
   const px = fx * U3;
   const pz = fy * U3;
-  const near = _near3;
-  near.length = 0;
-  for (const s of lightSpots3) {
-    const d = hyp(s.x - px, s.z - pz);
-    if (d < LIGHT_REACH3) near.push([d, s]);
+  const N = LIGHTS3_NEAR;
+  const now = performance.now();
+  if (N.len !== lightSpots3.length || now - N.at > 500 || now < N.at || Math.abs(px - N.x) > 2 || Math.abs(pz - N.z) > 2) {
+    N.len = lightSpots3.length;
+    N.at = now;
+    N.x = px;
+    N.z = pz;
+    const R = LIGHT_REACH3 + 12;
+    const L = N.list;
+    let k = 0;
+    for (const s of lightSpots3) if (Math.abs(s.x - px) < R && Math.abs(s.z - pz) < R) L[k++] = s;
+    L.length = k;
   }
+  const near = _near3;
+  let n0 = 0;
+  for (const s of N.list) {
+    const d = hyp(s.x - px, s.z - pz);
+    if (d >= LIGHT_REACH3) continue;
+    const e = N.pairs[n0] || (N.pairs[n0] = [0, null]);
+    e[0] = d;
+    e[1] = s;
+    near[n0++] = e;
+  }
+  near.length = n0;
   near.sort((a, b) => a[0] - b[0]);
   const n = V3.points.length;
   const edge = near[n] ? near[n][0] : LIGHT_REACH3;
-  V3.points.forEach((l, i) => {
+  for (let i = 0; i < n; i++) {
+    const l = V3.points[i];
     const e = near[i];
     if (!e) {
       l.intensity = 0;
-      return;
+      continue;
     }
-    const [d, s] = e;
+    const d = e[0];
+    const s = e[1];
     const fade = Math.max(0, Math.min(1, (edge - d) / 2.5, (LIGHT_REACH3 - d) / 4));
     const f = s.flicker || 0;
     const wave = f ? 0.94 + 0.04 * Math.sin(V3.time * Math.min(f, 4) + s.x) + 0.02 * Math.sin(V3.time * Math.min(f, 4) * 2.3 + s.z) : 1;
@@ -2823,10 +2825,12 @@ function v3UpdateLights(fx, fy) {
     l.color.set(s.color);
     l.distance = s.range || 7;
     l.intensity = Math.min(1.4, s.power || 1) * fade * wave;
-  });
+  }
 }
 
 // Dunkle Überblendung nach einem Sprung: sofort dunkel, dann in einer halben Sekunde aufziehen
+// seit Wärme 2: danach ganz ausgeblendet (hidden). Unsichtbar mit Deckkraft 0 blieb sie bis zum Neuladen eine eigene
+// bildschirmgroße Ebene über der Welt, die der Compositor in jedem Bild mit zusammensetzte (gemessen am iPhone)
 function warpFade() {
   let el = document.getElementById('warpFade');
   if (!el) {
@@ -2836,14 +2840,23 @@ function warpFade() {
     const cv = document.getElementById('welt');
     if (cv) cv.after(el);
     else document.body.append(el);
+    el.addEventListener('transitionend', () => warpFadeDone(el));
   }
+  const n = (el.warpN = (el.warpN || 0) + 1);
+  el.hidden = false;
   el.style.transition = 'none';
   el.style.opacity = '0.9';
   void el.offsetWidth;
   requestAnimationFrame(() => requestAnimationFrame(() => {
     el.style.transition = 'opacity 0.55s ease-out';
     el.style.opacity = '0';
+    // falls transitionend ausbleibt (Seite verdeckt, Übergang abgebrochen); nur die jüngste Überblendung
+    setTimeout(() => { if (el.warpN === n) warpFadeDone(el); }, 650);
   }));
+}
+// erst ausblenden, wenn das Aufziehen wirklich fertig ist (eine neue Überblendung hat die Deckkraft wieder gesetzt)
+function warpFadeDone(el) {
+  if (el.style.opacity === '0' && getComputedStyle(el).opacity === '0') el.hidden = true;
 }
 
 // --- Ein Bild zeichnen ---------------------------------------------------------------------------
@@ -2857,6 +2870,47 @@ let v3Last = 0;
 // zeichnet danach die Schattenkarte; unmittelbar davor ruft es updateMatrices des Sonnenschattens – dort bekommt die
 // Kamera die Ebene dazu, nach dem Bild wieder weg.
 const SHADOW_LAYER3 = 9;
+// Nacht- und Gebietsfärbung in der 3D-Szene (seit Wärme 2, nur mit der Sparoptik, Grafik „Niedrig“): Nachts und in der
+// Dämmerung (etwa die Hälfte der Spielzeit) füllte drawZoneTint jedes Bild das ganze 2D-Overlay halbdurchsichtig – am
+// iPhone 1,3 Millionen Bildpunkte je Bild auf dem Prozessor gemalt, und die sonst fast leere Ebene war voll bemalt
+// (hochladen, zusammensetzen, nie unverändert). Jetzt liegt dieselbe Farbe (umgebung.js zoneTintRGBA) als Fläche direkt
+// vor der Kamera in der Szene: ohne Tiefentest und Nebel, als Letztes gezeichnet, gemischt wie im Overlay
+// (Quelle über Ziel, keine Farbumrechnung, ohne Tonwertanpassung). Die Grafikkarte mischt sie beim Zeichnen mit, das
+// Overlay bleibt leer. Namen und Zahlen liegen nun über der Färbung (vorher leicht mitgefärbt). Sichtbar ab a > 0,005.
+// Grafik „Mittel“ und höher sowie 2D: Färbung wie bisher im Overlay.
+const _tintRGB = new THREE.Color();
+function v3SyncTint() {
+  let m = V3.tintMesh;
+  const c = typeof sparOptik === 'function' && sparOptik() && typeof zoneTintRGBA === 'function' ? zoneTintRGBA() : null;
+  if (!c || !(c[3] > 0.005)) {
+    if (m) m.visible = false;
+    return;
+  }
+  const cam = V3.camera;
+  if (!m) {
+    const mat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0, depthTest: false, depthWrite: false, fog: false, toneMapped: false });
+    m = V3.tintMesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), mat);
+    m.frustumCulled = false;
+    m.renderOrder = 1e9;
+    m.castShadow = false;
+    m.receiveShadow = false;
+    m.name = 'faerbung';
+    V3.scene.add(m);
+  }
+  // nach einem Neuaufbau der Szene (Grafik-Neustart) wieder einhängen
+  if (m.parent !== V3.scene) V3.scene.add(m);
+  m.visible = true;
+  m.material.color.copy(_tintRGB.setRGB(c[0] / 255, c[1] / 255, c[2] / 255));
+  m.material.opacity = c[3];
+  // knapp hinter der vorderen Schnittebene, etwas größer als das Bild
+  const dist = cam.near * 2;
+  const hh = dist * Math.tan((cam.getEffectiveFOV() * Math.PI) / 360) * 1.1;
+  m.position.copy(cam.position);
+  m.quaternion.copy(cam.quaternion);
+  m.translateZ(-dist);
+  m.scale.set(hh * cam.aspect, hh, 1);
+}
+
 function v3RenderScene() {
   // seit 15.26: hinter dem deckenden Ladebild (kartenladen.js) nur jedes vierte Bild zeichnen – die Zeit gehört dem
   // Bauen der Karte; ganz aussetzen darf das Zeichnen nicht, sonst kämen Shader und Hochladen erst danach
@@ -3034,6 +3088,8 @@ function renderDrei() {
   v3SyncHouses();
   // seit 14.32: im Dungeon die Felswände zwischen Kamera und Figur absenken (groundMat)
   v3SyncCut(dt);
+  // Nacht- und Gebietsfärbung mit der Sparoptik als Fläche in der Szene (seit Wärme 2, v3SyncTint)
+  v3SyncTint();
   // Grafik Plus (seit 14.11, grafik-plus.js) zeichnet über Zwischenbilder mit Leuchten und Farbstimmung
   try {
     if (!(typeof gpRender === 'function' && gpRender())) v3RenderScene();
@@ -3056,11 +3112,57 @@ function renderDrei() {
 const _ovPlayers = [];
 const _ovList = [];
 const byY = (a, b) => a.y - b.y;
+// Overlay nur bei Änderung neu malen (seit Wärme 2, nur mit der Sparoptik, Grafik „Niedrig“): In der Stadt, beim
+// Reden, Handeln oder Stehen zeigt die Fläche oft viele Bilder lang dasselbe (Namen, Zeichen, Balken). Jedes Bild
+// wurde sie trotzdem ganz geleert, neu bemalt und als neue Ebene hochgeladen und zusammengesetzt. Jetzt werden die
+// Schilder zuerst gesammelt (Lage je Schild in ganzen Geräte-Pixeln, Bilder, Balken in Hundertsteln, zeichnen.js OVL),
+// dazu die Kameramatrix (gerundet) und die Kennwerte des Wegweisers (er steht mit der Sparoptik still, karte.js). Sind
+// weder Effekte am Boden oder im Overlay, Geschosse, Teilchen, Zahlen, Duell, Treffer-Rand, Bildschirmblitz noch
+// bewegte Auren aktiv (auch im letzten Bild nicht) und ist alles gleich wie im letzten Bild, entfallen Leeren und
+// Malen – die Fläche behält ihr Bild. Ein Größenwechsel (leert die Fläche) zeichnet immer, außerdem spätestens alle
+// 2 s ein Bild (falls das System die Fläche verworfen hat). Grafik „Mittel“ und höher: jedes Bild wie bisher.
+const OV3 = { ops: [], prev: [], cam: new Float64Array(18), pcam: new Float64Array(18), w: -1, h: -1, key: '', live: true, blank: true, at: 0, drawn: 0, kept: 0 };
+const _ovXf = { a: 1, x: 0, y: 0 };
+// Bewegt sich gerade etwas im Overlay, das nicht in der Schrittliste steht?
+function ov3Live(players, skip, spar) {
+  if (game.particles.length || game.texts.length || game.projectiles.length || game.duel) return true;
+  if (game.hurtFlash > 0 || game.screenFlash > 0) return true;
+  // der Wegweiser wippt und pulsiert – mit der Sparoptik steht er still und steht in der Schrittliste (guideOps)
+  if (!spar && typeof guideAktiv === 'function' && guideAktiv()) return true;
+  for (const e of game.effects) if (!skip(e)) return true;
+  // Auren der Spieler (drawPlayerExtras3): Seelenfunken des Nekromanten, Schein am Zepter des Magiers, Knochenschild
+  const flat = typeof FX3_KA === 'undefined';
+  for (const pl of players) if (flat || pl.classId === 'nekromant' || pl.classId === 'magier' || pl.shield > 0) return true;
+  return false;
+}
+// Kameramatrix und Bildwinkel, gerundet (Vergleich mit dem letzten Bild)
+function ov3CamSig(out) {
+  const cam = V3.camera;
+  const m = cam.matrixWorldInverse.elements;
+  for (let i = 0; i < 16; i++) out[i] = Math.round(m[i] * 1e4);
+  const pm = cam.projectionMatrix.elements;
+  out[16] = Math.round(pm[0] * 1e4);
+  out[17] = Math.round(pm[5] * 1e4);
+}
 function drawOverlay3(ctx) {
   const r = renderer;
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.clearRect(0, 0, r.canvas.width, r.canvas.height);
-  if (!game.running && !game.player) return;
+  const cv = r.canvas;
+  const O = OV3;
+  const spar = typeof sparOptik === 'function' && sparOptik();
+  // Größenwechsel der Flächen (resizeRenderer, v3Resize) leert sie: dann immer malen
+  const sized = cv.width !== O.w || cv.height !== O.h || V3.sizeKey !== O.key;
+  O.w = cv.width;
+  O.h = cv.height;
+  O.key = V3.sizeKey;
+  if (!game.running && !game.player) {
+    if (!spar || sized || !O.blank) {
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, cv.width, cv.height);
+    }
+    O.blank = true;
+    O.live = true;
+    return;
+  }
   const inView = (x, y) => v3InView(x, y, 120);
   const ground = (e) => e.ground || e.type === 'runes' || e.type === 'decal' || e.type === 'warn';
   // Ringe, Säulen, Blitze, Schnitte usw. stehen als 3D-Körper in der Szene (drei-fx.js)
@@ -3071,6 +3173,74 @@ function drawOverlay3(ctx) {
     const o = effectOrigin(e);
     return inView(o.x, o.y) && v3Anchor(c, o.x, o.y);
   };
+  // Spieler (Auren und Ringe) und Schilder
+  const players = _ovPlayers;
+  players.length = 0;
+  if (game.player && game.running && !game.player.dead) players.push(game.player);
+  for (const rp of net.players.values()) if (!rp.dead && !remoteHidden(rp) && inView(rp.x, rp.y)) players.push(rp);
+  const list = _ovList;
+  list.length = 0;
+  for (const m of v3Monsters()) if (!m.dead && inView(m.x, m.y) && !m.__wait3) list.push(m);
+  for (const a of game.allies) list.push(a);
+  // seit Wärme 2 nur die NPCs in der Nähe (npcsNear, zeichnen.js) statt aller ~580 der Welt
+  for (const n of npcsNear()) if (inView(n.x, n.y)) list.push(n);
+  for (const pl of players) {
+    list.push(pl);
+    // Diener der Mitspieler (seit 8.5): nur der Name
+    if (pl.allies) for (const al of pl.allies) if (inView(al.x, al.y)) list.push(al);
+  }
+  list.sort(byY);
+  // Schulterblick: Namen ferner Monster weglassen (sonst stapeln sie sich am Horizont übereinander)
+  const far2 = v3Shoulder() && game.player ? (13 * TILE * (V3.zoomMul || 1)) ** 2 : 0;
+  // Lastschutz (seit 15.12): im Gedränge und am Handy Namen und Balken gewöhnlicher Monster nur in der Nähe
+  const lr2 = LOAD.labelR && game.player ? (LOAD.labelR * TILE * (V3.zoomMul || 1)) ** 2 : 0;
+  // 1. Sammeln: Namen, Lebensbalken, Zeichen über den Köpfen als Schrittliste (zeichnen.js OVL, ovReplay)
+  const ops = O.ops;
+  ops.length = 0;
+  OVL.rec = ops;
+  OVL.live = false;
+  OVL.spar = spar;
+  try {
+    for (const e of list) {
+      if (lr2 && e.type && !e.isStone && e !== game.target && !(e.type.boss) && (e.x - game.player.x) ** 2 + (e.y - game.player.y) ** 2 > lr2) continue;
+      if (far2 && e.type && !e.isStone && e !== game.target && !(e.type.boss) && (e.x - game.player.x) ** 2 + (e.y - game.player.y) ** 2 > far2) continue;
+      const fy = feetY(e);
+      if (!v3AnchorAt(e.x, fy, v3HeadHeight(e), _ovXf)) continue;
+      // Lage des Schildes: Ankerpunkt in Geräte-Pixeln und Maßstab, mit der Sparoptik auf ganze Pixel gerundet
+      if (spar) ops.push(1, Math.round(_ovXf.a * 1024) / 1024, Math.round(_ovXf.x), Math.round(_ovXf.y), e.x, fy - figureHeight(e));
+      else ops.push(1, _ovXf.a, _ovXf.x, _ovXf.y, e.x, fy - figureHeight(e));
+      if (e.type && !e.isStone && !e.until && monsterStatusLive(e)) {
+        ops.push(7, e);
+        OVL.live = true;
+      }
+      if (!e.type && !e.isStone && !e.remote && e !== game.player && !e.until && !e.remoteAlly) drawNpcMarks(ctx, e);
+      drawLabel(ctx, e);
+    }
+    if (spar && typeof guideOps === 'function') guideOps(ops);
+  } finally {
+    OVL.rec = null;
+  }
+  // gleich wie im letzten Bild und nichts Bewegtes: Fläche behält ihr Bild
+  const live = OVL.live || ov3Live(players, skip, spar);
+  const now = performance.now();
+  if (spar) ov3CamSig(O.cam);
+  const keep = spar && !sized && !live && !O.live && !O.blank && now - O.at < 2000 && ovSame(ops, O.prev) && ovSame(O.cam, O.pcam);
+  O.ops = O.prev;
+  O.prev = ops;
+  const pc = O.pcam;
+  O.pcam = O.cam;
+  O.cam = pc;
+  if (keep) {
+    O.kept++;
+    return;
+  }
+  O.live = live || !spar;
+  O.blank = false;
+  O.at = now;
+  O.drawn++;
+  // 2. Malen (Reihenfolge wie bisher)
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, cv.width, cv.height);
   rankHaloPass(ctx, (e) => ground(e) && !skip(e), anchor);
   for (const e of game.effects) {
     if (!ground(e) || skip(e)) continue;
@@ -3097,42 +3267,15 @@ function drawOverlay3(ctx) {
   }
   rankHaloPass(ctx, (e) => !ground(e) && !skip(e), anchor, true);
   // Auren und Ringe der Spieler
-  const players = _ovPlayers;
-  players.length = 0;
-  if (game.player && game.running && !game.player.dead) players.push(game.player);
-  for (const rp of net.players.values()) if (!rp.dead && !remoteHidden(rp) && inView(rp.x, rp.y)) players.push(rp);
   for (const pl of players) drawPlayerExtras3(ctx, pl);
   drawParticles(ctx);
-  // Namen, Lebensbalken, Zeichen über den Köpfen
-  const list = _ovList;
-  list.length = 0;
-  for (const m of v3Monsters()) if (!m.dead && inView(m.x, m.y) && !m.__wait3) list.push(m);
-  for (const a of game.allies) list.push(a);
-  for (const n of game.world.npcs) if (inView(n.x, n.y)) list.push(n);
-  for (const pl of players) {
-    list.push(pl);
-    // Diener der Mitspieler (seit 8.5): nur der Name
-    if (pl.allies) for (const al of pl.allies) if (inView(al.x, al.y)) list.push(al);
-  }
-  list.sort(byY);
-  // Schulterblick: Namen ferner Monster weglassen (sonst stapeln sie sich am Horizont übereinander)
-  const far2 = v3Shoulder() && game.player ? (13 * TILE * (V3.zoomMul || 1)) ** 2 : 0;
-  // Lastschutz (seit 15.12): im Gedränge und am Handy Namen und Balken gewöhnlicher Monster nur in der Nähe
-  const lr2 = LOAD.labelR && game.player ? (LOAD.labelR * TILE * (V3.zoomMul || 1)) ** 2 : 0;
-  for (const e of list) {
-    if (lr2 && e.type && !e.isStone && e !== game.target && !(e.type.boss) && (e.x - game.player.x) ** 2 + (e.y - game.player.y) ** 2 > lr2) continue;
-    if (far2 && e.type && !e.isStone && e !== game.target && !(e.type.boss) && (e.x - game.player.x) ** 2 + (e.y - game.player.y) ** 2 > far2) continue;
-    const fy = feetY(e);
-    const head = v3HeadHeight(e);
-    if (!v3Anchor(ctx, e.x, fy, head, e.x, fy - figureHeight(e))) continue;
-    if (e.type && !e.isStone && !e.until) drawMonsterStatus(ctx, e);
-    if (!e.type && !e.isStone && !e.remote && e !== game.player && !e.until && !e.remoteAlly) drawNpcMarks(ctx, e);
-    drawLabel(ctx, e);
-  }
+  // Namen, Lebensbalken, Zeichen über den Köpfen (gesammelt oben)
+  ovReplay(ctx, ops);
   drawTexts(ctx);
   drawGuide(ctx);
   ctx.setTransform(r.dpr, 0, 0, r.dpr, 0, 0);
-  drawZoneTint(ctx, r.w, r.h);
+  // Nacht- und Gebietsfärbung: mit der Sparoptik als Fläche in der 3D-Szene (v3SyncTint), sonst hier
+  if (!spar) drawZoneTint(ctx, r.w, r.h);
   drawHurtVignette(ctx, r.w, r.h);
   drawScreenFlash(ctx, r.w, r.h);
 }

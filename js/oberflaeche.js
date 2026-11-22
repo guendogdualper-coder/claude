@@ -1208,7 +1208,9 @@ const ui = {
     const p = game.player;
     // seit 13.70: der Wellenmeister der eigenen Arena-Halle immer, egal wie weit weg (herausforderung.js)
     const hall = typeof arenaSlotAt === 'function' ? arenaSlotAt(p.x, p.y) : -1;
-    const boss = game.monsters.find((m) => m.type && m.type.boss && !m.dead && (dist(m, p) < 560 || (hall >= 0 && arenaSlotAt(m.x, m.y) === hall)));
+    // seit Wärme 2 nur Seelensteine und Bosse aus dem Gebietsverzeichnis (gegner.js) statt aller Monster der Welt
+    monsterIndex();
+    const boss = MON_INDEX.big.find((m) => m.type && m.type.boss && !m.dead && (dist(m, p) < 560 || (hall >= 0 && arenaSlotAt(m.x, m.y) === hall)));
     this.set('boss', boss ? boss.id + ':' + Math.ceil(boss.hp) : '', () => {
       $('bossBar').hidden = !boss;
       document.body.classList.toggle('has-boss', !!boss);
@@ -1591,6 +1593,8 @@ const ui = {
     // Der Handel bleibt offen, bis er abgeschlossen oder abgebrochen ist
     document.querySelectorAll('.panel').forEach((el) => { if (el.id !== 'panelDeath' && !(el.id === 'panelTrade' && game.trade)) el.hidden = true; });
     $('panelNpc').classList.remove('npc-wide', 'npc-klein');
+    // seit Wärme 2: verdeckt kein Fenster mehr die Welt, zeichnet das nächste Bild sie wieder (waermeschutz.js)
+    if (typeof leistungFensterWechsel === 'function') leistungFensterWechsel();
   },
 
   anyPanelOpen() {

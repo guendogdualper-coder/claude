@@ -28,8 +28,12 @@ const randInt = (min, max) => min + Math.floor(Math.random() * (max - min + 1));
 
 // Im Duell steht der Gegner als Stellvertreter mit in der Liste
 // seit 13.86 auch die gegnerischen Spieler in der Turnierarena (pvpFoes, turnierarena.js) – nie das eigene Team
-function aliveEnemies() {
-  const list = game.monsters.filter((m) => !m.dead);
+// seit Wärme 2 mit Ort: nur die lebenden Monster der Gebiete, die den Kasten (x, y) ± (r + 160) berühren können
+// (monstersNear, gegner.js) – eine Obermenge wie bei enemiesNear. Ohne Ort wie bisher alle der Welt.
+function aliveEnemies(x, y, r) {
+  const src = x == null ? game.monsters : monstersNear(x, y, (r || 0) + 160);
+  const list = [];
+  for (let i = 0; i < src.length; i++) if (!src[i].dead) list.push(src[i]);
   if (duelFighting() && !game.duel.proxy.dead) list.push(game.duel.proxy);
   if (typeof pvpFoes === 'function') for (const f of pvpFoes()) list.push(f);
   return list;
@@ -42,6 +46,8 @@ function aliveEnemies() {
 // wiederkehren) und je Aufruf nur daraus die lebenden nehmen. Liegt der gefragte Kreis nicht sicher im Kasten
 // (Abstand NEAR_FOES_SLACK für Bewegung innerhalb eines Bildes; z. B. ein Feld, von dem man weit weggeritten ist),
 // gilt wie bisher die ganze Welt. Ergebnis und Reihenfolge wie aliveEnemies(), nur ohne die fernen Monster.
+// Seit Wärme 2 kommt die Liste aus den Gebieten in der Nähe (monstersNear, gegner.js) statt aus allen ~8.700 Monstern
+// der Welt, und der Rückfall fragt nur die Gebiete um den gefragten Kreis (aliveEnemies mit Ort).
 const NEAR_FOES = { arr: null, len: -1, t: -1, x: 0, y: 0, list: [] };
 const NEAR_FOES_R = 2000;
 const NEAR_FOES_SLACK = 400;
@@ -57,16 +63,17 @@ function enemiesNear(x, y, r) {
     N.x = p.x;
     N.y = p.y;
     const L = N.list;
+    const src = monstersNear(N.x, N.y, NEAR_FOES_R);
     let n = 0;
-    for (let i = 0; i < ms.length; i++) {
-      const m = ms[i];
+    for (let i = 0; i < src.length; i++) {
+      const m = src[i];
       if (Math.abs(m.x - N.x) <= NEAR_FOES_R && Math.abs(m.y - N.y) <= NEAR_FOES_R) L[n++] = m;
     }
     L.length = n;
   }
   // + 160: Körpergröße der Monster (die Aufrufer rechnen ihren Radius zum Umkreis)
   const reach = NEAR_FOES_R - NEAR_FOES_SLACK - 160;
-  if (!(Math.abs(x - N.x) + r <= reach && Math.abs(y - N.y) + r <= reach)) return aliveEnemies();
+  if (!(Math.abs(x - N.x) + r <= reach && Math.abs(y - N.y) + r <= reach)) return aliveEnemies(x, y, r);
   const list = [];
   const L = N.list;
   for (let i = 0; i < L.length; i++) if (!L[i].dead) list.push(L[i]);
@@ -2298,8 +2305,10 @@ function updateProjectiles(dt) {
     // Geschosse von Mitspielern: nur zum Ansehen, sie enden am ersten Monster.
     // Ging der Schuss auf den Fokus des Mitspielers (passTo, Netzmeldung fo), fliegt er wie bei ihm durch die anderen
     // hindurch und endet erst am Monster am Zielpunkt; durchbohrende Pfeile (pierce) fliegen durch alle.
+    // seit Wärme 2 (auch unten bei den eigenen Geschossen) nur die Monster der Gebiete um das Geschoss
+    // (monstersNear, gegner.js) – vorher je Geschoss und Bild alle ~8.700 Monster der Welt
     if (pr.owner === 'remote') {
-      for (const m of game.monsters) {
+      for (const m of monstersNear(pr.x, pr.y, pr.radius + 200)) {
         if (m.dead || hyp(m.x - pr.x, m.y - pr.y) > m.r + pr.radius) continue;
         if (pr.passMon && !pr.passMon.dead ? m !== pr.passMon : pr.passTo && hyp(m.x - pr.passTo.x, m.y - pr.passTo.y) > m.r + 30) continue;
         if (pr.pierce) {
@@ -2332,7 +2341,7 @@ function updateProjectiles(dt) {
       // Kurvenflug (Schädelsalve): trifft nur sein eigenes Ziel, solange es lebt (fliegt an anderen vorbei)
       // dazu der Feuerball (focusOnly, seit 13.46 nur er): wer vor seinem Ziel steht, wird nicht getroffen
       const only = !pr.pierce && (pr.turn || pr.focusOnly) && pr.target && !pr.target.dead ? pr.target : (pr.onlyHit && !pr.onlyHit.dead ? pr.onlyHit : null);
-      for (const m of game.monsters) {
+      for (const m of monstersNear(pr.x, pr.y, pr.radius + 200)) {
         if (m.dead || pr.hit.has(m.id) || (only && m !== only)) continue;
         if (hyp(m.x - pr.x, m.y - pr.y) > m.r + pr.radius) continue;
         pr.hit.add(m.id);

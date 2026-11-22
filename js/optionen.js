@@ -94,6 +94,8 @@ function applyOpts() {
   renderer.maxDpr = gfx().dpr;
   if (renderer.canvas) resizeRenderer();
   if (V3.on) v3ApplyGraphics();
+  // Sparoptik (Grafik „Niedrig“: Oberfläche ohne Dauer-Animationen, waermeschutz.js) gleich beim Wechsel, ohne Neuladen
+  if (typeof sparOptikAnwenden === 'function') sparOptikAnwenden();
 }
 
 // 2D oder 3D: braucht ein frisches Zeichenfeld, darum kurz neu laden (Spielstand bleibt)

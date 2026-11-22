@@ -1,6 +1,6 @@
 // Spielzustand und Hauptschleife. Diese Datei wird als letzte geladen und startet alles.
 
-const GAME_VERSION = '15.52';
+const GAME_VERSION = '15.53';
 
 const game = {
   world: null,
@@ -202,9 +202,10 @@ function updatePlayer(dt) {
 
   // Händlerin oder Schmied in der Nähe?
   // nächste Person in Reichweite (in den Lagern stehen mehrere dicht beieinander)
+  // seit Wärme 2 nur die NPCs in der Nähe (npcsNear, zeichnen.js) statt aller ~580 der Welt
   let near = null;
   let nd = 70;
-  for (const n of game.world.npcs) {
+  for (const n of npcsNear()) {
     const d = dist(n, p);
     // seit 13.91 nicht durch die Wand eines begehbaren Hauses (sameRoom, welt.js)
     if (d < nd && sameRoom(n, p)) { near = n; nd = d; }
@@ -271,7 +272,10 @@ let lastFrame = 0;
 // und die große Karte mit voller Bildrate weiter (vorher 30 – dann ruckelte die Welt im Hintergrund beim Laufen);
 // nur Startbildschirm und Einstellung „30“ begrenzen
 function frameCap() {
-  if (opts.fps === '30' || !game.running) return 30;
+  if (!game.running) return 30;
+  // seit Wärme 2: auch „30 (Akku)“ ruht in Fenstern, auf der großen Karte und im Stillstand mit 20 Bildern/s (bei
+  // „Akku schonen“; „Ausgewogen“ ruht mit 30) und nimmt die Endstufe des Wärmeschutzes (24) mit – vorher immer 30
+  if (opts.fps === '30') return typeof leistungRuheCap === 'function' ? leistungRuheCap(30) : 30;
   // seit 13.34: am Handy heißt „Auto“ gleichmäßig 30 Bilder pro Sekunde. Mit 60 wurde das Handy schnell warm,
   // drosselte sich, und die automatische Anpassung senkte dann die Auflösung (verpixeltes Bild)
   // seit 14.98: am Handy heißt „Auto“ 60 Bilder pro Sekunde, solange das Gerät sie hält (adaptQuality); schafft es
@@ -307,6 +311,12 @@ function frame(ts) {
     // Größenwechsel nur hier, direkt vor dem Zeichnen (resizeRenderer/v3Resize verschieben Aufrufe von außerhalb hierher)
     renderer.loop = true;
     renderer.inFrame = true;
+    // Größe der Zeichenflächen vor diesem Bild (Welt hinter Fenstern, unten): jede Größenänderung leert sie
+    const resized = renderer.resizeDue;
+    const cv = renderer.canvas;
+    const cw0 = cv ? cv.width : 0;
+    const ch0 = cv ? cv.height : 0;
+    const v3Key0 = V3.sizeKey;
     if (renderer.resizeDue) resizeRenderer();
     if (ts - (renderer.sizeCheckAt || 0) > 500) {
       renderer.sizeCheckAt = ts;
@@ -319,7 +329,16 @@ function frame(ts) {
     else if (!game.running) game.time += dt;
     // Große Karte offen: seit 13.4 wird die Welt dahinter jedes Bild gezeichnet (vorher nur jedes dritte – das
     // ruckelte sichtbar), die Markierungen der Karte ziehen ebenfalls jedes Bild nach
-    render();
+    // seit Wärme 2: Deckt mit der Sparoptik ein Fenster fast das ganze Bild (Inventar, Charakter, Händler, Schmied …;
+    // leistungVerdeckt, waermeschutz.js), wird die Welt dahinter nur etwa 4-mal je Sekunde gezeichnet. Die Zeichenflächen
+    // behalten ihr letztes Bild; update läuft weiter (Kampf, Ton, Netz). Ein Bild mit Größenwechsel wird immer gezeichnet –
+    // das Setzen der Größe leert die Flächen (sonst das weiße Aufblitzen aus 15.52)
+    const sized = resized || (cv && (cv.width !== cw0 || cv.height !== ch0)) || V3.sizeKey !== v3Key0;
+    const skip = !sized && typeof leistungVerdeckt === 'function' && leistungVerdeckt() && ts - (renderer.drawnAt || 0) < 250;
+    if (!skip) {
+      render();
+      renderer.drawnAt = ts;
+    }
     if (game.running && typeof bigMapOpen === 'function' && bigMapOpen()) tickBigMap();
   } catch (err) {
     frameFailed(err);

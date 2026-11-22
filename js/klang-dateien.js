@@ -435,7 +435,9 @@ const musicFiles = {
       const k = music.moodAt(p.x + Math.cos(a) * 1400, p.y + Math.sin(a) * 1400);
       if (k) seen.add(k);
     }
-    if (game.monsters.some((m) => !m.dead && m.type && (m.type.boss || m.type.raid) && (m.x - p.x) ** 2 + (m.y - p.y) ** 2 < 1700 * 1700)) seen.add('boss');
+    // seit Wärme 2 nur Seelensteine und Bosse aus dem Gebietsverzeichnis (gegner.js) statt aller Monster der Welt
+    monsterIndex();
+    if (MON_INDEX.big.some((m) => !m.dead && m.type && (m.type.boss || m.type.raid) && (m.x - p.x) ** 2 + (m.y - p.y) ** 2 < 1700 * 1700)) seen.add('boss');
     if (MUSIC_SYNC[music.key]) seen.add(MUSIC_SYNC[music.key]);
     for (const k of seen) {
       const f = this.fileFor(k);

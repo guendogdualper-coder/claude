@@ -1476,36 +1476,128 @@ function areaKey(x, y) {
 // seit 14.38 dazu: Seelensteine (stones, für solidObstacles in welt.js), Seelenkristalle und Endbosse (crystals,
 // raids, für raidScan in endboss.js) und Monster nach Nummer (byId, für Treffer der Mitspieler in netz.js) – diese
 // Stellen gingen vorher je Bild bzw. je Treffer alle Monster der Welt durch
-const MON_INDEX = { arr: null, len: -1, at: -9, map: new Map(), list: [], stones: [], crystals: [], raids: [], byId: new Map() };
+// seit Wärme 2 dazu: big (Seelensteine, Bosse und Endbosse – für Schadensmesser, Musik, Bossbalken und das Vorladen
+// der Bossmusik), inst (Wächter und Bosse der Instanzen), night (Nachtmonster, für tag-nacht.js) und je Gebiet ein
+// Rechteck um die Startplätze (areas, für monstersNear). gen zählt die Neuaufbauten. big, inst und night sind nach
+// jedem Neuaufbau neue Listen (wer gerade eine alte durchläuft, behält sie unverändert).
+// Rand der Gebiets-Rechtecke: die größte Verfolgungsstrecke (doppelte Leine der Wellenmonster, im Dungeon 1,7-fach,
+// angeschlagen bis 1,5-fach) und 4 Kacheln – weiter kommt kein Monster von den Startplätzen seines Gebiets weg.
+// Bis Wärme 2 stand dieses Rechteck in v3Monsters (drei-kern.js, seit 14.26).
+// Seit Wärme 2 ohne Änderung der Liste nur noch alle 10 s neu (vorher 2 s): jede Änderung der Monsterliste ersetzt
+// das Feld (filter) oder ändert seine Länge (push) und baut sofort neu; Gebiet, Startplatz und Art eines Monsters
+// bleiben. Der Neuaufbau merkt sich dabei, ob tote Wellenmonster in der Liste liegen (gone, für updateMonsters).
+const MON_AREA_PAD = LEASH * 2 * 1.7 * 1.5 + 4 * TILE;
+const MON_INDEX_EVERY = 10;
+const MON_INDEX = { arr: null, len: -1, at: -99, gen: 0, gone: false, map: new Map(), list: [], stones: [], crystals: [], raids: [], big: [], inst: [], night: [], byId: new Map(), areas: [] };
 function monsterIndex() {
   const ms = game.monsters;
-  if (MON_INDEX.arr === ms && MON_INDEX.len === ms.length && game.time - MON_INDEX.at < 2 && game.time >= MON_INDEX.at) return MON_INDEX.map;
+  if (MON_INDEX.arr === ms && MON_INDEX.len === ms.length && game.time - MON_INDEX.at < MON_INDEX_EVERY && game.time >= MON_INDEX.at) return MON_INDEX.map;
   const map = new Map();
+  const recs = new Map();
   const stones = MON_INDEX.stones;
   const crystals = MON_INDEX.crystals;
   const raids = MON_INDEX.raids;
+  const big = [];
+  const inst = [];
+  const night = [];
   const byId = MON_INDEX.byId;
+  let gone = false;
   stones.length = 0;
   crystals.length = 0;
   raids.length = 0;
   byId.clear();
   for (const m of ms) {
     if (m.area == null) m.area = areaKey(m.homeX ?? m.x, m.homeY ?? m.y);
-    let l = map.get(m.area);
-    if (!l) map.set(m.area, (l = []));
-    l.push(m);
+    let r = recs.get(m.area);
+    if (!r) {
+      r = { k: m.area, l: [], x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
+      recs.set(m.area, r);
+      map.set(m.area, r.l);
+    }
+    r.l.push(m);
+    const hx = m.homeX ?? m.x;
+    const hy = m.homeY ?? m.y;
+    if (hx < r.x0) r.x0 = hx;
+    if (hx > r.x1) r.x1 = hx;
+    if (hy < r.y0) r.y0 = hy;
+    if (hy > r.y1) r.y1 = hy;
     byId.set(m.id, m);
-    if (m.isStone) stones.push(m);
-    else if (m.type) {
+    if (m.isStone) {
+      stones.push(m);
+      big.push(m);
+    } else if (m.type) {
       if (m.type.crystal) crystals.push(m);
       if (m.type.raid) raids.push(m);
+      if (m.type.boss || m.type.raid || m.type.raidBoss) big.push(m);
+      if (m.type.inst) inst.push(m);
     }
+    // wie nightMob (tag-nacht.js)
+    if (m.night || (m.type && m.type.night)) night.push(m);
+    if (m.dead && !m.respawn) gone = true;
+  }
+  const areas = [];
+  for (const r of recs.values()) {
+    r.x0 -= MON_AREA_PAD;
+    r.y0 -= MON_AREA_PAD;
+    r.x1 += MON_AREA_PAD;
+    r.y1 += MON_AREA_PAD;
+    areas.push(r);
   }
   MON_INDEX.arr = ms;
   MON_INDEX.len = ms.length;
   MON_INDEX.at = game.time;
   MON_INDEX.map = map;
+  MON_INDEX.big = big;
+  MON_INDEX.inst = inst;
+  MON_INDEX.night = night;
+  MON_INDEX.areas = areas;
+  MON_INDEX.gone = gone;
+  MON_INDEX.gen++;
   return map;
+}
+// Monster der Gebiete (Maps, Dungeons), deren Rechteck den Kasten (x ± R, y ± R) schneidet – eine Obermenge aller
+// Monster in diesem Kasten; die Aufrufer prüfen den Abstand selbst (seit Wärme 2). Dieselbe Regel, mit der v3Monsters
+// seit 14.26 zeichnet. Vorher gingen Monsterlaute, Kampf, Geschosse, Bossbalken, Karte, 2D-Bild und Netz je Bild alle
+// ~8.700 Monster der Welt durch (am Handy 4–12 Weltdurchläufe je Bild).
+// Die gelieferte Liste darf niemand verändern: ein Gebiet → dessen Liste aus dem Verzeichnis, mehrere → eine
+// zusammengesetzte (bis zum nächsten Neuaufbau aufgehoben), keins → leer. Keine dieser Listen ändert sich später (ein
+// Neuaufbau legt neue an), verschachtelte Aufrufe – ein Treffer in einer Schleife über monstersNear fragt selbst wieder
+// monstersNear – stören sich also nicht.
+const MON_NONE = Object.freeze([]);
+const MON_NEAR = { gen: -1, hit: [], cache: [] };
+function monstersNear(x, y, R) {
+  monsterIndex();
+  const A = MON_INDEX.areas;
+  const N = MON_NEAR;
+  if (N.gen !== MON_INDEX.gen) {
+    N.gen = MON_INDEX.gen;
+    N.cache.length = 0;
+  }
+  const hit = N.hit;
+  let n = 0;
+  for (let i = 0; i < A.length; i++) {
+    const a = A[i];
+    if (x + R < a.x0 || x - R > a.x1 || y + R < a.y0 || y - R > a.y1) continue;
+    hit[n++] = i;
+  }
+  if (n === 0) return MON_NONE;
+  if (n === 1) return A[hit[0]].l;
+  const C = N.cache;
+  search: for (let c = 0; c < C.length; c++) {
+    const ids = C[c].ids;
+    if (ids.length !== n) continue;
+    for (let j = 0; j < n; j++) if (ids[j] !== hit[j]) continue search;
+    return C[c].list;
+  }
+  const ids = hit.slice(0, n);
+  const list = [];
+  for (let j = 0; j < n; j++) {
+    const l = A[ids[j]].l;
+    for (let q = 0; q < l.length; q++) list.push(l[q]);
+  }
+  if (C.length >= 8) C.shift();
+  C.push({ ids, list });
+  return list;
 }
 // Alle Monster des Gebiets (Map oder Dungeon), zu dem m gehört – Gruppen, Elite und ihre Heilerinnen stehen immer im
 // selben Gebiet (gleicher Startplatz bzw. derselbe Dungeon); seit 14.38 für Schleifen je Treffer statt aller Monster
@@ -1761,11 +1853,18 @@ function updateMonsters(dt) {
 
   // Monster aus Steinwellen verschwinden nach dem Tod endgültig. Seit 14.26 nur dann eine neue Liste: vorher entstand
   // jedes Bild eine Kopie aller ~7.000 Monster (Müll für die Speicherbereinigung), und monsterIndex baute sich
-  // deshalb in jedem Bild neu auf statt alle 2 s
+  // deshalb in jedem Bild neu auf statt alle 2 s.
+  // Seit Wärme 2 je Bild nur in den gerechneten Gebieten suchen (dort sterben sie); für die ganze Welt gilt, was der
+  // letzte Neuaufbau des Gebietsverzeichnisses dabei gesehen hat (MON_INDEX.gone, ohne eigenen Durchlauf)
   let gone = false;
-  for (const m of game.monsters) if (m.dead && !m.respawn) { gone = true; break; }
+  if (MON_GONE.gen !== MON_INDEX.gen) {
+    MON_GONE.gen = MON_INDEX.gen;
+    gone = MON_INDEX.gone;
+  }
+  if (!gone) for (const m of list) if (m.dead && !m.respawn) { gone = true; break; }
   if (gone) game.monsters = game.monsters.filter((m) => !(m.dead && !m.respawn));
 }
+const MON_GONE = { gen: -1 };
 
 // --- Diener des Nekromanten (seit 8.5: drei Diener, ab E1 Knochenhunde; seit 13.94 ab H Knochendrachen,
 // ab V Seelenkolosse – deren Angriffe und Bilder in nekro-diener.js) ------------------------------------

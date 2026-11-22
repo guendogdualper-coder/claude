@@ -44,6 +44,14 @@ function leistungCap() {
   const pc = typeof IS_PC !== 'undefined' && IS_PC;
   let cap = pc ? (m === 'max' ? 0 : m === 'mittel' ? 60 : 30) : LEISTUNG_FPS[m];
   if (quality.cap30 && (cap === 0 || cap > 30)) cap = 30;
+  return leistungRuheCap(cap);
+}
+
+// Wärmeschutz-Endstufe und Ruhe auf eine Bildrate anwenden: für „Auto“ (leistungCap) und seit Wärme 2 auch für die
+// Bildrate „30 (Akku)“ (frameCap, spiel.js) – vorher lief „30 (Akku)“ in Fenstern und im Stillstand weiter mit 30
+// statt 20 Bildern/s, also gerade die sparsamste Einstellung ohne Ruhe-Drosselung
+function leistungRuheCap(cap) {
+  const m = leistungMode();
   // Wärmeschutz, letzte Stufe: noch einmal weniger Bilder (30 bzw. 24 – auf 60 Hz gleichmäßig 20)
   if (HEAT.fps) cap = cap === 0 || cap > 30 ? 30 : 24;
   const ruhe = LEISTUNG_RUHE[m];
@@ -208,4 +216,65 @@ if (navigator.getBattery) {
     bat.addEventListener('levelchange', check);
     bat.addEventListener('chargingchange', check);
   }).catch(() => {});
+}
+
+// Sparoptik (seit Wärme 2): Auf Grafik „Niedrig“ stehen alle Dauer-Animationen der Oberfläche still (Glanz der Balken,
+// pulsierende Knöpfe, Sternchen im Inventar; css/style.css und css/seltenheit.css, Abschnitt „Sparoptik“ unter
+// .spar-fx). Gemessen am iPhone hielten sie den Compositor auf 60 Zusammensetzungen je Sekunde statt der 30 des Spiels,
+// die box-shadow-Animationen ließen dazu jedes Mal die ganze HUD-Ebene neu malen und rastern.
+function sparOptik() {
+  return opts.graphics === 'niedrig';
+}
+function sparOptikAnwenden() {
+  document.documentElement.classList.toggle('spar-fx', sparOptik());
+}
+sparOptikAnwenden();
+
+// Welt hinter einem Vollbild-Fenster (seit Wärme 2, nur mit der Sparoptik): Inventar, Charakter, Händler, Schmied usw.
+// decken am Handy fast das ganze Bild (Inventar 88 %, fast deckender Hintergrund). frame (spiel.js) zeichnet die Welt
+// dahinter dann nur noch etwa 4-mal je Sekunde statt 20-mal; Spiel-Logik (Kampf, Ton, Netz) läuft unverändert weiter.
+// Wahr, wenn ein offenes Fenster (außer dem Todesfenster) mindestens 70 % des Bildschirms deckt und keine Laufeingabe
+// aktiv ist. Die Fläche wird höchstens zweimal je Sekunde gemessen (getBoundingClientRect); schließt das gemerkte
+// Fenster auf irgendeinem Weg, zählt das sofort (hidden), ui.closePanels/toggle setzen die Messung zurück.
+const VERDECKT = { at: 0, el: null };
+function leistungVerdeckt() {
+  if (!sparOptik() || !game.running) return false;
+  if (leistungLaufEingabe()) return false;
+  const now = performance.now();
+  if (VERDECKT.el && (VERDECKT.el.hidden || !VERDECKT.el.isConnected)) VERDECKT.at = 0;
+  if (now - VERDECKT.at > 500) {
+    VERDECKT.at = now;
+    VERDECKT.el = leistungDeckFenster();
+  }
+  return !!VERDECKT.el;
+}
+// offenes Fenster, das mindestens 70 % des Bildschirms deckt (oder null)
+function leistungDeckFenster() {
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  if (!vw || !vh) return null;
+  for (const el of document.querySelectorAll('.panel')) {
+    if (el.hidden || el.id === 'panelDeath') continue;
+    const r = el.getBoundingClientRect();
+    const w = Math.min(r.right, vw) - Math.max(r.left, 0);
+    const h = Math.min(r.bottom, vh) - Math.max(r.top, 0);
+    if (w > 0 && h > 0 && w * h >= 0.7 * vw * vh) return el;
+  }
+  return null;
+}
+// Steuerknüppel, Lauftaste oder Laufziel (Maus): dann bewegt sich die Welt hinter dem Fenster sichtbar
+function leistungLaufEingabe() {
+  if (typeof input === 'undefined') return false;
+  const s = input.stick;
+  if (s && Math.abs(s.x) + Math.abs(s.y) > 0.05) return true;
+  if (input.walkTo || input.mouseWalk) return true;
+  if (input.keys && input.keys.size && typeof MOVE_KEYS !== 'undefined') for (const k of input.keys) if (MOVE_KEYS[k]) return true;
+  return false;
+}
+// Fenster geschlossen oder gewechselt (ui.closePanels, ui.toggle): im nächsten Bild neu prüfen – die Welt wird sofort
+// wieder jedes Bild gezeichnet, und die Ruhe-Bildrate (leistungRuhig) endet ohne Verzögerung
+function leistungFensterWechsel() {
+  VERDECKT.at = 0;
+  VERDECKT.el = null;
+  HEAT.panelAt = 0;
 }

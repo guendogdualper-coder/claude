@@ -13,6 +13,9 @@ function graveTick() {
   const p = game.player;
   if (!p || p.dead) return;
   const sk = classSkills(p).find((s) => s.type === 'revive');
+  // seit Wärme 2: ohne Totenruf in der Klasse und ohne liegende Gräber nichts zu tun (vorher ging jede Klasse je Bild
+  // alle Monster der eigenen Map durch)
+  if (!sk && !(game.graves && game.graves.length)) return;
   const on = sk && p.level >= sk.unlock;
   const graves = game.graves || (game.graves = []);
   // seit 13.60 nur die Monster der eigenen Map (Gräber entstehen ohnehin nur in 600 Reichweite)

@@ -480,10 +480,15 @@ function tfHeimTick() {
 }
 
 // --- Nach dem Sieg: Truhe und Schmied erscheinen ---------------------------------------------------------------------
+// seit Wärme 2 gemerkt (TF_NPCS, gesetzt in turmFinaleSieg, geleert in tfNpcsWeg) – vorher filterte tfTick je Bild
+// alle ~580 NPCs der Welt. Gilt nur für die Welt, in der sie entstanden sind.
+const TF_NPCS = { list: [], world: null };
 function tfNpcs() {
-  return game.world ? game.world.npcs.filter((n) => n.id === 'turmtruhe' || n.id === 'turmschmied') : [];
+  return game.world && TF_NPCS.world === game.world ? TF_NPCS.list : [];
 }
 function tfNpcsWeg() {
+  TF_NPCS.list = [];
+  TF_NPCS.world = null;
   if (!game.world) return;
   game.world.npcs = game.world.npcs.filter((n) => n.id !== 'turmtruhe' && n.id !== 'turmschmied');
   if (game.nearNpc && (game.nearNpc.id === 'turmtruhe' || game.nearNpc.id === 'turmschmied')) game.nearNpc = null;
@@ -494,9 +499,13 @@ function turmFinaleSieg(run) {
   const s = run.slot;
   const mid = turmMid(s);
   const now = game.time;
-  game.world.npcs.push({ id: 'turmtruhe', name: TF.truhe, x: mid.x, y: mid.y + 1.5 * TILE, r: 18, turmSlot: s, born: now, openAt: 0 });
+  const truhe = { id: 'turmtruhe', name: TF.truhe, x: mid.x, y: mid.y + 1.5 * TILE, r: 18, turmSlot: s, born: now, openAt: 0 };
+  game.world.npcs.push(truhe);
   const at = turmPt(s, 0, -0.5);
-  game.world.npcs.push({ id: 'turmschmied', name: TF.schmied, x: at.x, y: at.y, r: 18, turmSlot: s, born: now + TF.smithDelay, strikeAt: 0, fxAt: 0 });
+  const schmied = { id: 'turmschmied', name: TF.schmied, x: at.x, y: at.y, r: 18, turmSlot: s, born: now + TF.smithDelay, strikeAt: 0, fxAt: 0 };
+  game.world.npcs.push(schmied);
+  TF_NPCS.list = [truhe, schmied];
+  TF_NPCS.world = game.world;
   // die Truhe fällt mit einer Lichtsäule herab
   tfSaeule(mid.x, mid.y + 1.5 * TILE, '#ffd34d', 1.4);
   shakeScreen(8);

@@ -85,8 +85,10 @@ const music = {
   },
 
   // lebender Boss in Reichweite? (Boss-Räume und Weltbosse)
+  // seit Wärme 2 nur Seelensteine und Bosse aus dem Gebietsverzeichnis (gegner.js) statt aller Monster der Welt
   bossNear(p, r) {
-    for (const m of game.monsters) {
+    monsterIndex();
+    for (const m of MON_INDEX.big) {
       if (m.dead || !m.type || !(m.type.boss || m.type.raid)) continue;
       if ((m.x - p.x) ** 2 + (m.y - p.y) ** 2 < r * r) {
         this.bossRef = m;

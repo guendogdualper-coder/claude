@@ -414,7 +414,9 @@ function instScan() {
   instFrame.t = game.time;
   instFrame.alive.clear();
   instFrame.all.clear();
-  for (const m of game.monsters) {
+  // seit Wärme 2 aus dem Gebietsverzeichnis (nur Monster mit type.inst, gegner.js) statt aller Monster der Welt
+  monsterIndex();
+  for (const m of MON_INDEX.inst) {
     const I = m.type && m.type.inst;
     if (!I || I.final || I.ht) continue;
     const d = instOfMonster(m);
@@ -1047,7 +1049,9 @@ function instWatch() {
     return;
   }
   // Wächter und Boss stellen sich vor, wenn man ihren Raum betritt
-  for (const m of game.monsters) {
+  // seit Wärme 2 nur die Wächter und Bosse aller Instanzen aus dem Gebietsverzeichnis (gegner.js) statt aller Monster
+  monsterIndex();
+  for (const m of MON_INDEX.inst) {
     const I = m.type && m.type.inst;
     if (!I || m.dead || Math.abs(m.x - p.x) > 420 || Math.abs(m.y - p.y) > 360) continue;
     if (hyp(m.x - p.x, m.y - p.y) > 400 || game.time - (instState.intro.get(m.id) || -1e9) < 300) continue;
@@ -1138,7 +1142,9 @@ function fx3Inst(h) {
   const low = n3low();
   const p = game.player;
   if (!p) return;
-  for (const m of game.monsters) {
+  // seit Wärme 2 nur Wächter und Bosse der Instanzen (Gebietsverzeichnis) – vorher je Bild alle Monster der Welt
+  monsterIndex();
+  for (const m of MON_INDEX.inst) {
     const I = m.type && m.type.inst;
     if (!I || m.dead || Math.abs(m.x - p.x) > 1400 || Math.abs(m.y - p.y) > 1100 || !v3InView(m.x, m.y, 200)) continue;
     const T = instTheme(m);

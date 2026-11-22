@@ -512,9 +512,11 @@ function netBroadcastProjectile(pr, m) {
 
 // Zustand für einen Mitspieler: Monster in seiner Nähe und die anderen Spieler (seit 14.4 nur nahe und die eigene Gilde,
 // mit full alle; f: 1 sagt dem Mitspieler, dass die Liste vollständig ist und Fehlende gegangen sind)
+// seit Wärme 2 nur die Monster der Gebiete um den Mitspieler (monstersNear, gegner.js) – vorher je Mitspieler 10-mal je
+// Sekunde alle ~8.700 Monster der Welt
 function netSnapshotFor(id, rp, full) {
   const mons = [];
-  for (const m of game.monsters) {
+  for (const m of monstersNear(rp.x, rp.y, NET_VIEW)) {
     if (Math.abs(m.x - rp.x) > NET_VIEW || Math.abs(m.y - rp.y) > NET_VIEW * 0.75) continue;
     // Bit 128 (seit 8.6): im Eis eingefroren (Bosse nie); ältere Clients übergehen es und zeigen Betäubungssterne
     const flags = (m.dead ? 1 : 0) | (m.moving ? 2 : 0) | (m.attackAnim > 0 ? 4 : 0) | (m.stun > 0 ? 8 : 0) | (m.facing < 0 ? 16 : 0) | (m.cast ? 32 : 0) | (m.windup > 0 ? 64 : 0) |
@@ -915,10 +917,18 @@ function netClientKill(m, who) {
   }
 }
 
-// Beim Mitspieler laufen keine Monster-KI und keine Zeitwirkungen, nur weiches Nachziehen
+// Beim Mitspieler laufen keine Monster-KI und keine Zeitwirkungen, nur weiches Nachziehen.
+// Seit Wärme 2 je Bild nur die Monster der Gebiete um die eigene Figur (monstersNear, gegner.js; Neuigkeiten kommen
+// ohnehin nur für Monster bis NET_VIEW) statt aller ~8.700 der Welt. Einmal je Sekunde ein voller Durchlauf: Wer nicht
+// in der Nähe gerechnet wurde, bekommt seine Anzeigen auf 0 und springt an seinen letzten bekannten Platz.
+const NET_MIRROR = { tick: 0, fullAt: -1e9 };
 function netMirrorMonsters(dt) {
   const k = Math.min(1, dt * 10);
-  for (const m of game.monsters) {
+  const p = game.player;
+  const tick = ++NET_MIRROR.tick;
+  const near = p ? monstersNear(p.x, p.y, NET_VIEW + 600) : game.monsters;
+  for (const m of near) {
+    m._mirT = tick;
     if (m.hitFlash > 0) m.hitFlash -= dt;
     if (m.attackAnim > 0) m.attackAnim -= dt;
     if (m.windup > 0) m.windup = Math.max(0, m.windup - dt);
@@ -928,6 +938,18 @@ function netMirrorMonsters(dt) {
     if (Math.abs(dx) + Math.abs(dy) > 240) { m.x = m.tx; m.y = m.ty; continue; }
     m.x += dx * k;
     m.y += dy * k;
+  }
+  const now = performance.now();
+  if (now - NET_MIRROR.fullAt < 1000 && now >= NET_MIRROR.fullAt) return;
+  NET_MIRROR.fullAt = now;
+  for (const m of game.monsters) {
+    if (m._mirT === tick) continue;
+    if (m.hitFlash > 0) m.hitFlash = 0;
+    if (m.attackAnim > 0) m.attackAnim = 0;
+    if (m.windup > 0) m.windup = 0;
+    if (m.tx == null || m.dead) continue;
+    m.x = m.tx;
+    m.y = m.ty;
   }
 }
 

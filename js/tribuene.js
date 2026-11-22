@@ -10,11 +10,14 @@
 //   Felswände an), in der Arena ein Platz, Wiesen, Bäume und Hügel. In 3D über die Bodenkacheln des Felds (tileSample)
 //   und die Mauer der Ränge; der schwarze Kasten um die Halle (BOUNDS3, drei-fx.js) ist dort aus. Der Boden bleibt
 //   über −0,1 (tiefer füllt drei-kern.js jede Senke mit Wasser). In 2D in die Bodenblöcke gemalt (renderGroundChunk).
-// - Leistung: In 3D ein Mesh für Ränge und Mauer, eins für Glut und Feuer, für alle Zuschauer zwei InstancedMesh (nahe
-//   und ferne Stufe, Phase 2): nur wer im Blickfeld sitzt, kommt hinein (neu verteilt, wenn die Kamera ein Stück weiter
-//   ist), die nächsten tribNearK() in die nahe Stufe. Wippen, Jubeln, Arme hoch im Shader; keine Schatten. In 2D sind
-//   Ränge und Hintergrund fest in die Bodenblöcke gemalt; die Zuschauer kommen aus einem vorgezeichneten Bildbogen (ein
-//   drawImage je sichtbarem Zuschauer). Grafik „Niedrig“: 40 % der Zuschauer, „Mittel“ 75 %, am Handy davon 70 %.
+// - Leistung: In 3D ein Mesh für Ränge und Mauer, eins für Glut und Feuer. In 2D sind Ränge und Hintergrund fest in die
+//   Bodenblöcke gemalt. Grafik „Niedrig“: 40 % der Zuschauer, „Mittel“ 75 %, am Handy davon 70 %.
+// - Zuschauer (Phase 3, „sollen aussehen wie die NPCs in der Stadt“): Bilder der echten Stadtbewohner bzw. der echten
+//   Ungeheuer aus einem einmal gezeichneten Bildbogen je Kameraart (tribuene-bild.js) – in 3D alle zusammen ein Mesh aus
+//   zur Kamera gedrehten Achtecken (ein Zeichenaufruf, sechs Dreiecke je Zuschauer; Haltung, Hüpfen und Licht im Shader,
+//   die Blickrichtung je Zuschauer mit etwas Spielraum aus tribbDirs3), in 2D ein drawImage je sichtbarem Zuschauer. Die bisherigen gebauten
+//   Zuschauer (zwei InstancedMesh, nahe und ferne Stufe, trib3FansAlt/trib3FanSync; in 2D der gemalte Bildbogen
+//   trib2Atlas) bleiben nur als Ersatz, falls die Bilder nicht gezeichnet werden können.
 // - Kamera (Phase 2, „Lupen-Effekt“ am Rand): Ränge und Boden sinken nicht mehr zwischen Figur und Kamera ab (CUT3 ist in
 //   den Hallen aus), der Schulterblick weicht ihnen nicht aus; was die Figur verdeckt, wird durchsichtig gerastert bzw.
 //   im Schulterblick vor der Figur weggeschnitten (tribClip).
@@ -252,16 +255,26 @@ function tribHype() {
   TRIBH.k += (want - TRIBH.k) * Math.min(1, dt * (want > TRIBH.k ? 5 : 0.7));
   return TRIBH.k;
 }
-// Bewegung eines Zuschauers (2D; in 3D dieselbe Rechnung im Shader): Sprunghöhe (Kacheln) und Arme (0 unten … 1 oben)
+// Bewegung eines Zuschauers (2D; in 3D dieselbe Rechnung im Shader): Sprunghöhe (Kacheln) und Arme (0 unten … 1 oben).
+// Ergebnis in einem wiederverwendeten Objekt (je Bild und Zuschauer keine neue Zuteilung; sofort auslesen)
+const TRIB_MV = { hop: 0, up: 0 };
+const tribSm = (a, b, x) => {
+  const k = Math.max(0, Math.min(1, (x - a) / (b - a)));
+  return k * k * (3 - 2 * k);
+};
 function tribMove(f, t, hype) {
   const ph = f.seed * 6.2832;
   const rate = 2.4 + ((f.seed * 7.13) % 1) * 1.8;
   const mine = Math.max(0, Math.min(1, hype * (0.55 + ((f.seed * 3.71) % 1) * 0.9)));
-  const idle = ((f.seed * 11.3 + Math.floor(t * 0.25 + f.seed * 7) * 0.618) % 1) > 0.86 ? 0.45 : 0;
+  // ab und zu jubelt ein Zuschauer von sich aus (Phase 3: weich an- und abschwellend statt mit einem Sprung)
+  const cyc = t * 0.25 + f.seed * 7;
+  const u = cyc - Math.floor(cyc);
+  const idle = ((f.seed * 11.3 + Math.floor(cyc) * 0.618) % 1) > 0.86 ? 0.45 * tribSm(0, 0.2, u) * (1 - tribSm(0.8, 1, u)) : 0;
   const ex = Math.max(mine, idle);
   const s = Math.max(0, Math.sin(t * rate + ph));
-  const up = Math.max(0, Math.min(1, ex * 1.4 - 0.25 + 0.35 * Math.sin(t * rate * 0.5 + ph * 1.7)));
-  return { hop: s * s * (0.03 + 0.42 * ex), up };
+  TRIB_MV.up = Math.max(0, Math.min(1, ex * 1.4 - 0.25 + 0.35 * Math.sin(t * rate * 0.5 + ph * 1.7)));
+  TRIB_MV.hop = s * s * (0.03 + 0.42 * ex);
+  return TRIB_MV;
 }
 
 // =====================================================================================================================
@@ -798,7 +811,11 @@ function trib2Draw(ctx, x0, y0, x1, y1) {
   const p = game.player;
   if (!p) return;
   const V = tribVenueAt(renderer.camX + renderer.w / renderer.zoom / 2, renderer.camY + renderer.h / renderer.zoom / 2) || tribVenueAt(p.x, p.y);
-  if (!V) return;
+  if (!V) {
+    // außerhalb: Bögen vorab zeichnen, wenn man bald hin will (tribuene-bild.js)
+    if (typeof tribbIdle2 === 'function') tribbIdle2();
+    return;
+  }
   const K = tribKind(V.kind);
   // Ränge im Bild? (Kacheln relativ zur Mitte)
   const lx0 = x0 - V.cx - 2;
@@ -806,7 +823,16 @@ function trib2Draw(ctx, x0, y0, x1, y1) {
   const ly0 = y0 - V.cy - 2;
   const ly1 = y1 - V.cy + 3;
   const G = trib2Grid(K);
-  const at = trib2Atlas(V.kind);
+  // seit Phase 3 die echten Bewohner bzw. Ungeheuer aus ihren 2D-Zeichnungen (tribuene-bild.js); solange deren Bogen
+  // entsteht (Zeit je Bild begrenzt), die schon fertigen Figuren; geht das nicht, die bisherigen gemalten Zuschauer
+  const B = typeof tribbFans2 === 'function' ? tribbFans2(V.kind) : null;
+  if (B === false) return;
+  const at = B ? null : trib2Atlas(V.kind);
+  const figs = B ? tribbAssign(K, B.ids.length) : null;
+  if (B && !K.idx2) {
+    K.fans.forEach((f, j) => { f.j = j; });
+    K.idx2 = true;
+  }
   const C = TRIB2.cell;
   const t = game.time;
   const hype = tribHype();
@@ -820,6 +846,10 @@ function trib2Draw(ctx, x0, y0, x1, y1) {
         if (f.x < lx0 || f.x > lx1 || f.y < ly0 || f.y > ly1) continue;
         const m = tribMove(f, t, hype);
         const pose = m.up > 0.66 ? 2 : m.up > 0.3 ? 1 : 0;
+        if (B) {
+          tribb2Fan(ctx, B, figs, f.j, f, V, m.hop, m.up, t);
+          continue;
+        }
         const back = f.ny > 0.35 ? 1 : 0;
         const w = C.w * f.sc;
         const h = C.h * f.sc;
@@ -1508,8 +1538,14 @@ function trib3Build(K) {
   ml.receiveShadow = true;
   g.add(ml);
   if (glow.i.length) g.add(new THREE.Mesh(glow.geometry(), tribGlowMat()));
-  // Zuschauer: zwei InstancedMesh (nahe und ferne Stufe) für alle; welche Zuschauer in welcher Stufe gezeichnet werden,
-  // legt trib3FanSync fest (nur die im Blickfeld). Keine Schatten.
+  // Zuschauer kommen in trib3Frame dazu: Bilder der echten Figuren (tribuene-bild.js) oder die bisherigen (trib3FansAlt)
+  g.userData.fanMode = '';
+  return g;
+}
+// Bisherige Zuschauer (bis 15.52; jetzt nur noch, wenn die Bilder der echten Figuren nicht gezeichnet werden können):
+// zwei InstancedMesh (nahe und ferne Stufe) für alle; welche Zuschauer in welcher Stufe gezeichnet werden, legt
+// trib3FanSync fest (nur die im Blickfeld). Keine Schatten.
+function trib3FansAlt(g, K) {
   const dichte = tribDichte();
   const list = K.fans.filter((f) => f.keep <= dichte);
   const n = list.length;
@@ -1568,7 +1604,22 @@ function trib3Build(K) {
   }
   g.userData.F = F;
   g.userData.fans = n;
-  return g;
+  g.userData.fanMode = 'alt';
+}
+// Zuschauer aus der Gruppe nehmen (beim Wechsel zwischen bisherigen Zuschauern und Bildern)
+function trib3FansClear(g) {
+  for (const o of g.children.slice()) {
+    if (!(o.isInstancedMesh || (o.userData && o.userData.bild))) continue;
+    g.remove(o);
+    o.geometry.dispose();
+  }
+  g.userData.F = null;
+  g.userData.fans = 0;
+  g.userData.fanMode = '';
+  g.userData.fanAtlas = null;
+  g.userData.fanTex = null;
+  g.userData.fanMesh = null;
+  if (TRIBF.g === g) TRIBF.g = null;
 }
 // Zuschauer im Blickfeld in die beiden Stufen verteilen (nur wenn sich die Kamera ein Stück bewegt oder gedreht hat):
 // Kugeltest gegen das Sichtfeld mit Spielraum, die nächsten tribNearK() in die nahe Stufe, der Rest in die ferne.
@@ -1725,6 +1776,8 @@ function trib3Frame() {
   const dichte = tribDichte();
   if (!V) {
     if (TRIB3.group) TRIB3.group.visible = false;
+    // Bildbögen der Zuschauer vorab zeichnen, wenn man bald hin will; lange nicht gebrauchte freigeben (tribuene-bild.js)
+    if (typeof tribbIdle3 === 'function') tribbIdle3();
     return;
   }
   const K = tribKind(V.kind);
@@ -1759,7 +1812,25 @@ function trib3Frame() {
     if (p) TRIB3.uSee.value.set(p.x * U3, 1.0, feetY(p) * U3, 1);
     else TRIB3.uSee.value.w = 0;
   }
-  trib3FanSync(TRIB3.group, V);
+  // Zuschauer: Bilder der echten Figuren (tribuene-bild.js; ist der Bogen weder vorab entstanden noch im Zwischenspeicher,
+  // entsteht er jetzt mit begrenzter Zeit je Bild, die fertigen Figuren stehen gleich da). Geht das nicht, die bisherigen.
+  const g = TRIB3.group;
+  const A = typeof tribbFans3 === 'function' ? tribbFans3(V.kind) : null;
+  if (A && (g.userData.fanAtlas !== A || g.userData.fanTex !== A.texA)) {
+    trib3FansClear(g);
+    const mesh = tribbMesh3(K, A);
+    g.add(mesh);
+    g.userData.fanMode = 'bild';
+    g.userData.fanAtlas = A;
+    g.userData.fanTex = A.texA;
+    g.userData.fanMesh = mesh;
+    g.userData.fans = mesh.userData.n;
+  } else if (A === null && g.userData.fanMode !== 'alt') {
+    trib3FansClear(g);
+    trib3FansAlt(g, K);
+  }
+  if (g.userData.fanMode === 'bild') tribbFrame3(g.userData.fanMesh, g.userData.fanAtlas);
+  else if (g.userData.fanMode === 'alt') trib3FanSync(g, V);
 }
 if (typeof v3SyncBounds === 'function') {
   const _tribSyncBounds = v3SyncBounds;

@@ -6208,7 +6208,8 @@ function v3SyncActors(dt) {
   for (const al of game.allies) if (near(al)) safe(syncAlly3, al);
   // Diener der Mitspieler (seit 8.5, Netzliste al)
   for (const rp of net.players.values()) if (rp.allies && !remoteHidden(rp)) for (const al of rp.allies) if (near(al)) safe(syncAlly3, al);
-  if (w) for (const n of w.npcs) if (near(n)) syncNpc3(n, dt);
+  // seit Wärme 2 nur die NPCs in der Nähe (npcsNear, zeichnen.js) statt aller ~580 der Welt
+  if (w) for (const n of npcsNear()) if (near(n)) syncNpc3(n, dt);
   // Zuerst verschwundene Figuren in den Pool, dann übernehmen die Gefallenen genau diese Figuren
   for (const [k, a] of actors3) if (!a.seen && !a.corpse) dropActor(k, a);
   for (const e of game.effects) if (e.type === 'corpse' && near(e)) syncCorpse3(e);
@@ -7918,7 +7919,8 @@ function syncCorpse3(e) {
 // gerendert in ein Bild (Render-Target) und in das Fenster-Canvas kopiert. Die Figur passt immer ganz hinein
 // (Höhe und Breite), nichts wird gestaucht oder abgeschnitten. yaw dreht die Figur (Antippen dreht weiter).
 // seit 15.46 lebt das Bild: ohne eigene Haltung (pose) zeichnet portraitLive3 es etwa 12-mal je Sekunde neu (live), solange
-// es zu sehen ist – die Figur atmet, verlagert das Gewicht und schaut sich um wie in der Welt (life3)
+// es zu sehen ist – die Figur atmet, verlagert das Gewicht und schaut sich um wie in der Welt (life3). Seit Wärme 2 nicht
+// mit der Sparoptik (Grafik „Niedrig“): dort steht das Bild still
 const portrait3 = { scene: null, cam: null, rt: null, buf: null, img: null, id: null, actors: new Map() };
 function v3Portrait(canvas, who, yaw = -0.4, pose = null, live = false) {
   if (!V3.on || !V3.gl || !canvas || !who) return false;
@@ -7984,7 +7986,12 @@ function v3Portrait(canvas, who, yaw = -0.4, pose = null, live = false) {
     lh.portrait = true;
     life3(a, who, performance.now() / 1000, 1, 'stand', lh);
   }
-  if (!pose && !live) portraitLive3(canvas, who, yaw);
+  // seit Wärme 2: mit der Sparoptik (Grafik „Niedrig“, waermeschutz.js) steht das Bild still – es wird einmal gezeichnet
+  // (drawDoll und die Aussehens-Vorschau zeichnen beim Öffnen, bei jedem Ausrüstungswechsel und beim Antippen neu).
+  // Das lebende Bild las 6-mal je Sekunde das ganze Bild synchron von der Grafikkarte zurück (readPixels: am iPhone
+  // 81 % des Hauptthreads im Inventar) und hielt eine zweite Bildschleife neben der des Spiels am Laufen
+  const still = !pose && !live && typeof sparOptik === 'function' && sparOptik();
+  if (!pose && !live && !still) portraitLive3(canvas, who, yaw);
   a.group.rotation.set(0, yaw, 0);
   a.group.position.set(0, 0, 0);
   a.group.updateMatrixWorld(true);
@@ -8063,6 +8070,8 @@ function v3Portrait(canvas, who, yaw = -0.4, pose = null, live = false) {
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
   ctx.drawImage(P.img, 0, 0, w, h);
+  // stehendes Bild am Handy: Zielbild, Auslese- und Hilfspuffer sofort wieder freigeben (das nächste Bild legt sie neu an)
+  if (still && !IS_PC) v3PortraitFree();
   return true;
 }
 // Puffer der Figurenbilder freigeben (beim nächsten Bild neu angelegt)
@@ -8084,7 +8093,9 @@ function portraitLive3(canvas, who, yaw) {
   portraitLiveOn3 = true;
   let last = 0;
   const tick = (now) => {
-    if (!PORTRAIT_LIVE3.size || !V3.on) {
+    // seit Wärme 2 auch, sobald die Sparoptik gilt (Grafik bei offenem Fenster auf „Niedrig“ gestellt): das Bild bleibt
+    // mit seinem letzten Stand stehen
+    if (!PORTRAIT_LIVE3.size || !V3.on || (typeof sparOptik === 'function' && sparOptik())) {
       portraitLiveOn3 = false;
       PORTRAIT_LIVE3.clear();
       // seit 15.49: am Handy die Puffer des Figurenbilds freigeben, sobald keins mehr zu sehen ist
@@ -8092,8 +8103,8 @@ function portraitLive3(canvas, who, yaw) {
       return;
     }
     requestAnimationFrame(tick);
-    // bei Grafik „Niedrig“ (schwache Handys) nur etwa 6 Bilder je Sekunde
-    const gap = typeof opts !== 'undefined' && opts.graphics === 'niedrig' ? 160 : 80;
+    // etwa 12 Bilder je Sekunde (bis Wärme 2 bei Grafik „Niedrig“ 6 – dort steht das Bild jetzt ganz still, siehe oben)
+    const gap = 80;
     if (now - last < gap || document.hidden) return;
     const dt = Math.min(1000, now - last);
     last = now;

@@ -1852,18 +1852,29 @@ function updateAmbient(dt) {
   }
 }
 
-function drawZoneTint(ctx, w, h) {
-  // Nacht (seit 13.8, tag-nacht.js) und Gebietsfärbung – seit 14.88 als eine Fläche: zwei halbdurchsichtige Flächen
-  // übereinander ergeben dieselbe Farbe wie eine mit a = 1 − (1 − a1)(1 − a2) (spart am Handy eine Bildschirmfläche)
+// Nacht (seit 13.8, tag-nacht.js) und Gebietsfärbung – seit 14.88 als eine Fläche: zwei halbdurchsichtige Flächen
+// übereinander ergeben dieselbe Farbe wie eine mit a = 1 − (1 − a1)(1 − a2) (spart am Handy eine Bildschirmfläche)
+// Seit Wärme 2 als eigene Rechnung [r, g, b, a] (a = 0: keine Färbung; das Feld wird wiederverwendet): dieselbe Farbe
+// malt mit der Sparoptik eine Fläche in der 3D-Szene (drei-kern.js v3SyncTint) statt das ganze 2D-Overlay.
+const _zoneTint = [0, 0, 0, 0];
+function zoneTintRGBA() {
+  const out = _zoneTint;
   const n = typeof nightTintRGBA === 'function' ? nightTintRGBA() : null;
-  const [r, g, b, a] = ambientState.tint;
+  const t = ambientState.tint;
   const a1 = n ? n[3] : 0;
-  const a2 = a < 0.005 ? 0 : a;
-  if (a1 < 0.005 && a2 < 0.005) return;
+  const a2 = t[3] < 0.005 ? 0 : t[3];
+  out[3] = 0;
+  if (a1 < 0.005 && a2 < 0.005) return out;
   const A = 1 - (1 - a1) * (1 - a2);
   const k1 = (a1 * (1 - a2)) / A;
   const k2 = a2 / A;
-  const mix = (i, c2) => Math.round((n ? n[i] : 0) * k1 + c2 * k2);
-  ctx.fillStyle = `rgba(${mix(0, r)},${mix(1, g)},${mix(2, b)},${A.toFixed(3)})`;
+  for (let i = 0; i < 3; i++) out[i] = Math.round((n ? n[i] : 0) * k1 + t[i] * k2);
+  out[3] = A;
+  return out;
+}
+function drawZoneTint(ctx, w, h) {
+  const c = zoneTintRGBA();
+  if (!(c[3] > 0)) return;
+  ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},${c[3].toFixed(3)})`;
   ctx.fillRect(0, 0, w, h);
 }

@@ -1009,15 +1009,28 @@ function guideScreen(wx, wy, out) {
   return out;
 }
 
+// Zeigt der Wegweiser gerade etwas? (drawGuide; das Overlay über der 3D-Welt malt dann in jedem Bild neu, drawOverlay3)
+function guideAktiv() {
+  const p = game.player;
+  if (!guide.cur || !p || p.dead || !game.running || game.duel) return false;
+  // seit 13.2: bei Seelenstein-Aufträgen kein Pfeil (das Ziel springt zwischen den Steinen hin und her)
+  return !(guide.entry && guide.entry.stone > 0 && !guide.entry.done);
+}
+// Name und Entfernung als fertiges Bild (seit Wärme 2, labelBild in zeichnen.js): ein eigenes Bild, neu gemalt nur
+// wenn sich Text oder Größe ändern (etwa je Meter Weg) statt in jedem Bild Rand und Füllung zu schreiben
+const GUIDE_TXT = {};
+
 // Goldener Pfeil neben der eigenen Figur, dazu Name und Entfernung des Ziels; ist das Ziel im Bild,
 // schwebt über ihm ein goldener Pfeil nach unten
 function drawGuide(ctx) {
+  if (!guideAktiv()) return;
   const p = game.player;
   const c = guide.cur;
-  if (!c || !p || p.dead || !game.running || game.duel) return;
-  // seit 13.2: bei Seelenstein-Aufträgen kein Pfeil (das Ziel springt zwischen den Steinen hin und her)
-  if (guide.entry && guide.entry.stone > 0 && !guide.entry.done) return;
   const r = renderer;
+  // 3D mit der Sparoptik (Grafik „Niedrig“, seit Wärme 2): der Wegweiser steht still – kein Wippen, kein Pulsieren, die zwei
+  // Vorläufer fest auf halbem Weg (wie die festen Leuchtzeichen der CSS-Sparoptik). Sonst müsste das Overlay über der
+  // 3D-Welt nur seinetwegen in jedem Bild neu gemalt werden, auch wenn die Figur steht (drawOverlay3, guideOps)
+  const still = V3.on && typeof sparOptik === 'function' && sparOptik();
   const dx = c.x - p.x;
   const dy = c.y - p.y;
   const dist = hyp(dx, dy);
@@ -1033,7 +1046,7 @@ function drawGuide(ctx) {
     let h = _gB;
     if (V3.on) h = v3Project(c.x, c.y, c.follow ? v3HeadHeight(c.follow) + 0.5 : 2.6, _gB);
     else _gB.y -= 60 * r.zoom;
-    const bob = Math.sin(game.time * 5) * 4 * s;
+    const bob = still ? 0 : Math.sin(game.time * 5) * 4 * s;
     drawGuideChevron(ctx, h.x, h.y - 10 * s + bob, Math.PI / 2, 13 * s, gold);
   }
   if (dist < TILE * 2.5) {
@@ -1049,9 +1062,9 @@ function drawGuide(ctx) {
   // nach oben weiter weg, damit der Pfeil nicht auf Figur und Namen liegt
   const ry = Math.sin(ang) < 0 ? 1.35 : 0.75;
   const ay = _gA.y - 6 * s + Math.sin(ang) * R * ry;
-  const pulse = 1 + 0.08 * Math.sin(game.time * 6);
+  const pulse = still ? 1 : 1 + 0.08 * Math.sin(game.time * 6);
   // zwei kleine Vorläufer laufen in Pfeilrichtung, damit man die Richtung auch aus dem Augenwinkel sieht
-  const run = (game.time * 1.4) % 1;
+  const run = still ? 0.25 : (game.time * 1.4) % 1;
   for (let k = 0; k < 2; k++) {
     const f = (run + k * 0.5) % 1;
     const rr = R * (0.55 + f * 0.35);
@@ -1062,17 +1075,21 @@ function drawGuide(ctx) {
   drawGuideChevron(ctx, ax, ay, ang, 19 * s * pulse, gold);
   // Name und Entfernung in kleiner Schrift neben dem Pfeil
   const txt = `${typeof trName === 'function' ? trName(c.name) : c.name} · ${Math.max(1, Math.round(dist / TILE))} m`;
-  ctx.font = `700 ${Math.max(10, Math.round(13 * s))}px "Alegreya Sans", sans-serif`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
   const lx = ax + Math.cos(ang) * 22 * s;
   const ly = ay + Math.sin(ang) * 18 * s + (Math.sin(ang) > -0.3 ? 16 : -16) * s;
-  ctx.lineWidth = 3;
-  ctx.strokeStyle = 'rgba(20,12,4,0.9)';
-  ctx.strokeText(txt, lx, ly);
-  ctx.fillStyle = '#fff0c4';
-  ctx.fillText(txt, lx, ly);
+  const lab = textBild('700', Math.max(10, Math.round(13 * s)), txt, '#fff0c4', 3, 'rgba(20,12,4,0.9)', 'middle', GUIDE_TXT);
+  ctx.drawImage(lab.c, lx + lab.x0, ly + lab.y0, lab.w, lab.h);
   ctx.restore();
+}
+
+// Kennwerte des Wegweisers für den Vergleich im Overlay (drawOverlay3 mit der Sparoptik; der Wegweiser steht dann
+// still): Ziel, Figur, Farbe und Name. Kamera und Bildgröße vergleicht drawOverlay3 selbst. Schritt 9 malt nichts.
+function guideOps(ops) {
+  if (!guideAktiv()) return;
+  const c = guide.cur;
+  const p = game.player;
+  const e = guide.entry;
+  ops.push(9, c.x, c.y, c.follow ? v3HeadHeight(c.follow) : 0, p.x, p.y, feetY(p), (c.sub ? 's' : '') + (e ? e.kind + (e.done ? '+' : '') : ''), typeof trName === 'function' ? trName(c.name) : c.name);
 }
 
 function drawGuideChevron(ctx, x, y, ang, size, color) {
@@ -1141,7 +1158,9 @@ function drawMapMarks(ctx, v, area) {
   const seen = [];
   const stones = [];
   const bosses = [];
-  for (const m of game.monsters) {
+  // seit Wärme 2 nur die Gebiete, die den Kartenausschnitt berühren (monstersNear, gegner.js) – vorher bei jedem
+  // Zeichnen der Minikarte und je Bild der großen Karte alle ~8.700 Monster der Welt
+  for (const m of monstersNear((wx0 + wx1) / 2, (wy0 + wy1) / 2, hyp(wx1 - wx0, wy1 - wy0) / 2)) {
     if (m.dead || m.duelProxy || m.x < wx0 || m.y < wy0 || m.x > wx1 || m.y > wy1) continue;
     if (m.isStone) stones.push(m);
     else if (m.type && m.type.boss) bosses.push(m);

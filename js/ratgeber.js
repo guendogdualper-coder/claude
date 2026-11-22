@@ -147,29 +147,49 @@ NPC_TALK_LABEL[RATGEBER.id] = 'Fragen';
 NPC_LINES[RATGEBER.id] = ['Frag mich ruhig – dafür bin ich da.'];
 
 // „?“ über dem Kopf: groß, hellblau, leicht schwebend (statt Plakette und Questzeichen)
+// seit Wärme 2: das „?“ (zwei Ränder und Füllung) als fertiges Bild (labelBild, zeichnen.js), der Schein bleibt live;
+// in 3D mit der Sparoptik wippen Zeichen und Schein in ganzen Pixeln im gemeinsamen 4-Hz-Takt der Questzeichen
+// (wippZeit, zeichnen.js) – das Overlay malt dann nur bei jedem neuen Pixel neu
+function rgMarkBild() {
+  const font = labelFont('900', 30);
+  return labelBild('rg?|' + RATGEBER.mark, (m) => {
+    m.font = font;
+    const b = labelBox(m, '?', 30, 4);
+    return {
+      x0: b.x0, y0: b.y0, x1: b.x1, y1: b.y1,
+      paint: (g) => {
+        g.font = font;
+        g.lineWidth = 5;
+        g.strokeStyle = '#0e1a2a';
+        g.strokeText('?', 0, 0);
+        g.lineWidth = 1.6;
+        g.strokeStyle = '#e0c36a';
+        g.strokeText('?', 0, 0);
+        g.fillStyle = RATGEBER.mark;
+        g.fillText('?', 0, 0);
+      }
+    };
+  });
+}
 const _rgDrawNpcMarks = drawNpcMarks;
 drawNpcMarks = function (ctx, n) {
   if (!n || n.id !== RATGEBER.id) return _rgDrawNpcMarks(ctx, n);
   const fy = feetY(n);
-  const t = game.time;
-  const bob = Math.sin(t * 2.6) * 2.2;
+  const spar = wippStill();
+  const t = wippZeit(spar);
+  let bob = Math.sin(t * 2.6) * 2.2;
+  let gr = 19 + Math.sin(t * 3.1) * 1.5;
+  if (spar) {
+    bob = Math.round(bob);
+    gr = Math.round(gr);
+  }
   const x = n.x;
   const y = fy - 62 + bob;
-  glow(ctx, x, y - 9, 19 + Math.sin(t * 3.1) * 1.5, RATGEBER.glow, 0.5);
-  ctx.save();
-  ctx.font = '900 30px "Alegreya Sans", sans-serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'alphabetic';
-  ctx.lineJoin = 'round';
-  ctx.lineWidth = 5;
-  ctx.strokeStyle = '#0e1a2a';
-  ctx.strokeText('?', x, y);
-  ctx.lineWidth = 1.6;
-  ctx.strokeStyle = '#e0c36a';
-  ctx.strokeText('?', x, y);
-  ctx.fillStyle = RATGEBER.mark;
-  ctx.fillText('?', x, y);
-  ctx.restore();
+  ovGlow(ctx, x, y - 9, gr, RATGEBER.glow, 0.5);
+  const s = labelScale();
+  let c = n.__rgb;
+  if (!c || c.s !== s || c.gen !== LABEL_FONT.gen) c = n.__rgb = { s, gen: LABEL_FONT.gen, lab: rgMarkBild() };
+  ovImg(ctx, c.lab, x, y);
 };
 // auf der kleinen und großen Karte ebenfalls ein „?“ (karte.js zeichnet es mit questGlyph)
 const _rgQuestMarkChar = questMarkChar;
