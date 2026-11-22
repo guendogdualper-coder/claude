@@ -371,10 +371,18 @@ try {
   if (z >= ZOOM2D.min && z <= ZOOM2D.max) ZOOM2D.mul = z;
 } catch (e) { /* privat */ }
 
+// seit 15.67 gibt es im Pixel-Stil nur noch die herausgezoomte, schräge Sicht: der Zoom steht fest auf dem kleinsten
+// Wert (Mausrad und zwei Finger ändern dort nichts mehr); im feinen 2D-Stil bleibt er frei wie bisher
 function zoom2dMul() {
+  if (pixel2dAktiv()) return ZOOM2D.min;
   return ZOOM2D.mul;
 }
 function zoom2dSet(z) {
+  if (pixel2dAktiv()) {
+    const r0 = renderer;
+    if (r0.zoomBase && !(typeof V3 !== 'undefined' && V3.on)) r0.zoom = r0.zoomBase * ZOOM2D.min;
+    return;
+  }
   const m = Math.max(ZOOM2D.min, Math.min(ZOOM2D.max, z));
   // nahe an 1 rastet der Zoom ein (flache Ansicht genau wie bisher)
   ZOOM2D.mul = Math.abs(m - 1) < 0.025 ? 1 : m;
@@ -385,8 +393,9 @@ function zoom2dSet(z) {
 
 // Neigung (0 = flach) – nur im Pixel-Stil und nur beim Herauszoomen
 function pixelTilt() {
-  if (ZOOM2D.mul >= 1 || !pixel2dAktiv()) return 0;
-  return Math.min(1, (1 - ZOOM2D.mul) / (1 - ZOOM2D.min)) * ZOOM2D.tMax;
+  const mul = zoom2dMul();
+  if (mul >= 1 || !pixel2dAktiv()) return 0;
+  return Math.min(1, (1 - mul) / (1 - ZOOM2D.min)) * ZOOM2D.tMax;
 }
 
 // Stand der schrägen Sicht im letzten Bild (für Eingabe und Anzeigen): on, t, cy, fx, fy, zoom, w, h
@@ -590,7 +599,7 @@ function pixelRenderTilt(r, fx, fy) {
   // Namen und Balken, Zahlen, Wegweiser in voller Auflösung; Schrift schrumpft beim Herauszoomen nur halb so stark mit
   // (sonst unlesbar), dafür dort verankert, wo der Name steht (über dem Kopf, bei Stadtbewohnern unter den Füßen),
   // damit er nicht von der Figur wegrutscht
-  TILT.lab = Math.pow(1 / ZOOM2D.mul, 0.6);
+  TILT.lab = Math.pow(1 / zoom2dMul(), 0.6);
   for (const e of list) {
     if (e.worldObj || e.clone || e.__tiltOut) continue;
     if (e.isStone) tiltAnchor(m, e.x, e.y, stoneHeight(e) + 14, TILT.lab);

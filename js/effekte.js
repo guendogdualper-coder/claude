@@ -562,6 +562,8 @@ function vfxCorpse(m) {
   if (m.typeId === 'aelvyr' && typeof aelCorpse === 'function') aelCorpse(m, e);
   // seit 14.80: ebenso die Endbosse der Karten (eigene Todesanimation, bosse3d.js)
   else if (typeof isBoss3 === 'function' && isBoss3(m.typeId)) bossCorpse(m, e);
+  // seit 15.67 in 2D eigene Sterbeanimation: wegfliegen, umfallen, liegen, auflösen (tod2d.js)
+  if (!(typeof V3 !== 'undefined' && V3.on) && typeof tod2dSetup === 'function') tod2dSetup(m, e);
   addEffect(e);
 }
 
@@ -1578,6 +1580,8 @@ function drawEffect(ctx, e) {
       break;
     }
     case 'corpse': {
+      // seit 15.67 zeichnet die Szene die Leiche als Weltobjekt (tod2d.js)
+      if (e.d2) break;
       const sp = monsterSprite(e.typeId, 0);
       const b = sp.bounds;
       ctx.globalAlpha = 1 - k;

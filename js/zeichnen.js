@@ -544,6 +544,22 @@ function horseSprite(frame, saddle, tier = 1, color = 'rot') {
   return getSprite(`horse:${frame}:${saddle}:${tier}`, { x: -34, y: -58, w: 68, h: 62 }, (ctx) => horseArt(ctx, frame, war ? { saddle: '#7a1a1a', coat: '#241e26', mane: '#0e0a10' } : { saddle }));
 }
 
+// Neigung des Drachen in 2D (seit 15.67): beim Flug nach unten senkt er den Kopf, nach oben hebt er ihn – je
+// steiler die Richtung, desto stärker (höchstens gut 50°), weich nachgeführt; am Boden und im Stand gerade
+function dragonPitch2d(p, facing) {
+  const now = game.time;
+  const dt = Math.min(0.1, Math.max(0, now - (p.__dpT ?? now)));
+  p.__dpT = now;
+  let want = 0;
+  if (p.moving && !p.dragonGround && facing) {
+    want = Math.atan2(facing.y, Math.max(0.001, Math.abs(facing.x))) * 0.75;
+    want = Math.max(-0.95, Math.min(0.95, want));
+  }
+  const cur = p.__dp || 0;
+  p.__dp = cur + (want - cur) * Math.min(1, dt * 7);
+  return p.__dp;
+}
+
 function drawPlayer(ctx, p) {
   // Elementsprung des Magiers (seit 8.6): die Figur ist kurz ganz verschwunden
   if (p.blinkHide > game.time) return;
@@ -661,6 +677,7 @@ function drawPlayer(ctx, p) {
   }
 
   drawBuffLooks(ctx, p, fy, 'back');
+  let pitched = false;
   if (p.riding && rideTierOf(p) === 3) {
     // Drache: Schatten am Boden, er selbst schwebt und schlägt immer mit den Flügeln (auch im Stand);
     // seit 14.32 am Boden (p.dragonGround): Flügel ruhig, er sitzt tiefer und wippt nur beim Laufen
@@ -671,6 +688,16 @@ function drawPlayer(ctx, p) {
     // Steigen: schnellere Flügelschläge, Sinken: langsamer (gleitet)
     const hz = p.__fhDir > 0 ? 11 : p.__fhDir < 0 ? 4 : 7;
     const frame = ground ? (p.moving ? [1, 3][Math.floor(game.time * 6) % 2] : 1) : Math.floor(game.time * hz) % 4;
+    // seit 15.67: in die Flugrichtung geneigt (nach unten Kopf runter, nach oben Kopf hoch), Drache und Reiter
+    // gemeinsam um den Sattel gedreht; der Schatten bleibt flach am Boden
+    const pitch = dragonPitch2d(p, facing);
+    if (Math.abs(pitch) > 0.004) {
+      ctx.save();
+      ctx.translate(p.x, fy - ride);
+      ctx.rotate(flip ? -pitch : pitch);
+      ctx.translate(-p.x, -(fy - ride));
+      pitched = true;
+    }
     blitSprite(ctx, horseSprite(frame, CLASSES[p.classId].trim, 3, dragonColorOf(p)), p.x, fy - (ride - leapH - DRAGON_RIDE_H), flip);
   } else if (p.riding) {
     drawShadow(ctx, p.x, fy, 22);
@@ -849,6 +876,7 @@ function drawPlayer(ctx, p) {
     if (dir !== 'side') glow(ctx, -hand.x, hand.y, 6, mageE.main, 0.35 * pulse);
   }
   ctx.restore();
+  if (pitched) ctx.restore();
 
   drawBuffLooks(ctx, p, fy, 'front');
   if (typeof bodyAura2 === 'function') bodyAura2(ctx, p, fy, ride, 'front');
