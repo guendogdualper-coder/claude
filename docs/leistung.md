@@ -1158,3 +1158,29 @@ Render-Messung (`render-alles.sh`, umgerechnet auf 30 Bilder/s; iPhone 13):
 ### Neue Texte
 
 Keine.
+
+## Wärme 2 – 3D-Szene auf „Niedrig“: einfacher Boden, ein Punktlicht, Unterboden zuletzt (15.54)
+
+Alles nur mit der Sparoptik (Grafik „Niedrig“), außer dem Unterboden (bildgleich, alle Stufen). Code in `js/drei-kern.js`.
+
+- **Boden:** `groundLowMat` – drei statt vier Texturabfragen (feines Rauschen, Großrauschen, Pflaster), ohne Sand-Rippeln
+  und Schnee-Glitzern. Grasstriche, Kies, Trittspuren, Ascherisse, Pflaster, Lava-Glut und das Absenken der Höhlenwände
+  bleiben. Blöcke ohne Ecke über 0,45 nehmen `groundLow` ganz ohne `discard` (Early-Z bzw. HSR am iPhone greifen wieder),
+  Blöcke mit Klippen/Mauersockeln `groundLowFade`. Beide Varianten werden beim ersten Blockbau vorab übersetzt
+  (`v3WarmGround`).
+- **Punktlichter:** Auf „Niedrig“ ist nur eines aktiv (`V3.points`, alle vier in `V3.pointsAll`), es folgt der nächsten
+  Lampe mit weichem Wechsel (`v3LowPick`) und wird 2 s nach der letzten Lampe in Reichweite unsichtbar (`v3LowLight`) –
+  dann rechnen die Shader ganz ohne Punktlicht. `gl.compile` übersetzt auf „Niedrig“ beide Lichtlagen (Ladebild,
+  Sprünge: `v3WarmLights`), der Wechsel tauscht nur das Programm. Feuerfeld und Sturmgericht leihen sich weiter das
+  schwächste Licht aus `V3.points`.
+- **Unterboden:** `V3.under.renderOrder` 1 statt −10 – nach den deckenden Blöcken gezeichnet, der Tiefentest verwirft
+  ihn unter dem Boden (vorher rund 41 % aller Fragmente).
+- **Wasser/Moor:** einfache Varianten `fragLow` (ohne Wellenlinien, Glanzfunken, Blasen); Farben je Art gemeinsam
+  (`LIQUID3_COL`).
+- **Overlay:** Zepterschein, Seelenfunken und Knochenschild stehen mit der Sparoptik still und kommen als Lage in die
+  Schrittliste (`ov3AuraOps`); bei stehender Kamera höchstens alle 66 ms neu malen (`OV3_STEP`).
+- **v3InView:** Kanten einmal je Bild vorrechnen (`VIEW3.e`) statt vier Wurzeln je Aufruf.
+
+Kontrolle (emuliertes iPhone 13, niedrigste Optionen, SwiftShader): Stadt bei Tag und Nacht bildgleich (mittlere
+Abweichung 3–5 Graustufen durch laufende Bewohner), keine Seitenfehler; gerenderte Bilder im selben Zeitfenster Stadt
+22 → 28, Nacht 14 → 20, Kampf 11 → 14. Bilder: Scratchpad `waerme2/p1check/`.

@@ -857,6 +857,21 @@ function v3MakeRenderer(canvas) {
   gl.shadowMap.enabled = true;
   // weiche Schatten (viele Proben) nur am PC; Handys nehmen die einfache Filterung
   gl.shadowMap.type = IS_PC ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;
+  // seit Wärme 2 (3D-Szene Niedrig): Auf „Niedrig“ schaltet v3UpdateLights das eine Punktlicht ab, wenn keine Lampe in
+  // Reichweite ist (0 statt 1 Punktlicht in allen beleuchteten Shadern). Jedes Vorwärmen (Figuren, Effekte, Boden,
+  // Kartenwechsel) übersetzt darum die Programme für beide Lagen – der Wechsel tauscht später nur das Programm.
+  const compile = gl.compile;
+  gl.compile = function (scene, camera) {
+    compile.call(this, scene, camera);
+    const l = V3.pointsAll && V3.pointsAll[0];
+    if (scene !== V3.scene || !l || V3.points.length !== 1) return;
+    l.visible = !l.visible;
+    try {
+      compile.call(this, scene, camera);
+    } finally {
+      l.visible = !l.visible;
+    }
+  };
   return gl;
 }
 
@@ -1009,11 +1024,14 @@ function v3Init() {
   V3.sun.shadow.normalBias = 0.02;
   V3.scene.add(V3.sun, V3.sun.target);
   // Warme Lichter von Laternen, Feuerbecken und Portalen: die vier nächsten leuchten echt
-  V3.points = [0, 1, 2, 3].map(() => {
+  // seit Wärme 2 (3D-Szene Niedrig): V3.pointsAll sind alle vier, V3.points die aktiven (auf „Niedrig“ nur das erste,
+  // v3PointTier; feuerfeld.js und sturmgericht.js leihen sich das schwächste aus V3.points)
+  V3.pointsAll = [0, 1, 2, 3].map(() => {
     const l = new THREE.PointLight(0xffb060, 0, 7, 2);
     V3.scene.add(l);
     return l;
   });
+  V3.points = V3.pointsAll;
   V3.terrain = new THREE.Group();
   V3.objects = new THREE.Group();
   V3.actors = new THREE.Group();
@@ -1025,7 +1043,11 @@ function v3Init() {
   V3.under = new THREE.Mesh(ug, new THREE.MeshLambertMaterial({ color: 0x5a7a3a }));
   V3.under.scale.set(240, 1, 240);
   V3.under.position.y = -0.9;
-  V3.under.renderOrder = -10;
+  // seit Wärme 2 (3D-Szene Niedrig, alle Stufen): nach den deckenden Bodenblöcken zeichnen (vorher −10, also zuerst).
+  // Er liegt tiefer als jeder Boden (−0,9 bzw. unter der tiefsten Flüssigkeit, mapFormUnderY) und ist deckend – der
+  // Tiefentest verwirft ihn jetzt unter dem Boden, statt ihn erst über das ganze Bild zu malen (vorher 41 % aller
+  // Fragmente). Sichtbar bleibt er genau dort, wo kein Block liegt (Lücken beim schnellen Laufen, Kartenrand).
+  V3.under.renderOrder = 1;
   V3.under.matrixAutoUpdate = true;
   V3.scene.add(V3.under);
   v3ApplyGraphics();
@@ -1060,6 +1082,8 @@ function v3ApplyGraphics() {
     }
   }
   if (typeof gpApply === 'function') gpApply();
+  // seit Wärme 2 (3D-Szene Niedrig): Zahl der Punktlichter je Stufe (die Boden-Varianten wärmt v3WarmGround je Stufe vor)
+  v3PointTier();
   v3Resize();
 }
 
@@ -1259,21 +1283,13 @@ function v3InView(x, y, pad = 0) {
   // und Felsen, aber keine Monster, Bewohner oder Mitspieler – die erschienen erst, wenn man näher kam.
   const F = VIEW3;
   if (F.ok) {
-    const q = F.q;
     const px = x * U3;
     const pz = y * U3;
     const m = (96 + pad) * U3;
-    // Umlaufsinn der Ecken (Spiegelungen ausgeschlossen, aber die Drehrichtung hängt von der Blickrichtung ab)
-    const o = (q[2] - q[0]) * (q[5] - q[1]) - (q[3] - q[1]) * (q[4] - q[0]) >= 0 ? 1 : -1;
-    for (let i = 0; i < 4; i++) {
-      const ax = q[i * 2];
-      const az = q[i * 2 + 1];
-      const j = ((i + 1) & 3) * 2;
-      const ex = q[j] - ax;
-      const ez = q[j + 1] - az;
-      const l = hyp(ex, ez) || 1;
-      if (((ex * (pz - az) - ez * (px - ax)) * o) / l < -m) return false;
-    }
+    // Kanten als Ecke + Richtung, Länge 1 und Umlaufsinn eingerechnet (seit Wärme 2 einmal je Bild in v3ViewFoot statt
+    // vier Wurzeln je Aufruf – rund 1.300 Aufrufe je Bild)
+    const e = F.e;
+    for (let i = 0; i < 16; i += 4) if (e[i + 2] * (pz - e[i + 1]) - e[i + 3] * (px - e[i]) < -m) return false;
     return true;
   }
   return Math.abs(x - V3.focus.x) < r.w / r.zoom * 0.62 + 64 + pad && y - V3.focus.y > -r.h / r.zoom * 0.95 - 96 - pad && y - V3.focus.y < r.h / r.zoom * 0.62 + 64 + pad;
@@ -1295,7 +1311,7 @@ const _sunT = new THREE.Vector3();
 // höchstens bis zum Nebelende), und der Schattenbereich genau darauf gelegt – im Blickfeld der Sonne als Rechteck,
 // Größe in 2er-Schritten gerundet und Mitte auf ganze Schatten-Bildpunkte gerastet (kein Flimmern beim Laufen).
 // Dieselbe Fläche steuert das Vorladen der Blöcke (v3UpdateChunks).
-const VIEW3 = { x0: 0, z0: 0, x1: 0, z1: 0, reach: 0, back: 0, q: new Float32Array(8), ok: false };
+const VIEW3 = { x0: 0, z0: 0, x1: 0, z1: 0, reach: 0, back: 0, q: new Float32Array(8), e: new Float64Array(16), ok: false };
 const _vfD = new THREE.Vector3();
 const VIEW3_CORNERS = [[-1, -1], [1, -1], [1, 1], [-1, 1]];
 function v3ViewFoot() {
@@ -1320,6 +1336,22 @@ function v3ViewFoot() {
     if (x > F.x1) F.x1 = x;
     if (z < F.z0) F.z0 = z;
     if (z > F.z1) F.z1 = z;
+  }
+  // Kanten für v3InView (seit Wärme 2): je Kante Anfangsecke und Richtung mit Länge 1, mal Umlaufsinn der Ecken
+  // (Spiegelungen ausgeschlossen, aber die Drehrichtung hängt von der Blickrichtung ab)
+  const q = F.q;
+  const o = (q[2] - q[0]) * (q[5] - q[1]) - (q[3] - q[1]) * (q[4] - q[0]) >= 0 ? 1 : -1;
+  for (let i = 0; i < 4; i++) {
+    const ax = q[i * 2];
+    const az = q[i * 2 + 1];
+    const j = ((i + 1) & 3) * 2;
+    const ex = q[j] - ax;
+    const ez = q[j + 1] - az;
+    const l = (hyp(ex, ez) || 1) * o;
+    F.e[i * 4] = ax;
+    F.e[i * 4 + 1] = az;
+    F.e[i * 4 + 2] = ex / l;
+    F.e[i * 4 + 3] = ez / l;
   }
   F.ok = true;
   // Reichweite um die Kamera am Boden (Schulterblick: so weit kann es nach einer Drehung zu sehen sein)
@@ -1925,19 +1957,17 @@ function v3SyncCut(dt) {
   CUT3.par.z = 3.2;
   CUT3.par.w = 0.5;
 }
-function groundMat() {
-  return mat3('ground', () => {
-    const tex = groundTextures();
-    const m = toonMat();
-    m.onBeforeCompile = (sh) => {
-      sh.uniforms.tNoise = { value: tex.noise };
-      sh.uniforms.tCobble = { value: tex.cobble };
-      sh.uniforms.tMacro = { value: tex.macro };
-      sh.uniforms.uCut = CUT3_UNIFORMS.uCut;
-      sh.uniforms.uCutP = CUT3_UNIFORMS.uCutP;
-      sh.vertexShader = sh.vertexShader
-        .replace('void main() {', 'attribute vec4 soil;\nattribute vec3 soil2;\nvarying vec4 vSoil;\nvarying vec3 vSoil2;\nvarying vec3 vGW;\nuniform vec4 uCut;\nuniform vec4 uCutP;\nvoid main() {')
-        .replace('#include <begin_vertex>', `#include <begin_vertex>
+// Ecken-Shader und Werte des Bodens (seit Wärme 2 als eigene Funktion, Text unverändert): gemeinsam für den vollen
+// Boden und den einfachen Boden auf „Niedrig“ (groundLowMat)
+function groundVertex3(sh, tex) {
+  sh.uniforms.tNoise = { value: tex.noise };
+  sh.uniforms.tCobble = { value: tex.cobble };
+  sh.uniforms.tMacro = { value: tex.macro };
+  sh.uniforms.uCut = CUT3_UNIFORMS.uCut;
+  sh.uniforms.uCutP = CUT3_UNIFORMS.uCutP;
+  sh.vertexShader = sh.vertexShader
+    .replace('void main() {', 'attribute vec4 soil;\nattribute vec3 soil2;\nvarying vec4 vSoil;\nvarying vec3 vSoil2;\nvarying vec3 vGW;\nuniform vec4 uCut;\nuniform vec4 uCutP;\nvoid main() {')
+    .replace('#include <begin_vertex>', `#include <begin_vertex>
 	if (uCutP.x > 0.0 && transformed.y > 0.14) {
 		vec2 cRel = (modelMatrix * vec4(transformed, 1.0)).xz - uCut.xy;
 		float cAl = dot(cRel, uCut.zw);
@@ -1949,8 +1979,16 @@ function groundMat() {
 	vSoil = soil;
 	vSoil2 = soil2;
 	vGW = (modelMatrix * vec4(transformed, 1.0)).xyz;`);
+}
+const GROUND3_FRAG_HEAD = 'uniform sampler2D tNoise;\nuniform sampler2D tCobble;\nuniform sampler2D tMacro;\nvarying vec4 vSoil;\nvarying vec3 vSoil2;\nvarying vec3 vGW;\nvoid main() {';
+function groundMat() {
+  return mat3('ground', () => {
+    const tex = groundTextures();
+    const m = toonMat();
+    m.onBeforeCompile = (sh) => {
+      groundVertex3(sh, tex);
       sh.fragmentShader = sh.fragmentShader
-        .replace('void main() {', 'uniform sampler2D tNoise;\nuniform sampler2D tCobble;\nuniform sampler2D tMacro;\nvarying vec4 vSoil;\nvarying vec3 vSoil2;\nvarying vec3 vGW;\nvoid main() {')
+        .replace('void main() {', GROUND3_FRAG_HEAD)
         .replace('#include <color_fragment>', `#include <color_fragment>
 	vec4 d1 = texture2D(tNoise, vGW.xz * 0.21);
 	vec4 d2 = texture2D(tNoise, vGW.xz * 0.053);
@@ -1976,6 +2014,75 @@ function groundMat() {
     m.customProgramCacheKey = () => 'ground';
     return addFade(m, 0.45);
   });
+}
+
+// --- Einfacher Boden auf „Niedrig“ (seit Wärme 2, 3D-Szene Niedrig) ---------------------------------------------------
+// Der volle Boden deckt fast das ganze Bild und war mit Abstand der teuerste Shader (4 Texturabfragen, Rippeln, Glitzern,
+// dazu die Durchsicht mit discard). Mit der Sparoptik nimmt jeder Block beim Bau (terrainJob) eine einfache Variante:
+// drei Abfragen (feines Rauschen d1, Großrauschen mac, Pflaster) – wo bisher das mittlere Rauschen d2 stand, steht jetzt
+// mac (Helligkeit, Trittspuren, Ascherisse, Glut). Ohne Sand-Rippeln (sin) und ohne Glitzern auf Schnee (Blickrichtung).
+// Bleiben: Grasstriche, Kies und Trittspuren, Ascherisse, gedämpfter Schnee, Pflaster, Glut am Lavaufer und das Absenken
+// der Höhlenwände (uCut, Ecken-Shader wie beim vollen Boden).
+// Durchsicht: addFade verwirft erst ab 0,45 Höhe. Liegt keine Ecke eines Blocks darüber (GROUND3_FADE_H), nimmt er
+// 'groundLow' ganz ohne discard – das Bild ist gleich, aber die Grafikchips verwerfen verdeckte Flächen wieder früh
+// (Early-Z, am iPhone HSR). Blöcke mit Klippen, Mauersockeln oder Dungeonwänden nehmen 'groundLowFade'.
+// Ein Wechsel der Grafikstufe baut alle Blöcke neu (v3ApplyGraphics, V3.builtFor).
+const GROUND3_FADE_H = 0.45;
+function groundLowMat(fade) {
+  return mat3(fade ? 'groundLowFade' : 'groundLow', () => {
+    const tex = groundTextures();
+    const m = toonMat();
+    m.onBeforeCompile = (sh) => {
+      groundVertex3(sh, tex);
+      sh.fragmentShader = sh.fragmentShader
+        .replace('void main() {', GROUND3_FRAG_HEAD)
+        .replace('#include <color_fragment>', `#include <color_fragment>
+	vec4 d1 = texture2D(tNoise, vGW.xz * 0.21);
+	float mac = texture2D(tMacro, vGW.xz * 0.011).r;
+	float cb = texture2D(tCobble, vGW.xz * 0.5).r;
+	float tread = max(0.5 - d1.b, 0.0) * 2.0 * smoothstep(0.35, 0.65, mac * 1.3);
+	diffuseColor.rgb *= (0.86 + (d1.r * 0.6 + mac * 0.4) * 0.28) * mix(vec3(0.86, 0.91, 0.92), vec3(1.1, 1.07, 0.95), mac)
+		* (1.0 + (d1.g - 0.5) * 0.4 * vSoil.x) * (1.0 + (max(d1.b - 0.5, 0.0) * 0.8 - tread * 0.32) * vSoil.y)
+		* (1.0 - max(0.5 - d1.a, 0.0) * (0.3 + 0.6 * mac) * vSoil2.y) * (1.0 - 0.26 * vSoil2.x);
+	diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * (0.62 + cb * 0.62), smoothstep(0.35, 0.75, vSoil.w));`)
+        .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+	totalEmissiveRadiance += vec3(1.0, 0.34, 0.07) * vSoil2.z * vSoil2.z * (0.3 + 0.16 * mac);`);
+    };
+    m.customProgramCacheKey = () => 'groundLow';
+    return fade ? addFade(m, GROUND3_FADE_H) : m;
+  });
+}
+// Material eines Blocks: volle Stufen wie bisher; „Niedrig“ nach der höchsten Ecke (hi)
+function groundMatFor3(hi) {
+  return sparOptik3() ? groundLowMat(hi > GROUND3_FADE_H) : groundMat();
+}
+const sparOptik3 = () => (typeof sparOptik === 'function' ? sparOptik() : opts.graphics === 'niedrig');
+// Beide Varianten vorab übersetzen (einmal je Grafikstufe und Grafikkontext, beim ersten Bau eines Blocks): zwei kleine
+// Testnetze kurz in die Szene, V3.gl.compile (übersetzt auf „Niedrig“ auch beide Lichtlagen), wieder heraus. Sonst
+// übersetzte der Treiber die zweite Variante mitten im Spiel, sobald der erste Block mit Klippe ins Bild kommt.
+function v3WarmGround() {
+  const key = opts.graphics + ':' + (V3.ctxGen || 0);
+  if (V3.groundWarm === key || !V3.gl || !V3.scene || !sparOptik3()) return;
+  V3.groundWarm = key;
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(new Float32Array([0, -50, 0, 0.01, -50, 0, 0, -50, 0.01]), 3));
+  g.setAttribute('normal', new THREE.BufferAttribute(new Int8Array([0, 127, 0, 0, 127, 0, 0, 127, 0]), 3, true));
+  g.setAttribute('color', new THREE.BufferAttribute(new Uint8Array(9), 3, true));
+  g.setAttribute('soil', new THREE.BufferAttribute(new Uint8Array(12), 4, true));
+  g.setAttribute('soil2', new THREE.BufferAttribute(new Uint8Array(9), 3, true));
+  const meshes = [groundLowMat(false), groundLowMat(true)].map((mat) => {
+    const m = new THREE.Mesh(g, mat);
+    m.frustumCulled = false;
+    V3.scene.add(m);
+    return m;
+  });
+  try {
+    V3.gl.compile(V3.scene, V3.camera);
+  } catch (err) {
+    console.warn('3D: Boden vorwärmen', err);
+  }
+  for (const m of meshes) V3.scene.remove(m);
+  g.dispose();
 }
 
 // Wasser, Lava und Moor (seit 7.9 je mit eigenem Bild), ohne Texturen und ohne Schleifen:
@@ -2004,6 +2111,16 @@ const LIQUID3 = {
           col += smoothstep(0.1, 0.0, length(go * vec2(1.0, 2.0))) * tw * 0.6 * (1.0 - 0.75 * uNight);
           float band = 0.22 + 0.08 * sin(t * 1.6 + p.x * 0.6 + p.y * 0.4);
           float foam = smoothstep(band, band * 0.45, d) * (0.8 + 0.2 * sin(p.x * 7.0 + p.y * 5.0 + t * 1.5));
+          col = mix(col, uFoam, foam * (0.85 - 0.4 * uNight));
+          float alpha = mix(uAlpha * 0.78, uAlpha, smoothstep(0.0, 0.5, d)) + foam * 0.16;`,
+    // seit Wärme 2 auf „Niedrig“: Farbe nach Tiefe, Himmel nach Blickwinkel (Fresnel) und ein ruhiger Schaumstreifen –
+    // ohne ziehende Wellenlinien und Glanzfunken
+    fragLow: `
+          vec3 col = mix(uShallow, uDeep, smoothstep(0.0, 0.8, d));
+          vec3 n = normalize(vec3(sin(p.x * 1.9 + p.y * 0.8 + t * 0.9) * 0.14, 1.0, sin(p.y * 2.3 - p.x * 0.7 + t * 0.7) * 0.14));
+          float fres = smoothstep(0.12, 0.72, 1.0 - dot(n, normalize(cameraPosition - vW)));
+          col = mix(col, uSky * 1.04, fres * 0.8);
+          float foam = smoothstep(0.22, 0.1, d) * 0.9;
           col = mix(col, uFoam, foam * (0.85 - 0.4 * uNight));
           float alpha = mix(uAlpha * 0.78, uAlpha, smoothstep(0.0, 0.5, d)) + foam * 0.16;`
   },
@@ -2084,11 +2201,26 @@ const LIQUID3 = {
           col += smoothstep(0.045, 0.0, dist) * step(life, 0.22) * on * 0.35;
           float foam = smoothstep(0.14, 0.03, d);
           col = mix(col, uFoam, foam * 0.45);
+          float alpha = mix(uAlpha * 0.9, uAlpha, d);`,
+    // seit Wärme 2 auf „Niedrig“: dieselben Algenflecken (stehend), ohne Blasen
+    fragLow: `
+          vec3 col = mix(uShallow, uDeep, smoothstep(0.0, 0.7, d));
+          float al = sin(p.x * 2.6 + sin(p.y * 1.8) * 1.6) * sin(p.y * 2.2 + sin(p.x * 1.4) * 1.4) + 0.45 * sin(p.x * 5.1 - p.y * 4.3);
+          col = mix(col, vec3(0.42, 0.52, 0.2), smoothstep(0.5, 0.75, al) * 0.55);
+          col = mix(col, uFoam, smoothstep(0.14, 0.03, d) * 0.45);
           float alpha = mix(uAlpha * 0.9, uAlpha, d);`
   }
 };
+// Farben je Art (seit Wärme 2): volle und einfache Variante teilen sich uShallow/uDeep/uFoam. Karten, die eine Fläche
+// umfärben (karte82.js Nebelküste, kartenluecken.js Kluft), setzen die Farbe nur beim Kartenwechsel – nach einem
+// Wechsel der Grafikstufe auf derselben Karte trug die neue Variante sonst wieder die Grundfarbe.
+const LIQUID3_COL = {};
+// Flächen, deren Zeit, Himmel und Nachtlicht renderDrei jedes Bild setzt (seit Wärme 2 auch die einfachen Varianten
+// von Wasser und Moor)
+const LIQUID3_FRAME = ['water', 'lava', 'bog', 'abyss', 'lavaL', 'waterL', 'bogL'];
 function liquidMat(kind) {
-  // niedrige Grafik (seit 13.85): einfacheres Bild, wo es eines gibt (Lava), als eigenes Material 'liquidlavaL'
+  // niedrige Grafik (seit 13.85): einfacheres Bild, wo es eines gibt (Lava, seit Wärme 2 auch Wasser und Moor), als
+  // eigenes Material 'liquid<art>L'
   const low = opts.graphics === 'niedrig' && !!LIQUID3[kind].fragLow;
   return mat3('liquid' + kind + (low ? 'L' : ''), () => {
     const P = LIQUID3[kind];
@@ -2103,6 +2235,10 @@ function liquidMat(kind) {
       uNight: { value: 0 },
       uLight: { value: new THREE.Color(1, 1, 1) }
     }]);
+    const C = LIQUID3_COL[kind] || (LIQUID3_COL[kind] = { uShallow: uniforms.uShallow, uDeep: uniforms.uDeep, uFoam: uniforms.uFoam });
+    uniforms.uShallow = C.uShallow;
+    uniforms.uDeep = C.uDeep;
+    uniforms.uFoam = C.uFoam;
     const m = new THREE.ShaderMaterial({
       uniforms,
       fog: true,
@@ -2343,7 +2479,11 @@ function* terrainJob(cx, cy) {
   g.setIndex(new THREE.BufferAttribute(idx, 1));
   g.computeBoundingSphere();
   yield;
-  const mesh = new THREE.Mesh(g, groundMat());
+  // seit Wärme 2 (3D-Szene Niedrig): höchste Ecke des Blocks wählt die Variante (groundMatFor3)
+  let hi = -Infinity;
+  for (let v = 1; v < pos.length; v += 3) if (pos[v] > hi) hi = pos[v];
+  if (sparOptik3()) v3WarmGround();
+  const mesh = new THREE.Mesh(g, groundMatFor3(hi));
   mesh.receiveShadow = true;
   const group = new THREE.Group();
   group.add(mesh);
@@ -2731,6 +2871,8 @@ function v3UpdateChunks(fx, fy, msBudget, ax = 0, ay = 0) {
       L.pw = (L.pw || 0) + performance.now() - t0;
     }
     if ((fertig && tiere) || performance.now() - L.t0 > 15000) {
+      // seit Wärme 2: auf „Niedrig“ noch hinter dem Ladebild alle Programme der Karte für beide Lichtlagen übersetzen
+      v3WarmLights();
       FULL3.loading = null;
       if (typeof mapLoadHide === 'function') mapLoadHide();
     }
@@ -2784,6 +2926,9 @@ function v3UpdateLights(fx, fy) {
   const pz = fy * U3;
   const N = LIGHTS3_NEAR;
   const now = performance.now();
+  // auf „Niedrig“ (v3LowLight): hat sich ein Effekt das Licht im letzten Bild geliehen? Dann steht dort eine andere
+  // Stärke als die, die hier zuletzt gesetzt wurde
+  const lent = V3.points.length === 1 && LOWLIGHT3.set >= 0 && V3.points[0].intensity !== LOWLIGHT3.set;
   if (N.len !== lightSpots3.length || now - N.at > 500 || now < N.at || Math.abs(px - N.x) > 2 || Math.abs(pz - N.z) > 2) {
     N.len = lightSpots3.length;
     N.at = now;
@@ -2808,6 +2953,12 @@ function v3UpdateLights(fx, fy) {
   near.length = n0;
   near.sort((a, b) => a[0] - b[0]);
   const n = V3.points.length;
+  // auf „Niedrig“ (ein aktives Licht) eigene Wahl der Lampe, siehe v3LowPick
+  if (n === 1) {
+    v3LowPick(near, n0, now);
+    v3LowLight(n0 > 0 || lent, now);
+    return;
+  }
   const edge = near[n] ? near[n][0] : LIGHT_REACH3;
   for (let i = 0; i < n; i++) {
     const l = V3.points[i];
@@ -2825,6 +2976,88 @@ function v3UpdateLights(fx, fy) {
     l.color.set(s.color);
     l.distance = s.range || 7;
     l.intensity = Math.min(1.4, s.power || 1) * fade * wave;
+  }
+}
+
+// --- Punktlichter auf „Niedrig“ (seit Wärme 2, 3D-Szene Niedrig) ------------------------------------------------------
+// three.js übersetzt jeden beleuchteten Shader (Boden, Welt, Figuren) mit der Zahl der sichtbaren Punktlichter und
+// rechnet sie für jedes Fragment – auch mit Stärke 0 (im Feld am Tag standen alle vier auf 0: 71 Mio. Auswertungen je
+// Sekunde). Auf „Niedrig“ ist nur noch das erste aktiv (V3.points = [es]); die anderen drei sind unsichtbar. Liegt keine
+// Lampe in Reichweite (LIGHT_REACH3), wird auch das eine nach 2 s unsichtbar – dann rechnen die Shader ganz ohne
+// Punktlicht. Leiht sich ein Effekt das Licht (Feuerfeld, Sturmgericht: FX3_HOOKS setzen nach v3UpdateLights die Stärke
+// des schwächsten Lichts aus V3.points), ist es im nächsten Bild wieder an. Beide Lagen sind vorab übersetzt
+// (gl.compile in v3MakeRenderer, v3WarmLights); der Wechsel tauscht nur das Programm. Mittel und höher: alle vier wie bisher.
+const LOWLIGHT3 = { on: true, until: 0, set: -1, spot: null, k: 0, t: 0 };
+// Welche Lampe das eine Licht bekommt: Mit vier Lichtern blendet das vierte weich aus, wenn ein fünftes fast so nah ist
+// (edge). Mit nur einem wäre das Licht überall dort fast aus, wo zwei Lampen ähnlich weit weg stehen (gemessen in
+// Kazehana: 0,01 statt 0,59) – gerade beim Stehen in der Stadt. Darum bleibt es bei seiner Lampe, bis eine andere
+// 1,5 Einheiten näher ist, blendet dann in 1/3 s aus und an der neuen Lampe wieder ein (kein Springen, kein Flackern).
+function v3LowPick(near, n0, now) {
+  const L = LOWLIGHT3;
+  const l = V3.points[0];
+  const dt = Math.min(0.1, Math.max(0, (now - L.t) / 1000));
+  L.t = now;
+  let cur = null;
+  let dc = 0;
+  for (let i = 0; i < n0; i++) if (near[i][1] === L.spot) { cur = L.spot; dc = near[i][0]; break; }
+  const best = n0 ? near[0] : null;
+  if (!cur) {
+    // die bisherige Lampe ist außer Reichweite (dort schon ausgeblendet) oder es gab keine: gleich die nächste
+    L.spot = best ? best[1] : null;
+    L.k = 0;
+    cur = L.spot;
+    dc = best ? best[0] : 0;
+  } else if (best[1] !== cur && best[0] < dc - 1.5) {
+    L.k -= dt * 3;
+    if (L.k <= 0) {
+      L.spot = cur = best[1];
+      dc = best[0];
+      L.k = 0;
+    }
+  } else L.k = Math.min(1, L.k + dt * 3);
+  if (!cur) {
+    l.intensity = 0;
+    return;
+  }
+  const s = cur;
+  const fade = Math.max(0, Math.min(1, (LIGHT_REACH3 - dc) / 4)) * Math.max(0, L.k);
+  const f = s.flicker || 0;
+  const wave = f ? 0.94 + 0.04 * Math.sin(V3.time * Math.min(f, 4) + s.x) + 0.02 * Math.sin(V3.time * Math.min(f, 4) * 2.3 + s.z) : 1;
+  l.position.set(s.x, s.y, s.z);
+  l.color.set(s.color);
+  l.distance = s.range || 7;
+  l.intensity = Math.min(1.4, s.power || 1) * fade * wave;
+}
+function v3PointTier() {
+  const all = V3.pointsAll;
+  if (!all) return;
+  const low = sparOptik3();
+  V3.points = low ? all.slice(0, 1) : all;
+  for (let i = 0; i < all.length; i++) all[i].visible = !low || (i === 0 && LOWLIGHT3.on);
+  LOWLIGHT3.set = -1;
+}
+// want: eine Lampe in Reichweite oder das Licht war geliehen; aus erst 2 s nach dem letzten Bedarf (kein Hin und Her
+// am Rand der Reichweite – die Stärke ist dort ohnehin schon 0)
+function v3LowLight(want, now) {
+  const L = LOWLIGHT3;
+  const l = V3.points[0];
+  if (want) L.until = now + 2000;
+  const on = now < L.until;
+  if (on !== L.on) {
+    L.on = on;
+    l.visible = on;
+  }
+  // Stärke, die v3UpdateLights gesetzt hat (ein Effekt-Haken ändert sie danach im selben Bild)
+  L.set = l.intensity;
+}
+// Programme für beide Lichtlagen übersetzen (auf „Niedrig“, hinter dem Ladebild einer Karte bzw. im Bild eines Sprungs):
+// gl.compile übersetzt dank v3MakeRenderer beide Lagen für alles, was gerade in der Szene hängt.
+function v3WarmLights() {
+  if (!V3.gl || !V3.scene || !V3.pointsAll || V3.points.length !== 1) return;
+  try {
+    V3.gl.compile(V3.scene, V3.camera);
+  } catch (err) {
+    console.warn('3D: Lichter vorwärmen', err);
   }
 }
 
@@ -3040,8 +3273,11 @@ function renderDrei() {
   vel.py = fy;
   v3UpdateUnder(fx, fy, dt);
   v3UpdateChunks(_vc.x, _vc.y, chunks3.size < 4 || jumped ? 1500 : 5, vel.x * 0.9, vel.y * 0.9);
+  // seit Wärme 2: nach einem Sprung (Dungeon, Reise; ohne Ladebild) auf „Niedrig“ beide Lichtlagen vorwärmen – dieses
+  // Bild wartet ohnehin auf den Bau und wird dunkel überblendet
+  if (jumped) v3WarmLights();
   v3UpdateLights(fx, fy);
-  for (const k of ['water', 'lava', 'bog', 'abyss', 'lavaL']) {
+  for (const k of LIQUID3_FRAME) {
     const lm = MAT3['liquid' + k];
     if (!lm) continue;
     lm.uniforms.uTime.value = V3.time;
@@ -3130,11 +3366,33 @@ function ov3Live(players, skip, spar) {
   // der Wegweiser wippt und pulsiert – mit der Sparoptik steht er still und steht in der Schrittliste (guideOps)
   if (!spar && typeof guideAktiv === 'function' && guideAktiv()) return true;
   for (const e of game.effects) if (!skip(e)) return true;
-  // Auren der Spieler (drawPlayerExtras3): Seelenfunken des Nekromanten, Schein am Zepter des Magiers, Knochenschild
+  // Auren der Spieler (drawPlayerExtras3): Seelenfunken des Nekromanten, Schein am Zepter des Magiers, Knochenschild.
+  // Seit Wärme 2 (3D-Szene Niedrig) mit der Sparoptik still gemalt; ihre Lage steht in der Schrittliste (ov3AuraOps)
   const flat = typeof FX3_KA === 'undefined';
-  for (const pl of players) if (flat || pl.classId === 'nekromant' || pl.classId === 'magier' || pl.shield > 0) return true;
+  if (flat && players.length) return true;
+  if (!spar) for (const pl of players) if (pl.classId === 'nekromant' || pl.classId === 'magier' || pl.shield > 0) return true;
   return false;
 }
+// Lage der stillen Auren (Sparoptik, seit Wärme 2): je Spieler mit Seelenfunken, Zepterschein oder Knochenschild ein
+// Schritt 9 (malt nichts; ovReplay überspringt neun Felder) mit Fußpunkt und Maßstab, Lage des Zepterfunkens in ganzen
+// Geräte-Pixeln, Schild und Tarnung. ovSame bemerkt so, wenn sich etwas davon bewegt.
+const _ovAura = { a: 1, x: 0, y: 0 };
+const _mgP = { x: 0, y: 0, k: 1 };
+function ov3AuraOps(ops, players) {
+  const d = renderer.dpr;
+  for (const pl of players) {
+    const mage = pl.classId === 'magier';
+    if (!(mage || pl.classId === 'nekromant' || pl.shield > 0)) continue;
+    v3AnchorAt(pl.x, feetY(pl), 0, _ovAura);
+    const sp = mage && mageSparkAt3(pl, _mgP);
+    const inv = (pl === game.player && game.stats && game.stats.invisible) || (pl.remote && pl.invisible) ? 1 : 0;
+    ops.push(9, 'aura', pl.classId, Math.round(_ovAura.a * 1024) / 1024, Math.round(_ovAura.x), Math.round(_ovAura.y),
+      sp ? Math.round(_mgP.x * d) : -1, sp ? Math.round(_mgP.y * d) : -1, (pl.shield > 0 ? 2 : 0) + inv);
+  }
+}
+// Kürzester Abstand zwischen zwei Neuzeichnungen, wenn sich bei stehender Kamera nur Schilder oder stille Auren bewegen
+// (laufende Bewohner, Zepterfunke): 15 je Sekunde
+const OV3_STEP = 66;
 // Kameramatrix und Bildwinkel, gerundet (Vergleich mit dem letzten Bild)
 function ov3CamSig(out) {
   const cam = V3.camera;
@@ -3217,6 +3475,7 @@ function drawOverlay3(ctx) {
       drawLabel(ctx, e);
     }
     if (spar && typeof guideOps === 'function') guideOps(ops);
+    if (spar) ov3AuraOps(ops, players);
   } finally {
     OVL.rec = null;
   }
@@ -3224,16 +3483,26 @@ function drawOverlay3(ctx) {
   const live = OVL.live || ov3Live(players, skip, spar);
   const now = performance.now();
   if (spar) ov3CamSig(O.cam);
-  const keep = spar && !sized && !live && !O.live && !O.blank && now - O.at < 2000 && ovSame(ops, O.prev) && ovSame(O.cam, O.pcam);
+  // Verglichen wird mit dem zuletzt wirklich gemalten Bild (O.prev, O.pcam). Seit Wärme 2 (3D-Szene Niedrig): Steht die
+  // Kamera und bewegen sich nur Schilder bzw. stille Auren, höchstens alle OV3_STEP ms neu malen (bis dahin bleibt das
+  // alte Bild; die Liste des gemalten Bildes bleibt Vergleich, damit die Änderung im nächsten Takt sicher gemalt wird).
+  // Bewegte Kamera, Treffer, Zahlen, Teilchen, Effekte: weiter jedes Bild.
+  const calm = spar && !sized && !live && !O.live && !O.blank && ovSame(O.cam, O.pcam);
+  const same = calm && now - O.at < 2000 && ovSame(ops, O.prev);
+  const wait = calm && !same && now - O.at < OV3_STEP;
+  if (same || wait) {
+    O.kept++;
+    if (same) {
+      O.ops = O.prev;
+      O.prev = ops;
+    }
+    return;
+  }
   O.ops = O.prev;
   O.prev = ops;
   const pc = O.pcam;
   O.pcam = O.cam;
   O.cam = pc;
-  if (keep) {
-    O.kept++;
-    return;
-  }
   O.live = live || !spar;
   O.blank = false;
   O.at = now;
@@ -3267,7 +3536,7 @@ function drawOverlay3(ctx) {
   }
   rankHaloPass(ctx, (e) => !ground(e) && !skip(e), anchor, true);
   // Auren und Ringe der Spieler
-  for (const pl of players) drawPlayerExtras3(ctx, pl);
+  for (const pl of players) drawPlayerExtras3(ctx, pl, spar);
   drawParticles(ctx);
   // Namen, Lebensbalken, Zeichen über den Köpfen (gesammelt oben)
   ovReplay(ctx, ops);
@@ -3285,18 +3554,29 @@ function drawOverlay3(ctx) {
 const _mgS = new THREE.Vector3();
 const _mgA = {};
 const _mgB = {};
-function drawMageSpark3(ctx, p, invisible) {
+// Lage des Funkens im Bild (CSS-Pixel, out.x/out.y) und Maßstab out.k; false, wenn er nicht zu sehen ist
+// (seit Wärme 2 eigene Funktion: ov3AuraOps braucht dieselbe Lage für den Vergleich)
+function mageSparkAt3(p, out) {
   const a = p.__k3 && actors3.get(p.__k3);
-  if (!a || !a.group.visible || !(a.model.sparkBone >= 0) || typeof mageEl !== 'function') return;
+  if (!a || !a.group.visible || !(a.model.sparkBone >= 0) || typeof mageEl !== 'function') return false;
   const o = a.model.sparkOff;
   _mgS.set(o[0], o[1], o[2]).applyMatrix4(a.bones[a.model.sparkBone].matrixWorld).project(V3.camera);
-  if (_mgS.z > 1) return;
+  if (_mgS.z > 1) return false;
   const r = renderer;
   const fy = feetY(p);
-  const k = Math.max(0.05, (v3Project(p.x + 32, fy, 0, _mgB).x - v3Project(p.x, fy, 0, _mgA).x) / 32);
-  const x = (_mgS.x + 1) * 0.5 * r.w;
-  const y = (1 - _mgS.y) * 0.5 * r.h;
-  const pulse = 0.8 + 0.2 * Math.sin(game.time * 9 + p.x * 0.1);
+  out.k = Math.max(0.05, (v3Project(p.x + 32, fy, 0, _mgB).x - v3Project(p.x, fy, 0, _mgA).x) / 32);
+  out.x = (_mgS.x + 1) * 0.5 * r.w;
+  out.y = (1 - _mgS.y) * 0.5 * r.h;
+  return true;
+}
+function drawMageSpark3(ctx, p, invisible, spar) {
+  if (!mageSparkAt3(p, _mgP)) return;
+  const r = renderer;
+  const k = _mgP.k;
+  const x = _mgP.x;
+  const y = _mgP.y;
+  // mit der Sparoptik (seit Wärme 2) ohne Pulsieren: das Overlay muss dann nicht jedes Bild neu gemalt werden
+  const pulse = spar ? 0.9 : 0.8 + 0.2 * Math.sin(game.time * 9 + p.x * 0.1);
   ctx.save();
   ctx.setTransform(r.dpr, 0, 0, r.dpr, 0, 0);
   ctx.globalCompositeOperation = 'lighter';
@@ -3306,8 +3586,9 @@ function drawMageSpark3(ctx, p, invisible) {
   ctx.restore();
 }
 
-// Auren der Spieler (Buff-Ringe, Knochenpanzer, Seelenfunken), an den Füßen ausgerichtet
-function drawPlayerExtras3(ctx, p) {
+// Auren der Spieler (Buff-Ringe, Knochenpanzer, Seelenfunken), an den Füßen ausgerichtet. spar (Sparoptik, seit Wärme 2):
+// Seelenfunken, Knochen und Zepterschein stehen still (feste Lage statt Zeit) – ov3AuraOps vergleicht nur ihre Lage
+function drawPlayerExtras3(ctx, p, spar) {
   const fy = feetY(p);
   v3Anchor(ctx, p.x, fy);
   const invisible = (p === game.player && game.stats && game.stats.invisible) || (p.remote && p.invisible);
@@ -3335,20 +3616,22 @@ function drawPlayerExtras3(ctx, p) {
     ctx.stroke();
     ctx.restore();
   }
+  // stille Zeit für die Sparoptik: Funken auf festen Höhen, Knochen in fester Lage
+  const gt = spar ? 0 : game.time;
   if (p.classId === 'nekromant') {
     for (let k = 0; k < 3; k++) {
-      const t = (game.time * 0.6 + k / 3) % 1;
+      const t = spar ? k / 3 + 1 / 6 : (gt * 0.6 + k / 3) % 1;
       ctx.globalAlpha = (invisible ? 0.35 : 1) * (1 - t) * 0.8;
       ctx.fillStyle = '#a7e37f';
-      circle(ctx, p.x + Math.sin(game.time * 2 + k * 2.1) * 10, fy - 10 - t * 40, 1.6);
+      circle(ctx, p.x + Math.sin(gt * 2 + k * 2.1) * 10, fy - 10 - t * 40, 1.6);
     }
     ctx.globalAlpha = invisible ? 0.35 : 1;
   }
   // Magier (seit 8.6): der Funke kreist gebacken um den Zepterkristall, hier kommt sein weicher Schein dazu
-  if (p.classId === 'magier') drawMageSpark3(ctx, p, invisible);
+  if (p.classId === 'magier') drawMageSpark3(ctx, p, invisible, spar);
   if (p.shield > 0) {
     for (let k = 0; k < 6; k++) {
-      const a = game.time * 2.4 + k * Math.PI / 3;
+      const a = gt * 2.4 + k * Math.PI / 3;
       ctx.save();
       ctx.translate(p.x + Math.cos(a) * 22, fy - 22 + Math.sin(a) * 9);
       ctx.rotate(a * 2);
