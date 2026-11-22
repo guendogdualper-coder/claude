@@ -1003,8 +1003,12 @@ const _gA = {};
 const _gB = {};
 function guideScreen(wx, wy, out) {
   if (V3.on) return v3Project(wx, wy, 0, out);
-  out.x = (wx - renderer.camX) * renderer.zoom;
-  out.y = (wy - renderer.camY) * renderer.zoom;
+  // seit 15.57 auch in der schrägen 2D-Sicht richtig (pixel2d.js)
+  if (typeof worldToScreen2d === 'function') worldToScreen2d(wx, wy, out);
+  else {
+    out.x = (wx - renderer.camX) * renderer.zoom;
+    out.y = (wy - renderer.camY) * renderer.zoom;
+  }
   out.z = 0;
   return out;
 }
@@ -1045,7 +1049,7 @@ function drawGuide(ctx) {
   if (onScreen && dist > TILE * 1.2) {
     let h = _gB;
     if (V3.on) h = v3Project(c.x, c.y, c.follow ? v3HeadHeight(c.follow) + 0.5 : 2.6, _gB);
-    else _gB.y -= 60 * r.zoom;
+    else _gB.y -= 60 * r.zoom * (_gB.s || 1);
     const bob = still ? 0 : Math.sin(game.time * 5) * 4 * s;
     drawGuideChevron(ctx, h.x, h.y - 10 * s + bob, Math.PI / 2, 13 * s, gold);
   }

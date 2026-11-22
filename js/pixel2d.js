@@ -147,6 +147,7 @@ const PIX_GROUND_KIND = {};
   set('schnee', G.SNOW, G.NACHTSCHNEE);
   set('stein', G.BASALT, G.CAVE, G.KRISTALL);
   set('pflaster', G.PLAZA, G.FLAGSTONE);
+  set('wasser', G.WATER);
 })();
 const pixPatterns = {};
 
@@ -251,6 +252,12 @@ function pixPatternCanvas(kind) {
         if (pixHash(x, y, 7) < 0.006) for (let k = 0; k < 4; k++) dot(x + k, y + (k >> 1), 'rgba(0,0,0,0.22)');
       } else if (kind === 'pflaster') {
         cobble(x, y);
+      } else if (kind === 'wasser') {
+        // Wasser (seit 15.57): kurze helle Lichtstreifen und dunkle Tiefe, wie gemalte Pixel-Wellen
+        if (n < 0.018) {
+          for (let k = 0; k < 4; k++) dot(x + k, y, k === 0 || k === 3 ? 'rgba(230,245,255,0.16)' : 'rgba(230,245,255,0.3)');
+        } else if (n < 0.05) dot(x, y, 'rgba(0,25,60,0.14)');
+        if (f > 0.74) dot(x, y, 'rgba(120,190,230,0.08)');
       }
     }
   }
@@ -337,5 +344,308 @@ function pixelFences(ctx, tx0, ty0) {
         }
       }
     }
+  }
+}
+
+// --- Zoomen und schräge Sicht (seit 15.57) ---------------------------------------------------------------------------
+// Mausrad oder zwei Finger zoomen die 2D-Welt (ZOOM2D.mul, 0,7 … 1,25). Unter 1 kippt im Pixel-Stil zugleich die
+// Kamera nach hinten, wie in Aufbauspielen mit gemalter Welt: der Boden wird perspektivisch (oben weiter weg und
+// kleiner, unten näher und größer, dazu leicht gestaucht), Figuren, Bäume und Häuser bleiben aufrecht stehen und
+// schrumpfen mit der Entfernung – die Welt wirkt wie ein Diorama.
+//
+// Abbildung (Bildschirm relativ zur Bildmitte, Welt relativ zum Blickpunkt: u, v):
+//   s = 1 / (1 − t·v/R),  X = zoom·s·u,  Y = zoom·cy·s·v,  R = (H/2) / (zoom·cy)
+// Rückwärts gilt s = 1 + t·Y/(H/2): oben am Bild 1 − t, in der Mitte 1, unten 1 + t. Gerade Linien bleiben gerade,
+// der Horizont liegt weit über dem Bild. Bei t = 0 ist das genau die flache Ansicht (nahtloser Übergang).
+//
+// Ablauf je Bild (pixelRenderTilt): Boden und Bodeneffekte flach in die Pixel-Fläche G, Effekte über den Figuren in
+// F (durchsichtig); G zeilenweise schräg in die Bildfläche P ziehen (je Zeile ein drawImage), die Figuren als
+// aufrechte Bilder in P (je Figur ein eigener Maßstab), F darüber; P scharfkantig auf den Bildschirm. Namen, Balken,
+// Zahlen und Wegweiser kommen in voller Auflösung an ihren projizierten Punkten darüber.
+const ZOOM2D = { mul: 1, min: 0.7, max: 1.25, tMax: 0.3, squash: 0.7, key: 'seelenstein-zoom2d' };
+try {
+  const z = parseFloat(localStorage.getItem(ZOOM2D.key));
+  if (z >= ZOOM2D.min && z <= ZOOM2D.max) ZOOM2D.mul = z;
+} catch (e) { /* privat */ }
+
+function zoom2dMul() {
+  return ZOOM2D.mul;
+}
+function zoom2dSet(z) {
+  const m = Math.max(ZOOM2D.min, Math.min(ZOOM2D.max, z));
+  // nahe an 1 rastet der Zoom ein (flache Ansicht genau wie bisher)
+  ZOOM2D.mul = Math.abs(m - 1) < 0.025 ? 1 : m;
+  const r = renderer;
+  if (r.zoomBase && !(typeof V3 !== 'undefined' && V3.on)) r.zoom = r.zoomBase * ZOOM2D.mul;
+  try { localStorage.setItem(ZOOM2D.key, String(ZOOM2D.mul)); } catch (e) { /* privat */ }
+}
+
+// Neigung (0 = flach) – nur im Pixel-Stil und nur beim Herauszoomen
+function pixelTilt() {
+  if (ZOOM2D.mul >= 1 || !pixel2dAktiv()) return 0;
+  return Math.min(1, (1 - ZOOM2D.mul) / (1 - ZOOM2D.min)) * ZOOM2D.tMax;
+}
+
+// Stand der schrägen Sicht im letzten Bild (für Eingabe und Anzeigen): on, t, cy, fx, fy, zoom, w, h
+const TILT = { on: false, t: 0, cy: 1, fx: 0, fy: 0, zoom: 1, w: 1, h: 1 };
+
+// Weltpunkt → Bildschirmpunkt (CSS-Pixel) mit Maßstab out.s (1 = wie in der flachen Ansicht); flach wie bisher
+function worldToScreen2d(wx, wy, out) {
+  const r = renderer;
+  if (!TILT.on) {
+    out.x = (wx - r.camX) * r.zoom;
+    out.y = (wy - r.camY) * r.zoom;
+    out.s = 1;
+    return out;
+  }
+  const T = TILT;
+  const R = T.h / 2 / (T.zoom * T.cy);
+  const s = 1 / Math.max(0.08, 1 - (T.t * (wy - T.fy)) / R);
+  out.x = T.w / 2 + T.zoom * s * (wx - T.fx);
+  out.y = T.h / 2 + T.zoom * T.cy * s * (wy - T.fy);
+  out.s = s;
+  return out;
+}
+// Bildschirmpunkt (CSS-Pixel) → Weltpunkt in der schrägen Sicht
+function tiltScreenToWorld(sx, sy) {
+  const T = TILT;
+  const Y = sy - T.h / 2;
+  const s = Math.max(0.08, 1 + (T.t * Y) / (T.h / 2));
+  return { x: T.fx + (sx - T.w / 2) / (T.zoom * s), y: T.fy + Y / (T.zoom * T.cy * s) };
+}
+// Zeichenfläche (Geräte-Pixel) so einstellen, dass um den Weltpunkt herum in Weltkoordinaten gezeichnet werden kann
+// (wie v3Anchor in 3D): Namen, Balken, Zahlen
+// h: Höhe des Ankers über dem Fußpunkt (Welt-Einheiten, wie die aufrechten Bilder), big: Schrift größer als die Welt
+const _tiltA = { x: 0, y: 0, s: 1 };
+function tiltAnchor(ctx, wx, wy, h = 0, big = 1) {
+  const r = renderer;
+  worldToScreen2d(wx, wy, _tiltA);
+  const k0 = r.zoom * _tiltA.s;
+  const k = k0 * big * r.dpr;
+  const ay = wy - h;
+  ctx.setTransform(k, 0, 0, k, _tiltA.x * r.dpr - k * wx, (_tiltA.y - h * k0) * r.dpr - k * ay);
+  return _tiltA.y > -0.3 * r.h && _tiltA.y < 1.4 * r.h;
+}
+
+const TILTBUF = { G: null, g: null, F: null, f: null, P: null, p: null };
+function tiltCanvas(name, w, h, alpha) {
+  const B = TILTBUF;
+  if (!B[name]) {
+    B[name] = newCanvas(w, h);
+    B[name.toLowerCase()] = B[name].getContext('2d', { alpha });
+  }
+  const c = B[name];
+  if (c.width !== w) c.width = w;
+  if (c.height !== h) c.height = h;
+  const x = B[name.toLowerCase()];
+  x.setTransform(1, 0, 0, 1, 0, 0);
+  x.globalAlpha = 1;
+  x.globalCompositeOperation = 'source-over';
+  x.imageSmoothingEnabled = false;
+  return x;
+}
+
+// Ein ganzes Bild der Welt in der schrägen Sicht (statt des flachen Wegs in render, zeichnen.js)
+const _tp = { x: 0, y: 0, s: 1 };
+function pixelRenderTilt(r, fx, fy) {
+  const U = PIX.units;
+  const T = TILT;
+  T.on = true;
+  T.t = pixelTilt();
+  T.cy = 1 - ZOOM2D.squash * T.t;
+  T.fx = fx;
+  T.fy = fy;
+  T.zoom = r.zoom;
+  T.w = r.w;
+  T.h = r.h;
+  // für alles, was die Bildmitte über camX/camY sucht (Wind, Umgebungsteilchen, Tribünen): wie in der flachen Sicht
+  r.camX = fx - r.w / 2 / r.zoom;
+  r.camY = fy - r.h / 2 / r.zoom;
+
+  // sichtbarer Teil der Welt: oben am breitesten (Trapez), dazu Rand für Figuren, die unten ins Bild ragen
+  const top = tiltScreenToWorld(0, 0);
+  const topR = tiltScreenToWorld(r.w, 0);
+  const bot = tiltScreenToWorld(0, r.h);
+  const wx0 = top.x - 8;
+  const wx1 = topR.x + 8;
+  const wy0 = top.y - 8;
+  const wy1 = bot.y + 8;
+
+  // G: Boden flach im Pixel-Raster (fest an der Welt wie in der flachen Sicht)
+  const gx0 = Math.floor(wx0 / U);
+  const gy0 = Math.floor(wy0 / U);
+  const gw = Math.min(3200, Math.ceil(wx1 / U) - gx0 + 2);
+  const gh = Math.min(2000, Math.ceil(wy1 / U) - gy0 + 2);
+  const g = tiltCanvas('G', gw, gh, false);
+  g.fillStyle = '#12100c';
+  g.fillRect(0, 0, gw, gh);
+  g.setTransform(1 / U, 0, 0, 1 / U, -gx0, -gy0);
+  PIX.inWorld = true;
+  const tx0 = Math.max(0, Math.floor(wx0 / TILE) - 1);
+  const ty0 = Math.max(0, Math.floor(wy0 / TILE) - 1);
+  const tx1 = Math.min(MAP_W - 1, Math.ceil(wx1 / TILE) + 1);
+  const ty1 = Math.min(MAP_H - 1, Math.ceil(wy1 / TILE) + 1);
+  // neue Bodenblöcke höchstens ein paar je Bild backen (der Rest kommt in den nächsten Bildern; bis dahin die
+  // Bodenfarben je Kachel), sonst stockt das Bild beim Herauszoomen und Laufen
+  PIX.chunkBudget = 5;
+  // je Blockzeile nur die Blöcke im sichtbaren Trapez (unten ist das Bild schmaler als oben)
+  const span = (cy) => {
+    const wy = Math.min(bot.y, cy * CHUNK * TILE);
+    const sy = worldToScreen2d(fx, wy, _tp).y;
+    const a = tiltScreenToWorld(-4, sy);
+    const b = tiltScreenToWorld(r.w + 4, sy);
+    return [Math.floor(a.x / TILE / CHUNK), Math.floor(b.x / TILE / CHUNK)];
+  };
+  drawGround(g, tx0, ty0, tx1, ty1, span);
+  PIX.chunkBudget = null;
+
+  // Figuren dürfen mit dem Kopf von unten ins Bild ragen und seitlich etwas überstehen
+  const view = { x0: wx0 - 80, y0: wy0 - 40, x1: wx1 + 80, y1: wy1 + 170 };
+  const inView = (e) => e.x > view.x0 && e.x < view.x1 && e.y > view.y0 && e.y < view.y1;
+  drawCloudShadows(g, view);
+  if (game.target && !game.target.dead) drawTargetRing(g, game.target);
+  const vx0 = Math.max(0, Math.floor(view.x0 / TILE));
+  const vy0 = Math.max(0, Math.floor(view.y0 / TILE));
+  const vx1 = Math.min(MAP_W - 1, Math.ceil(view.x1 / TILE));
+  const vy1 = Math.min(MAP_H - 1, Math.ceil(view.y1 / TILE));
+  const list = collectScene(view, vx0, vy0, vx1, vy1, inView);
+  rankHaloPass(g, sceneGroundFx);
+  for (const e of game.effects) if (sceneGroundFx(e)) drawEffect(g, e);
+  drawDuelArena(g);
+
+  // F: Effekte, Geschosse und Teilchen über den Figuren, ebenfalls flach (liegen danach genau über dem Boden). Nur der
+  // Streifen, in dem gerade etwas ist (mit Rand für hohe Säulen und lange Strahlen) – meist ist F fast leer
+  const up = (e) => !sceneGroundFx(e);
+  let fy0 = Infinity;
+  let fy1 = -Infinity;
+  const fyIn = (y) => {
+    if (y < fy0) fy0 = y;
+    if (y > fy1) fy1 = y;
+  };
+  for (const pr of game.projectiles) fyIn(pr.y);
+  for (const e of game.effects) if (up(e)) fyIn(e.y);
+  for (const q of game.particles) fyIn(q.y);
+  let fr0 = 0;
+  let fr1 = -1;
+  if (fy1 >= fy0) {
+    fr0 = Math.max(0, Math.floor((fy0 - 380) / U) - gy0);
+    fr1 = Math.min(gh - 1, Math.ceil((fy1 + 220) / U) - gy0);
+  }
+  if (fr1 >= fr0) {
+    const f = tiltCanvas('F', gw, gh, true);
+    f.clearRect(0, fr0, gw, fr1 - fr0 + 1);
+    f.setTransform(1 / U, 0, 0, 1 / U, -gx0, -gy0);
+    for (const pr of game.projectiles) drawProjectile(f, pr);
+    rankHaloPass(f, up);
+    for (const e of game.effects) if (up(e)) drawEffect(f, e);
+    rankHaloPass(f, up, null, true);
+    drawParticles(f);
+  }
+
+  // P: Bildfläche in Pixeln (1 Bildpunkt = zoom·U CSS-Pixel)
+  const pu = r.zoom * U;
+  const pw = Math.ceil(r.w / pu) + 1;
+  const ph = Math.ceil(r.h / pu) + 1;
+  const p = tiltCanvas('P', pw, ph, false);
+  p.fillStyle = '#12100c';
+  p.fillRect(0, 0, pw, ph);
+  tiltWarp(p, TILTBUF.G, pw, ph, pu, gx0, gy0, U, 0, gh - 1);
+  // Figuren, Bäume, Häuser: aufrecht, Maßstab nach der Entfernung ihres Fußpunkts. Was ganz außerhalb des Bildes
+  // steht, fällt weg (das Trapez ist unten schmaler als der Rahmen; dichte Wälder am Kartenrand haben Tausende Bäume)
+  for (const e of list) {
+    const by = sceneBaseY(e);
+    worldToScreen2d(e.x, by, _tp);
+    const k = _tp.s / U;
+    const px = _tp.x / pu;
+    const py = _tp.y / pu;
+    const half = (e.worldObj === 'house' && e.house ? e.house.w * TILE * 0.7 : 90) * k;
+    if (py < -2 || py - 260 * k > ph || px < -half || px > pw + half) {
+      e.__tiltOut = true;
+      continue;
+    }
+    e.__tiltOut = false;
+    p.setTransform(k, 0, 0, k, px - k * e.x, py - k * by);
+    drawSceneEntity(p, e);
+  }
+  p.setTransform(1, 0, 0, 1, 0, 0);
+  p.globalAlpha = 1;
+  p.globalCompositeOperation = 'source-over';
+  if (fr1 >= fr0) tiltWarp(p, TILTBUF.F, pw, ph, pu, gx0, gy0, U, fr0, fr1);
+  PIX.inWorld = false;
+
+  const m = r.ctx;
+  m.setTransform(1, 0, 0, 1, 0, 0);
+  m.imageSmoothingEnabled = false;
+  m.drawImage(TILTBUF.P, 0, 0, pw * pu * r.dpr, ph * pu * r.dpr);
+  m.imageSmoothingEnabled = true;
+
+  // Namen und Balken, Zahlen, Wegweiser in voller Auflösung; Schrift schrumpft beim Herauszoomen nur halb so stark mit
+  // (sonst unlesbar), dafür dort verankert, wo der Name steht (über dem Kopf, bei Stadtbewohnern unter den Füßen),
+  // damit er nicht von der Figur wegrutscht
+  TILT.lab = Math.pow(1 / ZOOM2D.mul, 0.6);
+  for (const e of list) {
+    if (e.worldObj || e.clone || e.__tiltOut) continue;
+    if (e.isStone) tiltAnchor(m, e.x, e.y, stoneHeight(e) + 14, TILT.lab);
+    else tiltAnchor(m, e.x, feetY(e), tiltLabelH(e), TILT.lab);
+    drawLabel(m, e);
+  }
+  m.setTransform(r.dpr, 0, 0, r.dpr, 0, 0);
+  drawTexts(m);
+  drawGuide(m);
+}
+
+// Höhe des Namens über dem Fußpunkt (wie drawLabel, zeichnen.js)
+function tiltLabelH(e) {
+  if (e === game.player || e.remote) return 60;
+  if (e.type || e.ally || e.remoteAlly) return figureHeight(e) + 10;
+  return -15;
+}
+
+// Flache Pixel-Fläche src (Weltraster ab gx0, gy0) streifenweise schräg in die Bildfläche ziehen: je zwei Zeilen der
+// Bildfläche holen sich ihre Weltzeilen und ihren waagerechten Maßstab (am Bildrand höchstens ein Bildpunkt Versatz,
+// halb so viele drawImage wie Zeile für Zeile). Nur Weltzeilen r0 … r1.
+const TILT_BAND = 2;
+function tiltWarp(p, src, pw, ph, pu, gx0, gy0, U, r0, r1) {
+  const T = TILT;
+  const H2 = T.h / 2;
+  const sw = src.width;
+  const rowAt = (Y) => (T.fy + Y / (T.zoom * T.cy * (1 + (T.t * Y) / H2))) / U - gy0;
+  for (let j = 0; j < ph; j += TILT_BAND) {
+    const Y = (j + TILT_BAND / 2) * pu - H2;
+    const s = 1 + (T.t * Y) / H2;
+    if (s <= 0.08) continue;
+    const ra = rowAt(j * pu - H2);
+    const rb = rowAt((j + TILT_BAND) * pu - H2);
+    let row = Math.floor(ra);
+    let rh = Math.max(1, Math.floor(rb) - row);
+    if (row + rh <= r0 || row > r1) continue;
+    // Weltzeilen außerhalb des Streifens nicht holen (Ziel entsprechend kürzer)
+    let dj = j;
+    let dh = TILT_BAND;
+    if (row < r0) {
+      const cut = r0 - row;
+      dj += (cut / rh) * TILT_BAND;
+      dh -= (cut / rh) * TILT_BAND;
+      rh -= cut;
+      row = r0;
+    }
+    if (row + rh > r1 + 1) {
+      const cut = row + rh - r1 - 1;
+      dh -= (cut / rh) * TILT_BAND;
+      rh -= cut;
+    }
+    if (rh <= 0 || dh <= 0) continue;
+    // linker und rechter Rand der Bildzeile in Spalten der flachen Fläche
+    const c0 = (T.fx - T.w / 2 / (T.zoom * s)) / U - gx0;
+    const cw = (pw * pu) / (T.zoom * s) / U;
+    let a = c0;
+    let b = c0 + cw;
+    let d0 = 0;
+    let d1 = pw;
+    // auf die Fläche beschneiden (Ziel anteilig mit)
+    if (a < 0) { d0 = (-a / cw) * pw; a = 0; }
+    if (b > sw) { d1 = pw - ((b - sw) / cw) * pw; b = sw; }
+    if (b - a < 0.5 || d1 - d0 < 0.5) continue;
+    p.drawImage(src, a, row, b - a, rh, d0, dj, d1 - d0, dh);
   }
 }

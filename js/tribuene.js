@@ -863,8 +863,8 @@ function trib2Draw(ctx, x0, y0, x1, y1) {
 }
 if (typeof drawGround === 'function') {
   const _tribDrawGround = drawGround;
-  drawGround = function (ctx, x0, y0, x1, y1) {
-    _tribDrawGround(ctx, x0, y0, x1, y1);
+  drawGround = function (ctx, x0, y0, x1, y1, span) {
+    _tribDrawGround(ctx, x0, y0, x1, y1, span);
     if (V3.on || !game.running) return;
     try { trib2Draw(ctx, x0, y0, x1, y1); } catch (e) { /* nur Schmuck */ }
   };

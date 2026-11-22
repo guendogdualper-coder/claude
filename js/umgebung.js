@@ -114,6 +114,7 @@ function renderGroundChunk(cx, cy) {
   // Pixel-Stil: Bodenmuster (Grashalme, Kiesel, Sprenkel) über den Boden, unter Schmuck und Brücken
   if (pix && typeof pixelGroundPass === 'function') pixelGroundPass(ctx, tx0, ty0);
   if (pix && typeof pixelFences === 'function') pixelFences(ctx, tx0, ty0);
+  if (pix && typeof pixelFields === 'function') pixelFields(ctx, tx0, ty0);
   for (let y = ty0; y < Math.min(MAP_H, ty0 + CHUNK); y++) {
     for (let x = tx0; x < Math.min(MAP_W, tx0 + CHUNK); x++) {
       const i = y * MAP_W + x;
@@ -182,28 +183,53 @@ function drawCaveWall(ctx, x, y, px, py, h, dg) {
   }
 }
 
-function drawGround(ctx, x0, y0, x1, y1) {
+// span (seit 15.57, schräge Sicht): Blockzeile → [erster, letzter] Block, der zu sehen ist
+function drawGround(ctx, x0, y0, x1, y1, span) {
   const w = game.world;
   if (!groundImage) groundImage = buildGroundImage();
   if (typeof PIX !== 'undefined' && PIX.inWorld && !groundImagePix) groundImagePix = buildGroundImage(true);
   const size = CHUNK * TILE;
+  // seit 15.57: in der schrägen Sicht (pixel2d.js) sind viel mehr Blöcke zu sehen – dort backt jedes Bild nur ein paar
+  // neue (PIX.chunkBudget), die übrigen zeigen bis dahin die Bodenfarben je Kachel
+  const budget = typeof PIX !== 'undefined' && PIX.inWorld && PIX.chunkBudget != null ? PIX.chunkBudget : Infinity;
+  let made = 0;
+  let seen = 0;
+  const rows = span ? [] : null;
   for (let cy = Math.floor(y0 / CHUNK); cy <= Math.floor(y1 / CHUNK); cy++) {
-    for (let cx = Math.floor(x0 / CHUNK); cx <= Math.floor(x1 / CHUNK); cx++) {
+    let ca = Math.floor(x0 / CHUNK);
+    let cb = Math.floor(x1 / CHUNK);
+    if (span) {
+      const sp = span(cy);
+      ca = Math.max(ca, sp[0]);
+      cb = Math.min(cb, sp[1]);
+      rows[cy] = [ca * CHUNK, cb * CHUNK + CHUNK - 1];
+    }
+    for (let cx = ca; cx <= cb; cx++) {
       const key = cx + ':' + cy + (typeof PIX !== 'undefined' && PIX.inWorld ? 'p' : '');
+      seen++;
       let c = chunkCache.get(key);
       if (c) chunkCache.delete(key);
-      else c = renderGroundChunk(cx, cy);
+      else if (made < budget) {
+        c = renderGroundChunk(cx, cy);
+        made++;
+      } else {
+        ctx.drawImage(groundImagePix || groundImage, cx * CHUNK, cy * CHUNK, CHUNK, CHUNK, cx * size, cy * size, size, size);
+        continue;
+      }
       chunkCache.set(key, c);
       ctx.drawImage(c, cx * size, cy * size, size, size);
     }
   }
   // Nur die ältesten Blöcke verwerfen, die gerade sicher nicht zu sehen sind
   // (jeder Block ist ein großes Bild im Grafikspeicher, deshalb nicht zu viele behalten)
-  while (chunkCache.size > 28) chunkCache.delete(chunkCache.keys().next().value);
+  while (chunkCache.size > Math.max(28, seen + 12)) chunkCache.delete(chunkCache.keys().next().value);
   // Bewegtes Wasser
   const t = game.time;
   for (let y = y0; y <= y1; y++) {
-    for (let x = x0; x <= x1; x++) {
+    const rw = rows && rows[Math.floor(y / CHUNK)];
+    const xa = rw ? Math.max(x0, rw[0]) : x0;
+    const xb = rw ? Math.min(x1, rw[1]) : x1;
+    for (let x = xa; x <= xb; x++) {
       const i = y * MAP_W + x;
       const g = w.ground[i];
       if (!LIQUID.has(g) || w.deco[i] === DECO.BRIDGE) continue;
@@ -1009,6 +1035,8 @@ function houseArt(ctx, h) {
     const cy = L.roof === 'giebel' ? top + 14 : top + 2;
     box(ctx, cx - 5.5, cy - 14, 11, 20, 1, '#8a8276');
     box(ctx, cx - 7, cy - 17, 14, 4, 1, '#5e584f');
+    // seit 15.57: Lage der Schornsteinmündung merken (Rauch im Pixel-Stil, pixeldeko.js)
+    if (houseArtKey) HOUSE_CHIMNEY.set(houseArtKey, [cx, cy - 17]);
   }
   if ((L.roof || 'pagode') === 'pagode') {
     for (const x of [-W / 2 + 4, W / 2 - 4]) {
@@ -1029,8 +1057,15 @@ function houseSprite(h) {
   const H = h.h * TILE;
   const L = h.look || {};
   const key = `h:${h.w}:${h.h}:${h.roof}:${L.roof || ''}:${L.wall || ''}:${L.chimney ?? ''}:${L.annex || ''}:${L.tall || ''}:${L.door ?? ''}:${L.tor ? 1 : ''}:${h.enter ? h.enter.door : ''}`;
-  return getSprite(key, { x: -W / 2 - 28, y: -H - 64, w: W + 56, h: H + 74 }, (ctx) => houseArt(ctx, h));
+  h.__sk = key;
+  houseArtKey = key;
+  const sp = getSprite(key, { x: -W / 2 - 28, y: -H - 64, w: W + 56, h: H + 74 }, (ctx) => houseArt(ctx, h));
+  houseArtKey = null;
+  return sp;
 }
+// Schornsteinmündung je Hausbild (Pixel ab der Mitte der unteren Kante), beim Backen gemerkt
+const HOUSE_CHIMNEY = new Map();
+let houseArtKey = null;
 // Lage der Laterne(n) eines Hauses für das Leuchten (Pixel ab der Mitte der unteren Kante)
 function houseLamps2(h) {
   const L = h.look || {};

@@ -113,13 +113,16 @@ function resizeRenderer() {
   const ch = Math.round(r.h * r.dpr);
   if (r.canvas.width !== cw) r.canvas.width = cw;
   if (r.canvas.height !== ch) r.canvas.height = ch;
-  r.zoom = Math.max(0.9, Math.min(1.6, Math.min(r.w, r.h) / 410)) * (CAMERA[opts.camera] || CAMERA.normal).zoom;
+  r.zoomBase = Math.max(0.9, Math.min(1.6, Math.min(r.w, r.h) / 410)) * (CAMERA[opts.camera] || CAMERA.normal).zoom;
+  // seit 15.57 in 2D mit Mausrad oder zwei Fingern zoombar (pixel2d.js, zoom2dSet)
+  r.zoom = r.zoomBase * (!V3.on && typeof zoom2dMul === 'function' ? zoom2dMul() : 1);
   if (V3.on) v3Resize();
 }
 
 // Bildschirmkoordinaten → Weltkoordinaten (für Mausklicks)
 function screenToWorld(sx, sy) {
   if (V3.on) return v3ScreenToWorld(sx, sy);
+  if (typeof TILT !== 'undefined' && TILT.on) return tiltScreenToWorld(sx, sy);
   return { x: renderer.camX + sx / renderer.zoom, y: renderer.camY + sy / renderer.zoom };
 }
 
@@ -152,8 +155,15 @@ function render() {
   const shakeY = game.shake ? (Math.random() - 0.5) * 2 * game.shake : 0;
   r.camX = Math.round((fx + shakeX - r.w / 2 / r.zoom) * z) / z;
   r.camY = Math.round((fy + shakeY - r.h / 2 / r.zoom) * z) / z;
-  // seit 15.56: im Pixel-Stil malt die Welt in eine kleine Pixel-Fläche (pixel2d.js)
+  // seit 15.56: im Pixel-Stil malt die Welt in eine kleine Pixel-Fläche (pixel2d.js); seit 15.57 beim Herauszoomen
+  // schräg wie ein Diorama (pixelRenderTilt) – dann übernimmt pixel2d.js das ganze Bild der Welt
   const pix = typeof pixel2dAktiv === 'function' && pixel2dAktiv();
+  if (typeof TILT !== 'undefined') TILT.on = false;
+  if (pix && typeof pixelTilt === 'function' && pixelTilt() > 0) {
+    pixelRenderTilt(r, fx + shakeX, fy + shakeY);
+    renderOverlays2d(r);
+    return;
+  }
   if (pix) ctx = pixelBegin(r);
   else ctx.setTransform(z, 0, 0, z, -r.camX * z, -r.camY * z);
 
@@ -170,6 +180,57 @@ function render() {
   drawCloudShadows(ctx, view);
   if (game.target && !game.target.dead) drawTargetRing(ctx, game.target);
 
+  const list = collectScene(view, x0, y0, x1, y1, inView);
+  const ground = sceneGroundFx;
+  // Schein der Effekte mit Rang: einmal je Durchgang darunter (effekte.js, rankHaloPass)
+  rankHaloPass(ctx, ground);
+  for (const e of game.effects) if (ground(e)) drawEffect(ctx, e);
+  drawDuelArena(ctx);
+  for (const e of list) drawSceneEntity(ctx, e);
+  for (const pr of game.projectiles) drawProjectile(ctx, pr);
+  rankHaloPass(ctx, (e) => !ground(e));
+  for (const e of game.effects) if (!ground(e)) drawEffect(ctx, e);
+  rankHaloPass(ctx, (e) => !ground(e), null, true);
+  drawParticles(ctx);
+  if (pix) {
+    pixelEnd(r);
+    ctx = r.ctx;
+    ctx.setTransform(z, 0, 0, z, -r.camX * z, -r.camY * z);
+  }
+  for (const e of list) if (!e.worldObj && !e.clone) drawLabel(ctx, e);
+  drawTexts(ctx);
+  drawGuide(ctx);
+  renderOverlays2d(r);
+}
+
+// Färbung, Treffer-Rand, Blitz und Karte über dem fertigen 2D-Bild (flach und schräg gleich)
+function renderOverlays2d(r) {
+  const ctx = r.ctx;
+  ctx.setTransform(r.dpr, 0, 0, r.dpr, 0, 0);
+  drawZoneTint(ctx, r.w, r.h);
+  drawHurtVignette(ctx, r.w, r.h);
+  drawScreenFlash(ctx, r.w, r.h);
+
+  r.miniTimer -= 1;
+  if (r.miniTimer <= 0) {
+    renderMinimap();
+    r.miniTimer = 10;
+  }
+  tickBigMap();
+}
+
+// Effekte am Boden liegen unter den Figuren
+function sceneGroundFx(e) {
+  return e.ground || e.type === 'corpse' || e.type === 'afterimage' || e.type === 'runes' || e.type === 'decal' || e.type === 'warn' || e.type === 'aim';
+}
+// Fußlinie für die Tiefensortierung
+function sceneBaseY(e) {
+  return e.worldObj ? e.y : e.isStone ? e.y + 9 : feetY(e);
+}
+
+// Alles, was in der 2D-Welt aufrecht steht (Figuren, Monster, NPCs, Bäume, Häuser …), nach der Fußlinie sortiert:
+// was weiter unten steht, wird später (also davor) gezeichnet
+function collectScene(view, x0, y0, x1, y1, inView) {
   const list = [];
   // seit Wärme 2 nur Monster der Gebiete am Bild (monstersNear, gegner.js) und NPCs in der Nähe (npcsNear) – vorher
   // je Bild alle ~8.700 Monster und ~580 NPCs der Welt
@@ -184,50 +245,19 @@ function render() {
   for (const rp of net.players.values()) if (rp.allies && !remoteHidden(rp)) for (const al of rp.allies) if (inView(al)) list.push(al);
   for (const c of game.clones) if (inView(c)) list.push(c);
   collectWorldObjects(list, x0, y0, x1, y1);
-  // Alles nach der Fußlinie sortieren: was weiter unten steht, wird später (also davor) gezeichnet
-  const baseY = (e) => (e.worldObj ? e.y : e.isStone ? e.y + 9 : feetY(e));
-  list.sort((a, b) => baseY(a) - baseY(b));
+  list.sort((a, b) => sceneBaseY(a) - sceneBaseY(b));
+  return list;
+}
 
-  // Effekte am Boden liegen unter den Figuren
-  const ground = (e) => e.ground || e.type === 'corpse' || e.type === 'afterimage' || e.type === 'runes' || e.type === 'decal' || e.type === 'warn' || e.type === 'aim';
-  // Schein der Effekte mit Rang: einmal je Durchgang darunter (effekte.js, rankHaloPass)
-  rankHaloPass(ctx, ground);
-  for (const e of game.effects) if (ground(e)) drawEffect(ctx, e);
-  drawDuelArena(ctx);
-  for (const e of list) {
-    if (e.worldObj) drawWorldObject(ctx, e);
-    else if (e === game.player || e.remote || e.clone) drawPlayer(ctx, e);
-    else if (e.isStone) drawStone(ctx, e);
-    // Diener des Nekromanten (eigene und fremde)
-    else if ((e.ally || e.remoteAlly) && e.ghost) drawGhostAlly(ctx, e);
-    else if (e.ally || e.remoteAlly) drawSkeleton(ctx, e);
-    else if (e.type) drawMonster(ctx, e);
-    else drawNpc(ctx, e);
-  }
-  for (const pr of game.projectiles) drawProjectile(ctx, pr);
-  rankHaloPass(ctx, (e) => !ground(e));
-  for (const e of game.effects) if (!ground(e)) drawEffect(ctx, e);
-  rankHaloPass(ctx, (e) => !ground(e), null, true);
-  drawParticles(ctx);
-  if (pix) {
-    pixelEnd(r);
-    ctx = r.ctx;
-    ctx.setTransform(z, 0, 0, z, -r.camX * z, -r.camY * z);
-  }
-  for (const e of list) if (!e.worldObj && !e.clone) drawLabel(ctx, e);
-  drawTexts(ctx);
-  drawGuide(ctx);
-  ctx.setTransform(r.dpr, 0, 0, r.dpr, 0, 0);
-  drawZoneTint(ctx, r.w, r.h);
-  drawHurtVignette(ctx, r.w, r.h);
-  drawScreenFlash(ctx, r.w, r.h);
-
-  r.miniTimer -= 1;
-  if (r.miniTimer <= 0) {
-    renderMinimap();
-    r.miniTimer = 10;
-  }
-  tickBigMap();
+function drawSceneEntity(ctx, e) {
+  if (e.worldObj) drawWorldObject(ctx, e);
+  else if (e === game.player || e.remote || e.clone) drawPlayer(ctx, e);
+  else if (e.isStone) drawStone(ctx, e);
+  // Diener des Nekromanten (eigene und fremde)
+  else if ((e.ally || e.remoteAlly) && e.ghost) drawGhostAlly(ctx, e);
+  else if (e.ally || e.remoteAlly) drawSkeleton(ctx, e);
+  else if (e.type) drawMonster(ctx, e);
+  else drawNpc(ctx, e);
 }
 
 // --- Hilfsfunktionen ------------------------------------------------------------

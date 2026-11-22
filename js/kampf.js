@@ -1445,7 +1445,7 @@ function aimDrag(dx, dy) {
   const p = game.player;
   const len = hyp(dx, dy);
   if (!a || !p || len < 1) return;
-  const ps = V3.on ? v3Project(p.x, p.y, 0) : { x: (p.x - renderer.camX) * renderer.zoom, y: (p.y - renderer.camY) * renderer.zoom };
+  const ps = V3.on ? v3Project(p.x, p.y, 0) : worldToScreen2d(p.x, p.y, {});
   const w = screenToWorld(ps.x + dx / len * 60, ps.y + dy / len * 60);
   if (!w || !isFinite(w.x) || !isFinite(w.y)) return;
   let wx = w.x - p.x;

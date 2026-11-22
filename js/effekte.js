@@ -1693,6 +1693,8 @@ function drawTexts(ctx) {
       ctx.restore();
       continue;
     }
+    // seit 15.57: schräge 2D-Sicht (pixel2d.js) – Zahl am projizierten Punkt, mit der Entfernung kleiner
+    if (!V3.on && typeof TILT !== 'undefined' && TILT.on) tiltAnchor(ctx, t.x, t.y, 0, TILT.lab || 1);
     ctx.globalAlpha = k < 0.7 ? 1 : 1 - (k - 0.7) / 0.3;
     ctx.translate(x, y);
     if (st.glow && age < 0.3) ctx.rotate(Math.sin(age * 60) * 0.06 * (1 - age / 0.3));

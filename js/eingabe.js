@@ -126,9 +126,10 @@ function setupInput() {
     if (!v3Shoulder()) {
       // seit 14.52: auch in der festen Kamera mit zwei Fingern zoomen – liegt schon ein Finger auf dem Bild, beginnt
       // der zweite das Zoomen (der erste hat beim Aufsetzen wie bisher ausgewählt)
-      if (V3.on && oneTouch && oneTouch.id !== e.pointerId && !pinch) {
+      // seit 15.57 auch in 2D (zoom2dSet, pixel2d.js)
+      if (oneTouch && oneTouch.id !== e.pointerId && !pinch) {
         camDrag = { id: oneTouch.id, x: oneTouch.x, y: oneTouch.y, moved: true, fixed: true };
-        pinch = { id: e.pointerId, x: e.clientX, y: e.clientY, d0: hyp(e.clientX - oneTouch.x, e.clientY - oneTouch.y) || 1, z0: V3.zoomMul || 1 };
+        pinch = { id: e.pointerId, x: e.clientX, y: e.clientY, d0: hyp(e.clientX - oneTouch.x, e.clientY - oneTouch.y) || 1, z0: V3.on ? V3.zoomMul || 1 : zoom2dMul() };
         try { cv.setPointerCapture(e.pointerId); } catch (err) { /* Finger schon weg */ }
         return;
       }
@@ -156,7 +157,9 @@ function setupInput() {
   const pinchMove = (e) => {
     if (e.pointerId === pinch.id) { pinch.x = e.clientX; pinch.y = e.clientY; } else { camDrag.x = e.clientX; camDrag.y = e.clientY; }
     const d = hyp(pinch.x - camDrag.x, pinch.y - camDrag.y) || 1;
-    v3SetZoom(pinch.z0 * pinch.d0 / d);
+    // 3D: Abstand der Kamera (zusammen = weiter weg); 2D: Vergrößerung (auseinander = näher)
+    if (V3.on) v3SetZoom(pinch.z0 * pinch.d0 / d);
+    else zoom2dSet(pinch.z0 * d / pinch.d0);
   };
   const mouseDown = (e) => {
     cv.setPointerCapture(e.pointerId);
@@ -243,7 +246,12 @@ function setupInput() {
   cv.addEventListener('mousedown', (e) => { if (e.button === 1) e.preventDefault(); });
   // Mausrad: näher oder weiter weg (3D)
   cv.addEventListener('wheel', (e) => {
-    if (!V3.on) return;
+    // seit 15.57 auch in 2D: herauszoomen kippt im Pixel-Stil die Sicht (pixel2d.js)
+    if (!V3.on) {
+      e.preventDefault();
+      zoom2dSet(zoom2dMul() * (e.deltaY > 0 ? 1 / 1.06 : 1.06));
+      return;
+    }
     e.preventDefault();
     // seit 14.44 mit eigener Grenze je Kamera (v3SetZoom, drei-kern.js): im Schulterblick weiter hinaus
     v3SetZoom((V3.zoomMul || 1) * (e.deltaY > 0 ? 1.08 : 1 / 1.08));
@@ -294,9 +302,9 @@ function monsterAtScreen(sx, sy) {
       v3Project(m.x + ex, fy + ey, 0, c);
       k = hyp(c.x - a.x, c.y - a.y) / 32;
     } else {
-      k = r.zoom;
-      a.x = (m.x - r.camX) * k;
-      a.y = (fy - r.camY) * k;
+      // seit 15.57 über worldToScreen2d (pixel2d.js): stimmt auch in der schrägen Sicht beim Herauszoomen
+      worldToScreen2d(m.x, fy, a);
+      k = r.zoom * a.s;
       b.x = a.x;
       b.y = a.y - h * k;
     }

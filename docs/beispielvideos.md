@@ -54,5 +54,31 @@ Struktur). Übernommen ist nur der allgemeine Stil, keine Figuren, Bilder oder O
   Schmuck ohne Kollision, beim Backen der Bodenblöcke gemalt (kostet beim Spielen nichts).
 - Gemessen: Bodenblock backen ~1,4 ms (wie vorher), Bild 2–5 ms.
 
-Mögliche nächste Schritte: Dächer mit Schindeln und Schornsteinrauch, Fässer/Kisten/Heu als Stadtschmuck, Felder,
-kleine Tiere (Hühner, Schafe) als Stimmung, Pixel-Wasser mit Wellenkanten.
+### Etappe 3 (15.57)
+
+- **Felder** (`js/pixeldeko.js`): auf freien Wiesenflächen in Städten Beete aus Weizen, Kohl oder Möhren (Erde mit
+  Furchen, Rand, Pflanzen pixelgenau), beim Backen der Bodenblöcke gemalt.
+- **Stadtschmuck**: Fässer, Kisten, Heuballen, Holzstapel und Krüge an Häusern, Mauern und Wegen (fest nach Ort
+  gewürfelt, ohne Kollision).
+- **Schornsteinrauch**: aus jedem Haus mit Schornstein steigen ein paar Rauchwolken und ziehen mit dem Wind.
+- **Pixel-Wasser**: Wasser mit Wellenstreifen im Pixel-Raster.
+- Kleine Tiere (Hühner, Schafe) stehen noch aus.
+
+### Zoom und schräge Sicht (15.57, Wunsch vom 22.11.)
+
+Wunsch: „beim Rauszoomen so mäßig 3D-Ansicht … wie auf dem Spiel“. Umsetzung ohne 3D-Modelle, nur mit der Pixel-Welt:
+
+- **Zoomen**: Mausrad oder zwei Finger (auseinander = näher), 70 % bis 125 %; gemerkt im Browser. Ab 100 % flach wie
+  bisher.
+- **Kippen beim Herauszoomen**: Die Kamera kippt nach hinten (bis zur Neigung 0,3 bei 70 %). Der Boden wird
+  perspektivisch abgebildet (oben weiter weg und kleiner, unten näher und größer, leicht gestaucht); gerade Linien
+  bleiben gerade. Figuren, Bäume, Häuser stehen aufrecht und schrumpfen mit der Entfernung ihres Fußpunkts – wie ein
+  Diorama.
+- **Wie**: Boden und Bodeneffekte (Zielkreise, Warnflächen) werden flach in eine Pixel-Fläche gemalt und streifenweise
+  schräg ins Bild gezogen; Effekte, Geschosse und Teilchen ebenso in einer zweiten Fläche darüber. Namen, Balken,
+  Zahlen und Wegweiser kommen an ihren projizierten Punkten in voller Auflösung darüber, die Schrift schrumpft nur
+  halb so stark (lesbar). Klicks, Zielwahl und Zielkreise rechnen die Schräge zurück.
+- **Leistung** (Testrechner ohne Grafikkarte, Handy-Format): Dorf flach ~4 ms, bei 70 % ~7–8 ms je Bild. In sehr
+  dichten Wäldern am Kartenrand deutlich mehr (Tausende Bäume im Bild); was außerhalb des Bildes steht, wird
+  verworfen, neue Bodenblöcke werden höchstens fünf je Bild gebacken.
+- Im Stil „Fein“ zoomt die Ansicht nur flach (ohne Kippen); 3D ist unberührt.
