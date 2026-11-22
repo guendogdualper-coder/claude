@@ -86,6 +86,11 @@ function renderGroundChunk(cx, cy) {
       const h = tileHash(x, y);
       const px = x * TILE;
       const py = y * TILE;
+      // seit 15.65: außerhalb der eigenen Halle Fels in ihrer Wandfarbe (HOME2D)
+      if (home2dOut(x, y)) {
+        drawCaveWall(ctx, x, y, px, py, h, HOME2D.look);
+        continue;
+      }
       if (w.obj[i] === OBJ.CAVEWALL) {
         // seit 13.86: Hallen der Turnierarena mit eigenen Wandfarben (zone.wallLook wie dungeon.wall)
         drawCaveWall(ctx, x, y, px, py, h, ZONES[w.zoneIdx[i]].dungeon || ZONES[w.zoneIdx[i]].wallLook);
@@ -118,7 +123,7 @@ function renderGroundChunk(cx, cy) {
   for (let y = ty0; y < Math.min(MAP_H, ty0 + CHUNK); y++) {
     for (let x = tx0; x < Math.min(MAP_W, tx0 + CHUNK); x++) {
       const i = y * MAP_W + x;
-      if (w.obj[i] === OBJ.CAVEWALL) continue;
+      if (w.obj[i] === OBJ.CAVEWALL || home2dOut(x, y)) continue;
       const g = w.ground[i];
       const d = w.deco[i];
       if (d === DECO.BRIDGE) drawBridge2(ctx, x * TILE, y * TILE, bridgeHoriz(x, y), typeof bridgeStyleAt === 'function' ? bridgeStyleAt(i, g) : null, bridgeEdges2(x, y));
@@ -128,8 +133,31 @@ function renderGroundChunk(cx, cy) {
   return c;
 }
 
+// Eigene Halle (seit 15.65): alle Dungeons liegen nebeneinander auf einem Kartenstreifen. 3D baut nur den eigenen
+// Block (v3UpdateHome), 2D malte alles im Bild – am Rand einer Halle sah man die Hallen anderer Dungeons. Steht die
+// Kamera in einem Dungeon (auch Hallen der Prüfungs- und Turnierarena), ist jetzt alles außerhalb seines Blocks Fels
+// in der Wandfarbe des Dungeons; Monster und Schmuck von dort fallen weg (collectScene).
+const HOME2D = { key: '', on: false, x0: 0, y0: 0, x1: 0, y1: 0, look: null };
+function home2dUpdate(fx, fy) {
+  const rr = game.world && typeof regionRect3 === 'function' ? regionRect3(fx, fy) : null;
+  const key = rr && rr.key[0] === 'd' ? rr.key : '';
+  if (key === HOME2D.key) return;
+  HOME2D.key = key;
+  HOME2D.on = !!key;
+  if (!key) return;
+  const [x, y, w, h] = rr.r;
+  HOME2D.x0 = x;
+  HOME2D.y0 = y;
+  HOME2D.x1 = x + w;
+  HOME2D.y1 = y + h;
+  const z = ZONES[game.world.zoneIdx[(y + (h >> 1)) * MAP_W + x + (w >> 1)]];
+  HOME2D.look = (z && (z.dungeon || z.wallLook)) || null;
+}
+// Kachel außerhalb der eigenen Halle?
+const home2dOut = (x, y) => HOME2D.on && (x < HOME2D.x0 || x >= HOME2D.x1 || y < HOME2D.y0 || y >= HOME2D.y1);
+
 // Dungeon-Wände: Oberseite mit Fugen bzw. Rissen, zur offenen Seite hin eine dunklere Vorderseite
-const wallAt = (x, y) => x >= 0 && y >= 0 && x < MAP_W && y < MAP_H && game.world.obj[y * MAP_W + x] === OBJ.CAVEWALL;
+const wallAt = (x, y) => (x >= 0 && y >= 0 && x < MAP_W && y < MAP_H && game.world.obj[y * MAP_W + x] === OBJ.CAVEWALL) || home2dOut(x, y);
 function drawCaveWall(ctx, x, y, px, py, h, dg) {
   const c = dg ? dg.wall : { top: '#3a3430', face: '#1e1a18', line: '#4a4440' };
   const open = { down: !wallAt(x, y + 1), up: !wallAt(x, y - 1), left: !wallAt(x - 1, y), right: !wallAt(x + 1, y) };
@@ -205,7 +233,8 @@ function drawGround(ctx, x0, y0, x1, y1, span) {
       rows[cy] = [ca * CHUNK, cb * CHUNK + CHUNK - 1];
     }
     for (let cx = ca; cx <= cb; cx++) {
-      const key = cx + ':' + cy + (typeof PIX !== 'undefined' && PIX.inWorld ? 'p' : '');
+      // (in einer Halle eigene Blöcke: draußen ist dort Fels, HOME2D)
+      const key = cx + ':' + cy + (typeof PIX !== 'undefined' && PIX.inWorld ? 'p' : '') + (HOME2D.on ? HOME2D.key : '');
       seen++;
       let c = chunkCache.get(key);
       if (c) chunkCache.delete(key);
@@ -232,7 +261,7 @@ function drawGround(ctx, x0, y0, x1, y1, span) {
     for (let x = xa; x <= xb; x++) {
       const i = y * MAP_W + x;
       const g = w.ground[i];
-      if (!LIQUID.has(g) || w.deco[i] === DECO.BRIDGE) continue;
+      if (!LIQUID.has(g) || w.deco[i] === DECO.BRIDGE || home2dOut(x, y)) continue;
       if (g === GROUND.WATER) drawWaterTile(ctx, x, y, x * TILE, y * TILE, tileHash(x, y), t);
       else drawMagmaTile(ctx, g, x, y, x * TILE, y * TILE, tileHash(x, y), t);
     }

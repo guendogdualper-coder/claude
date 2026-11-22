@@ -150,6 +150,8 @@ function render() {
     fx = CENTER_X * TILE + Math.cos(t * 0.05) * 420;
     fy = CENTER_Y * TILE + Math.sin(t * 0.05) * 300;
   }
+  // seit 15.65: in einer Dungeon-Halle ist alles außerhalb ihres Blocks Fels (umgebung.js, HOME2D)
+  home2dUpdate(fx, fy);
   const z = r.zoom * r.dpr;
   const shakeX = game.shake ? (Math.random() - 0.5) * 2 * game.shake : 0;
   const shakeY = game.shake ? (Math.random() - 0.5) * 2 * game.shake : 0;
@@ -245,6 +247,12 @@ function collectScene(view, x0, y0, x1, y1, inView) {
   for (const rp of net.players.values()) if (rp.allies && !remoteHidden(rp)) for (const al of rp.allies) if (inView(al)) list.push(al);
   for (const c of game.clones) if (inView(c)) list.push(c);
   collectWorldObjects(list, x0, y0, x1, y1);
+  // seit 15.65: in einer Halle nichts aus den Nachbarhallen (dort ist Fels, HOME2D)
+  if (HOME2D.on) {
+    let n = 0;
+    for (const e of list) if (e === game.player || !home2dOut(Math.floor(e.x / TILE), Math.floor(e.y / TILE))) list[n++] = e;
+    list.length = n;
+  }
   list.sort((a, b) => sceneBaseY(a) - sceneBaseY(b));
   return list;
 }

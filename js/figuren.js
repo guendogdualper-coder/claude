@@ -4399,11 +4399,32 @@ function dragonMountArt(ctx, frame, o = {}) {
   dragonWingBig(ctx, 2, by - 8, k, body, F.edge, F.claw, false);
 }
 
+// Größe der Bosse in 2D (seit 15.65): Endbosse benutzen das Bild ihrer Vorlage (raid.art) und waren deshalb nur so
+// groß wie ein Alphawolf oder Yeti – in 3D wächst ihr Modell um raid.scale. Jetzt auch in 2D: Endbosse um raid.scale,
+// Wächter mit fremdem Aussehen um lookScale (Instanz-Wächter haben ihr vergrößertes Bild schon, instanzen.js),
+// Dungeon-Bosse um ein Viertel. Gilt für Bild, Schatten, Namen und Lebensbalken (figureHeight).
+const MON2D_SCALE = {};
+function mon2dScale(typeId) {
+  let s = MON2D_SCALE[typeId];
+  if (s !== undefined) return s;
+  const t = MONSTER_TYPES[typeId];
+  s = 1;
+  if (t && t.raid && t.raid.scale > 1) s = t.raid.scale;
+  else if (t && t.look && !t.inst && t.lookScale > 1) s = t.lookScale;
+  else if (t && t.boss && !t.inst && !t.turm) s = 1.25;
+  MON2D_SCALE[typeId] = s;
+  return s;
+}
 function monsterSprite(typeId, frame) {
   const art = MONSTER_ART[typeId];
-  const k = art.h / 30;
-  const bounds = { x: -36 * Math.max(1, k), y: -art.h - 14, w: 72 * Math.max(1, k), h: art.h + 20 };
-  return getSprite(`m:${typeId}:${frame}`, bounds, (ctx) => art.draw(ctx, frame));
+  const s = mon2dScale(typeId);
+  const ah = art.h * s;
+  const k = ah / 30;
+  const bounds = { x: -36 * Math.max(1, k), y: -ah - 14 * Math.max(1, s * 0.6), w: 72 * Math.max(1, k), h: ah + 20 * Math.max(1, s * 0.6) };
+  return getSprite(`m:${typeId}:${frame}`, bounds, s === 1 ? (ctx) => art.draw(ctx, frame) : (ctx) => {
+    ctx.scale(s, s);
+    art.draw(ctx, frame);
+  });
 }
 
 // Höhe einer Figur über ihren Füßen, für Namen und Lebensbalken
@@ -4412,7 +4433,7 @@ const ALLY_FIG_H = { drache: 50, koloss: 66 };
 function figureHeight(e) {
   if (e.isStone) return stoneHeight(e);
   if ((e.ally || e.remoteAlly) && ALLY_FIG_H[e.kind]) return ALLY_FIG_H[e.kind] * (e.scale || 1);
-  if (e.typeId && MONSTER_ART[e.typeId]) return MONSTER_ART[e.typeId].h;
+  if (e.typeId && MONSTER_ART[e.typeId]) return MONSTER_ART[e.typeId].h * mon2dScale(e.typeId);
   return 47;
 }
 

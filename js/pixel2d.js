@@ -282,7 +282,7 @@ function pixelGroundPass(ctx, tx0, ty0) {
   for (let y = ty0; y < Math.min(MAP_H, ty0 + CHUNK); y++) {
     for (let x = tx0; x < Math.min(MAP_W, tx0 + CHUNK); x++) {
       const i = y * MAP_W + x;
-      if (w.obj[i] === OBJ.CAVEWALL || w.deco[i] === DECO.BRIDGE) continue;
+      if (w.obj[i] === OBJ.CAVEWALL || w.deco[i] === DECO.BRIDGE || home2dOut(x, y)) continue;
       const kind = PIX_GROUND_KIND[w.ground[i]];
       if (!kind) continue;
       const p = pixPattern(ctx, kind);
