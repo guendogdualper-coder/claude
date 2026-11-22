@@ -5441,4 +5441,7 @@
 "Gelungen": "Gelukt",
 "ist jetzt +{0}": "is nu +{0}",
 "Kharzul, Wächter der Verdammten: Diese Beute hast du in dieser Sperre schon bekommen": "Kharzul, wachter der verdoemden: Deze buit heb je in deze blokkade al gekregen",
+"2D-Stil": "2D-stijl",
+"Pixel": "Pixel",
+"Fein": "Glad",
 };

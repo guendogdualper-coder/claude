@@ -1265,14 +1265,16 @@ FX3_DRAW.mdebris3 = function (h, e) {
   const sd = fx3Seed(h, e.n, (v, i) => ({ a: (i / e.n) * Math.PI * 2 + Math.random() * 0.6, sp: 1.6 + Math.random() * 1.6, up: 2 + Math.random() * 2, s: 0.7 + Math.random() * 0.6 }));
   const x = e.x * U3;
   const z = e.y * U3;
-  const k = clamp01(t / e.dur);
+  // seit 15.55 (Geröll, erdbeben.js): mit rest bleiben die Brocken liegen und versinken erst in den letzten 0,6 s
+  const k = e.rest ? clamp01((t - e.dur + 0.6) / 0.6) : clamp01(t / e.dur);
   for (const q of sd) {
     const tt = Math.min(t, q.up / 4.9 * 1.15);
     const y = Math.max(0.04, 0.2 + q.up * tt - 4.9 * tt * tt);
     const s = (e.size || 0.08) * q.s * (1 - k * k);
     if (s <= 0.004) continue;
-    const o = fx3Rock(h, 'rock', x + Math.cos(q.a) * q.sp * tt, y, z + Math.sin(q.a) * q.sp * tt * 0.85, s, s * 0.8, s, '#3e3532');
-    o.rotation.set(t * 9 * q.s, q.a, t * 7);
+    const o = fx3Rock(h, 'rock', x + Math.cos(q.a) * q.sp * tt, y - (e.rest ? k * s : 0), z + Math.sin(q.a) * q.sp * tt * 0.85, s, s * 0.8, s, '#3e3532');
+    const rt = e.rest ? tt : t;
+    o.rotation.set(rt * 9 * q.s, q.a, rt * 7);
   }
 };
 
@@ -1788,14 +1790,18 @@ EXTRA_EFFECTS.mzap3 = (ctx, e, k) => {
   }
 };
 EXTRA_EFFECTS.mdebris3 = (ctx, e, k, x, y) => {
-  const t = game.time - e.start;
-  ctx.globalAlpha = 1 - k * k;
+  const t0 = game.time - e.start;
+  const rk = e.rest ? clamp01((t0 - e.dur + 0.6) / 0.6) : k;
+  ctx.globalAlpha = 1 - rk * rk;
   for (let i = 0; i < e.n; i++) {
     const a = (i / e.n) * Math.PI * 2 + e.start;
     const up = 90 + (i % 3) * 40;
+    // liegen bleibendes Geröll (seit 15.55): nach der Landung (t = up / 300) bleibt der Brocken, wo er ist
+    const t = e.rest ? Math.min(t0, up / 300) : t0;
     const yy = Math.min(0, -up * t + 600 * t * t * 0.5);
     ctx.fillStyle = i % 2 ? '#3e3532' : '#5a4e48';
-    ctx.fillRect(x + Math.cos(a) * 70 * t - 2, y + Math.sin(a) * 30 * t + yy - 2, 4, 3);
+    const w = e.rest ? 5 + (i % 3) : 4;
+    ctx.fillRect(x + Math.cos(a) * 70 * t - w / 2, y + Math.sin(a) * 30 * t + yy - 2, w, w * 0.75);
   }
 };
 EXTRA_EFFECTS.mground3 = (ctx, e, k, x, y) => {

@@ -5445,4 +5445,7 @@
 "Gelungen": "Riuscito",
 "ist jetzt +{0}": "ora è +{0}",
 "Kharzul, Wächter der Verdammten: Diese Beute hast du in dieser Sperre schon bekommen": "Kharzul, guardiano dei dannati: Hai già ricevuto questo bottino in questo blocco",
+"2D-Stil": "Stile 2D",
+"Pixel": "Pixel",
+"Fein": "Morbido",
 };

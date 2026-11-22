@@ -5045,4 +5045,7 @@
 "Gelungen": "成功",
 "ist jetzt +{0}": "现在为 +{0}",
 "Kharzul, Wächter der Verdammten: Diese Beute hast du in dieser Sperre schon bekommen": "诅咒者守卫卡尔祖尔：本次锁定期间你已获得过这份战利品",
+"2D-Stil": "2D 风格",
+"Pixel": "像素",
+"Fein": "平滑",
 };

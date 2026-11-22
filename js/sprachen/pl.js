@@ -5450,4 +5450,7 @@
 "Gelungen": "Udało się",
 "ist jetzt +{0}": "jest teraz +{0}",
 "Kharzul, Wächter der Verdammten: Diese Beute hast du in dieser Sperre schon bekommen": "Kharzul, strażnik potępionych: Ten łup już dostałeś w tej blokadzie",
+"2D-Stil": "Styl 2D",
+"Pixel": "Piksele",
+"Fein": "Gładki",
 };

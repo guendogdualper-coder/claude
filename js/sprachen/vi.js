@@ -5044,4 +5044,7 @@
 "Gelungen": "Thành công",
 "ist jetzt +{0}": "giờ là +{0}",
 "Kharzul, Wächter der Verdammten: Diese Beute hast du in dieser Sperre schon bekommen": "Kharzul, Hộ Vệ Kẻ Bị Nguyền: Bạn đã nhận chiến lợi phẩm này trong lần khóa này",
+"2D-Stil": "Phong cách 2D",
+"Pixel": "Pixel",
+"Fein": "Mượt",
 };

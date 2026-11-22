@@ -5452,4 +5452,7 @@
 "Gelungen": "Réussi",
 "ist jetzt +{0}": "est maintenant +{0}",
 "Kharzul, Wächter der Verdammten: Diese Beute hast du in dieser Sperre schon bekommen": "Kharzul, gardien des damnés : Tu as déjà reçu ce butin pendant ce verrouillage",
+"2D-Stil": "Style 2D",
+"Pixel": "Pixel",
+"Fein": "Lisse",
 };

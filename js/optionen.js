@@ -13,7 +13,7 @@ const IS_PC = (() => {
     return false;
   }
 })();
-const OPT_DEFAULTS = { view: '3d', volume: 0.7, music: true, musicVol: 0.5, graphics: IS_PC ? 'plus' : 'mittel', fps: IS_PC ? '60' : 'auto', camera: 'normal', fog: IS_PC ? 'wenig' : 'normal', leistung: IS_PC ? 'max' : 'spar', shake: true, vibrate: true, numbers: true, names: true, selfBar: false, selfBarSize: 1, dmeter: false, autoAttack: false };
+const OPT_DEFAULTS = { view: '3d', volume: 0.7, music: true, musicVol: 0.5, graphics: IS_PC ? 'plus' : 'mittel', fps: IS_PC ? '60' : 'auto', camera: 'normal', fog: IS_PC ? 'wenig' : 'normal', leistung: IS_PC ? 'max' : 'spar', shake: true, vibrate: true, numbers: true, names: true, selfBar: false, selfBarSize: 1, dmeter: false, autoAttack: false, stil2d: 'pixel' };
 
 // Bildrate (seit 9.9): Auto = 60 Bilder/s, solange das Gerät es schafft, sonst gleichmäßig 30 (ruckelt nicht,
 // spart Akku und hält das Handy kühler); 30 = immer Akku sparen
@@ -100,6 +100,8 @@ function applyOpts() {
 
 // 2D oder 3D: braucht ein frisches Zeichenfeld, darum kurz neu laden (Spielstand bleibt)
 const VIEWS = { '3d': { label: '3D' }, '2d': { label: '2D' } };
+// seit 15.56: Stil der 2D-Ansicht (pixel2d.js)
+const STIL2D = { pixel: { label: 'Pixel' }, fein: { label: 'Fein' } };
 function switchView(v) {
   if (opts.view === v) return;
   setOpt('view', v);
@@ -191,6 +193,7 @@ const options = {
     } else if (tab === 'grafik') {
       pane = `<section class="opt-group">` +
         seg('view', VIEWS, 'Ansicht', V3.on || opts.view === '2d' ? '3D: echte Welt mit Licht und Schatten. 2D: die klassische Ansicht, spart Akku.' : '3D wird von diesem Gerät nicht unterstützt, darum läuft 2D.') +
+        seg('stil2d', STIL2D, '2D-Stil', 'Pixel: scharfkantige Pixelgrafik mit Umrissen und Pixel-Boden (Grashalme, Kiesel), wie in klassischen Rollenspielen. Fein: die bisherige weiche Zeichnung. Gilt nur für die 2D-Ansicht.') +
         seg('graphics', GRAPHICS, 'Qualität', `${IS_PC ? 'PC erkannt: Plus ist empfohlen – wie Ultra, dazu Leuchten von Feuer, Magie und Laternen, kräftigere Farben, weiche Ränder und Schatten für die ganze Welt.' : 'Handy oder Tablet erkannt: Mittel ist empfohlen. Plus (Leuchten, kräftige Farben, weiche Ränder) sieht am schönsten aus, braucht aber ein neueres Handy und mehr Akku; Hoch und Ultra sind schärfer, machen das Handy aber wärmer.'} Niedrig spart Akku und läuft auf älteren Handys flüssiger. Ruckelt es, senkt das Spiel die Auflösung und die Schatten von selbst.`) +
         (typeof LEISTUNG_MODES !== 'undefined' ? seg('leistung', LEISTUNG_MODES, 'Leistung', `Akku schonen${IS_PC ? '' : ' (am Handy empfohlen)'}: 30 Bilder pro Sekunde, in Fenstern und im Stillstand weniger, ${IS_PC ? 'Schatten seltener neu' : 'die 3D-Welt etwas weniger fein, Schatten seltener neu'} – das Gerät bleibt kühl und der Akku hält länger. Ausgewogen: ${IS_PC ? 'höchstens 60 Bilder pro Sekunde' : '30 bis 45 Bilder pro Sekunde'}. Maximal: so flüssig und scharf, wie die Grafikstufe es vorgibt – ${IS_PC ? 'wie bisher' : 'das Handy wird dabei warm'}. ${IS_PC ? 'Ist der Akku fast leer' : 'Wird das Handy trotzdem heiß oder ist der Akku fast leer'}, spart das Spiel von selbst.`) : '') +
         seg('fps', FPS_MODES, 'Bildrate', 'Auto: so viele Bilder, wie die Einstellung „Leistung“ vorsieht (ist das Gerät zu langsam, gleichmäßig 30). Max: immer so viele Bilder wie der Bildschirm (auch 90 oder 120 am Handy) – flüssiger, macht das Handy aber warm.') +

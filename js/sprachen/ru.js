@@ -5045,4 +5045,7 @@
 "Gelungen": "Удалось",
 "ist jetzt +{0}": "теперь +{0}",
 "Kharzul, Wächter der Verdammten: Diese Beute hast du in dieser Sperre schon bekommen": "Харзул, страж проклятых: Эту добычу вы уже получили в этот период блокировки",
+"2D-Stil": "Стиль 2D",
+"Pixel": "Пиксели",
+"Fein": "Плавный",
 };

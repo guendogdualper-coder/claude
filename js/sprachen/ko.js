@@ -5045,4 +5045,7 @@
 "Gelungen": "성공",
 "ist jetzt +{0}": "이제 +{0}",
 "Kharzul, Wächter der Verdammten: Diese Beute hast du in dieser Sperre schon bekommen": "저주받은 자의 파수꾼 카르줄: 이번 잠금 기간에 이미 이 전리품을 받았습니다",
+"2D-Stil": "2D 스타일",
+"Pixel": "픽셀",
+"Fein": "부드럽게",
 };

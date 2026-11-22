@@ -699,15 +699,19 @@ function clashFx(owner, x, y, sk, local, pw) {
     addEffect({ type: 'mdebris3', x, y: y + 9, n: 8, size: 0.1, dur: 0.9 });
     addEffect({ type: 'smoke3', x, y: y + 9, count: 5, color: '#6a5a50', size: 0.8, dur: 0.8 });
     addEffect({ type: 'decal', kind: 'crack', x, y: y + 9, r: sk.radius * 0.5, dur: 2.5, color: '#1a1210' });
+    if (typeof geroell === 'function') geroell(x, y + 9, 6, 0.15);
     if (owner === game.player) shakeScreen(5);
     // Rang-Boni (docs/rang-boni.md): H Steinsplitter zu den Gegnern ringsum, V zweiter Einschlag (Bild für alle)
     if (sk.shards) rankShards(owner, x, y, sk, { ...sk.shards, style: 'stone' }, local, pw);
     if (sk.second) later(sk.second.delay, () => clashSecond(owner, x, y, sk, local, pw));
     if (!local) return;
-    for (const m of enemiesInCircle(x, y, sk.radius)) {
+    const hits = enemiesInCircle(x, y, sk.radius);
+    for (const m of hits) {
       liftOf(m, sk.lift);
       hitMonster(m, sk.dmg * pw, { skill: sk.id, stun: sk.stun, heavy: true, duelMul: sk.duelMul, vfxColor: '#f0a830' });
     }
+    // seit 15.55: kurzer Trefferstopp, wenn die Brocken jemanden zermalmen
+    if (hits.length) hitStop(0.05);
   });
 }
 // Weltenschlag (Steinschlag V): ein glühender Brocken schlägt noch einmal in der Mitte ein
@@ -772,6 +776,7 @@ function spikesFx(owner, x, y, sk, local, pw) {
         if ((part === 'out') !== (r > sk.radius * 0.45)) continue;
         liftOf(m, sk.lift);
         hitMonster(m, sk.dmg * pw, { skill: sk.id, stun: sk.stun, heavy: true, duelMul: sk.duelMul, vfxColor: '#f0a830' });
+        if (part === 'out') hitStop(0.04);
       }
     });
   }
@@ -832,12 +837,15 @@ function meteorFx(owner, x, y, sk, local, pw) {
     addEffect({ type: 'mdebris3', x, y: y + 9, n: 12, size: 0.13, dur: 1.1 });
     addEffect({ type: 'smoke3', x, y: y + 9, count: 9, color: '#5a4a40', size: 1.1, dur: 1.2 });
     addEffect({ type: 'decal', kind: 'crack', x, y: y + 9, r: sk.radius * 0.9, dur: 3.5, color: '#120c08' });
+    if (typeof geroell === 'function') geroell(x, y + 9, 9, 0.18);
     if (owner === game.player) shakeScreen(11);
     if (!local) return;
-    for (const m of enemiesInCircle(x, y, sk.radius)) {
+    const hits = enemiesInCircle(x, y, sk.radius);
+    for (const m of hits) {
       liftOf(m, 20);
       hitMonster(m, sk.dmg * pw, { skill: sk.id, stun: sk.stun, knockback: sk.knockback, from: { x, y }, heavy: true, duelMul: sk.duelMul, vfxColor: '#f0a830' });
     }
+    if (hits.length) hitStop(0.07);
   });
 }
 MAGE2_REMOTE.mmeteor = (rp, sk, d) => meteorFx(rp, d.tx, d.ty, sk, false, 0);
@@ -872,6 +880,7 @@ function gravFx(owner, x, y, sk, local, pw) {
   }
   later(end, () => {
     addEffect({ type: 'mdebris3', x, y: y + 9, n: 10, size: 0.11, dur: 1 });
+    if (typeof geroell === 'function') geroell(x, y + 9, 6, 0.15);
     addEffect({ type: 'smoke3', x, y: y + 9, count: 6, color: '#5a4a40', size: 0.9, dur: 0.9 });
     if (owner === game.player) shakeScreen(8);
     // Rang V (Schwarzes Loch, docs/rang-boni.md): die Mitte kollabiert und hält alle darin fest (Bild für alle)

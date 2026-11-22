@@ -5448,4 +5448,7 @@
 "Gelungen": "Başarılı",
 "ist jetzt +{0}": "artık +{0}",
 "Kharzul, Wächter der Verdammten: Diese Beute hast du in dieser Sperre schon bekommen": "Kharzul, Lanetlilerin Muhafızı: Bu ganimeti bu kilitte zaten aldın",
+"2D-Stil": "2D stili",
+"Pixel": "Piksel",
+"Fein": "Yumuşak",
 };

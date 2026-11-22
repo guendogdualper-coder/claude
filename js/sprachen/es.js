@@ -5449,4 +5449,7 @@
 "Gelungen": "Logrado",
 "ist jetzt +{0}": "ahora es +{0}",
 "Kharzul, Wächter der Verdammten: Diese Beute hast du in dieser Sperre schon bekommen": "Kharzul, guardián de los condenados: Ya recibiste este botín en este bloqueo",
+"2D-Stil": "Estilo 2D",
+"Pixel": "Píxel",
+"Fein": "Suave",
 };

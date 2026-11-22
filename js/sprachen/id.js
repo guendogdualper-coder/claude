@@ -5044,4 +5044,7 @@
 "Gelungen": "Berhasil",
 "ist jetzt +{0}": "kini +{0}",
 "Kharzul, Wächter der Verdammten: Diese Beute hast du in dieser Sperre schon bekommen": "Kharzul, Penjaga yang Terkutuk: Kamu sudah mendapat jarahan ini dalam kuncian ini",
+"2D-Stil": "Gaya 2D",
+"Pixel": "Piksel",
+"Fein": "Halus",
 };

@@ -5045,4 +5045,7 @@
 "Gelungen": "成功",
 "ist jetzt +{0}": "は +{0} になった",
 "Kharzul, Wächter der Verdammten: Diese Beute hast du in dieser Sperre schon bekommen": "呪われし者の番人カルズル：この戦利品はこのロック期間中に受け取り済み",
+"2D-Stil": "2Dスタイル",
+"Pixel": "ピクセル",
+"Fein": "なめらか",
 };

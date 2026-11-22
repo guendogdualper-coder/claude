@@ -129,7 +129,7 @@ function render() {
     return;
   }
   const r = renderer;
-  const ctx = r.ctx;
+  let ctx = r.ctx;
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.fillStyle = '#12100c';
   ctx.fillRect(0, 0, r.canvas.width, r.canvas.height);
@@ -152,7 +152,10 @@ function render() {
   const shakeY = game.shake ? (Math.random() - 0.5) * 2 * game.shake : 0;
   r.camX = Math.round((fx + shakeX - r.w / 2 / r.zoom) * z) / z;
   r.camY = Math.round((fy + shakeY - r.h / 2 / r.zoom) * z) / z;
-  ctx.setTransform(z, 0, 0, z, -r.camX * z, -r.camY * z);
+  // seit 15.56: im Pixel-Stil malt die Welt in eine kleine Pixel-Fläche (pixel2d.js)
+  const pix = typeof pixel2dAktiv === 'function' && pixel2dAktiv();
+  if (pix) ctx = pixelBegin(r);
+  else ctx.setTransform(z, 0, 0, z, -r.camX * z, -r.camY * z);
 
   const x0 = Math.max(0, Math.floor(r.camX / TILE) - 1);
   const y0 = Math.max(0, Math.floor(r.camY / TILE) - 1);
@@ -206,6 +209,11 @@ function render() {
   for (const e of game.effects) if (!ground(e)) drawEffect(ctx, e);
   rankHaloPass(ctx, (e) => !ground(e), null, true);
   drawParticles(ctx);
+  if (pix) {
+    pixelEnd(r);
+    ctx = r.ctx;
+    ctx.setTransform(z, 0, 0, z, -r.camX * z, -r.camY * z);
+  }
   for (const e of list) if (!e.worldObj && !e.clone) drawLabel(ctx, e);
   drawTexts(ctx);
   drawGuide(ctx);

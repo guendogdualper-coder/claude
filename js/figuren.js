@@ -98,6 +98,16 @@ function shadeSprite(base, b, w, h, S = SPRITE_SCALE, cpu = false) {
 }
 
 function getSprite(key, bounds, draw, scale, cpu) {
+  // seit 15.56: beim Malen der Welt im Pixel-Stil echte Pixel-Bilder mit harter Kante und 1-Punkt-Umriss (pixel2d.js)
+  if (!cpu && scale == null && typeof PIX !== 'undefined' && PIX.inWorld) {
+    const k = key + '|px';
+    let sp = spriteCache.get(k);
+    if (!sp) {
+      sp = bakePixelSprite(bounds, draw);
+      spriteCache.set(k, sp);
+    }
+    return sp;
+  }
   let sp = spriteCache.get(key);
   if (!sp) {
     sp = bakeSprite(bounds, draw, scale, cpu);

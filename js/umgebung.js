@@ -61,9 +61,12 @@ const chunkCache = new Map();
 function renderGroundChunk(cx, cy) {
   const w = game.world;
   const size = CHUNK * TILE;
-  const c = newCanvas(size * CHUNK_SCALE, size * CHUNK_SCALE);
+  // seit 15.56 im Pixel-Stil in der Auflösung der Pixel-Fläche (ein Bildpunkt = PIX.units Einheiten, pixel2d.js)
+  const pix = typeof PIX !== 'undefined' && PIX.inWorld;
+  const SC = pix ? Math.round(size / PIX.units) / size : CHUNK_SCALE;
+  const c = newCanvas(Math.round(size * SC), Math.round(size * SC));
   const ctx = c.getContext('2d');
-  ctx.scale(CHUNK_SCALE, CHUNK_SCALE);
+  ctx.scale(SC, SC);
   ctx.translate(-cx * size, -cy * size);
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
@@ -102,9 +105,18 @@ function renderGroundChunk(cx, cy) {
         ctx.fillRect(px, py, TILE + 0.6, 14);
       }
       if (g === GROUND.PATH || g === GROUND.PLAZA) drawGrassFringe(ctx, x, y, px, py, h);
+    }
+  }
+  // Pixel-Stil: Bodenmuster (Grashalme, Kiesel, Sprenkel) über den Boden, unter Schmuck und Brücken
+  if (pix && typeof pixelGroundPass === 'function') pixelGroundPass(ctx, tx0, ty0);
+  for (let y = ty0; y < Math.min(MAP_H, ty0 + CHUNK); y++) {
+    for (let x = tx0; x < Math.min(MAP_W, tx0 + CHUNK); x++) {
+      const i = y * MAP_W + x;
+      if (w.obj[i] === OBJ.CAVEWALL) continue;
+      const g = w.ground[i];
       const d = w.deco[i];
-      if (d === DECO.BRIDGE) drawBridge2(ctx, px, py, bridgeHoriz(x, y), typeof bridgeStyleAt === 'function' ? bridgeStyleAt(i, g) : null, bridgeEdges2(x, y));
-      else if (d) drawDeco(ctx, d, g, px, py, h);
+      if (d === DECO.BRIDGE) drawBridge2(ctx, x * TILE, y * TILE, bridgeHoriz(x, y), typeof bridgeStyleAt === 'function' ? bridgeStyleAt(i, g) : null, bridgeEdges2(x, y));
+      else if (d) drawDeco(ctx, d, g, x * TILE, y * TILE, tileHash(x, y));
     }
   }
   return c;
@@ -171,7 +183,7 @@ function drawGround(ctx, x0, y0, x1, y1) {
   const size = CHUNK * TILE;
   for (let cy = Math.floor(y0 / CHUNK); cy <= Math.floor(y1 / CHUNK); cy++) {
     for (let cx = Math.floor(x0 / CHUNK); cx <= Math.floor(x1 / CHUNK); cx++) {
-      const key = cx + ':' + cy;
+      const key = cx + ':' + cy + (typeof PIX !== 'undefined' && PIX.inWorld ? 'p' : '');
       let c = chunkCache.get(key);
       if (c) chunkCache.delete(key);
       else c = renderGroundChunk(cx, cy);
@@ -1777,14 +1789,17 @@ function drawWorldObject(ctx, o) {
     drawHouseInside(ctx, o);
     return;
   }
-  const sp = o.worldObj === 'house' ? houseSprite(o.house)
+  let sp = o.worldObj === 'house' ? houseSprite(o.house)
     : o.worldObj === 'prop' ? propSprite(o.prop)
       : o.worldObj === 'wall' ? wallSprite(o.dir, o.style)
         : objectSprite(o.worldObj, o.v, o.style);
+  // seit 15.55: Bäume wiegen sich im Wind (wind2d.js), der Schatten rückt ein Stück mit
+  const sway = typeof windSway2d === 'function' ? windSway2d(o) : 0;
+  if (sway) sp = windFrame(sp, sway);
   const type = o.worldObj === 'prop' ? o.prop.type : '';
   if (o.worldObj !== 'wall' && type !== 'gate') {
     const shadowW = o.worldObj === 'house' ? o.house.w * TILE * 0.55 : TOWER_TYPES.has(type) ? 24 : type === 'stall' ? 26 : o.worldObj === 'prop' ? 10 : o.worldObj === 'rock' ? 15 : 17;
-    softShadow(ctx, o.x + 3, o.y, shadowW, shadowW * (o.worldObj === 'house' ? 0.2 : 0.38), 0.32);
+    softShadow(ctx, o.x + 3 + sway * 0.6, o.y, shadowW, shadowW * (o.worldObj === 'house' ? 0.2 : 0.38), 0.32);
   }
   ctx.save();
   if (occludesPlayer(o)) ctx.globalAlpha = 0.45;
