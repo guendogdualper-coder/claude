@@ -123,3 +123,21 @@ Wahrzeichen, vier Stellen draußen (wie in `docs/kartenformen.md`); vorher (14.7
 Boden (Becken, Sockel, Schatten – eingehängt über `drawDuelArena`, liegt in der schrägen Sicht mit dem Boden) und einen
 aufrechten Teil als Weltobjekt `wz2d` (Säulen, Speier, Kristall – nach der Fußlinie einsortiert wie Häuser). Die Lage
 kommt aus denselben Rechnungen wie in 3D (`wzField`, `wzPick`). Bisher: Blutbrunnen der Blutsteppe (Map 14).
+
+## 2D-Wahrzeichen der Schattenseite und 3D-Schädel (seit 15.68)
+
+Neu in `js/wahrzeichen2d.js` (Lage wie in 3D aus `wzField`/`wzPick` bzw. den Mauerkacheln):
+
+| Map | Stadt | 2D |
+|---|---|---|
+| 11 Mondfall | Mondsichel | Sockel in Stufen im Mondsee, silberne Sichel (Hörner nach unten) mit blauem Schein und funkelnden Sternen, Mondlicht als weicher Strahl, Spiegelbild des Mondes mit Glitzerbahn im See, Mondstaub |
+| 12 Aschewald | Palisadenstern | Pfähle mit Eisenbändern und Feuerkörben auf den acht Spitzen, im Norden das große Signalfeuer mit Streben; Flammenzungen, Schein, Funken (`wz2dFire`, `wz2dBrazier`) |
+| 13 Knochenwüste | Schädelbrunnen | gehörnter Schädel von vorn (Rillen an den Hörnern, Risse, Augenhöhlen mit Glanz, Nasenloch, Zahnreihen, offener Kiefer), Wasserschwall aus dem Maul mit Gischt, Wellenringe und Spiegel im Teich |
+| 15 Nachtfrost | Kreuzfeste | Eiskristall-Gruppen auf den vier inneren Ecken, schwebendes Frostherz über dem Weltentor mit kreisenden Splittern und Lichtfaden; dunkle Umrisse, damit sie vor dem Schnee stehen (`wz2dCrystal`) |
+| 16 Schattenklippen | Fjordhafen | vertäutes Schiff im Hafenbecken von der Seite: Rumpf mit Planken und Kajüte, Mast, Rahsegel mit Streifen, Taue, Hecklaterne; wiegt sich, Wellenringe |
+
+3D: Der Schädelbrunnen (`wzSkull`, auch der Kopf des Fossil-Skeletts) war von oben nur ein weißer Klumpen mit Hörnern.
+Jetzt glatte Kuppel, Brauenwulst, tiefe Augenhöhlen mit schwachem Leuchten, Nasenloch, Wangenknochen, Zahnreihen oben
+und unten mit Fängen, Risse im Schädeldach, Rillen an den Hörnern; der Wasserschwall ist breiter und schäumt beim
+Aufprall.
+

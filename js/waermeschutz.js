@@ -227,6 +227,10 @@ function sparOptik() {
 }
 function sparOptikAnwenden() {
   document.documentElement.classList.toggle('spar-fx', sparOptik());
+  // seit 15.68: am Handy und Tablet steht die Oberfläche immer still (feste Leuchtringe statt Pulsieren, kein
+  // wandernder Glanz auf den Balken) – gemessen hielten die Dauer-Animationen den Compositor auf 60 Bildern je Sekunde
+  // und ließen die HUD-Ebene neu malen; in 2D hing so jedes zehnte Bild bis zu 0,2 s. Vignette und Licht bleiben.
+  document.documentElement.classList.toggle('ruhig-ui', typeof IS_PC !== 'undefined' && !IS_PC);
 }
 sparOptikAnwenden();
 

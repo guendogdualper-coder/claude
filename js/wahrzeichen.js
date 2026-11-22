@@ -1672,8 +1672,12 @@ WZ_MAPS[13] = (wm, T) => {
     wzSkull(b, ox, 0.15, oz, 0.62, 0, rnd);
     wzBake(site, b);
     const pts = [];
-    for (let i = 0; i <= 6; i++) { const t = i / 6; pts.push([ox, 0.62 - t * 0.75, oz + 1.25 + t * 0.35]); }
-    wzMeshIn(site, wzStrip(pts, [0.1, 0.12, 0.14, 0.16, 0.18, 0.2, 0.22], [1, 0, 0]), wzFallMat('#7ac0d8', '#ffffff'), { order: 3 });
+    for (let i = 0; i <= 6; i++) { const t = i / 6; pts.push([ox, 0.42 - t * 0.62, oz + 1.62 + t * 0.42]); }
+    wzMeshIn(site, wzStrip(pts, [0.2, 0.22, 0.25, 0.28, 0.31, 0.34, 0.38], [1, 0, 0]), wzFallMat('#7ac0d8', '#ffffff'), { order: 3 });
+    // Gischt, wo der Schwall in den Teich fällt
+    const gx = pond.x;
+    const gz = pond.y - 0.5 + 2.05;
+    WZ.emitters.push({ x: gx, z: gz, R: 40, rate: 7, acc: 0, fn: () => wzSpawn({ x: gx + (Math.random() - 0.5) * 0.5, y: -0.1, z: gz + (Math.random() - 0.5) * 0.3, vx: (Math.random() - 0.5) * 1.2, vy: 0.9 + Math.random() * 0.8, vz: (Math.random() - 0.3) * 0.8, life: 0.7, s0: 0.14, s1: 0.06, c: '#f0faff', add: true }) });
   }
   wzWallBanners(site, wm, 5, '#c8b48a', '#6a3a1a', 10);
   // Sandschleier, Windhosen
@@ -1720,18 +1724,52 @@ function wzTrace(F, sp, maxLen) {
   return pts;
 }
 // Schädel: lang, mit Augenhöhlen, Hörnern und aufgeklapptem Kiefer; blickt nach dir (Winkel um die Hochachse)
+// seit 15.68 von oben erkennbar: glatte Kuppel statt Felsklumpen, Brauenwulst, tiefe Augenhöhlen mit schwachem
+// Leuchten, Nasenloch, Wangenknochen, Zahnreihen oben und unten mit Fängen, Risse im Schädeldach
 function wzSkull(b, x, y, z, s, dir, rnd) {
   const M = new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), dir), new THREE.Vector3(s, s, s));
   const BONE = '#d8ccac';
-  b.add(rockGeo(4, 1), BONE, { parent: M, p: [0, 0.9, 0], s: [1.35, 1.3, 1.6], top: '#f0e8d4', topK: 0.5, shade: 0.3 });
-  b.add(rockGeo(1, 1), BONE, { parent: M, p: [0, 0.7, 1.6], s: [0.85, 0.8, 1.3], top: '#f0e8d4', topK: 0.5 });
+  const TOP = '#f3ecd8';
+  const DEEP = '#9a8a6a';
+  const HOLE = '#120c08';
+  // Kuppel und Hinterkopf
+  b.add(sphere3(1, 14, 10), BONE, { parent: M, p: [0, 1.05, 0.1], s: [1.3, 1.08, 1.45], top: TOP, topK: 0.6, shade: 0.35 });
+  // Schnauze (Oberkiefer), Wangenknochen
+  b.add(sphere3(1, 12, 8), BONE, { parent: M, p: [0, 0.62, 1.55], s: [0.78, 0.55, 1.05], top: TOP, topK: 0.5, shade: 0.3 });
+  for (const sx of [-1, 1]) b.add(sphere3(1, 8, 6), BONE, { parent: M, p: [sx * 0.88, 0.72, 1.0], s: [0.32, 0.26, 0.55], top: TOP, topK: 0.4 });
+  // Brauenwulst und tiefe Augenhöhlen (von oben gut zu sehen), darin ein schwaches Leuchten
+  b.add(wzTube([[-1.08, 1.42, 1.02], [-0.5, 1.58, 1.3], [0, 1.5, 1.38], [0.5, 1.58, 1.3], [1.08, 1.42, 1.02]], 0.16, 0.16, 10, 6), DEEP, { parent: M, top: BONE, topK: 0.5 });
   for (const sx of [-1, 1]) {
-    b.add(sphere3(0.36, 8, 6), '#1a1410', { parent: M, p: [sx * 0.72, 1.2, 1.15] });
-    b.add(wzTube([[sx * 0.9, 1.7, 0.2], [sx * 1.9, 2.2, -0.2], [sx * 2.4, 2.9, -1.0], [sx * 2.2, 3.4, -1.9]], 0.32, 0.05, 10, 6), '#cfc2a0', { parent: M, top: '#ece2c8' });
+    b.add(sphere3(1, 10, 8), HOLE, { parent: M, p: [sx * 0.56, 1.2, 1.36], s: [0.4, 0.34, 0.3] });
+    b.add(sphere3(0.1, 6, 4), '#7ad8ff', { parent: M, p: [sx * 0.56, 1.18, 1.52], mat: 'pulse' });
   }
-  b.add(sphere3(0.18, 6, 4), '#1a1410', { parent: M, p: [0, 0.85, 2.75], s: [1.4, 1, 1] });
-  b.add(wbox(1.3, 0.3, 2.2, 0.08), BONE, { parent: M, p: [0, 0.05, 1.7], r: [0.25, 0, 0] });
-  for (let k = 0; k < 5; k++) b.add(geo3('wzmoss', () => new THREE.ConeGeometry(1, 1, 5, 1).translate(0, -0.5, 0)), '#efe6cc', { parent: M, p: [(k - 2) * 0.28, 0.32, 2.4 - Math.abs(k - 2) * 0.12], s: [0.07, 0.3, 0.07] });
+  // Nasenloch: umgedrehtes Dreieck
+  b.add(geo3('wzskullnose', () => new THREE.ConeGeometry(0.2, 0.42, 3, 1).rotateZ(Math.PI)), HOLE, { parent: M, p: [0, 0.98, 2.28], s: [1, 1, 0.5] });
+  // obere Zahnreihe mit Fängen
+  for (let k = 0; k < 7; k++) {
+    const u = (k - 3) / 3;
+    const fang = k === 1 || k === 5;
+    b.add(geo3('wzmoss', () => new THREE.ConeGeometry(1, 1, 5, 1).translate(0, -0.5, 0)), '#f6efdc', { parent: M, p: [u * 0.52, 0.36, 2.48 - u * u * 0.42], s: [fang ? 0.1 : 0.075, fang ? 0.48 : 0.3, fang ? 0.1 : 0.075] });
+  }
+  // Unterkiefer: aufgeklappt, mit Zähnen nach oben
+  b.add(wbox(1.25, 0.26, 2.0, 0.1), DEEP, { parent: M, p: [0, 0.02, 1.62], r: [0.32, 0, 0], top: BONE, topK: 0.5 });
+  for (let k = 0; k < 5; k++) {
+    const u = (k - 2) / 2;
+    b.add(geo3('wzmoss', () => new THREE.ConeGeometry(1, 1, 5, 1).translate(0, -0.5, 0)), '#efe6cc', { parent: M, p: [u * 0.42, -0.02, 2.5 - u * u * 0.3], s: [0.07, -0.26, 0.07] });
+  }
+  // Risse im Schädeldach
+  for (const [cx, cz, a, l] of [[0.25, -0.1, 0.5, 0.9], [-0.45, 0.2, -0.7, 0.6], [0.55, 0.35, 1.3, 0.45]]) {
+    b.add(wbox(0.05, 0.04, l, 0.01), '#6a5a42', { parent: M, p: [cx, 2.1 - Math.abs(cx) * 0.25, cz], r: [0, a, 0] });
+  }
+  // Hörner: aus den Schläfen nach außen, oben, hinten
+  for (const sx of [-1, 1]) {
+    b.add(wzTube([[sx * 0.95, 1.7, 0.25], [sx * 1.9, 2.2, -0.15], [sx * 2.4, 2.9, -0.95], [sx * 2.2, 3.45, -1.85]], 0.34, 0.05, 12, 7), '#cfc2a0', { parent: M, top: '#ece2c8', topK: 0.5 });
+    for (let k = 0; k < 4; k++) {
+      const u = 0.12 + k * 0.17;
+      const px = sx * (0.95 + (1.9 - 0.95) * Math.min(1, u * 2.2) + (u > 0.45 ? (u - 0.45) * 1.4 : 0));
+      b.add(geo3('wzhornring', () => new THREE.TorusGeometry(1, 0.18, 4, 10)), '#a89878', { parent: M, p: [px, 1.75 + u * 1.3, 0.2 - u * 1.4], r: [0, Math.PI / 2, 0.4 * sx], s: 0.3 - k * 0.04 });
+    }
+  }
 }
 function wzSkeleton(pts, F, rnd, T) {
   const n = pts.length;

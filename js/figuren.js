@@ -4399,6 +4399,185 @@ function dragonMountArt(ctx, frame, o = {}) {
   dragonWingBig(ctx, 2, by - 8, k, body, F.edge, F.claw, false);
 }
 
+// Glutschwinge von vorn (fliegt auf die Kamera zu) und von hinten (fliegt weg), seit 15.68 – vorher blieb der Drache
+// beim Flug nach oben und unten seitlich stehen. layer 'back': alles hinter dem Reiter, 'front': was vor ihm liegt
+// (von vorn Hals, Kopf und Vorderklauen, von hinten Hinterbeine und Schwanz). Maße wie von der Seite: Rumpfmitte
+// bei y = −38, Sattel oben auf dem Rücken (der Reiter sitzt an derselben Stelle).
+// Flügel von vorn: Schulter, Ellbogen, Handgelenk, vier Fingerspitzen, Flughaut mit eingebuchtetem Hinterrand;
+// s = −1 links, 1 rechts; k = −1 oben, 0 Mitte, 1 unten
+function dragonWingFront(ctx, s, k, skin, bone, claw) {
+  const lift = -k;
+  const S = [s * 9, -50];
+  const E = [s * 27, -58 - 10 * lift];
+  const W = [s * 42, -60 - 20 * lift];
+  const tips = [[s * 62, W[1] - 10 - 4 * lift], [s * 67, W[1] + 6], [s * 60, W[1] + 19 + 4 * Math.max(0, -lift)], [s * 46, W[1] + 28]];
+  const R = [s * 12, -30];
+  const xs = [S[0], E[0], W[0], R[0], ...tips.map((t) => t[0])];
+  const ys = [S[1], E[1], W[1], R[1], ...tips.map((t) => t[1])];
+  const bx = Math.min(...xs) - 2;
+  const byy = Math.min(...ys) - 2;
+  paintShape(ctx, () => {
+    ctx.beginPath();
+    ctx.moveTo(S[0], S[1]);
+    ctx.lineTo(E[0], E[1]);
+    ctx.lineTo(W[0], W[1]);
+    ctx.lineTo(tips[0][0], tips[0][1]);
+    let prev = tips[0];
+    for (let i = 1; i < tips.length; i++) {
+      const t = tips[i];
+      const mx = (prev[0] + t[0]) / 2;
+      const my = (prev[1] + t[1]) / 2;
+      ctx.quadraticCurveTo(mx + (W[0] - mx) * 0.3, my + (W[1] - my) * 0.3, t[0], t[1]);
+      prev = t;
+    }
+    const mx = (prev[0] + R[0]) / 2;
+    const my = (prev[1] + R[1]) / 2;
+    ctx.quadraticCurveTo(mx + (W[0] - mx) * 0.22, my + (W[1] - my) * 0.22, R[0], R[1]);
+    ctx.closePath();
+  }, skin, bx, byy, Math.max(...xs) - bx + 2, Math.max(...ys) - byy + 2);
+  stroke(ctx, bone, 2.2, [S, E, W]);
+  for (const t of tips) stroke(ctx, bone, 1, [W, t]);
+  stroke(ctx, lighter(skin, 0.16), 0.7, [[S[0] + s * 2, S[1] + 2], [E[0], E[1] + 2]]);
+  poly(ctx, [[W[0], W[1] - 1], [W[0] + s * 1.5, W[1] - 5], [W[0] + s * 3, W[1] - 0.5]], claw);
+  dot(ctx, E[0], E[1], 1.3, 1.3, bone);
+}
+function dragonFrontArt(ctx, frame, o, layer) {
+  const F = DRAGON2D_FARBEN[o.color] || DRAGON2D_FARBEN.rot;
+  const k = [-1, 0, 1, 0][frame];
+  if (layer === 'back') {
+    for (const s of [-1, 1]) dragonWingFront(ctx, s, k, F.body, F.edge, F.claw);
+    // Schwanz schaut links hinter dem Rumpf hervor, mit Hornblatt
+    paintShape(ctx, () => {
+      ctx.beginPath();
+      ctx.moveTo(-6, -30);
+      ctx.quadraticCurveTo(-22, -24, -30, -14);
+      ctx.quadraticCurveTo(-34, -9, -38, -12);
+      ctx.quadraticCurveTo(-32, -18, -24, -26);
+      ctx.quadraticCurveTo(-16, -33, -4, -36);
+      ctx.closePath();
+    }, F.bodyD, -40, -38, 38, 30);
+    poly(ctx, [[-36, -13], [-42, -9], [-41, -15], [-36, -16]], F.horn);
+    // hängende Hinterbeine
+    for (const s of [-1, 1]) {
+      oval(ctx, s * 11, -24, 4.5, 6, F.bodyD);
+      for (const dx of [-1.6, 0, 1.6]) poly(ctx, [[s * 11 + dx - 0.8, -18.5], [s * 11 + dx, -16], [s * 11 + dx + 0.8, -18.5]], F.claw);
+    }
+    // Schultern und Brust
+    oval(ctx, 0, -44, 14, 10, F.body);
+    oval(ctx, 0, -33, 12.5, 12, F.body);
+    oval(ctx, 0, -31, 6.5, 10.5, F.belly);
+    for (let i = 0; i < 4; i++) stroke(ctx, darker(F.belly, 0.28), 0.6, [[-5.5 + Math.abs(i - 1.5) * 0.4, -38 + i * 4.4], [5.5 - Math.abs(i - 1.5) * 0.4, -38 + i * 4.4]]);
+    // Rückenzacken hinter dem Kopf, Sattel
+    for (const s of [-1, 1]) poly(ctx, [[s * 6, -52], [s * 8.5, -58], [s * 10, -51]], F.horn);
+    if (o.saddle) {
+      box(ctx, -8, -54, 16, 6, 2.2, o.saddle);
+      stroke(ctx, '#2a1a10', 1, [[-9, -50], [-12, -40]]);
+      stroke(ctx, '#2a1a10', 1, [[9, -50], [12, -40]]);
+    }
+    return;
+  }
+  // vorn: Hals zur Kamera hin, Kopf vor der Brust, Vorderklauen darunter
+  paintShape(ctx, () => {
+    ctx.beginPath();
+    ctx.moveTo(-7, -46);
+    ctx.lineTo(7, -46);
+    ctx.lineTo(6, -32);
+    ctx.lineTo(-6, -32);
+    ctx.closePath();
+  }, F.body, -7, -46, 14, 14);
+  stroke(ctx, F.belly, 3, [[0, -45], [0, -33]]);
+  for (const s of [-1, 1]) {
+    poly(ctx, [[s * 6, -22], [s * 10, -16], [s * 7, -14.5], [s * 4, -19]], F.bodyD);
+    for (const dx of [0, 1.6, 3.2]) poly(ctx, [[s * (6 + dx * 0.5) - 0.8, -15.5], [s * (6 + dx * 0.5), -12.8], [s * (6 + dx * 0.5) + 0.8, -15.5]], F.claw);
+  }
+  // Hörner: groß nach oben außen geschwungen, hell an der Kante
+  for (const s of [-1, 1]) {
+    poly(ctx, [[s * 4, -34], [s * 12, -40], [s * 17, -49], [s * 13, -44], [s * 8, -36]], F.horn);
+    poly(ctx, [[s * 6, -35], [s * 12.5, -41], [s * 16, -47.5], [s * 12, -43.5], [s * 8, -37]], F.hornHi);
+    poly(ctx, [[s * 9.5, -28], [s * 14, -29.5], [s * 10, -25.5]], F.horn);
+  }
+  // Schädel: breite Stirn, schmale Schnauze nach unten
+  paintShape(ctx, () => {
+    ctx.beginPath();
+    ctx.moveTo(-9, -34);
+    ctx.quadraticCurveTo(0, -37, 9, -34);
+    ctx.quadraticCurveTo(11, -29, 9, -25);
+    ctx.lineTo(5.5, -19);
+    ctx.quadraticCurveTo(0, -15.5, -5.5, -19);
+    ctx.lineTo(-9, -25);
+    ctx.quadraticCurveTo(-11, -29, -9, -34);
+    ctx.closePath();
+  }, F.body, -11, -37, 22, 22);
+  // Schnauze heller, Nüstern, Maul mit Fängen
+  oval(ctx, 0, -19.5, 4.6, 2.8, lighter(F.body, 0.08));
+  dot(ctx, -1.9, -20.2, 0.8, 0.6, F.edge);
+  dot(ctx, 1.9, -20.2, 0.8, 0.6, F.edge);
+  stroke(ctx, F.edge, 0.8, [[-4.6, -17.6], [0, -16.6], [4.6, -17.6]]);
+  for (const s of [-1, 1]) poly(ctx, [[s * 3.8, -17.6], [s * 3.2, -15], [s * 2.6, -17.3]], F.claw);
+  // Brauen und glühende Augen mit Schlitzpupille
+  for (const s of [-1, 1]) {
+    stroke(ctx, darker(F.body, 0.38), 1.3, [[s * 1.6, -31.2], [s * 5, -30.6], [s * 8.8, -31.8]]);
+    dot(ctx, s * 5, -28.4, 2.2, 1.3, F.eye);
+    dot(ctx, s * 5, -28.4, 0.45, 1.1, '#1c0c0c');
+    dot(ctx, s * 4.3, -28.9, 0.5, 0.4, '#ffffff');
+  }
+}
+function dragonBackArt(ctx, frame, o, layer) {
+  const F = DRAGON2D_FARBEN[o.color] || DRAGON2D_FARBEN.rot;
+  const k = [-1, 0, 1, 0][frame];
+  if (layer === 'back') {
+    // Kopf und Hals weit vorn (oben im Bild), von hinten: Hinterkopf mit zwei Hörnern
+    paintShape(ctx, () => {
+      ctx.beginPath();
+      ctx.moveTo(-5, -48);
+      ctx.lineTo(5, -48);
+      ctx.lineTo(3.5, -62);
+      ctx.lineTo(-3.5, -62);
+      ctx.closePath();
+    }, F.body, -5, -62, 10, 14);
+    for (const y of [-52, -57]) poly(ctx, [[-1.4, y], [0, y - 3], [1.4, y]], F.horn);
+    oval(ctx, 0, -66, 6.5, 5.2, F.body);
+    for (const s of [-1, 1]) {
+      poly(ctx, [[s * 2.5, -69], [s * 9, -77], [s * 10, -82], [s * 6.5, -76], [s * 1.5, -66]], F.horn);
+      poly(ctx, [[s * 3.5, -70], [s * 8.5, -76.5], [s * 9.4, -80.5], [s * 6.4, -76], [s * 2.6, -68]], F.hornHi);
+    }
+    for (const s of [-1, 1]) dragonWingFront(ctx, s, k, darker(F.body, 0.12), F.edge, F.claw);
+    // Rücken: Buckel mit Zacken entlang der Wirbelsäule, dunkle Flanken
+    oval(ctx, 0, -40, 15, 13, F.body);
+    oval(ctx, -9, -36, 5, 8, F.bodyD);
+    oval(ctx, 9, -36, 5, 8, F.bodyD);
+    for (const [y, h] of [[-44, 3.6], [-38.5, 3.4], [-33, 3], [-28.5, 2.6]]) poly(ctx, [[-1.8, y], [0, y - h], [1.8, y]], F.horn);
+    if (o.saddle) {
+      box(ctx, -9, -55, 18, 8, 2.2, o.saddle);
+      box(ctx, -7, -48, 14, 3, 1.2, darker(o.saddle, 0.25));
+      stroke(ctx, '#2a1a10', 1, [[-10, -50], [-13, -36]]);
+      stroke(ctx, '#2a1a10', 1, [[10, -50], [13, -36]]);
+    }
+    return;
+  }
+  // vorn: Hinterbeine an den Seiten, Schwanz hängt zur Kamera hin mit Zacken und Hornblatt
+  for (const s of [-1, 1]) {
+    oval(ctx, s * 12.5, -29, 5, 7, F.bodyD);
+    poly(ctx, [[s * 10.5, -24], [s * 15, -18], [s * 11.5, -17.5]], F.bodyD);
+    for (const dx of [-1.6, 0, 1.6]) poly(ctx, [[s * 13 + dx - 0.8, -18.6], [s * 13 + dx, -16], [s * 13 + dx + 0.8, -18.6]], F.claw);
+  }
+  const sw = Math.sin(frame * Math.PI / 2) * 1.5;
+  paintShape(ctx, () => {
+    ctx.beginPath();
+    ctx.moveTo(-6, -30);
+    ctx.quadraticCurveTo(-5, -18, 2 + sw, -10);
+    ctx.quadraticCurveTo(6 + sw, -4, 1 + sw, -1);
+    ctx.quadraticCurveTo(2 + sw, -6, -2 + sw, -10);
+    ctx.quadraticCurveTo(-8, -19, -6, -30);
+    ctx.moveTo(6, -30);
+    ctx.quadraticCurveTo(4, -20, -1, -13);
+    ctx.lineTo(-6, -30);
+    ctx.closePath();
+  }, F.body, -9, -31, 17, 31);
+  for (const [x, y] of [[-1.5, -24], [0, -18], [1.5 + sw, -12.5]]) poly(ctx, [[x - 1.5, y], [x, y - 3], [x + 1.5, y]], F.horn);
+  poly(ctx, [[sw, -2], [sw - 4, 2], [sw + 1, 4.5], [sw + 4, 0.5]], F.horn);
+}
+
 // Größe der Bosse in 2D (seit 15.65): Endbosse benutzen das Bild ihrer Vorlage (raid.art) und waren deshalb nur so
 // groß wie ein Alphawolf oder Yeti – in 3D wächst ihr Modell um raid.scale. Jetzt auch in 2D: Endbosse um raid.scale,
 // Wächter mit fremdem Aussehen um lookScale (Instanz-Wächter haben ihr vergrößertes Bild schon, instanzen.js),

@@ -120,4 +120,4 @@
 .chat-box .chat-log p.lg-set { color: #3fe0a8; font-style: normal; font-weight: 600; }
 
 /* Sparoptik (Grafik „Niedrig“, seit Wärme 2; siehe css/style.css): Gold leuchtet fest im hellen Stand statt zu pulsieren */
-.spar-fx .item-tile.rar-4 { animation: none; box-shadow: 0 0 20px rgba(255, 196, 70, 0.95), inset 0 0 18px rgba(255, 196, 70, 0.45); }
+.spar-fx .item-tile.rar-4, .ruhig-ui .item-tile.rar-4 { animation: none; box-shadow: 0 0 20px rgba(255, 196, 70, 0.95), inset 0 0 18px rgba(255, 196, 70, 0.45); }

@@ -39,9 +39,25 @@ Weltobjekt `tod2d` an und sortiert sie nach der Fußlinie – in der schrägen S
 Maßstab. Die Auflöse-Bilder (`tod2dDissolve`) werden je Sprite einmal vorgebacken (7 Stufen; sehr große Bilder
 verkleinert auf höchstens ~160.000 Bildpunkte).
 
-## Drache neigt sich in Flugrichtung (`dragonPitch2d`, zeichnen.js)
+## Drache von vorn und von hinten (seit 15.68)
 
-- Beim Flug nach unten senkt der Drache den Kopf, nach oben hebt er ihn; schräg entsprechend weniger
-  (Winkel der Laufrichtung × 0,75, höchstens 0,95 rad ≈ 54°).
-- Drache und Reiter drehen sich gemeinsam um den Sattel; der Schatten bleibt flach am Boden.
-- Der Winkel wird weich nachgeführt (etwa 0,15 s); im Stand und am Boden (Dungeons, Arenen) fliegt er gerade.
+- 15.67 hatte den Drachen beim Flug nach oben/unten geneigt – gewünscht war aber, dass er in die Flugrichtung
+  **schaut** wie nach links und rechts. Das Neigen ist wieder weg.
+- Fliegt er nach unten, sieht man ihn von vorn (Kopf mit Hörnern und glühenden Augen zur Kamera, Flügel ausgebreitet,
+  Vorderklauen darunter), nach oben von hinten (Hinterkopf mit Hörnern, Rücken mit Zacken, Hinterbeine, Schwanz zur
+  Kamera). Der Reiter dreht sich mit (Figur von vorn bzw. hinten).
+- Je Ansicht zwei Bilder (`dragonFrontArt`/`dragonBackArt` in figuren.js, Ebene `back` und `front`): was hinter dem
+  Reiter liegt, wird vor ihm gezeichnet, Kopf (von vorn) bzw. Schwanz (von hinten) danach. Flügelschlag wie von der
+  Seite (4 Bilder).
+- `dragonView2d` (zeichnen.js) wählt die Ansicht mit etwas Spielraum (Wechsel erst, wenn eine Richtung um 30 %
+  überwiegt), damit er schräg nicht hin- und herspringt; im Stand behält er die letzte.
+
+## Ruckeln in 2D (seit 15.68)
+
+- Gemessen (Handy-Bildgröße, Grafik „Mittel“): nicht die Spielwelt, sondern die Dauer-Animationen der Oberfläche
+  bremsten – wandernder Glanz auf Leben/Mana/EP, pulsierende Ulti- und Segen-Ringe, Statuspunkt-Knopf. Sie halten den
+  Compositor auf 60 Bildern je Sekunde und lassen die HUD-Ebene neu malen; etwa jedes zehnte Bild hing bis zu 0,2 s
+  (nur ~15 Bilder je Sekunde).
+- Am Handy und Tablet steht die Oberfläche jetzt immer still (Klasse `ruhig-ui` an `<html>`, waermeschutz.js; dieselben
+  festen Zustände wie die Sparoptik von „Niedrig“, Vignette und Licht bleiben). Danach: gleichmäßig 60 Bilder je
+  Sekunde, Zeichenzeit im Mittel ~6 ms. Am PC bleiben die Animationen.
