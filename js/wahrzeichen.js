@@ -1865,28 +1865,77 @@ WZ_MAPS[14] = (wm, T) => {
   // roter Dunst im Kessel (nur, wenn man drin ist)
   const mist = wzMistLayer(wzMistMat('blut', '#6a1018', 0.26, 0.05, 0.02), 0.25, 64);
   WZ.tick.push((t, dt, px, pz) => { mist.visible = Math.hypot((px - kx) / K[2], (pz - ky) / K[3]) < 0.78; });
-  // Stadt: Blutbrunnen
+  // Stadt: Blutbrunnen (seit 15.66 als Brunnen erkennbar – vorher stand nur ein schwarzer Pfeiler mit dünnen Fäden in
+  // der Lache): achteckiges Becken mit Steinrand und Eckpfosten, darin ein Sockel in zwei Stufen, der Obelisk mit
+  // glühenden Bändern, vier Dämonenköpfe als Speier, deren Blutbögen ins Becken fallen und dort spritzen, und über der
+  // Spitze ein schwebender, sich drehender Blutkristall. Alles steht in der Lache (unbegehbar), ohne Kollision.
   const site = wzSite(town.cx + 0.5, town.cy + 0.5, 90);
   const pool = wzPick(F, { cx: town.cx - 8, cy: town.cy - 9, R: 9, min: 1.6, cap: 4, distK: 0.1 });
   if (pool) {
     const ox = pool.x - site.position.x;
     const oz = pool.y - site.position.z;
+    const R = Math.max(2.0, Math.min(3.0, pool.r - 0.35));
     const b = new Bake3();
-    b.add(lathe3('wzobelS', [[0.62, -0.9], [0.58, 0], [0.38, 4.0], [0, 4.7]], 4), '#130d12', { p: [ox, 0, oz], r: [0, Math.PI / 4, 0], shade: 0.3, top: '#2e2430' });
-    b.add(lathe3('wzobelStip', [[0.41, 3.85], [0.41, 3.95], [0, 4.75]], 4), '#ff2a3a', { p: [ox, 0, oz], r: [0, Math.PI / 4, 0], mat: 'pulse' });
+    const STONE = '#2e1e24', CAP = '#5e3c42', DARK = '#160e14', TRIM = '#8a1424';
+    // Beckenrand: acht Steinbalken, an den Ecken Pfosten mit runder Kappe
+    const Rc = R / Math.cos(Math.PI / 8);
+    for (let k = 0; k < 8; k++) {
+      const a = ((k + 0.5) / 8) * Math.PI * 2;
+      const len = 2 * R * Math.tan(Math.PI / 8) + 0.05;
+      b.add(wbox(len, 0.6, 0.42, 0.06), STONE, { p: [ox + Math.cos(a) * R, 0, oz + Math.sin(a) * R], r: [0, Math.PI / 2 - a, 0], top: CAP, topK: 0.6, shade: 0.25 });
+      const c = (k / 8) * Math.PI * 2;
+      const px = ox + Math.cos(c) * Rc;
+      const pz = oz + Math.sin(c) * Rc;
+      b.add(wbox(0.52, 0.92, 0.52, 0.07), STONE, { p: [px, 0.12, pz], r: [0, -c, 0], top: CAP, shade: 0.25 });
+      b.add(lathe3('wzbbkap', [[0.21, 0], [0.28, 0.08], [0.21, 0.2], [0.09, 0.3], [0, 0.35]], 8), CAP, { p: [px, 0.58, pz] });
+    }
+    // Sockel in zwei Stufen und Obelisk mit glühenden Bändern
+    b.add(lathe3('wzbbsockel', [[1.2, -0.45], [1.2, 0.12], [1.05, 0.2], [0.95, 0.2], [0.95, 0.44], [0.82, 0.52], [0, 0.52]], 8), STONE, { p: [ox, 0, oz], r: [0, Math.PI / 8, 0], top: CAP, topK: 0.55, shade: 0.3 });
+    b.add(lathe3('wzbbobel', [[0.52, 0], [0.48, 0.25], [0.37, 3.55], [0, 4.25]], 4), DARK, { p: [ox, 0.52, oz], r: [0, Math.PI / 4, 0], shade: 0.35, top: '#3e2c36', topK: 0.35 });
+    const half = (h) => (0.48 - (0.11 * (h - 0.25)) / 3.3) * 0.7071;
+    for (const h of [0.55, 1.7]) b.add(wbox(half(h) * 2 + 0.1, 0.11, half(h) * 2 + 0.1, 0.02), TRIM, { p: [ox, 0.52 + h, oz], mat: 'pulse' });
+    // vier Dämonenköpfe als Speier und ihre Blutbögen
+    const hy = 0.52 + 2.75;
+    const hw = half(2.75);
+    const D = Math.min(R - 0.5, 1.95);
     for (let k = 0; k < 4; k++) {
-      const a = (k / 4) * Math.PI * 2;
+      const a = (k / 4) * Math.PI * 2 + Math.PI / 4;
       const dx = Math.cos(a);
       const dz = Math.sin(a);
-      b.add(rockGeo(1, 0), '#2a1a20', { p: [ox + dx * 0.5, 3.0, oz + dz * 0.5], s: [0.22, 0.16, 0.22] });
-      const pts = [];
-      for (let i = 0; i <= 8; i++) {
-        const t = i / 8;
-        pts.push([ox + dx * (0.55 + t * 0.9), 3.0 - t * t * 3.2, oz + dz * (0.55 + t * 0.9)]);
+      const at = (d, y) => [ox + dx * d, y, oz + dz * d];
+      b.add(wbox(0.34, 0.3, 0.34, 0.08), '#3a2228', { p: at(hw + 0.12, hy), r: [0, -a, 0], top: '#5a3a40', shade: 0.2 });
+      b.add(wbox(0.3, 0.08, 0.26, 0.03), '#3a2228', { p: at(hw + 0.2, hy - 0.2), r: [0, -a, 0] });
+      for (const sd of [-1, 1]) {
+        const ex = -dz * sd;
+        const ez = dx * sd;
+        b.add(lathe3('wzbbhorn', [[0.06, 0], [0.04, 0.12], [0, 0.26]], 6), '#d8c8b0', { p: [ox + dx * (hw + 0.1) + ex * 0.13, hy + 0.12, oz + dz * (hw + 0.1) + ez * 0.13], r: [ez * 0.5, 0, -ex * 0.5] });
+        b.add(wbox(0.06, 0.05, 0.04, 0.01), '#ff3a2a', { p: [ox + dx * (hw + 0.3) + ex * 0.08, hy + 0.04, oz + dz * (hw + 0.3) + ez * 0.08], mat: 'pulse' });
       }
-      wzMeshIn(site, wzStrip(pts, [0.07, 0.08, 0.09, 0.1, 0.11, 0.12, 0.13, 0.14, 0.15], [-dz, 0, dx]), wzFallMat('#7a0816', '#e83a4a'), { order: 3 });
+      const pts = [];
+      const ws = [];
+      const y0 = hy - 0.12;
+      for (let i = 0; i <= 10; i++) {
+        const t = i / 10;
+        pts.push(at(hw + 0.34 + (D - hw - 0.34) * t, y0 + 0.45 * t - (y0 + 0.45 + 0.12) * t * t));
+        ws.push(0.1 + t * 0.12);
+      }
+      wzMeshIn(site, wzStrip(pts, ws, [-dz, 0, dx]), wzFallMat('#7a0816', '#e83a4a'), { order: 3 });
+      const sx = pool.x + dx * D;
+      const sz = pool.y + dz * D;
+      WZ.emitters.push({ x: sx, z: sz, R: 40, rate: 3, acc: 0, fn: () => {
+        wzSpawn({ x: sx, y: -0.1, z: sz, vx: (Math.random() - 0.5) * 1.8, vz: (Math.random() - 0.5) * 1.8, vy: 1.4 + Math.random() * 1.4, grav: 7, life: 0.6, s0: 0.1, s1: 0.05, c: '#c01828', a: 0.9 });
+      } });
     }
     wzBake(site, b);
+    // schwebender Blutkristall über der Spitze, dreht sich langsam und wippt
+    const kb = new Bake3();
+    wzCrystal(kb, '#ff2a3a', { p: [0, 0, 0], r: 0.2, len: 0.42, mat: 'pulse', sides: 6 });
+    wzGlow(kb, 0, 0, 0, 2.4, '#ff2a3a', 0.75);
+    const ky = 0.52 + 4.25 + 0.55;
+    wzAnim(site, kb, (g, t) => {
+      g.rotation.y = t * 0.7;
+      g.position.y = ky + Math.sin(t * 1.6) * 0.1;
+    }, ox, ky, oz);
   }
   wzWallBanners(site, wm, 5, '#5a0c14', '#d8c8b0', 12);
   wzAround(2, (px, pz) => wzSpawn({ x: px + (Math.random() - 0.5) * 28, y: 0.3 + Math.random() * 2.5, z: pz + (Math.random() - 0.6) * 20, vx: 0.4, vy: 0.15, wob: 0.5, life: 6, s0: 0.1, s1: 0.06, c: '#ff4a5a', add: true, a: 0.7 }));
