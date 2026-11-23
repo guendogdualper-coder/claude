@@ -452,7 +452,7 @@ const RATGEBER_WISSEN = [
   {
     c: 'ausruestung', q: 'Welche Seltenheiten gibt es?',
     a: () => ((typeof RARITIES !== 'undefined') ? RARITIES.map((r) => `<span style="color:${r.color}">${r.name}</span>`).join(' · ') + '. ' : '') +
-      'Seltenere Teile haben mehr Boni und etwas höhere Werte. Die Farbe sagt, wie gut ein Teil für seine Stufe ist – das Plus ändert sie nicht. Endbosse lassen legendäre Teile ihrer Stufe fallen; legendäre Stufe-80-Ausrüstung gibt es nur in den Instanzen.',
+      'Seltenere Teile haben mehr Boni und etwas höhere Werte. Die Farbe sagt, wie gut ein Teil für seine Stufe ist – das Plus ändert sie nicht. Endbosse lassen ein legendäres Teil ihrer Stufe fallen; legendäre Stufe-80-Ausrüstung gibt es nur in den Instanzen.',
     k: 'seltenheit selten episch legendaer gewoehnlich normal farbe lila gold blau gruen'
   },
   {
@@ -548,6 +548,12 @@ const RATGEBER_WISSEN = [
     c: 'quests', p: 3, q: 'Welche Arten von Aufträgen gibt es?',
     a: '<b>Hauptquests</b> (golden): die Kapitel der Ältesten auf jeder Map und die Prüfung des Stallmeisters. <b>Nebenquests</b> (grün): Wanderer draußen auf den Maps, wiederholbare Jagden bei {n:jaegerin} und nachts die Nachtjagden der Nachtwanderer.',
     k: 'auftraege quests arten hauptquest nebenquest jagd wanderer'
+  },
+  {
+    c: 'quests', p: 3, q: 'Geht die Hauptquest nach Stufe 70 weiter?',
+    a: 'Ja. Nach der Heimkehr gibt dir der Älteste der Heimat zwei Dinge mit: den Auftrag <b>„Die neun Endbosse“</b> – er läuft nebenher, jeder Endboss zählt, wann immer du ihn mit Gefährten besiegst – ' +
+      'und den nächsten goldenen Auftrag. Die Hauptquest geht ohne Pause weiter: über den Titanenkamm (Donnerklamm) und den Drachenhort (Feuerberg) mit Stufe 70–74 und ab Stufe 75 im Kristallabgrund bis Stufe 80.',
+    k: 'hauptquest stufe 70 weiter ende endbosse finale neun nebenher kapitel titanenkamm drachenhort kristallabgrund 80 goldene quest fertig'
   },
   {
     c: 'quests', q: 'Wo sehe ich meine Quests?',
@@ -740,8 +746,8 @@ const RATGEBER_WISSEN = [
   },
   {
     c: 'dungeons', q: 'Was gibt es im Turm der Verdammten zu holen?',
-    a: 'Gold für jede geschaffte Ebene. Die Hüter lassen mit etwas Glück ein episches Teil (Lv 70–80) fallen, selten ein legendäres. Fällt Kharzul, erscheint die <b>Truhe des Wächters</b>: 3 epische Teile (Lv 80), ' +
-      'mit Glück ein legendäres (Lv 80, sonst ein viertes episches) – das gehört meist zur zweiten Reihe der Klassen-Sets deiner Klasse –, dazu Seelensplitter, Ätherkerne, Schmiede-Teile, oft einen Seelenstein als Gegenstand und viel Gold. ' +
+    a: 'Gold für jede geschaffte Ebene. Die Hüter lassen mit etwas Glück ein episches Teil (Lv 70–80) fallen, selten ein legendäres. Fällt Kharzul, erscheint die <b>Truhe des Wächters</b>: ein Ausrüstungsteil (Lv 80) – ' +
+      'mit Glück ein legendäres, das meist zur zweiten Reihe der Klassen-Sets deiner Klasse gehört, sonst ein episches –, dazu Seelensplitter, Ätherkerne, Schmiede-Teile, oft einen Seelenstein als Gegenstand und viel Gold. ' +
       'Danach steigt der <b>Turm-Schmied</b> aus der Glut: Einmal je Durchgang wertet er ein Teil um +1 auf, mit 20 Prozentpunkten mehr Chance als beim Schmied, ohne Segensschriftrolle, und nichts zerbricht (Gold, Splitter und Teile kostet es wie beim Schmied). ' +
       'Die echten Seelensteine der Ebenen 6 und 9 geben ihre gewohnte Beute. Die Beute der Hüter und des Wächters gibt es je Sperre einmal.',
     k: 'turm der verdammten beute belohnung legendaer episch klassen-set aetherkern seelenstein gold sperre truhe waechter turm-schmied turmschmied ghorvan aufwerten'

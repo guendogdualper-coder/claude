@@ -1,6 +1,7 @@
-// Aufträge. Seit 11.2 eine goldene Hauptquestreihe durch alle Maps (Kapitel je Map, Stufe 1 bis 70):
+// Aufträge. Seit 11.2 eine goldene Hauptquestreihe durch alle Maps (Kapitel je Map, seit 15.74 ohne Lücke Stufe 1 bis 80):
 // Jedes Kapitel vergibt der Älteste der Map. Am Ende eines Kapitels schickt er dich mit einer Nachricht zum
-// Ältesten der nächsten Map (Reiseauftrag). Das Finale: alle neun Endbosse der Welt besiegen.
+// Ältesten der nächsten Map (Reiseauftrag). Die neun Endbosse sind seit 15.74 ein eigener Auftrag neben der Reihe
+// (ENDBOSS_QUEST) – vorher das Finale, das die Reihe für alle ohne Gruppe bei Stufe 70 anhielt.
 // Die Jägerin vergibt weiter wiederholbare Jagdaufträge passend zur eigenen Stufe.
 //
 // level   ab dieser Stufe gibt es den Auftrag; danach richtet sich auch die Erfahrung
@@ -100,18 +101,31 @@ const QUEST_CHAPTERS = [
     QS(69, 70, 1, 'Stein des Untergangs', 'Der letzte und mächtigste aller Seelensteine. Zerstöre ihn, und die Steine hören auf zu wachsen.', { books: 3, mats: { star: 3, boni5: 2 } }),
     QT(70, 1, 'Heimkehr nach Kazehana', 'Du hast jede Map befreit. Kehr heim nach Kazehana – Bao wartet auf dich, und er hat eine letzte, die größte Aufgabe.')
   ] },
-  { map: 1, title: 'Finale · Die neun Endbosse', quests: [
-    { level: 70, title: 'Die neun Endbosse', goal: { type: 'raids', count: 9 },
-      text: 'Willkommen daheim, Held. In jeder Map wartet noch ein Endboss in seiner Halle – der Urwolf, der Waldtyrann, der Großkhan, der Höllenfürst, die Schlangengöttin, der Frostriese, der Lichkönig, der Donnertitan und der Weltendrache. Sammle Gefährten und besiege sie alle. Dann ist die Welt für immer frei.',
-      reward: { gold: 1000000, books: 8, mats: { star: 5, boni5: 5, switch67: 3 } } }
+  // seit 15.74: Nach der Heimkehr geht die goldene Reihe ohne Pause weiter – über den Titanenkamm (Donnerklamm) und den
+  // Drachenhort (Feuerberg) mit Stufe 70–74 in den Kristallabgrund bis Stufe 80. „Die neun Endbosse“ (bis 15.73 das
+  // Finale, das die Reihe für alle ohne Gruppe beendete) ist jetzt ein eigener Auftrag des Ältesten der Heimat, der
+  // nebenher läuft (ENDBOSS_QUEST). Ältere Spielstände rechnet questState() um (chain 3, MAIN_CHAIN3).
+  // home: Auftrag des Ältesten der Heimat (Kazehana, auf der Schattenseite Mondfall)
+  { map: 1, home: true, title: 'Zwischenspiel · Willkommen daheim', quests: [
+    QT(70, 3, 'Grollen im Gebirge', 'Willkommen daheim, Held! In jeder Map wartet noch ein Endboss in seiner Halle – diese Jagd gebe ich dir für nebenher mit, wann immer du Gefährten findest. Doch eine Nachricht duldet keinen Aufschub: Gunhild schreibt aus der Donnerklamm, auf dem Titanenkamm erwachen Riesen, wie man sie seit Jahrhunderten nicht gesehen hat. Reise in die Donnerklamm und sprich mit Gunhild.')
   ] },
-  // seit 13.85: nach dem Finale geht es ab Stufe 75 in den Kristallabgrund (Map 10). Hinten angehängt, damit die
-  // Nummern aller älteren Aufträge (p.quests.main) gleich bleiben; wer das Finale schon hat, macht hier weiter.
-  { map: 1, title: 'Epilog · Der Ruf aus dem Abgrund', quests: [
-    QT(75, 10, 'Licht über dem Abgrund', 'Die neun Endbosse sind gefallen, doch die Steine wachsen weiter – tief im Süden, wo die Welt in einen Abgrund aus Kristall bricht. Reise durch das Weltentor in den Kristallabgrund und sprich mit Aurelia in der Zitadelle Lichtwacht.')
+  { map: 3, title: 'Kapitel 10 · Titanenkamm', quests: [
+    QK(70, 'gargoyle', 20, 'Steinerne Späher', 'Bao schickt dich? Gut. Die Gargoyles sind die Augen der Riesen – solange sie über dem Kamm kreisen, kennen die Riesen jeden unserer Schritte. Hol sie herunter.', { books: 1 }),
+    QK(71, 'donnerriese', 15, 'Die Donnerriesen', 'Donnerriesen stapfen über den Titanenkamm, jeder Schritt ein Beben. Erreichen sie die Klamm, stürzt unsere Wacht ein. Fälle sie, bevor es so weit ist.', { books: 2 }),
+    QS(71, 70, 2, 'Steine im Fels', 'Zwischen den Riesen wachsen Seelensteine aus dem Fels und geben ihnen Kraft. Zerschlag zwei davon, dann wanken sie.', { books: 2, mats: { star: 2, boni5: 1 } }),
+    QK(72, 'titanenkoenig', 1, 'Der Titanenkönig', 'Die Riesen gehorchen Kroth, dem Titanenkönig. In der Titanenschmiede schlägt er neue Krieger aus Stein. Steig hinab und beende sein Werk.', { items: [['waffe', 8, 2]], books: 2 }),
+    QK(72, 'donnerriese', 20, 'Das letzte Beben', 'Ohne ihren König irren die letzten Donnerriesen über den Kamm – wütender denn je. Treib sie in die Tiefe, dann kehrt Ruhe ein.', { mats: { star: 2 } }),
+    QT(73, 9, 'Die Brut erwacht', 'Die Klamm ist sicher, dank dir. Doch Ember schreibt aus dem Glutlager: Unter dem Feuerberg ist ein uralter Drache erwacht, und seine Brut schwärmt aus. Reise zum Feuerberg und hilf ihr.')
   ] },
-  { map: 10, title: 'Kapitel 10 · Kristallabgrund', quests: [
-    QK(75, 'kristallgolem', 20, 'Golems aus Kristall', 'Bao schickt dich? Dann bist du der Held, von dem man in Lichtwacht flüstert. Golems aus lebendem Kristall stampfen gegen unsere Mauern. Zerschlag sie.', { books: 2 }),
+  { map: 9, title: 'Kapitel 11 · Drachenhort', quests: [
+    QK(73, 'feuerdrache', 20, 'Flügel aus Feuer', 'Gunhild schickt dich? Dann gibt es Hoffnung. Seit der Urdrache wach ist, werden die Feuerdrachen immer kühner. Dünne ihre Schwärme aus.', { books: 2 }),
+    QS(73, 70, 2, 'Glut im Gestein', 'Der Urdrache trinkt Kraft aus den Seelensteinen am Berg. Zerstöre zwei davon, und er wird schwächer.', { books: 2, mats: { star: 2, boni5: 1 } }),
+    QK(74, 'feuerdaemon', 25, 'Wächter der Flamme', 'Feuerdämonen bewachen den Weg zum Drachenhort. Brich durch ihre Reihen.', { items: [['ruestung', 8, 2]] }),
+    QK(74, 'urdrache', 1, 'Vharak, der Urdrache', 'Tief im Drachenhort liegt Vharak, der Urdrache, auf seinem Schatz. Stell dich ihm – allein oder mit Gefährten.', { items: [['helm', 8, 2]], books: 3, mats: { star: 3, boni5: 2 } }),
+    QT(74, 10, 'Licht über dem Abgrund', 'Der Urdrache ist gefallen, doch die Steine wachsen weiter – tief im Süden, wo die Welt in einen Abgrund aus Kristall bricht. Reise durch das Weltentor in den Kristallabgrund und sprich mit Aurelia in der Zitadelle Lichtwacht.')
+  ] },
+  { map: 10, title: 'Kapitel 12 · Kristallabgrund', quests: [
+    QK(75, 'kristallgolem', 20, 'Golems aus Kristall', 'Ember schickt dich? Dann bist du der Held, von dem man in Lichtwacht flüstert. Golems aus lebendem Kristall stampfen gegen unsere Mauern. Zerschlag sie.', { books: 2 }),
     QK(76, 'splitterspinne', 15, 'Netze aus Glas', 'Splitterspinnen spannen Fäden, scharf wie Glas, über die Pfade der Hänge. Wer hindurchläuft, kommt nicht heil heraus.'),
     QS(76, 75, 2, 'Stein der Leere', 'Zwei Steine der Leere saugen das Licht aus den Kristallen. Zerstöre sie, bevor die Hänge erlöschen.', { books: 2, mats: { star: 2, boni5: 1 } }),
     QK(77, 'schattenpirscher', 15, 'Schatten auf der Lauer', 'Schattenpirscher jagen zwischen den Kristallbäumen. Man sieht sie erst, wenn sie springen.', { items: [['ruestung', 8, 3]] }),
@@ -123,16 +137,33 @@ const QUEST_CHAPTERS = [
     QK(80, 'aelvyr', 1, 'Der Wyrm des Abgrunds', 'Ganz unten im Abgrund schläft Aelvyr, der alles Licht frisst. Sammle Gefährten und stelle dich ihm in seinem Hort – es ist der letzte Kampf.', { gold: 1500000, books: 6, mats: { star: 5, boni5: 5, switch67: 3 } })
   ] }
 ];
-const MAIN_QUESTS = QUEST_CHAPTERS.flatMap((ch, ci) => ch.quests.map((q, k) => ({ ...q, id: `k${ci + 1}_${k + 1}`, map: ch.map, chapter: ci, chapterTitle: ch.title })));
-// Endbosse für das Finale (Reihenfolge nach Stufe) – seit 14.54 die neun der Lichtseite (die Schattenseite hat ihre eigenen)
+const MAIN_QUESTS = QUEST_CHAPTERS.flatMap((ch, ci) => ch.quests.map((q, k) => ({ ...q, id: `k${ci + 1}_${k + 1}`, map: ch.map, home: !!ch.home, chapter: ci, chapterTitle: ch.title })));
+// Umrechnung der Spielstände von 15.73 (chain 2) auf die Reihe seit 15.74 (chain 3): bis zur Heimkehr bleibt alles,
+// wer beim Finale stand, beginnt das Zwischenspiel (Endboss-Auftrag läuft weiter), alles danach rückt um shift auf
+const MAIN_CHAIN3 = (() => {
+  const start = MAIN_QUESTS.findIndex((q) => q.home); // altes Finale stand an derselben Stelle
+  const abyss = MAIN_QUESTS.findIndex((q) => q.goal.type === 'talk' && q.goal.map === 10); // alter Epilog: start + 1
+  return { finale: start, shift: abyss - (start + 1) };
+})();
+// Die neun Endbosse (bis 15.73 das Finale der Reihe, seit 15.74 ein eigener Auftrag neben der goldenen Reihe): der Älteste
+// der Heimat gibt ihn mit, sobald man von der Heimkehr zurück ist (questState: q.endboss 0 → 1). Jeder Endboss der
+// eigenen Seite zählt einmal (q.raidsDone), abgegeben wird beim selben Ältesten (q.endboss → 2). Texte und Belohnung
+// wie beim alten Finale; text2 für die Schattenseite.
+const ENDBOSS_QUEST = {
+  id: 'endboss', level: 70, title: 'Die neun Endbosse', chapterTitle: 'Finale · Die neun Endbosse', goal: { type: 'raids', count: 9 },
+  text: 'Willkommen daheim, Held. In jeder Map wartet noch ein Endboss in seiner Halle – der Urwolf, der Waldtyrann, der Großkhan, der Höllenfürst, die Schlangengöttin, der Frostriese, der Lichkönig, der Donnertitan und der Weltendrache. Sammle Gefährten und besiege sie alle. Dann ist die Welt für immer frei.',
+  text2: 'Willkommen daheim, Held der Nacht. In jeder Map wartet noch ein Endboss in seiner Halle – der Nachtwolf, der Kohlenfürst, der Gebeinfürst, die Blutfürstin, die Moormutter, der Nachtriese, der Lichkönig, der Donnertitan und der Weltendrache. Sammle Gefährten und besiege alle neun.',
+  reward: { gold: 1000000, books: 8, mats: { star: 5, boni5: 5, switch67: 3 } }
+};
+// Endbosse für den Endboss-Auftrag (Reihenfolge nach Stufe) – seit 14.54 die neun der Lichtseite (die Schattenseite hat ihre eigenen)
 const RAID_BOSSES = Object.keys(MONSTER_TYPES).filter((id) => MONSTER_TYPES[id].raidBoss && MONSTER_TYPES[id].side !== 'schatten').sort((a, b) => MONSTER_TYPES[a].level - MONSTER_TYPES[b].level);
 
 // --- Hauptquests der Schattenseite (seit 14.54, docs/fraktionen.md) -------------------------------------------------
 // Kapitel 1–6 spielen auf den Schattenkarten (Maps 11–16) und haben genau so viele Aufträge wie die Kapitel der
 // Lichtseite in derselben Reihenfolge (gleiche Stufen und Belohnungen, eigene Gegner und Geschichten). Ab Kapitel 7
-// (Totenmoor, gemeinsame Karten ab Stufe 50) gilt dieselbe Reihe für beide Seiten; Heimkehr, Finale und Epilog führen
-// nach Mondfall. So zeigt p.quests.main auf beiden Seiten auf denselben Platz in der Reihe – wer beim ersten Start
-// seine Seite wählt, verliert keinen Fortschritt.
+// (Totenmoor, gemeinsame Karten ab Stufe 50) gilt dieselbe Reihe für beide Seiten; Heimkehr und Zwischenspiel führen
+// nach Mondfall, dort gibt Selenor auch den Endboss-Auftrag (seit 15.74). So zeigt p.quests.main auf beiden Seiten auf
+// denselben Platz in der Reihe – wer beim ersten Start seine Seite wählt, verliert keinen Fortschritt.
 const SHADOW_CHAPTERS = [
   { map: 11, title: 'Kapitel 1 · Mondfall', quests: [
     QK(1, 'aschehund', 10, 'Hunde aus der Asche', 'Vor dem Mondtor schleichen Aschehunde um die Fischerboote. Ihr Fell glimmt noch vom Brand, aus dem sie kamen. Treib sie zurück.', { potions: 5 }),
@@ -198,16 +229,16 @@ const SHADOW_CHAPTERS = [
 const SHADOW_MAIN_TWEAKS = {
   k7_1: { text: 'Edda schickt dich? Dann hast du Mut. Im Moor erheben sich die Gefallenen alter Kriege – und hier treffen sich Licht und Schatten. Gib den Toten ihre Ruhe und halte die Augen offen.' },
   k9_7: { goal: { type: 'talk', map: 11, count: 1 }, title: 'Heimkehr nach Mondfall', text: 'Du hast jede Map befreit. Kehr heim nach Mondfall – Selenor wartet auf dich, und er hat eine letzte, die größte Aufgabe.' },
-  k10_1: { text: 'Willkommen daheim, Held der Nacht. In jeder Map wartet noch ein Endboss in seiner Halle – der Nachtwolf, der Kohlenfürst, der Gebeinfürst, die Blutfürstin, die Moormutter, der Nachtriese, der Lichkönig, der Donnertitan und der Weltendrache. Sammle Gefährten und besiege alle neun.' },
-  k11_1: { text: 'Die neun Endbosse sind gefallen, doch die Steine wachsen weiter – tief im Süden, wo die Welt in einen Abgrund aus Kristall bricht. Reise durch das Weltentor in den Kristallabgrund und sprich mit Aurelia in der Zitadelle Lichtwacht.' },
-  k12_1: { text: 'Selenor schickt dich? Dann bist du der Held, von dem man auch hier flüstert. Golems aus lebendem Kristall stampfen gegen unsere Mauern. Zerschlag sie.' }
+  // seit 15.74: Zwischenspiel (Mondfall) und erster Auftrag am Titanenkamm; das Finale ist ENDBOSS_QUEST (text2)
+  k10_1: { text: 'Willkommen daheim, Held der Nacht! In jeder Map wartet noch ein Endboss in seiner Halle – diese Jagd gebe ich dir für nebenher mit, wann immer du Gefährten findest. Doch eine Nachricht duldet keinen Aufschub: Gunhild schreibt aus der Donnerklamm, auf dem Titanenkamm erwachen Riesen, wie man sie seit Jahrhunderten nicht gesehen hat. Reise in die Donnerklamm und sprich mit Gunhild.' },
+  k11_1: { text: 'Selenor schickt dich? Gut. Die Gargoyles sind die Augen der Riesen – solange sie über dem Kamm kreisen, kennen die Riesen jeden unserer Schritte. Hol sie herunter.' }
 };
 const SHADOW_MAIN = SHADOW_CHAPTERS.flatMap((ch, ci) => ch.quests.map((q, k) => ({ ...q, id: `s${ci + 1}_${k + 1}`, map: ch.map, chapter: ci, chapterTitle: ch.title })));
 const MAIN_QUESTS_SCHATTEN = MAIN_QUESTS.map((q, i) => {
   if (i < SHADOW_MAIN.length) return SHADOW_MAIN[i];
   const tw = SHADOW_MAIN_TWEAKS[q.id];
-  // Finale und Epilog (Kapitel-Index 9 und 10) vergibt auf der Schattenseite der Älteste von Mondfall
-  const home = q.chapter === 9 || q.chapter === 10 ? { map: 11, chapterTitle: q.chapterTitle } : null;
+  // Aufträge der Heimat (home, seit 15.74 das Zwischenspiel) vergibt auf der Schattenseite der Älteste von Mondfall
+  const home = q.home ? { map: 11 } : null;
   return tw || home ? { ...q, ...tw, ...home } : q;
 });
 // Die neun Endbosse der Schattenseite: sechs eigene und die drei der gemeinsamen Karten

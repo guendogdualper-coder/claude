@@ -25,6 +25,14 @@ function mainQuestEntries() {
       active: q.accepted, xp: questXp(main.level, talk ? QUEST_XP.talk : QUEST_XP[main.goal.type] || 0.25)
     });
   }
+  // Die neun Endbosse (seit 15.74 neben der goldenen Reihe)
+  if (q.endboss === 1) {
+    const E = ENDBOSS_QUEST;
+    out.push({
+      key: 'endboss', title: E.title, sub: `Endboss-Jagd · läuft nebenher · ab Stufe ${E.level}`, text: endbossText(),
+      goal: goalText(E.goal), have: endbossProgress(), need: E.goal.count, where: goalWhere(E.goal), active: true, xp: questXp(E.level, QUEST_XP.raids)
+    });
+  }
   const st = q.stable;
   if (st && (st.state === 'active' || st.state === 'done')) {
     const left = Math.max(0, Math.ceil(st.deadline - game.player.playTime));
@@ -70,7 +78,8 @@ function sideQuestEntries() {
 function questCounts() {
   const q = questState();
   const sideDoneCount = Object.values(q.side || {}).reduce((n, s) => n + (s.times || 0), 0) + (q.hunts || 0) + (q.nightDone || 0);
-  return { mainDone: q.main || 0, mainTotal: mainQuestList().length, sideDone: sideDoneCount };
+  // seit 15.74 zählt der Endboss-Auftrag (neben der Reihe) mit
+  return { mainDone: (q.main || 0) + (q.endboss === 2 ? 1 : 0), mainTotal: mainQuestList().length + 1, sideDone: sideDoneCount };
 }
 
 function renderQuestWindow() {

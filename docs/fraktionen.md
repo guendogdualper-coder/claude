@@ -80,8 +80,9 @@ Schattenstile), Musikstimmung aus den eigenen Kompositionen.
   Skarn, der Nachtwolf (Stufe 14, Mondfall) · Brakkur, der Kohlenfürst (24, Aschewald) · Gebeinfürst Vharok (34,
   Knochenwüste) · Blutfürstin Sereth (44, Blutsteppe) · Nachtriese Skadur (54, Nachtfrost) · Moormutter Veyla (55,
   Schattenklippen).
-- Das Finale „Die neun Endbosse“: Schatten braucht die sechs eigenen und die drei der gemeinsamen Karten (Lichkönig,
-  Donnertitan, Weltendrache), Licht wie bisher seine neun.
+- Der Auftrag „Die neun Endbosse“ (bis 15.73 das Finale der Reihe, seit 15.74 nebenher, docs/hauptquest.md): Schatten
+  braucht die sechs eigenen und die drei der gemeinsamen Karten (Lichkönig, Donnertitan, Weltendrache), Licht wie
+  bisher seine neun.
 
 ### Monster der Schattenseite (`daten/schattenmonster.js`)
 
@@ -110,7 +111,8 @@ gemeinsamen Dungeon oder aus dem Auktionshaus) werden beim Aufheben in die eigen
 
 - Hauptquests: Kapitel 1–6 der Schattenseite (Mondfall, Aschewald, Knochenwüste, Blutsteppe, Schattenklippen,
   Nachtfrost) mit eigenen Geschichten, Gegnern und Ältesten (`SHADOW_CHAPTERS` in `daten/quests.js`); ab Kapitel 7
-  (Totenmoor) gemeinsam, Heimkehr, Finale und Epilog führen nach Mondfall (`MAIN_QUESTS_SCHATTEN`, `mainQuestList()`).
+  (Totenmoor) gemeinsam, Heimkehr und Zwischenspiel führen nach Mondfall, dort gibt Selenor auch den Endboss-Auftrag
+  (seit 15.74; `MAIN_QUESTS_SCHATTEN`, `mainQuestList()`, `endbossHome()`).
 - Nebenaufgaben der Wanderer und Hausbewohner, Jagden der Jägerin und Nachtjagden funktionieren auf den Schattenkarten wie
   auf jeder Karte (Monster der Karte).
 

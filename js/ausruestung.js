@@ -1137,29 +1137,29 @@ function rollLoot(m) {
 }
 
 // Schilde fallen nur für Krieger
-// Endboss-Beute (seit 6.5): drei Endboss-Teile (item.legend) für die eigene Klasse (eine Waffe, zwei andere Teile)
-// mit gleich vier Boni; dazu viele Verstärkungen, Schmiede-Teile und sehr viel Gold.
+// Endboss-Beute (seit 6.5): ein Endboss-Teil (item.legend) für die eigene Klasse mit gleich vier Boni – seit 15.74 genau
+// EIN Ausrüstungsteil (vorher drei: eine Waffe und zwei andere Teile), zu RAID_WEAPON_CHANCE eine Waffe; dazu viele
+// Schmiede-Teile, Seelensplitter und sehr viel Gold.
 // Seit 13.56 sind sie episch (lila), unter Lv 60 so selten, wie ihre Stufe erlaubt (blau) – RARITY_DROPS.raid.
 // Seit 11.0 auf +0 (vorher +7 bis +9): Hochschmieden muss man selbst, ab +4 mit Teilen aus der Map des Endbosses
 // (item.raidMat, siehe upgradeMaterial); der Boss lässt davon gleich ein paar fallen.
+const RAID_WEAPON_CHANCE = 1 / 3; // seit 15.74: Anteil Waffen am einen Endboss-Teil
 function raidLoot(m) {
   const p = game.player;
   const b = m.type.boss;
   let tier = 0;
   ITEM_TIERS.forEach((t, i) => { if (m.level + 4 >= t.level) tier = i; });
   const others = lootSlots(EQUIP_SLOTS.map((sl) => sl.id).filter((s) => s !== 'waffe'), p.classId);
-  const slots = ['waffe', others[randInt(0, others.length - 1)], others[randInt(0, others.length - 1)]];
-  for (const slot of slots) {
-    const item = makeItem(slot, tier, 0, p.classId, lootKind(p, p.classId));
-    item.legend = true;
-    if (b.mat) item.raidMat = b.mat;
-    rarityRoll(item, 'raid', m);
-    setTagItem(item, m); // seit 14.55: nur in einer Instanz mit Set (Abaddor im Höllenthron), Endbosse der Maps nie
-    if (addToBag(item)) {
-      ui.loot(itemFullName(item), 1, itemIconUrl(item), itemColor(item));
-      announceRarity(item);
-    } else ui.log('Dein Inventar ist voll. ' + itemFullName(item) + ' ist verloren.', 'warn');
-  }
+  const slot = Math.random() < RAID_WEAPON_CHANCE ? 'waffe' : others[randInt(0, others.length - 1)];
+  const item = makeItem(slot, tier, 0, p.classId, lootKind(p, p.classId));
+  item.legend = true;
+  if (b.mat) item.raidMat = b.mat;
+  rarityRoll(item, 'raid', m);
+  setTagItem(item, m); // seit 14.55: nur in einer Instanz mit Set (Abaddor im Höllenthron), Endbosse der Maps nie
+  if (addToBag(item)) {
+    ui.loot(itemFullName(item), 1, itemIconUrl(item), itemColor(item));
+    announceRarity(item);
+  } else ui.log('Dein Inventar ist voll. ' + itemFullName(item) + ' ist verloren.', 'warn');
   if (b.mat) addMobMat(b.mat, dropCount(randInt(8, 12)), m);
   // seit 14.6 keine Boni-Materialien mehr (die gibt es nur aus Seelensteinen), dafür Seelensplitter
   giveSplinters(randInt(15, 25));
@@ -1207,7 +1207,9 @@ function bossLoot(m) {
   const b = m.type.boss;
   let tier = 0;
   ITEM_TIERS.forEach((t, i) => { if (m.level + 8 >= t.level) tier = i; });
-  for (let k = 0; k < 2; k++) {
+  // seit 15.74: Wächter des Höllenthrons (Zerberos, Ifrah) geben ihr eines Teil in htGuardLoot, hier keins dazu
+  const n = typeof htIsGuard === 'function' && htIsGuard(m) ? 0 : 2;
+  for (let k = 0; k < n; k++) {
     const cls = Math.random() < 0.85 ? p.classId : CLASS_ORDER[randInt(0, CLASS_ORDER.length - 1)];
     const slots = lootSlots(EQUIP_SLOTS.map((sl) => sl.id), cls);
     // seit 14.16 +1 bis +4 statt +3 bis +6, +4 selten (8 %)

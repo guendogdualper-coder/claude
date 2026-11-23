@@ -6,18 +6,55 @@ function questState() {
   if (!p.quests) p.quests = { main: 0, accepted: false, progress: 0, hunt: null, hunts: 0, offers: null };
   if (!p.quests.stable) p.quests.stable = { state: 'open', progress: 0, deadline: 0 };
   // Alte Hauptkette (bis 11.1, 20 Aufträge) auf die Questreihe je Map umrechnen: weiter beim ersten Auftrag
-  // ab der Stufe des alten (alles erledigt: Heimkehr nach Kazehana vor dem Finale)
-  if (p.quests.chain !== 2) {
-    const q = p.quests;
+  // ab der Stufe des alten (alles erledigt: Heimkehr nach Kazehana)
+  const q = p.quests;
+  if (q.chain !== 2 && q.chain !== 3) {
     const lvl = q.main < OLD_MAIN_LEVELS.length ? OLD_MAIN_LEVELS[q.main] : 70;
     const done = q.main >= OLD_MAIN_LEVELS.length;
-    const idx = done ? mainQuestList().findIndex((m) => m.goal.type === 'talk' && m.goal.map === 1) : mainQuestList().findIndex((m) => m.level >= lvl);
+    const idx = done ? mainQuestList().findIndex((m) => m.id === 'k9_7') : mainQuestList().findIndex((m) => m.level >= lvl); // k9_7: Heimkehr (beide Seiten)
     q.main = Math.max(0, idx < 0 ? 0 : idx);
     q.accepted = false;
     q.progress = 0;
-    q.chain = 2;
+    q.chain = 3;
   }
-  return p.quests;
+  // seit 15.74 (chain 3): Das Finale „Die neun Endbosse“ ist ein eigener Auftrag neben der Reihe, dahinter kamen
+  // Zwischenspiel, Titanenkamm und Drachenhort dazu. Wer beim Finale stand, macht mit dem Zwischenspiel weiter und
+  // behält seine besiegten Endbosse (q.raidsDone); wer schon weiter war, rückt um MAIN_CHAIN3.shift auf.
+  if (q.chain === 2) {
+    const c = MAIN_CHAIN3;
+    if (q.main === c.finale) {
+      q.endboss = 1;
+      q.accepted = false;
+      q.progress = 0;
+    } else if (q.main > c.finale) {
+      q.main += c.shift;
+      q.endboss = 2;
+    }
+    q.chain = 3;
+  }
+  // Endboss-Auftrag: vergibt der Älteste der Heimat mit dem Zwischenspiel (0 nicht vergeben, 1 läuft, 2 abgegeben)
+  if (!q.endboss && q.main >= MAIN_CHAIN3.finale) q.endboss = 1;
+  return q;
+}
+
+// --- Die neun Endbosse (seit 15.74 ein Auftrag neben der goldenen Reihe, ENDBOSS_QUEST) ----------------------------
+// Ältester der Heimat: Bao in Kazehana, auf der Schattenseite Selenor in Mondfall
+const endbossHome = () => (typeof myFaction === 'function' && myFaction() === 'schatten' ? 11 : 1);
+const endbossText = () => (endbossHome() === 11 ? ENDBOSS_QUEST.text2 : ENDBOSS_QUEST.text);
+// Besiegte Endbosse der eigenen Seite (jeder zählt einmal)
+function endbossProgress() {
+  const done = questState().raidsDone || [];
+  return raidBossList().filter((id) => done.includes(id)).length;
+}
+const endbossActive = () => questState().endboss === 1;
+const endbossReady = () => endbossActive() && endbossProgress() >= ENDBOSS_QUEST.goal.count;
+function finishEndbossQuest() {
+  const q = questState();
+  if (!endbossReady()) return false;
+  giveReward(mainReward(ENDBOSS_QUEST), questXp(ENDBOSS_QUEST.level, QUEST_XP.raids));
+  q.endboss = 2;
+  ui.banner('Belohnung erhalten', ENDBOSS_QUEST.title);
+  return true;
 }
 
 // Ältester einer Map (Bao in Kazehana, sonst der Lagerälteste) und die Map eines NPCs
@@ -122,7 +159,7 @@ function goalWhere(goal) {
   return goal.type === 'kill' ? monsterWhere(goal.monster) : stoneWhere(goal.level);
 }
 
-// Nächster noch nicht besiegter Endboss für das Finale
+// Nächster noch nicht besiegter Endboss für den Endboss-Auftrag
 function nextRaidBoss() {
   const done = questState().raidsDone || [];
   return raidBossList().find((id) => !done.includes(id)) || null;
@@ -147,14 +184,14 @@ function questEvent(kind, m) {
   const main = currentMainQuest();
   const matches = (goal) => (kind === 'kill' && goal.type === 'kill' && goal.monster === m.typeId)
     || (kind === 'stone' && goal.type === 'stone' && goal.level === m.level);
-  // Finale: jeder Endboss zählt einmal
-  if (main && q.accepted && main.goal.type === 'raids' && kind === 'kill' && m.type && m.type.raidBoss && raidBossList().includes(m.typeId)) {
+  // Die neun Endbosse (seit 15.74 neben der Reihe): jeder Endboss der eigenen Seite zählt einmal
+  if (q.endboss === 1 && kind === 'kill' && m.type && m.type.raidBoss && raidBossList().includes(m.typeId)) {
     q.raidsDone = q.raidsDone || [];
     if (!q.raidsDone.includes(m.typeId)) {
       q.raidsDone.push(m.typeId);
-      q.progress = q.raidsDone.length;
-      ui.banner(`Endboss ${q.progress} von ${main.goal.count}`, m.name);
-      if (goalDone(main.goal, q.progress)) ui.log(`Alle Endbosse sind besiegt! Kehre zu ${elderPlace(main.map)} zurück.`, 'level');
+      const n = endbossProgress();
+      ui.banner(`Endboss ${n} von ${ENDBOSS_QUEST.goal.count}`, m.name);
+      if (n >= ENDBOSS_QUEST.goal.count) ui.log(`Alle Endbosse sind besiegt! Kehre zu ${elderPlace(endbossHome())} zurück.`, 'level');
     }
   }
   if (main && q.accepted && !goalDone(main.goal, q.progress) && matches(main.goal)) {
@@ -206,6 +243,7 @@ function questMarker(npcId, n) {
     return (s.state === 'open' || sideDone(n, s)) && 'side';
   }
   if (npcId === 'aeltester') {
+    if (n && endbossReady() && npcMapId(n) === endbossHome()) return 'main';
     const main = currentMainQuest();
     if (!main) return false;
     // nur der Älteste, bei dem es gerade weitergeht (seit 11.2)
@@ -570,6 +608,9 @@ function readyTurnIns(npc) {
     at(npc.id === 'aeltester' && npcMapId(npc) === questGiverMap(main, q))) {
     out.push({ kind: 'Hauptauftrag', main: true, label: main.title, goal: goalText(main.goal), reward: main.reward, xp: questXp(main.level, QUEST_XP[main.goal.type] || 0.25), run: finishMainQuest });
   }
+  if (endbossReady() && at(npc.id === 'aeltester' && npcMapId(npc) === endbossHome())) {
+    out.push({ kind: 'Hauptauftrag', main: true, label: ENDBOSS_QUEST.title, goal: goalText(ENDBOSS_QUEST.goal), reward: ENDBOSS_QUEST.reward, xp: questXp(ENDBOSS_QUEST.level, QUEST_XP.raids), run: finishEndbossQuest });
+  }
   for (const n of allWanderers()) {
     const s = sideState(n.key);
     if (s.state === 'active' && sideDone(n, s) && at(npc === n || npc.key === n.key)) {
@@ -681,6 +722,8 @@ Object.assign(ui, {
       if (main.goal.type === 'talk') row('main', main.title, goalText(main.goal), 0, 1, `${mapName(main.goal.map)} · über das Weltentor`, '', 'main');
       else row('main', main.title, goalText(main.goal), q.progress, main.goal.count, goalWhere(main.goal), '', 'main', elderPlace(questGiverMap(main, q)));
     }
+    // Die neun Endbosse (seit 15.74 neben der Reihe)
+    if (q.endboss === 1) row('main', ENDBOSS_QUEST.title, goalText(ENDBOSS_QUEST.goal), endbossProgress(), ENDBOSS_QUEST.goal.count, goalWhere(ENDBOSS_QUEST.goal), '', 'endboss', elderPlace(endbossHome()));
     const st = q.stable;
     if (st.state === 'active' || st.state === 'done') {
       const left = Math.max(0, Math.ceil(st.deadline - game.player.playTime));
@@ -716,14 +759,47 @@ Object.assign(ui, {
 
   // Ältester (seit 11.2): vergibt die Aufträge seiner Map, nimmt sie ab und schickt am Ende eines Kapitels
   // zum Ältesten der nächsten Map. Dort ist der Reiseauftrag erfüllt, sobald man ihn anspricht.
+  // Der Älteste der Heimat zeigt darunter den Endboss-Auftrag (seit 15.74, renderEndbossBox).
   renderElder(npc) {
+    this.renderElderMain(npc);
+    this.renderEndbossBox(npc);
+  },
+
+  // Die neun Endbosse (seit 15.74 neben der goldenen Reihe): eigener Kasten im Fenster des Ältesten der Heimat,
+  // solange der Auftrag läuft – Liste der Endbosse, Belohnung und Abgabe
+  renderEndbossBox(npc) {
+    const q = questState();
+    const body = $('npcBody');
+    if (!body || !npc || q.endboss !== 1 || npcMapId(npc) !== endbossHome() || body.querySelector('.eb-box')) return;
+    const E = ENDBOSS_QUEST;
+    const n = endbossProgress();
+    const box = document.createElement('div');
+    box.className = 'eb-box';
+    box.style.cssText = 'margin-top:14px;padding-top:10px;border-top:1px solid rgba(255,211,77,.4)';
+    box.innerHTML = `<p class="quest-step">Endboss-Jagd · läuft nebenher · ab Stufe ${E.level}</p><h3>${E.title}</h3><p>„${endbossText()}“</p>` +
+      `<p><strong>Ziel:</strong> ${goalText(E.goal)}</p>` +
+      '<ul class="reward-list">' + raidBossList().map((id) => `<li>${(q.raidsDone || []).includes(id) ? '✔' : '✘'} ${MONSTER_TYPES[id].name} <small>(Stufe ${MONSTER_TYPES[id].level} · ${monsterWhere(id)})</small></li>`).join('') + '</ul>' +
+      `<p><strong>Belohnung:</strong></p>${rewardHtml(mainReward(E), questXp(E.level, QUEST_XP.raids))}` +
+      (n >= E.goal.count ? '<button type="button" class="btn btn-primary" data-eb="reward">Belohnung abholen</button>' : `<p class="hint-text">Fortschritt: ${n} / ${E.goal.count}</p>`);
+    body.appendChild(box);
+    const btn = box.querySelector('[data-eb]');
+    if (btn) btn.addEventListener('click', () => {
+      finishEndbossQuest();
+      saveGame();
+      this.renderQuestTrack();
+      this.renderElder(npc);
+    });
+  },
+
+  renderElderMain(npc) {
     const p = game.player;
     const q = questState();
     const main = currentMainQuest();
     const body = $('npcBody');
     const here = npc ? npcMapId(npc) : 1;
     if (!main) {
-      body.innerHTML = '<p>„Du hast alles getan, worum wir dich bitten konnten. Alle neun Endbosse sind gefallen, die Steine schweigen. Die ganze Welt steht in deiner Schuld, Held.“</p>';
+      body.innerHTML = q.endboss === 2 ? '<p>„Du hast alles getan, worum wir dich bitten konnten. Alle neun Endbosse sind gefallen, die Steine schweigen. Die ganze Welt steht in deiner Schuld, Held.“</p>'
+        : '<p>„Du hast alles getan, worum wir dich bitten konnten. Die Steine schweigen, die ganze Welt steht in deiner Schuld, Held.“</p>';
       return;
     }
     // angekommen: Reiseauftrag beim Ältesten der Ziel-Map erfüllen und gleich den ersten Auftrag hier zeigen
@@ -734,6 +810,11 @@ Object.assign(ui, {
       q.progress = 0;
       const next = mainQuestList()[q.main];
       ui.banner(next ? next.chapterTitle : 'Angekommen', npc ? npc.name : '');
+      if (q.main === MAIN_CHAIN3.finale) {
+        questState(); // vergibt den Endboss-Auftrag
+        ui.log(`Neuer Auftrag: ${ENDBOSS_QUEST.title}. ${goalText(ENDBOSS_QUEST.goal)}.`, 'info');
+        ui.log('Er läuft neben der goldenen Reihe: Jeder Endboss zählt, wann immer ihr ihn besiegt.', 'info');
+      }
       saveGame();
       this.renderQuestTrack();
       this.renderElder(npc);
@@ -743,7 +824,8 @@ Object.assign(ui, {
     if (giver !== here) {
       // nicht der richtige Älteste: sagen, wo es weitergeht
       const chapter = mainQuestList().filter((m) => m.map === here);
-      const doneHere = chapter.length && mainQuestList().indexOf(chapter[chapter.length - 1]) < q.main;
+      // seit 15.74 reicht der erste Auftrag hier (Donnerklamm und Feuerberg haben zwei Kapitel)
+      const doneHere = chapter.length && mainQuestList().indexOf(chapter[0]) < q.main;
       // Karte ohne eigene Hauptaufträge (Seelenhain): kein „noch zu früh“
       body.innerHTML = `<p>„${doneHere ? 'Was du hier für uns getan hast, vergessen wir nie.' : chapter.length ? 'Für meine Aufträge ist es noch zu früh.' : 'Hier bei uns gibt es keine großen Aufträge – nur Ruhe und Seelensteine, die gebrochen werden wollen.'} ` +
         `Dein Weg führt dich jetzt zu ${elderPlace(giver)}. Das Weltentor bringt dich hin.“</p>` +
@@ -766,21 +848,18 @@ Object.assign(ui, {
     } else {
       action = `<p class="hint-text">Fortschritt: ${q.progress} / ${main.goal.count}</p>`;
     }
-    const bosses = main.goal.type === 'raids'
-      ? '<ul class="reward-list">' + raidBossList().map((id) => `<li>${(q.raidsDone || []).includes(id) ? '✔' : '✘'} ${MONSTER_TYPES[id].name} <small>(Stufe ${MONSTER_TYPES[id].level} · ${monsterWhere(id)})</small></li>`).join('') + '</ul>'
-      : '';
     const where = main.goal.type === 'kill' || main.goal.type === 'stone' ? ` <small>📍 ${goalWhere(main.goal)}</small>` : '';
     body.innerHTML =
       `<p class="quest-step">${main.chapterTitle} · Auftrag ${step} von ${inChapter.length} · ab Stufe ${main.level}</p>` +
       `<h3>${main.title}</h3><p>„${main.text}“</p>` +
-      `<p><strong>Ziel:</strong> ${goalText(main.goal)}${where}</p>` + bosses +
+      `<p><strong>Ziel:</strong> ${goalText(main.goal)}${where}</p>` +
       `<p><strong>Belohnung:</strong></p>${rewardHtml(mainReward(main), xp)}${action}`;
     const btn = body.querySelector('[data-quest]');
     if (btn) btn.addEventListener('click', () => {
       const travel = main.goal.type === 'talk';
       if (btn.dataset.quest === 'accept') {
         q.accepted = true;
-        q.progress = main.goal.type === 'raids' ? (q.raidsDone || []).length : 0;
+        q.progress = 0;
         ui.log(`Neuer Auftrag: ${main.title}. ${goalText(main.goal)}.`, 'info');
         if (travel) ui.banner(main.title, `Weiter nach ${mapName(main.goal.map)}`);
       } else {
@@ -1218,7 +1297,7 @@ Object.assign(ui, {
         '<li><b>Heiler</b> hält alle am Leben (Schamane: Heilung).</li><li><b>Schaden</b> (2–3 Spieler) bringen ihn zu Fall.</li></ul>' +
         '<p class="hint-text">Mechaniken: rote Kreise am Boden = gleich schlägt es dort ein, raus da! Meteore fallen auf jeden Spieler. Der Linienangriff fährt zum Ziel. Bei der Nova ist nur der grüne Kreis direkt am Boss sicher. Er springt auf einzelne Spieler (Zeichen über dem Kopf) und rast im Sturmangriff quer durch die Halle. Alle 20 s ruft er kleine Helfer – die lassen oft Tränke, Splitter oder Verstärkungen fallen. Bei 70 % und 35 % Leben schreit er und wird schneller, unter 20 % gerät er in Raserei. Ohne Kampf heilt er sich voll.</p>' +
         '<p class="hint-text"><b>Kristallschild</b> (bei 75 % und 40 %): Seelenkristalle erscheinen in der Halle – solange einer steht, ist der Boss unverwundbar und heilt sich. Zerstört alle, dann taumelt er 4 s und nimmt mehr Schaden. <b>Vernichtung</b> (bei 55 % und 20 %, danach alle 50 s): Der ganze Boden wird rot, nur die grünen Lichtkreise sind sicher – nach 5 s trifft alle anderen gewaltiger Schaden.</p>' +
-        '<p><b class="legend-text">Beute für jeden in der Gruppe:</b> drei Endboss-Teile (+0 mit vier Boni, darunter eine Waffe; legendär für ihre Stufe, auf Stufe 80 episch – ab +4 braucht der Schmied Teile aus der Map des Endbosses), Seltene Verstärkungen, Sternensteine, ab Stufe 30 ein Sternen-Switcher und sehr viel Gold.</p>' +
+        '<p><b class="legend-text">Beute für jeden in der Gruppe:</b> ein Endboss-Teil (+0 mit vier Boni, oft eine Waffe; legendär für ihre Stufe, auf Stufe 80 episch – ab +4 braucht der Schmied Teile aus der Map des Endbosses), Schmiede-Teile, Seelensplitter und sehr viel Gold.</p>' +
         (party < 5 ? `<p class="form-error">Deine Gruppe hat ${party} von 5 Spielern – zu wenige ist es sehr gefährlich.</p>` : '') +
         `<button type="button" class="btn btn-primary" data-dg="enter" ${low ? 'disabled' : ''}>${low ? `Ab Stufe ${dg.def.minLevel}` : 'Halle betreten'}</button>`;
       body.querySelector('[data-dg]').addEventListener('click', () => {

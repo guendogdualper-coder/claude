@@ -14,9 +14,10 @@
 //   Instanzboss hat ab der Hälfte seine Ult: der ganze Saal glüht, nur zwei bis drei Lichtkreise sind sicher.
 //   Mitspieler bekommen die Angriffe wie bei den Endbosses über die Nachricht 'raid' und rechnen ihren Schaden selbst.
 // - Ist eine Instanz 8 Minuten leer, beginnt sie beim nächsten Betreten von vorn (instResetCheck, Host).
-// - Beute (instLoot): Instanzboss je Durchgang 2 epische Teile (Lv 60–70) in einer Fünfergruppe, sonst 1
-//   (zu viert mit 30 % 2), mit 6,5 % Glück zusätzlich ein legendäres (Lv 80); dazu Verstärkungen, Switcher,
-//   Seltene Verstärkung, Schmiede-Teile und Gold. Wächter: 6–12 % ein episches Teil, dazu Verstärkung und Teile.
+// - Beute (instLoot): seit 15.74 gibt der Instanzboss je Durchgang genau EIN Ausrüstungsteil – mit 6,5 % Glück
+//   (Lv-80-Instanzen 20 %) ein legendäres (Lv 80), sonst ein episches (Lv 60–70); vorher 1–2 epische (Fünfergruppe 2)
+//   und das legendäre noch dazu. Dazu Seelensplitter, Schmiede-Teile und Gold. Wächter: 6–12 % ein episches Teil
+//   (Lv-80-Instanzen: 3 % ein legendäres statt dessen), dazu Splitter und Teile – nie mehr als ein Teil.
 
 // Testzeit (seit 13.61, fünf Tage bis einschließlich 8. 11. 2026): alle Instanzen ohne Voraussetzungen – keine
 // Stufe, keine Gruppe (auch allein), keine 30-Minuten-Sperre, Beute bei jedem Sieg, und eine leere Instanz steht
@@ -385,7 +386,7 @@ function instRenderGate(body, npc, dg) {
     '<p class="hint-text">Rote Kreise am Boden: gleich schlägt es dort ein, raus da! Grüne Kreise sind sicher. Wächter schreien bei 60 % und rufen Helfer, unter 30 % rasen sie. Ab der Hälfte seines Lebens entfesselt der Instanzboss seine Ult: Nur in den Lichtkreisen überlebt man sie.</p>' +
     '<ul class="raid-roles">' + checks.map((c) => `<li>${c.ok ? '✅' : '❌'} ${c.text}</li>`).join('') + '</ul>' +
     `<p class="inst-lock" data-instlock="${def.id}">${instLockText(def.id) ? 'Sperre: ' + instLockText(def.id) : `Für dich frei. Die Sperre (${INST.lockMin} Min.) beginnt beim Betreten und gilt nur für diese Instanz.`}</p>` +
-    `<p><b class="legend-text">Beute:</b> Der Instanzboss lässt in einer Fünfergruppe 2 epische Teile fallen (${instMobLevel(def) >= 75 ? 'Lv 70–80' : 'Lv 60–70'}, in kleineren Gruppen 1), mit Glück dazu ein legendäres (Lv 80), außerdem Verstärkungen, Switcher und Schmiede-Teile. Wächter: mit etwas Glück ein episches Teil.</p>` +
+    `<p><b class="legend-text">Beute:</b> Der Instanzboss lässt für jeden ein Ausrüstungsteil fallen: ein episches (${instMobLevel(def) >= 75 ? 'Lv 70–80' : 'Lv 60–70'}) oder mit Glück ein legendäres (Lv 80), dazu Seelensplitter, Schmiede-Teile und Gold. Wächter: mit etwas Glück ein episches Teil.</p>` +
     (typeof setPortalHtml === 'function' ? setPortalHtml(def.id) : '') + // seit 14.55: Set der Instanz
     `<button type="button" class="btn btn-primary" data-dg="enter" ${ok ? '' : 'disabled'}>${ok ? 'Instanz betreten' : 'Noch nicht bereit'}</button>`;
   body.querySelector('[data-dg]').addEventListener('click', () => {
@@ -939,8 +940,6 @@ function instGroupSize(def) {
   }
   return Math.max(1, Math.min(INST.party[1], n));
 }
-// Zahl epischer Teile beim Instanzboss: 5 Spieler 2, zu viert 1 (30 %: 2), sonst 1
-const instEpicCount = (n) => (n >= 5 ? 2 : n === 4 && Math.random() < 0.3 ? 2 : 1);
 
 function instMats(m, mats, matN) {
   const p = game.player;
@@ -962,28 +961,29 @@ function instEpicItem(m, slot) {
 }
 function instMiniLoot(m, chance) {
   const p = game.player;
-  let got = 0;
-  if (Math.random() < chance && instEpicItem(m, null)) got = 1;
-  // seit 15.40: Wächter der Lv-80-Instanzen lassen selten ein legendäres Teil fallen
+  // seit 15.40: Wächter der Lv-80-Instanzen lassen selten ein legendäres Teil fallen – seit 15.74 statt des epischen
+  // (höchstens ein Ausrüstungsteil je Wächter)
   const di = instOfMonster(m);
   const leg = di && instMobLevel(di) >= 75 && Math.random() < INST.miniLegendary80 ? dropLegendary(m) : null;
+  let got = 0;
+  if (!leg && Math.random() < chance && instEpicItem(m, null)) got = 1;
   instMats(m, { splinters: randInt(3, 5) }, randInt(2, 3)); // seit 14.6 Splitter statt Verstärkung/Switcher
   const gold = monsterGold(m.level * 150);
   p.gold += gold;
   ui.loot('Gold', gold, lootIconUrl('gold'), '#ffd96a');
   ui.banner(`${m.name} ist gefallen!`, leg ? 'Ein legendäres Teil!' : got ? 'Ein episches Teil!' : 'Wächter besiegt');
 }
+// seit 15.74 genau ein Ausrüstungsteil: legendär (6,5 %, Lv-80-Instanzen 20 %) oder sonst episch, 40 % davon eine Waffe
 function instFinalLoot(m, def) {
   const p = game.player;
   const size = instGroupSize(def);
-  const n = instEpicCount(size);
-  for (let k = 0; k < n; k++) instEpicItem(m, k === 0 && Math.random() < 0.4 ? 'waffe' : null);
   const leg = Math.random() < (instMobLevel(def) >= 75 ? INST.legendary80 : INST.legendary) ? dropLegendary(m) : null;
+  if (!leg) instEpicItem(m, Math.random() < 0.4 ? 'waffe' : null);
   instMats(m, { splinters: randInt(10, 15) }, randInt(4, 6)); // seit 14.6 Splitter statt Boni-Materialien
   const gold = monsterGold(m.level * 800);
   p.gold += gold;
   ui.loot('Gold', gold, lootIconUrl('gold'), '#ffd96a');
-  ui.banner(`${def.name} bezwungen!`, `${n} epische${n > 1 ? '' : 's'} Teil${n > 1 ? 'e' : ''}${leg ? ' und ein legendäres!' : ''}`);
+  ui.banner(`${def.name} bezwungen!`, leg ? 'Ein legendäres Teil!' : 'Ein episches Teil!');
   // seit 14.82 ohne Bildschirmblitz bei Bossen mit eigenem 3D-Modell (ihr Tod zeigt sich im Modell)
   if (!(V3.on && instOwn3(m))) flashScreen(leg ? '#ffb21a' : '#b06cff', 0.45);
   ui.log(`${def.name}: ${m.name} besiegt (Gruppe ${size}). Wieder frei in ${instLockMin(def.id)} Min.`, 'level');

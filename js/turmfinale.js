@@ -8,8 +8,8 @@
 //   reitet ein geliehenes Ross (nur für die Strecke, es wird nicht gespeichert). Rund 7 s, Balken oben und unten,
 //   „Überspringen“ (Knopf, Esc oder Leertaste). Danach geht es in die Halle (turmGoHall).
 // - Truhe des Wächters: Fällt Kharzul, erscheint in der Mitte der Halle eine Truhe (Lichtsäule, Funken). Wer die
-//   Beute dieser Sperre noch bekommt (run.truhe aus turmBossLoot), öffnet sie selbst: drei epische Teile, mit Glück ein
-//   legendäres (sonst ein viertes episches), Ätherkerne, Splitter, Schmiede-Teile, oft ein Seelenstein, viel Gold
+//   Beute dieser Sperre noch bekommt (run.truhe aus turmBossLoot), öffnet sie selbst: seit 15.74 ein Ausrüstungsteil
+//   (mit Glück legendär, sonst episch), Ätherkerne, Splitter, Schmiede-Teile, oft ein Seelenstein, viel Gold
 //   (turmFinalLoot, turm.js). Wer nicht öffnet, bekommt die Beute beim Hinausgehen.
 // - Turm-Schmied: steigt kurz nach dem Sieg aus einer Feuersäule. Einmal je Durchgang und Spieler wertet er ein Teil um
 //   +1 auf – Chance wie beim Schmied plus 20 Prozentpunkte (höchstens 100 %), Kosten wie beim Schmied (Gold, Splitter,

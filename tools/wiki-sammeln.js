@@ -122,7 +122,7 @@ window.collectWiki = async function () {
     drops.push(`Gold ${st.gold[0]}–${st.gold[1]} · ${de(st.xp)} EP`);
     if (!t.boss && !t.raidBoss) drops.push('Ausrüstung mit 2,5 % Chance, Seelensplitter und Tränke');
     if (t.boss && !t.raidBoss) drops.push('Boss-Beute: 2 Gegenstände +3 bis +6, 3–5 Monster-Teile, Boni-Plus, Switcher, mit Glück Boni-5 und Stern, Gold = Stufe × 300');
-    if (t.raidBoss) drops.push('Endboss-Beute: 3 legendäre Gegenstände deiner Klasse (+0, 4 Boni), 8–12 Monster-Teile, viele Materialien (ab Stufe 30 auch Switcher 6/7), Gold = Stufe × 1.500');
+    if (t.raidBoss) drops.push('Endboss-Beute: 1 legendärer Gegenstand deiner Klasse (+0, 4 Boni, zu einem Drittel eine Waffe), 8–12 Monster-Teile, 15–25 Seelensplitter, Gold = Stufe × 1.500');
     sections.push({ title: 'Beute', html: '<ul>' + drops.map((d) => `<li>${d}</li>`).join('') + '</ul>' });
     const tiers = usedForTiers(id);
     if (tiers.length && MOB_MATS[id]) sections.push({ title: 'Gebraucht beim Schmied', html: `<p>${MOB_MATS[id].name} braucht der [[npc/schmied|Schmied]] zum Aufwerten von Ausrüstung der Stufen: ${tiers.map((k) => ITEM_TIERS[k].label).join(', ')} (ab +${upgradeMatStart(tiers[0])}).</p>` });
@@ -377,7 +377,7 @@ window.collectWiki = async function () {
     schmied: `Wertet Ausrüstung von +0 bis +20 auf (Gold, Seelensplitter, ab +4/+6 Monster-Teile). Bis +6 sicher, ab +7 kann der Gegenstand brechen – die [[verbrauch/segen|Segensschriftrolle]] schützt.`,
     waffen: `Verkauft Waffen der ersten vier Stufen. Hier lernt der Weg der Klinge ab Stufe 30 das Kämpfen mit zwei Waffen (${de(DUAL_WIELD.price)} Gold).`,
     ruestung: `Verkauft Rüstung, Helme, Schultern, Umhänge, Schilde, Schuhe und Gürtel der ersten vier Stufen.`,
-    aeltester: `Gibt dir die goldene Hauptquest der Map. Kapitel für Kapitel bis zum Finale gegen alle Endbosse.`,
+    aeltester: `Gibt dir die goldene Hauptquest der Map. Kapitel für Kapitel bis Stufe 80; der Älteste der Heimat gibt dazu den Auftrag „Die neun Endbosse“, der nebenher läuft.`,
     jaegerin: `Gibt Jagdaufträge: 15, 20 oder 25 Monster einer Art besiegen – Gold, Erfahrung und Boni-Plus oder Switcher.`,
     teleport: `Bringt dich gegen Gold zu den Jagdgebieten der Ringzonen (Preis = Mindeststufe × 25).`,
     alchemist: `Verkauft Materialien: ${ALCHEMIST_WARES.map((w) => `${w.id === 'book' ? 'Fertigkeitsbuch' : (MATERIALS.find((m) => m.id === w.id) || { name: w.id }).name} ${de(w.price)} Gold`).join(', ')}.`,
@@ -435,6 +435,14 @@ window.collectWiki = async function () {
       sections: link.length ? [{ title: 'Ziel', chips: link }] : [], tags: 'quest hauptquest auftrag mission ' + q.chapterTitle
     });
   }
+  // seit 15.74: Die neun Endbosse als eigener Auftrag neben der goldenen Reihe (vorher das Finale der Reihe)
+  add({
+    id: 'quest/endboss', cat: 'quest', group: 'Besondere Missionen', name: ENDBOSS_QUEST.title, img: monImg[RAID_BOSSES[RAID_BOSSES.length - 1]], badges: [['Stufe ' + ENDBOSS_QUEST.level, 'lv']], prio: 12,
+    sub: `Alle ${ENDBOSS_QUEST.goal.count} Endbosse besiegen · läuft neben der goldenen Reihe`, text: ENDBOSS_QUEST.text,
+    answer: 'beim Ältesten der Heimat (Bao in Kazehana, Selenor in Mondfall) nach der Heimkehr, Stufe 70 · läuft nebenher, die goldene Reihe geht weiter bis Stufe 80',
+    facts: [['Ab Stufe', String(ENDBOSS_QUEST.level)], ['Ziel', `alle ${ENDBOSS_QUEST.goal.count} Endbosse der eigenen Seite, jeder zählt einmal`], ['NPC', 'Bao (Kazehana) · Selenor (Mondfall)'], ['Belohnung', rewardText(ENDBOSS_QUEST.reward)], ['Erfahrung', de(questXp(ENDBOSS_QUEST.level, QUEST_XP.raids))]],
+    sections: [{ title: 'Endbosse', chips: RAID_BOSSES.map((id) => 'monster/' + id) }], tags: 'quest endbosse finale raid nebenher hauptquest auftrag'
+  });
   add({
     id: 'quest/stall', cat: 'quest', group: 'Besondere Missionen', name: STABLE_QUEST.title, img: 'bilder/npc-stallmeister.png', badges: [['Stufe ' + STABLE_QUEST.minLevel, 'lv']], prio: 12,
     sub: `${STABLE_QUEST.count} Monster in ${STABLE_QUEST.time / 60} Minuten · Belohnung Pferd`, text: STABLE_QUEST.text, answer: `beim Stallmeister ab Stufe ${STABLE_QUEST.minLevel} · Belohnung: Reitpferd`,

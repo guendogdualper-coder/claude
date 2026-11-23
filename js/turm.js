@@ -75,7 +75,7 @@ const TURM = {
   // Belohnung je geschaffter Ebene (× Ebene; Phase 2: 900 statt 1.200 Gold, 15.000 statt 20.000 EP – bei 15 Ebenen
   // zusammen 108.000 Gold und 1,8 Mio. EP statt 79.200 und 1,32 Mio.)
   gold: 900, xp: 15000,
-  truheLeg: 0.35,       // Chance auf ein legendäres Teil in der Truhe des Wächters (sonst ein viertes episches)
+  truheLeg: 0.35,       // Chance, dass das eine Teil der Truhe des Wächters legendär ist (sonst episch; seit 15.74 nur ein Teil)
   glut: '#ff6a2a', seele: '#8fe36a', gate: '#ff8a4a',
   theme: '#3a3238|#8a3a22|#ff5a1a'
 };
@@ -1929,30 +1929,30 @@ function turmBossLoot(m) {
   }
   saveGame();
 }
-// Hüter: mit etwas Glück ein episches Teil (Lv 70 oder 80), selten ein legendäres, dazu Splitter, Teile und Gold
+// Hüter: mit etwas Glück ein episches Teil (Lv 70 oder 80), selten ein legendäres (seit 15.74 statt des epischen –
+// höchstens ein Ausrüstungsteil), dazu Splitter, Teile und Gold
 function turmMiniLoot(m) {
   const p = game.player;
+  const leg = Math.random() < INST.miniLegendary80 ? dropLegendary(m) : null;
   let got = null;
-  if (Math.random() < INST.miniEpic[3]) {
+  if (!leg && Math.random() < INST.miniEpic[3]) {
     const item = setTagItem(rollRarityItem(Math.random() < INST.epic70 ? 80 : 70, 3), m);
     if (giveRarityItem(item, m)) got = item;
   }
-  const leg = Math.random() < INST.miniLegendary80 ? dropLegendary(m) : null;
   instMats(m, { splinters: randInt(3, 5) }, randInt(2, 3));
   const gold = monsterGold(m.level * 150);
   p.gold += gold;
   ui.loot('Gold', gold, lootIconUrl('gold'), '#ffd96a');
   ui.banner(`${m.name} ist gefallen!`, leg ? 'Ein legendäres Teil!' : got ? 'Ein episches Teil!' : 'Hüter besiegt');
 }
-// Wächter (seit Phase 2 in der Truhe des Wächters, turmfinale.js): drei epische Teile (Lv 80, das erste oft eine
-// Waffe), zu 35 % ein legendäres (über KS.quellen2 meist ein Teil des Klassen-Sets der zweiten Reihe), sonst ein
-// viertes episches; Splitter, Schmiede-Teile, 2–3 Ätherkerne, zur Hälfte ein Seelenstein (Gegenstand) und Gold.
-// Bis Phase 2: zwei epische, 20 % legendär, 1–2 Ätherkerne, 30 % Seelenstein, 64.000 Gold. Rückgabe: was es gab
+// Wächter (seit Phase 2 in der Truhe des Wächters, turmfinale.js): seit 15.74 genau EIN Ausrüstungsteil – zu 35 % ein
+// legendäres (über KS.quellen2 meist ein Teil des Klassen-Sets der zweiten Reihe), sonst ein episches (Lv 80, zur
+// Hälfte eine Waffe); dazu Splitter, Schmiede-Teile, 2–3 Ätherkerne, zur Hälfte ein Seelenstein (Gegenstand) und Gold.
+// Phase 2 bis 15.73: drei epische und ein legendäres oder viertes episches. Rückgabe: was es gab
 function turmFinalLoot(m) {
   const p = game.player;
-  for (let k = 0; k < 3; k++) giveRarityItem(setTagItem(rollRarityItem(80, 3, null, k === 0 && Math.random() < 0.5 ? 'waffe' : null), m), m);
   const leg = Math.random() < Math.max(INST.legendary80, TURM.truheLeg) ? dropLegendary(m) : null;
-  if (!leg) giveRarityItem(setTagItem(rollRarityItem(80, 3), m), m);
+  if (!leg) giveRarityItem(setTagItem(rollRarityItem(80, 3, null, Math.random() < 0.5 ? 'waffe' : null), m), m);
   instMats(m, { splinters: randInt(14, 20) }, randInt(5, 7));
   const kerne = randInt(2, 3);
   p.materials.aetherkern = (p.materials.aetherkern || 0) + kerne;
@@ -1962,10 +1962,10 @@ function turmFinalLoot(m) {
   const gold = monsterGold((m.level || TURM.level) * 1000);
   p.gold += gold;
   ui.loot('Gold', gold, lootIconUrl('gold'), '#ffd96a');
-  ui.banner(`${TURM.name} bezwungen!`, leg ? '3 epische Teile und ein legendäres!' : '4 epische Teile!');
+  ui.banner(`${TURM.name} bezwungen!`, leg ? 'Ein legendäres Teil!' : 'Ein episches Teil!');
   ui.log(`${TURM.name}: Die Truhe des Wächters ist geöffnet. Wieder frei in ${instLockMin(TURM.id)} Min.`, 'level');
   saveGame();
-  return { leg: !!leg, epic: leg ? 3 : 4, kerne, stein, gold };
+  return { leg: !!leg, epic: leg ? 0 : 1, kerne, stein, gold };
 }
 // Wer in der Halle seines Durchgangs steht, bekommt jeden Kill dieser Halle; wer nicht dazugehört, nichts
 const _turmNetEligible = netEligible;
@@ -2322,7 +2322,7 @@ function turmWindowOpen(npc) {
     '<p class="hint-text">Wer fällt, steht nach wenigen Sekunden am Eingang der Halle wieder auf. Fallen alle zugleich, beginnt die Ebene von vorn. Leben und Schaden der Gegner wachsen mit der Zahl der Spieler.</p>' +
     '<ul class="raid-roles">' + checks.map((c) => `<li>${c.ok ? '✅' : '❌'} ${c.text}</li>`).join('') + '</ul>' +
     `<p class="inst-lock" data-turmlock>${lock()}</p>` +
-    '<p><b class="legend-text">Beute:</b> Gold für jede geschaffte Ebene. Die Hüter lassen mit etwas Glück ein episches Teil fallen. Nach dem Sieg erscheint die <b>Truhe des Wächters</b>: drei epische Teile (Lv 80), mit Glück ein legendäres (sonst ein viertes episches), Seelensplitter, Ätherkerne, Schmiede-Teile, oft ein Seelenstein und viel Gold. Dazu schmiedet der <b>Turm-Schmied</b> einmal für dich – +1 mit höherer Chance, ohne dass etwas zerbricht. Echte Seelensteine geben ihre gewohnte Beute.</p>' +
+    '<p><b class="legend-text">Beute:</b> Gold für jede geschaffte Ebene. Die Hüter lassen mit etwas Glück ein episches Teil fallen. Nach dem Sieg erscheint die <b>Truhe des Wächters</b>: ein Ausrüstungsteil für jeden – mit Glück ein legendäres, sonst ein episches (Lv 80) –, dazu Seelensplitter, Ätherkerne, Schmiede-Teile, oft ein Seelenstein und viel Gold. Dazu schmiedet der <b>Turm-Schmied</b> einmal für dich – +1 mit höherer Chance, ohne dass etwas zerbricht. Echte Seelensteine geben ihre gewohnte Beute.</p>' +
     (S ? `<p class="set-portal"><span>Klassen-Set:</span> <b style="color:${S.color}">${S.name}</b> <span>– legendäre Teile (Lv 80) von hier gehören meist dazu.</span></p>` : '') +
     '<p><strong>Laufende Durchgänge im Kanal</strong></p><div class="turm-runs" id="turmRuns"></div>' +
     '<div class="turm-art"><label><input type="radio" name="turmArt" value="0" ' + (turmUi.open ? '' : 'checked') + '> <span>Nur meine Gruppe</span></label>' +

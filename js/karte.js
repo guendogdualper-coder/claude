@@ -823,7 +823,7 @@ function guideEntries() {
   const out = [];
   if (guide.pin) out.push({ key: 'pin', kind: 'main', title: 'Markierung', pin: true });
   const main = currentMainQuest();
-  // seit 11.2 zum Ältesten der richtigen Map (Reiseauftrag: zum Ältesten der Ziel-Map, Finale: zum nächsten Endboss)
+  // seit 11.2 zum Ältesten der richtigen Map (Reiseauftrag: zum Ältesten der Ziel-Map)
   const elder = (mapId) => {
     const n = elderOf(mapId);
     return n ? { npc: n } : { role: 'aeltester' };
@@ -831,7 +831,6 @@ function guideEntries() {
   if (main && q.accepted) {
     if (main.goal.type === 'talk') out.push({ key: 'main', kind: 'main', title: main.title, ...elder(main.goal.map), done: true });
     else if (goalDone(main.goal, q.progress)) out.push({ key: 'main', kind: 'main', title: main.title, ...elder(main.map), done: true });
-    else if (main.goal.type === 'raids') out.push({ key: 'main', kind: 'main', title: main.title, monster: nextRaidBoss() });
     else out.push({ key: 'main', kind: 'main', title: main.title, monster: main.goal.type === 'kill' ? main.goal.monster : null, stone: main.goal.type === 'stone' ? main.goal.level : 0 });
   }
   const st = q.stable;
@@ -852,6 +851,12 @@ function guideEntries() {
   if (!out.length) {
     if (main && p.level >= main.level) out.push({ key: 'offer', kind: 'main', title: main.title, ...elder(main.map), offer: true });
     else if (st.state === 'open' && p.level >= STABLE_QUEST.level) out.push({ key: 'offer', kind: 'main', title: STABLE_QUEST.title, role: 'stallmeister', offer: true });
+  }
+  // Die neun Endbosse (seit 15.74 neben der Reihe, hinten: verdrängt kein Angebot der goldenen Reihe): zum nächsten
+  // Endboss, alle besiegt: zum Ältesten der Heimat
+  if (q.endboss === 1) {
+    out.push(endbossReady() ? { key: 'endboss', kind: 'main', title: ENDBOSS_QUEST.title, ...elder(endbossHome()), done: true }
+      : { key: 'endboss', kind: 'main', title: ENDBOSS_QUEST.title, monster: nextRaidBoss() });
   }
   return out;
 }

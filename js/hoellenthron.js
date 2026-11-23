@@ -185,7 +185,7 @@ function htRenderGate(body, npc, dg) {
     '<p class="hint-text"><b>Vernichtungsschlag:</b> Er hebt den Dreizack, drei Viertel der Halle glühen rot – lauft ins dunkle, sichere Viertel. <b>Siegel der Unterwelt:</b> Seelenkristalle schützen ihn, zerstört sie alle. Ab der Hälfte seines Lebens nimmt er seine <b>wahre Gestalt</b> an: schneller, stärker, mit Sturmangriffen, und der Schlag wechselt zwischen Viertel, Ring (nur bei ihm sicher) und Kern (nur weit weg sicher).</p>' +
     (htFree() ? '<p class="gear-msg success"><b>Testzeit:</b> Bis einschließlich 7. November ist das Höllenportal ohne Voraussetzungen offen – auch allein oder in kleiner Gruppe. Danach gelten sie wieder.</p>' : '') +
     '<ul class="raid-roles">' + checks.map((c) => `<li>${c.free ? '🔓' : c.ok ? '✅' : '❌'} ${c.text}${c.free ? ' – <i>entfällt in der Testzeit</i>' : ''}</li>`).join('') + '</ul>' +
-    `<p><b class="legend-text">Beute:</b> ${g1} und ${g2} lassen je 2–3 epische Teile fallen (mit Glück ein legendäres), die übrigen Wächter mit etwas Glück ein episches. Abaddor: vier epische Teile (mit Glück legendär), viele Verstärkungen, Switcher und Sternensteine, sehr viel Gold.</p>` +
+    `<p><b class="legend-text">Beute:</b> ${g1} und ${g2} lassen je ein episches Teil fallen (mit Glück legendär), die übrigen Wächter mit etwas Glück ein episches. Abaddor: ein legendäres Teil, dazu Seelensplitter, Schmiede-Teile und sehr viel Gold.</p>` +
     (typeof setPortalHtml === 'function' ? setPortalHtml('hoellenthron') : '') + // seit 14.55: Set des Höllenthrons
     `<button type="button" class="btn btn-primary" data-dg="enter" ${ok ? '' : 'disabled'}>${ok ? 'Durch das Höllenportal' : 'Noch nicht bereit'}</button>`;
   body.querySelector('[data-dg]').addEventListener('click', () => {
@@ -299,23 +299,10 @@ function htQuarterResolve(m, kind, c, inner, atk, lvl) {
 }
 
 // --- Zusatzbeute ---------------------------------------------------------------------------------------------
+// Abaddor: sein eines Ausrüstungsteil kommt aus raidLoot (legendär für seine Stufe, Set des Höllenthrons). Bis 15.73
+// gab es hier noch ein Zusatzteil (episch, 12 % legendär – RARITY_DROPS.instanceBoss); seit 15.74 nur noch Splitter und Gold.
 function htLoot(m) {
   const p = game.player;
-  let tier = 0;
-  ITEM_TIERS.forEach((t, i) => { if (m.level + 4 >= t.level) tier = i; });
-  const others = lootSlots(EQUIP_SLOTS.map((sl) => sl.id).filter((s) => s !== 'waffe'), p.classId);
-  for (const slot of [others[randInt(0, others.length - 1)]]) {
-    const item = makeItem(slot, tier, 0, p.classId, lootKind(p, p.classId));
-    item.legend = true;
-    item.raidMat = m.type.boss.mat;
-    // seit 13.56: episch mit 5 Boni, mit 12 % Glück legendär (gold, Lv 80) – RARITY_DROPS.instanceBoss
-    rarityRoll(item, 'instanceBoss', m);
-    setTagItem(item, m); // seit 14.55: Set des Höllenthrons
-    if (addToBag(item)) {
-      ui.loot(itemFullName(item), 1, itemIconUrl(item), itemColor(item));
-      announceRarity(item);
-    }
-  }
   // seit 14.6 Seelensplitter statt Boni-Materialien (die gibt es nur aus Seelensteinen)
   giveSplinters(randInt(30, 40));
   const gold = monsterGold(m.level * 3000);
@@ -324,29 +311,30 @@ function htLoot(m) {
   ui.banner('Der Höllenkaiser ist gefallen!', 'Ihr seid Teufelsbezwinger');
 }
 
-// Wächter der Instanz (Zerberos, Ifrah; seit 13.38): je 2–3 Endboss-Teile für die eigene Klasse mit vier Boni,
-// eines davon oft eine Waffe. Seit 13.56 episch, je Teil 2 % Chance auf legendär (RARITY_DROPS.instance).
-function htGuardLoot(m) {
+// Wächter der Instanz (Zerberos, Ifrah; seit 13.38): ein Endboss-Teil für die eigene Klasse mit vier Boni, zur Hälfte
+// eine Waffe. Seit 13.56 episch, 2 % Chance auf legendär (RARITY_DROPS.instance). Bis 15.73 waren es 2–3 Teile (dazu
+// noch die zwei Teile eines Dungeon-Bosses aus bossLoot); seit 15.74 genau eines.
+function htIsGuard(m) {
   const i = htIndex();
-  if (i < 0 || !m || !DUNGEONS[i].guards.includes(m.typeId) || !htInside(m)) return;
+  return i >= 0 && !!m && DUNGEONS[i].guards.includes(m.typeId) && htInside(m);
+}
+function htGuardLoot(m) {
+  if (!htIsGuard(m)) return;
   const p = game.player;
   let tier = 0;
   ITEM_TIERS.forEach((t, k) => { if (m.level + 4 >= t.level) tier = k; });
   const others = lootSlots(EQUIP_SLOTS.map((sl) => sl.id).filter((s) => s !== 'waffe'), p.classId);
-  const n = randInt(2, 3);
-  for (let k = 0; k < n; k++) {
-    const slot = k === 0 && Math.random() < 0.5 ? 'waffe' : others[randInt(0, others.length - 1)];
-    const item = makeItem(slot, tier, 0, p.classId, lootKind(p, p.classId));
-    item.legend = true;
-    if (m.type.boss && m.type.boss.mat) item.raidMat = m.type.boss.mat;
-    rarityRoll(item, 'instance', m);
-    setTagItem(item, m); // seit 14.55: Set des Höllenthrons
-    if (addToBag(item)) {
-      ui.loot(itemFullName(item), 1, itemIconUrl(item), itemColor(item));
-      announceRarity(item);
-    } else ui.log('Dein Inventar ist voll. ' + itemFullName(item) + ' ist verloren.', 'warn');
-  }
-  ui.banner(`${m.name} ist gefallen!`, `${n} epische Teile erbeutet`);
+  const slot = Math.random() < 0.5 ? 'waffe' : others[randInt(0, others.length - 1)];
+  const item = makeItem(slot, tier, 0, p.classId, lootKind(p, p.classId));
+  item.legend = true;
+  if (m.type.boss && m.type.boss.mat) item.raidMat = m.type.boss.mat;
+  rarityRoll(item, 'instance', m);
+  setTagItem(item, m); // seit 14.55: Set des Höllenthrons
+  if (addToBag(item)) {
+    ui.loot(itemFullName(item), 1, itemIconUrl(item), itemColor(item));
+    announceRarity(item);
+  } else ui.log('Dein Inventar ist voll. ' + itemFullName(item) + ' ist verloren.', 'warn');
+  ui.banner(`${m.name} ist gefallen!`, rarityOf(item) >= 4 ? 'Ein legendäres Teil!' : 'Ein episches Teil!');
 }
 
 // --- Fortschritt in der Instanz (für alle) ----------------------------------------------------------------------

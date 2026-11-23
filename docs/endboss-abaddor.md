@@ -18,7 +18,8 @@ Stand: **im Spiel seit Version 13.0** als Instanz „Thron der Unterwelt“ (`js
   schwarz mit Glutrissen, riesige brennende Flügel, lange glühende Klauen, flammender Dreizack, 12 % größer; 25 % mehr
   Schaden, Angriffe 35 % schneller, viele Sturmangriffe; Vernichtungsschlag im Wechsel Viertel / Ring / Kern, 3,2 s Warnung).
 - **Aura:** Feuerring am Boden, Flammenkranz, aufsteigende Glut, Hitzeschein; in der zweiten Form ein Glutsturm.
-- **Beute:** die Endboss-Beute (drei legendäre Teile) plus ein weiteres legendäres Teil mit fünf Boni, mehr Verstärkungen
+- **Beute:** seit 15.74 ein legendäres Teil (Set des Höllenthrons) wie bei allen Endbossen – vorher die Endboss-Beute
+  (drei legendäre Teile) plus ein weiteres legendäres Teil mit fünf Boni –, mehr Verstärkungen
   und sehr viel Gold.
 - **Wiederkehr:** Höllenbrut nach 6 Min., Seelensteine nach 25–30 Min., Wächter und Abaddor nach 10 Min. (seit 13.2, wie alle Bosse).
 

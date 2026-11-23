@@ -206,12 +206,13 @@ davon (kharzul.js).
   bis Phase 2 1.200 Gold und 20.000 EP × Ebene bei elf Ebenen (79.200 Gold, 1,32 Mio. EP).
 - Gewöhnliche Gegner: Erfahrung und etwas Gold, geteilt durch den Faktor der Gegnerzahl. Glutwichte geben kein Gold.
 - Echte Seelensteine (vier in Ebene 6, zwei in Ebene 9): die gewohnte Beute eines Steins der Stufe 80.
-- Hüter (Ebene 4, 8 und 13), je Sperre und Hüter einmal: 12 % ein episches Teil (Lv 70, zu 35 % Lv 80), 3 % ein
-  legendäres, 3–5 Seelensplitter, 2–3 Schmiede-Teile, Gold.
-- Wächter, je Sperre einmal, seit Phase 2 in der **Truhe des Wächters**: 3 epische Teile (Lv 80, das erste zur Hälfte
-  eine Waffe), zu 35 % ein legendäres (Lv 80), sonst ein viertes episches, 14–20 Seelensplitter, 5–7 Schmiede-Teile,
-  2–3 Ätherkerne, zur Hälfte ein Seelenstein (Gegenstand), Gold (Stufe × 1.000, wie Monstergold gerundet).
-  Bis Phase 2: 2 epische, 20 % legendär, 10–15 Splitter, 4–6 Teile, 1–2 Ätherkerne, 30 % Seelenstein.
+- Hüter (Ebene 4, 8 und 13), je Sperre und Hüter einmal: 3 % ein legendäres Teil, sonst 12 % ein episches (Lv 70,
+  zu 35 % Lv 80) – höchstens ein Ausrüstungsteil (seit 15.74) –, 3–5 Seelensplitter, 2–3 Schmiede-Teile, Gold.
+- Wächter, je Sperre einmal, seit Phase 2 in der **Truhe des Wächters**: seit 15.74 genau **ein Ausrüstungsteil** –
+  zu 35 % ein legendäres (Lv 80), sonst ein episches (Lv 80, zur Hälfte eine Waffe) –, 14–20 Seelensplitter,
+  5–7 Schmiede-Teile, 2–3 Ätherkerne, zur Hälfte ein Seelenstein (Gegenstand), Gold (Stufe × 1.000, wie Monstergold
+  gerundet). Phase 2 bis 15.73: 3 epische und dazu ein legendäres oder viertes episches. Bis Phase 2: 2 epische,
+  20 % legendär, 10–15 Splitter, 4–6 Teile, 1–2 Ätherkerne, 30 % Seelenstein.
 - Dazu einmal je Durchgang der Turm-Schmied (+1 mit 20 Prozentpunkten mehr Chance, nichts zerbricht).
 - Legendäre Teile aus dem Turm gehören zu 70 % zum Klassen-Set (`KS.quellen` in `js/klassensets.js`). Ein eigenes
   Set hat der Turm nicht.

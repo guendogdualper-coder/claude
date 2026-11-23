@@ -255,8 +255,9 @@ Turm der Verdammten (Seelenhain, ab Stufe 80, Sperre 60 Minuten, docs/turm.md):
 
 - Je geschaffter Ebene 1.200 Gold × Ebene (11 Ebenen zusammen 79.200), gewöhnliche Gegner etwas Gold.
 - **Hüter:** 12 % ein episches Teil (Lv 70, mit 35 % Lv 80), 3,0 % legendär, Splitter, Schmiede-Teile, Gold.
-- **Wächter:** 2 epische Teile (Lv 80), 20 % legendär (meist Klassen-Set der zweiten Reihe), 10–15 Splitter,
-  4–6 Schmiede-Teile, 1–2 Ätherkerne, 30 % Seelenstein-Gegenstand, Gold 800 × Stufe.
+- **Wächter:** seit 15.74 ein Ausrüstungsteil (35 % legendär, meist Klassen-Set der zweiten Reihe, sonst episch
+  Lv 80), 14–20 Splitter, 5–7 Schmiede-Teile, 2–3 Ätherkerne, 50 % Seelenstein-Gegenstand, Gold 1.000 × Stufe
+  (Stand Phase 2; siehe docs/turm.md).
 - Echte Seelensteine in den Hallen geben ihre gewohnte Beute. Ewig-Teile aus dem Turm ohne Set tragen die Prägung **Fluch**.
 
 Endbosse ab Stufe 76:

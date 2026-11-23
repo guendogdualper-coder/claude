@@ -770,7 +770,7 @@ function rewardKillInner(m) {
   if (m.type && m.type.inst && typeof instLoot === 'function') instLoot(m);
   else if (m.type && m.type.raid) raidLoot(m);
   else if (m.type && m.type.boss) bossLoot(m);
-  // Wächter im Höllenthron (seit 13.38): zusätzlich 2–3 legendäre Teile
+  // Wächter im Höllenthron (seit 13.38): ihr eines Teil (seit 15.74; vorher 2–3 dazu)
   if (typeof htGuardLoot === 'function') htGuardLoot(m);
   rollLoot(m);
   forgeCoreDrop(m); // seit 14.16: seltene Ätherkerne aus Steinen ab Stufe 40 und Bossen

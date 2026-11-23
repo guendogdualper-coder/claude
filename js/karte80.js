@@ -1,7 +1,7 @@
 // Map 10: Kristallabgrund (seit 13.85) – das Endgebiet für Stufe 75–80.
 // Die Daten stehen wie bei allen Maps in den Datendateien (daten/zonen.js: Map, Gebiete, Dungeon und Endboss;
 // daten/monster.js: Monster und die Steine 75/80; daten/nachtmonster.js; daten/instanzen.js: zwei Lv-80-Instanzen;
-// daten/quests.js: Epilog und Kapitel 10). Stadt, Leute, Stände, Mauer, Weltentor, Wanderer, Risse, Steine und Monster
+// daten/quests.js: Reise am Ende von Kapitel 11 und Kapitel 12). Stadt, Leute, Stände, Mauer, Weltentor, Wanderer, Risse, Steine und Monster
 // entstehen über dieselben Wege wie auf jeder anderen Map (welt.js, gegner.js, instanzen.js).
 // Hier steht nur, was die neue Gegend anders aussehen lässt – alles als Ergänzung der bestehenden Tabellen:
 //   - Bodenfarben für KRISTALL (violetter Fels) und ABGRUND (dunkle Spalte), Kartenfarben, Bodenstruktur in 3D
