@@ -67,6 +67,23 @@ Läuft in allen Ebenen des Turms (auch bei den Hütern). Die Datei im Spiel ist 
 Dark, heavy and relentless music for climbing a cursed tower full of the damned in a fantasy online role-playing game. Low cellos and basses hammer a driving eighth-note ostinato accented 3+3+2, a taiko ensemble plays the same accents and a deep war drum hits every downbeat, a low tolling bell sounds every second bar, a male choir sings dark sustained "oh" chords (no lyrics), heavy low brass chords and short brass stabs on the accents, an anvil strikes on beats two and four in the louder sections. A slow, menacing horn theme in C minor with a raised fourth (Hungarian minor colour), later doubled by trombones and choir; a counter-melody in the violins. A quieter middle part on a C pedal: heartbeat drum, soft dissonant choir and string clusters (minor seconds), rattling chains, then a build-up on the dominant G major with a snare roll and a rising swell back into the first bar. Ominous, massive and propulsive, never calm. Harmony mostly C minor – A flat – D flat – G major. Key: C minor. Tempo: exactly 120 BPM in 4/4, straight eighths. Length: 2 minutes. Loop-friendly: strict constant tempo from the first to the last bar, no tempo changes, no ritardando, no rubato, no time-signature changes, no pauses; a steady, clearly audible pulse on every beat throughout; very short intro of at most two bars; clear 8-bar phrases; keep the loudness within a few decibels from start to end; no fade-out – the final two bars are a snare roll and a rising swell on G major that lead into the first bar. Instrumental only (wordless choir allowed), no lyrics, no spoken words.
 ```
 
+## Klage des Turms (`turmklage`) – 64 BPM, d-Moll (seit 15.73)
+Traurige Solo-Violine beim Betreten des Turms: auf dem Anweg und in der Halle bis zur ersten Welle, danach wieder
+nach dem Sieg (während der Truhe und des Turm-Schmieds). In den Wellen spielt `turm`, beim Wächter `kharzul`.
+Beginnt bei jedem Einsetzen am Anfang der Schleife (`MUSIC_VON_VORN`, klang-dateien.js), damit das Thema kommt; fehlt
+die Datei, spielt `turm` (`MUSIC_FALLBACK`). In der Nähe des Turms und im Durchgang wird sie vorab geholt (turm.js).
+Eigene Komposition, kein Nachbau eines bekannten Stücks (auch nicht „leicht verändert“): Eine bekannte Melodie bleibt
+geschützt, auch wenn man einzelne Töne ändert. Gebaut aus echten Aufnahmen (CC0, VSCO 2 Community Edition):
+`tools/klang-synth/turmklage.py` – Aufbau, Akkorde und Noten stehen dort im Kopf.
+```
+A slow, sorrowful solo violin lament for entering a cursed tower in a fantasy online role-playing game. D minor,
+64 BPM. A lone, expressive violin with natural vibrato sings a long-breathed original melody over soft sustained
+strings and a gently rolling harp; a distant gong at the start. The second verse rises an octave with a cello
+counter-melody; the climax brings full strings, double bass and a timpani roll, then the theme returns quietly and
+ends on a long held D. A faint East Asian colour from the minor second (E-flat to D sigh). No percussion grooves, no
+vocals. Seamless loop of 32 bars.
+```
+
 ## Kharzul, Wächter der Verdammten (`kharzul`, `kharzul2`) – 150 BPM, cis-Moll
 Läuft im Kampf gegen Kharzul (Ebene 11). `kharzul2` ist dasselbe Stück mit mehr Wucht für seine wahre Gestalt (ab der
 Verwandlung bei 50 %); das Spiel blendet an derselben Stelle über (`MUSIC_SYNC` in `js/klang-dateien.js`). Beide Fassungen

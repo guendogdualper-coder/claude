@@ -221,10 +221,13 @@ const PLAYER_FILE = { levelup: ['stufe', 1.6], coin: ['gold', 1.3], item: ['beut
 // --- Musik aus Dateien ------------------------------------------------------------------------------------------
 // Seit 15.51: Fehlt die Datei einer Stimmung (offline und nicht gespeichert, kaputt, veraltet), spielt die bisherige
 // Datei weiter (Turm → Dungeon, Kharzul → Boss); erst ohne jede Datei die erzeugte Musik (musik.js)
-const MUSIC_FALLBACK = { turm: 'dunkel', kharzul: 'boss', kharzul2: 'kharzul' };
+const MUSIC_FALLBACK = { turm: 'dunkel', kharzul: 'boss', kharzul2: 'kharzul', turmklage: 'turm' };
 // Stücke im Gleichlauf (gleich lang, gleiche Schleife und gleiches Tempo): ein Wechsel setzt an derselben Stelle ein
 // (Kharzul ab seiner Verwandlung: dasselbe Stück mit mehr Wucht, tools/klang-synth/musik.py)
 const MUSIC_SYNC = { kharzul: 'kharzul2', kharzul2: 'kharzul' };
+// Stücke, die bei jedem Einsetzen von vorn beginnen (am Anfang der Schleife) statt dort weiterzulaufen, wo sie aufgehört
+// haben: die Klage des Turms (seit 15.73) soll beim Betreten mit ihrem Thema einsetzen
+const MUSIC_VON_VORN = new Set(['turmklage']);
 const musicFiles = {
   bytes: new Map(),
   bufs: new Map(),
@@ -374,7 +377,7 @@ const musicFiles = {
     const dur = Math.max(0.1, fade);
     // zurück in eine Gegend: dort weiter, wo das Stück aufgehört hat (innerhalb der Schleife), sonst von vorn;
     // im Gleichlauf (MUSIC_SYNC) an derselben Stelle wie die laufende Datei
-    let off = this.pos.get(k) || 0;
+    let off = MUSIC_VON_VORN.has(k) ? M.loop[0] : this.pos.get(k) || 0;
     const o = this.cur;
     if (o && MUSIC_SYNC[k] === o.k) {
       off = t - o.t0;

@@ -274,11 +274,12 @@ if (typeof renderGroundChunk === 'function') {
     return c;
   };
 }
-// Musik und Karte: der Anweg gehört zum Turm
+// Musik und Karte: der Anweg gehört zum Turm – auf ihm beginnt die Klage des Turms (seit 15.73, traurige Solo-Violine;
+// fehlt ihre Datei, spielt wie bisher die Turmmusik: MUSIC_FALLBACK in klang-dateien.js)
 if (typeof music !== 'undefined' && music.moodAt) {
   const _tfMood = music.moodAt;
   music.moodAt = function (x, y) {
-    if (tfInAnweg(x, y)) return 'turm';
+    if (tfInAnweg(x, y)) return 'turmklage';
     return _tfMood.call(this, x, y);
   };
 }

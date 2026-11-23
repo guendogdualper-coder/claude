@@ -620,6 +620,7 @@ Object.assign(MOODS, {
 // Seit 15.51 eigene Stimmungen für den Turm der Verdammten (turm.js) und Kharzul (kharzul.js) mit Musikdateien;
 // erzeugt (nur wenn gar keine Datei da ist) klingen sie wie Dungeon bzw. Bosskampf
 MOODS.turm = MOODS.dunkel;
+MOODS.turmklage = MOODS.dunkel; // seit 15.73: Klage des Turms (Datei), erzeugt wie der Turm
 MOODS.kharzul = MOODS.boss;
 MOODS.kharzul2 = MOODS.boss;
 // Bosskämpfe: schneller Wechsel der Musikdatei (0,9 s)

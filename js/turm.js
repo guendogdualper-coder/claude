@@ -2910,7 +2910,28 @@ if (typeof music !== 'undefined' && music.moodAt) {
       if (m.dead || m.typeId !== 'turm_waechter' || turmMonSlot(m) !== s) continue;
       return m.kzForm || m.kzMorphAt != null || (typeof kzFormK === 'function' && kzFormK(m) > 0) ? 'kharzul2' : 'kharzul';
     }
+    // Klage des Turms (seit 15.73, tools/klang-synth/turmklage.py): traurige Solo-Violine beim Betreten – vor der ersten
+    // Welle – und nach dem Sieg; in den Wellen die Kampfmusik des Turms. (Der Anweg davor: turmfinale.js)
+    const run = game.turmRun;
+    const st = run && run.slot === s ? run.st : null;
+    if (st && (st.ph === 'w' || (st.ph === 'p' && (st.e | 0) <= 1))) return 'turmklage';
     return 'turm';
+  };
+}
+// Die Klage schon in der Nähe des Turms (Karte Seelenhain) und im Durchgang vorab holen, damit sie beim Anweg sofort
+// einsetzt (nur die Bytes; dekodiert wird erst beim Spielen)
+if (typeof musicFiles !== 'undefined' && musicFiles.prefetch) {
+  const _turmPrefetch = musicFiles.prefetch;
+  musicFiles.prefetch = function (p) {
+    _turmPrefetch.call(this, p);
+    try {
+      if (!p || !game.world || !game.running) return;
+      const nah = (game.turmRun && game.turmRun.slot >= 0) ||
+        game.world.npcs.some((n) => n.id === 'turm' && (n.x - p.x) ** 2 + (n.y - p.y) ** 2 < 2200 * 2200);
+      if (!nah) return;
+      const f = this.fileFor('turmklage');
+      if (f) this.fetch(f);
+    } catch (e) { /* ohne Vorladen */ }
   };
 }
 // Bossleiste: Hüter und Wächter der eigenen Halle immer, egal wie weit weg (das gewählte Ziel zuerst)

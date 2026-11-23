@@ -26,6 +26,9 @@ Prüfskript im Arbeitsordner: `karten/turm.js`.
   bekommt für die Strecke ein Ross geliehen (wird nicht gespeichert). „Überspringen ›“ (Knopf, Esc oder Leertaste)
   bringt sofort in die Halle. Danach sitzt man wieder so auf wie vorher. Wer nach dem Neuladen im Feld des Anwegs
   stünde, steht vor dem Turm. Rein örtlich; im Wächter-Modus (Dauerbetrieb ohne Bild) gibt es keinen Anweg.
+- **Musik (seit 15.73):** Auf dem Anweg und in der Halle bis zur ersten Welle spielt die „Klage des Turms“ (traurige
+  Solo-Violine, eigene Komposition, `snd/musik/turmklage.mp3`), in den Wellen die Turmmusik, beim Wächter seine eigene,
+  nach dem Sieg wieder die Klage. Siehe docs/musik-prompts.md.
 
 ## Ablauf
 
