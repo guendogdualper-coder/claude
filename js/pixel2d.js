@@ -293,6 +293,102 @@ function pixelGroundPass(ctx, tx0, ty0) {
   }
 }
 
+// --- Runde Wege (seit 15.71) --------------------------------------------------------------------------------------
+// Erdwege folgten den Kachelkanten und liefen schräg als Treppe. Jetzt wird beim Backen der Bodenblöcke jede Ecke
+// gerundet: an einer Außenecke des Weges (1 von 4 Kacheln am Eckpunkt ist Weg) kommt der Boden daneben über die Ecke,
+// an einer Innenecke (3 von 4) und zwischen zwei schräg anstoßenden Wegkacheln füllt Weg die Ecke der Nachbarkachel.
+// Treppen werden so zu geschwungenen Rändern. Nur gegen freien Boden (nicht an Wasser, Pflaster, Fels).
+const PATH_ROUND_R = 0.5;
+function pixelPathRound(ctx, tx0, ty0) {
+  const w = game.world;
+  const inb = (x, y) => x >= 0 && y >= 0 && x < MAP_W && y < MAP_H;
+  const isP = (x, y) => inb(x, y) && w.ground[y * MAP_W + x] === GROUND.PATH && w.deco[y * MAP_W + x] !== DECO.BRIDGE;
+  const free = (x, y) => {
+    if (!inb(x, y)) return false;
+    const i = y * MAP_W + x;
+    const g = w.ground[i];
+    return g !== GROUND.PATH && g !== GROUND.PLAZA && g !== GROUND.FLAGSTONE && g !== GROUND.ICE && !LIQUID.has(g) && !!PIX_GROUND_KIND[g] &&
+      w.obj[i] !== OBJ.CAVEWALL && w.deco[i] !== DECO.BRIDGE && !home2dOut(x, y);
+  };
+  const r = TILE * PATH_ROUND_R;
+  // Eckbereich der Kachel (x, y) am Eckpunkt (vx, vy): zwischen Ecke und Viertelkreis
+  const corner = (x, y, vx, vy) => {
+    const dx = x === vx ? 1 : -1;
+    const dy = y === vy ? 1 : -1;
+    const Vx = vx * TILE;
+    const Vy = vy * TILE;
+    const Cx = Vx + r * dx;
+    const Cy = Vy + r * dy;
+    ctx.beginPath();
+    ctx.moveTo(Vx, Vy);
+    for (let k = 0; k <= 8; k++) {
+      const t = (k / 8) * Math.PI / 2;
+      ctx.lineTo(Cx - dx * r * Math.sin(t), Cy - dy * r * Math.cos(t));
+    }
+    ctx.closePath();
+  };
+  const pathFill = (x, y, fx, fy) => {
+    const i = fy * MAP_W + fx;
+    ctx.fillStyle = pixGradeHex(GROUND_PALETTE[GROUND.PATH][Math.min(7, (w.shade[i] >> 6) + 3)]);
+    ctx.fill();
+    const pat = pixPattern(ctx, 'erde');
+    if (pat) {
+      ctx.fillStyle = pat;
+      ctx.fill();
+    }
+  };
+  const groundFill = (x, y, kx, ky) => {
+    ctx.save();
+    ctx.clip();
+    if (groundImagePix) {
+      const sx = Math.max(0, x - 1);
+      const sy = Math.max(0, y - 1);
+      const sw = Math.min(MAP_W, x + 2) - sx;
+      const sh = Math.min(MAP_H, y + 2) - sy;
+      ctx.drawImage(groundImagePix, sx, sy, sw, sh, sx * TILE, sy * TILE, sw * TILE, sh * TILE);
+    }
+    const pat = pixPattern(ctx, PIX_GROUND_KIND[w.ground[ky * MAP_W + kx]]);
+    if (pat) {
+      ctx.fillStyle = pat;
+      ctx.fillRect(x * TILE, y * TILE, TILE, TILE);
+    }
+    ctx.restore();
+  };
+  for (let vy = ty0; vy <= Math.min(MAP_H, ty0 + CHUNK); vy++) {
+    for (let vx = tx0; vx <= Math.min(MAP_W, tx0 + CHUNK); vx++) {
+      // Kacheln am Eckpunkt: oben links, oben rechts, unten links, unten rechts
+      const T = [[vx - 1, vy - 1], [vx, vy - 1], [vx - 1, vy], [vx, vy]];
+      const P = T.map(([x, y]) => isP(x, y));
+      const n = P[0] + P[1] + P[2] + P[3];
+      if (n === 0 || n === 4) continue;
+      const own = (k) => T[k][0] >= tx0 && T[k][0] < tx0 + CHUNK && T[k][1] >= ty0 && T[k][1] < ty0 + CHUNK;
+      if (n === 1) {
+        // Außenecke: Boden der gegenüberliegenden Kachel rundet die Wegecke ab
+        const k = P.indexOf(true);
+        const o = 3 - k;
+        if (!own(k) || !free(T[o][0], T[o][1]) || !free(T[k ^ 1][0], T[k ^ 1][1]) || !free(T[k ^ 2][0], T[k ^ 2][1])) continue;
+        corner(T[k][0], T[k][1], vx, vy);
+        groundFill(T[k][0], T[k][1], T[o][0], T[o][1]);
+      } else if (n === 3) {
+        // Innenecke: Weg füllt die Ecke der freien Kachel
+        const k = P.indexOf(false);
+        const o = 3 - k;
+        if (!own(k) || !free(T[k][0], T[k][1])) continue;
+        corner(T[k][0], T[k][1], vx, vy);
+        pathFill(T[k][0], T[k][1], T[o][0], T[o][1]);
+      } else if (n === 2 && P[0] === P[3]) {
+        // zwei Wegkacheln stoßen nur schräg an: beide freien Ecken mit Weg füllen, der Weg läuft durch
+        for (const k of [0, 1, 2, 3]) {
+          if (P[k] || !own(k) || !free(T[k][0], T[k][1])) continue;
+          const o = 3 - k;
+          corner(T[k][0], T[k][1], vx, vy);
+          pathFill(T[k][0], T[k][1], T[o][0], T[o][1]);
+        }
+      }
+    }
+  }
+}
+
 // --- Holzzäune an den Wegen (seit 15.56) ---------------------------------------------------------------------------
 // In Städten und Lagern säumen niedrige Holzzäune die Wege: auf jeder Gras-Kachel, die an einen Erdweg grenzt, ein
 // Zaunstück an dieser Kante (Pfosten alle 16 Einheiten, zwei Latten, Licht oben, dunkler Umriss). Reiner Schmuck am

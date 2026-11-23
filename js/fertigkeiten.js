@@ -1318,17 +1318,20 @@ function updateBuffAuras(dt) {
 // Legendär: dazu Lichtsäule, Blitz und Aufleuchten · Vollendet: dazu Himmelsstrahl, Glutwelle und Beben
 // soft (seit 14.61, Fertigkeiten mit eigener Wirk-Animation wie die Schwertaura): nur die Funkenspirale in der
 // Rangfarbe, kein Bildschirmschein, kein Beben, in 2D keine Ringe, Runen und Säulen
-function rankCastFx(p, rank, color, soft = false) {
+// remote (seit 15.71): Fertigkeit eines Mitspielers – gleiches Bild, aber kein Bildschirmblitz und kein Beben bei dir
+function rankCastFx(p, rank, color, soft = false, remote = false) {
   const fy = feetY(p);
   // seit 12.6 in 3D: Funkenspirale, Kränze, Lichtsäule, Flammenflügel je Rang (rang-fx.js) – ohne Runenkreise
   // und Sterne am Boden; die alten Ringe und Runen gibt es nur noch in 2D
   if (typeof rankCast3 === 'function' && typeof V3 !== 'undefined' && V3.on) {
     rankCast3(p, rank, soft);
-    if (soft) return;
+    if (soft || remote) return;
     if (rank >= 2) flashScreen(color, 0.14);
     if (rank >= 3) shakeScreen(5);
     return;
   }
+  // seit 15.71 in 2D wie in 3D: Funkenspirale, Kränze, Goldsäule, bei V Flammenflügel und Feuerkrone (rang2d.js)
+  if (EXTRA_EFFECTS.rankcast2) addEffect({ type: 'rankcast2', owner: p, x: p.x, y: fy, rank, soft, dur: soft ? 1.2 : 0.95 + rank * 0.25 });
   if (soft) {
     particles(p.x, fy - 14, { count: 10 + rank * 6, color: [color, '#ffffff'], angle: -Math.PI / 2, spread: 0.8, speed: [60, 140 + rank * 30], life: [0.4, 0.7], size: [1.5, 3], shape: 'spark', drag: 2 });
     return;
@@ -1340,11 +1343,11 @@ function rankCastFx(p, rank, color, soft = false) {
   particles(p.x, fy - 14, { count: 12 + rank * 8, color: [color, '#ffffff'], angle: -Math.PI / 2, spread: 0.9, speed: [70, 170 + rank * 30], life: [0.35, 0.7], size: [1.5, 3], shape: 'spark', drag: 3 });
   if (rank >= 2) {
     addEffect({ type: 'halo', follow: p, dur: 0.5 + rank * 0.1, color });
-    flashScreen(color, 0.12);
+    if (!remote) flashScreen(color, 0.12);
   }
   if (rank >= 3) {
     particles(p.x, fy, { count: 24, color: ['#ff6a4a', '#ffd34d', '#ffffff'], angle: -Math.PI / 2, spread: 1.2, speed: [120, 240], life: [0.5, 0.9], size: [2, 4], shape: 'ember', drag: 2 });
-    shakeScreen(4);
+    if (!remote) shakeScreen(4);
   }
 }
 
@@ -1393,6 +1396,9 @@ function rankHitFx(m, rank) {
       const an = Math.random() * Math.PI * 2;
       addEffect({ type: 'chain', x: c.x, y: c.y, x2: c.x + Math.cos(an) * 40, y2: c.y + Math.sin(an) * 26, dur: 0.18, color });
     }
+  }
+  if (rank >= 2 && EXTRA_EFFECTS.rankhit2 && !(typeof V3 !== 'undefined' && V3.on)) {
+    addEffect({ type: 'rankhit2', target: m, x: c.x, y: c.y, rank, seed: Math.random() * 10, dur: 0.45 + rank * 0.1 });
   }
   if (rank >= 3) {
     // seit 14.3 nur noch in 2D: in 3D legte jeder Treffer einen Ring (mit Rang-Runen) auf den Boden – bei Feuertornados

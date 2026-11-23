@@ -55,20 +55,41 @@ const sfx = {
       this.music = c.createGain();
       this.master.connect(lim);
       this.music.connect(mlim);
-      // Hall: abklingendes Rauschen als Raumantwort (links und rechts leicht verschieden); seit 9.9 kürzer
-      // (1,6 s, Handy 1,2 s) – die Faltung läuft ständig und kostet sonst viel Rechenzeit
-      this.verb = c.createConvolver();
-      const len = Math.floor(c.sampleRate * (IS_PC ? 1.6 : 1.2));
-      const ir = c.createBuffer(2, len, c.sampleRate);
-      for (let ch = 0; ch < 2; ch++) {
-        const d = ir.getChannelData(ch);
-        for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3.2) * (i < 200 ? i / 200 : 1);
-      }
-      this.verb.buffer = ir;
+      // Hall: am PC abklingendes Rauschen als Raumantwort (Faltung, links und rechts leicht verschieden, 1,6 s).
+      // Am Handy seit 15.71 ein leichter Hall aus zwei Echo-Schleifen (Verzögerung, Tiefpass, Rückkopplung): Die Faltung
+      // läuft ständig, ihr langer Nachhall wird in einem Hintergrund-Faden gerechnet – unter Last (Bildaufbau) kam der am
+      // iPhone nicht nach, und der ganze Ton stotterte.
       this.verbOut = c.createGain();
-      this.verbOut.gain.value = 0.55;
-      this.verb.connect(this.verbOut);
       this.verbOut.connect(lim);
+      if (typeof IS_PC !== 'undefined' && IS_PC) {
+        this.verb = c.createConvolver();
+        const len = Math.floor(c.sampleRate * 1.6);
+        const ir = c.createBuffer(2, len, c.sampleRate);
+        for (let ch = 0; ch < 2; ch++) {
+          const d = ir.getChannelData(ch);
+          for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3.2) * (i < 200 ? i / 200 : 1);
+        }
+        this.verb.buffer = ir;
+        this.verb.connect(this.verbOut);
+        this.verbOut.gain.value = 0.55;
+      } else {
+        this.verb = c.createGain();
+        this.verbOut.gain.value = 0.42;
+        for (const [dt, fb, lp] of [[0.047, 0.5, 2600], [0.071, 0.44, 2100]]) {
+          const d = c.createDelay(0.2);
+          d.delayTime.value = dt;
+          const f = c.createBiquadFilter();
+          f.type = 'lowpass';
+          f.frequency.value = lp;
+          const g = c.createGain();
+          g.gain.value = fb;
+          this.verb.connect(d);
+          d.connect(f);
+          f.connect(g);
+          g.connect(d);
+          f.connect(this.verbOut);
+        }
+      }
       this.applyVolume(true);
     }
     if (this.ctx.state === 'suspended') this.ctx.resume();

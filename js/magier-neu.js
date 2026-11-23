@@ -299,7 +299,8 @@ function spearFx(owner, x0, y0, x1, y1, sk, local, pw) {
   // gleiches Tempo wie bisher (390 in 0,16 s): der längere Speer ist etwas länger unterwegs
   const fly = Math.max(0.08, len / 2440);
   // seit der Überarbeitung des Blitzmagiers: längerer, wuchtiger Speer, die Bahn glüht länger nach (0,7 → 1,05 s)
-  addEffect({ type: 'mspear3', x: (x0 + x1) / 2, y: (y0 + y1) / 2 + 9, x0, y0: y0 + 9, x1, y1: y1 + 9, fly, dur: fly + 0.85, seed: Math.random() * 90 });
+  // rk (seit 15.71): Rang des Speers für die 2D-Optik (fxRank, auch bei Mitspielern über withRank)
+  addEffect({ type: 'mspear3', x: (x0 + x1) / 2, y: (y0 + y1) / 2 + 9, x0, y0: y0 + 9, x1, y1: y1 + 9, fly, dur: fly + 0.85 + (fxRank >= 2 ? 0.25 : 0), seed: Math.random() * 90, rk: fxRank });
   later(fly, () => {
     addEffect({ type: 'sparks3', x: x1, y: y1 + 9, h: 0.8, count: 14, color: '#fff7b0', speed: 3, up: 1.1, dur: 0.5 });
     if (!V3.on) particles(x1, y1 - 14, { count: 12, color: ['#ffffff', '#fff7b0', '#8a5aff'], speed: [70, 190], life: [0.2, 0.4], size: [1.5, 3], shape: 'spark', drag: 4 });
@@ -1102,8 +1103,58 @@ EXTRA_EFFECTS.mspear3 = (ctx, e) => {
   const ty = e.y0 + (e.y1 - e.y0) * u - 30;
   const len = hyp(tx - ax, ty - ay);
   if (len < 2) return;
+  const rk = e.rk == null ? -1 : e.rk;
+  // Rang (seit 15.71): ab E leuchtet die Bahn in der Rangfarbe, ab H laufen zwei Nebenblitze mit, ab L glüht die Bahn
+  // golden nach, bei V wird der Speer zum Himmelsspeer in Rot-Gold mit Glutschleppe und Flammen an der Spitze
+  const RK = rk >= 0 ? SKILL_RANKS[rk].color : null;
+  const sd = (e.seed || 0) + Math.floor(t / 0.05);
   ctx.save();
-  blz2(ctx, ax, ay, tx, ty, 2 + 4 * fade, Math.min(1, fade * 1.5), (e.seed || 0) + Math.floor(t / 0.05), { segs: Math.max(4, Math.round(len / 36)), jit: 4 + 8 * fade, branch: 2 });
+  if (rk >= 2) {
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.lineCap = 'round';
+    for (const [col, w, al] of rk >= 3 ? [['#ff2a1a', 22, 0.22], ['#ff8a2a', 13, 0.3], ['#ffe08a', 5, 0.45]] : [['#ffd34d', 16, 0.2], ['#fff3b0', 6, 0.35]]) {
+      ctx.globalAlpha = al * fade;
+      ctx.strokeStyle = col;
+      ctx.lineWidth = w;
+      ctx.beginPath();
+      ctx.moveTo(ax, ay);
+      ctx.lineTo(tx, ty);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+  }
+  blz2(ctx, ax, ay, tx, ty, 2 + 4 * fade + (rk >= 0 ? 0.6 + rk * 0.5 : 0), Math.min(1, fade * 1.5), sd, { segs: Math.max(4, Math.round(len / 36)), jit: 4 + 8 * fade, branch: 2 + Math.max(0, rk), color: rk >= 3 ? '#ffb03a' : '#ffe94a' });
+  if (rk >= 1) {
+    // zwei Nebenblitze links und rechts der Bahn
+    const nx = -(ty - ay) / len;
+    const ny = (tx - ax) / len;
+    const off = 9 + rk * 2;
+    const cols = rk >= 3 ? ['#ff4a2a', '#ffd34d'] : ['#c58cff', '#8a9aff'];
+    for (let j = 0; j < 2; j++) {
+      const s = j ? 1 : -1;
+      blz2(ctx, ax + nx * s * 4, ay + ny * s * 4, tx + nx * s * off, ty + ny * s * off, 1.2 + fade * 1.6, Math.min(1, fade * 1.3) * 0.85, sd + 7 + j * 13, { segs: Math.max(4, Math.round(len / 30)), jit: 5 + 6 * fade, branch: 0, color: cols[j], rim: false });
+    }
+  }
+  if (rk >= 3) {
+    // Glutschleppe: Funken in Rot, Gold und Violett steigen aus der Bahn auf
+    ctx.globalCompositeOperation = 'lighter';
+    const ne = 16;
+    for (let i = 0; i < ne; i++) {
+      const f = n2h(i, e.seed || 0);
+      const age = t - (e.fly * f);
+      if (age < 0 || f > u) continue;
+      const life = 0.7 + 0.4 * n2h(i, 7);
+      if (age > life) continue;
+      const q = age / life;
+      const px = ax + (tx - ax) * (f / Math.max(u, 0.01)) + Math.sin(i * 3 + t * 4) * 4;
+      const py = ay + (ty - ay) * (f / Math.max(u, 0.01)) - q * (26 + 14 * n2h(i, 3));
+      ctx.globalAlpha = 1 - q;
+      ctx.fillStyle = ['#ff6a2a', '#ffd34d', '#c84aff', '#ffffff'][i % 4];
+      ctx.fillRect(px - 1.5, py - 1.5, 3, 3);
+    }
+    ctx.globalCompositeOperation = 'source-over';
+  }
   ctx.globalAlpha = 1;
   if (u < 1) {
     const dx = (tx - ax) / len;
@@ -1119,13 +1170,25 @@ EXTRA_EFFECTS.mspear3 = (ctx, e) => {
     ctx.lineTo(tx - dx * 20, ty - dy * 20);
     ctx.lineTo(tx - dx * 30 + dy * 9, ty - dy * 30 - dx * 9);
     ctx.closePath();
-    ctx.fillStyle = '#fffbe0';
-    ctx.strokeStyle = '#8a5aff';
-    ctx.lineWidth = 1.5;
+    ctx.fillStyle = rk >= 3 ? '#fff0c0' : '#fffbe0';
+    ctx.strokeStyle = rk >= 3 ? '#ff4a2a' : rk >= 1 ? '#c58cff' : '#8a5aff';
+    ctx.lineWidth = 1.5 + Math.max(0, rk) * 0.4;
     ctx.fill();
     ctx.stroke();
     ctx.globalCompositeOperation = 'lighter';
-    glow2(ctx, tx, ty, 38, '#ffe94a', 0.8);
+    if (rk >= 3) {
+      // Flammen züngeln von der Spitze nach hinten
+      const ang = Math.atan2(dy, dx) - Math.PI / 2;
+      for (let j = 0; j < 3; j++) {
+        ctx.save();
+        ctx.translate(tx - dx * (6 + j * 7), ty - dy * (6 + j * 7));
+        ctx.rotate(ang + Math.PI + (j - 1) * 0.35);
+        if (typeof rk2Flame === 'function') rk2Flame(ctx, 0, 0, 5 - j, 22 + j * 6 + Math.sin(t * 30 + j) * 4, j === 1 ? '#ffd34d' : '#ff6a2a', 0.9, Math.sin(t * 25 + j) * 2);
+        ctx.restore();
+      }
+    }
+    glow2(ctx, tx, ty, 38 + Math.max(0, rk) * 8, rk >= 3 ? '#ff8a3a' : '#ffe94a', 0.8);
+    if (RK) glow2(ctx, tx, ty, 24 + rk * 6, RK, 0.7);
     glow2(ctx, tx, ty, 16, '#ffffff', 1);
   } else if (t - e.fly < 0.3) {
     const f = 1 - (t - e.fly) / 0.3;

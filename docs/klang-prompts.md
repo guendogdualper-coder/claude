@@ -296,3 +296,14 @@ schaltet alles stumm.
 
 - **Kreis der Elemente (seit 12.7):** Beim Wirken 2,7 s anschwellendes Sausen mit tiefem Grollen, Knistern und Prasseln, das zum Knall hin immer dichter wird (`kreis_lade`); beim Knall großer Platscher, Donnerschlag und Erdbruch (`strom_end`) plus Feuerstoß (`imp_feuer`). Alles eigene Synthese.
 
+## 6. Ton am Handy ohne Stottern (seit 15.71)
+
+Rückmeldung: Am Handy stotterte der Ton. Entlastet (js/klang.js, js/klang-welt.js):
+
+- **Hall:** am PC weiter die Faltung (1,6 s Raumantwort). Am Handy ein leichter Hall aus zwei Echo-Schleifen
+  (Verzögerung 47 bzw. 71 ms, Tiefpass, Rückkopplung 0,5 bzw. 0,44) – die Faltung lief ständig mit und rechnete ihren
+  langen Nachhall in einem Hintergrund-Faden, der unter Last nicht nachkam.
+- **Vorberechnen:** erzeugte Laute (sndRender) laufen in einer Warteschlange, höchstens zwei gleichzeitig (vorher beim
+  Start rund 50 Offline-Kontexte auf einmal, ebenso beim Auftauchen neuer Monsterfamilien).
+- **Stimmen:** am Handy höchstens 12 gleichzeitig (PC 18); fast mittige Laute ohne eigenen Panorama-Knoten, kein
+  Hallweg bei sehr kleinem Hallanteil (weniger Knoten je Klang).

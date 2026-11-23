@@ -707,3 +707,23 @@ PvP (6 Würfe, alle Wege auf V, alle vier Magier-Wege mit Rang-Boni gegen ohne):
 - Unveränderte Wege schwanken in denselben Läufen um bis zu 10 Punkte (Krieger · Klinge 69 → 59 %).
 - Paare über 65 %: 55 → 49; größter Treffer 35,0 %.
 - Schaden gegen Spieler je Sekunde: Feuer +1 %, Frost +4 %, Blitz +2 %, Erde +5 %.
+
+## 8. Rang-Optik in 2D (seit 15.71)
+
+Spieler-Rückmeldung: In 2D sah eine Attacke auf V kaum anders aus als auf E. In 3D zeigten Wirken und Treffer den Rang
+schon (rang-fx.js), in 2D stiegen nur ein paar Funken auf. Jetzt in 2D wie in 3D (js/rang2d.js), aufrecht an der Figur,
+nichts am Boden, keine Sterne und Runen:
+
+| Rang | beim Wirken (`rankcast2`) | beim Treffer (`rankhit2`, zusätzlich zu Funken, Einschlag, Schnitten, Blitzen) |
+|---|---|---|
+| E | Funkenspirale in Blau-Weiß, Funkenkranz um die Brust | – |
+| H | dazu zwei gegenläufige Kränze (Brust, Kopf) mit Schweif | – |
+| L | dazu goldene Lichtsäule über dem Kopf, Lichtstreifen seitlich am Körper, Lichtblitz, kreisende Goldlichter | goldener Lichtstoß, aufsteigende Lichter |
+| V | dazu **Flammenflügel** (Bogen von der Schulter, sechs Flammenfedern je Seite), **Feuerkrone** über dem Kopf, Glutsturm | dazu Flammenzungen nach außen, Glutregen |
+
+- Die Figur bleibt sichtbar: kein großer Schein über dem Körper, die Flügel liegen neben ihr.
+- Auch bei Mitspielern sichtbar (vorher in 2D gar nicht): interaktion.js ruft `rankCastFx(…, remote = true)` – gleiches
+  Bild, aber kein Bildschirmblitz und kein Beben beim Zuschauer.
+- Blitzspeer (Blitzmagier, Attacke 1) je Rang auch an der Attacke selbst (`mspear3`, Feld `rk`): E dickerer Blitz mit mehr
+  Ästen und Schein in der Rangfarbe, H zwei violette Nebenblitze, L goldene Bahn, V Himmelsspeer in Rot-Gold mit
+  Glutschleppe und Flammen an der Spitze (dazu wie bisher der Himmelsblitz am Ende).

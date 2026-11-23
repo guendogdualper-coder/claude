@@ -12,16 +12,40 @@ const SND_RATE = 32000;
 const SND_VARIANTS = 3;
 
 // --- Vorberechnen ----------------------------------------------------------------------------------
+// seit 15.71 in einer Warteschlange, höchstens zwei gleichzeitig: Beim Start (warm, ~50 Laute) und wenn neue Monster
+// auftauchen, liefen vorher Dutzende Offline-Kontexte auf einmal – am Handy nahm das dem laufenden Ton die Rechenzeit.
+const SND_QUEUE = { run: 0, wait: [] };
 function sndRender(dur, build) {
   const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
   if (!OAC) return Promise.resolve(null);
-  const c = new OAC(1, Math.max(1, Math.ceil(dur * SND_RATE)), SND_RATE);
-  build(c, c.destination);
   return new Promise((resolve) => {
-    c.oncomplete = (e) => resolve(e.renderedBuffer);
-    const r = c.startRendering();
-    if (r && r.then) r.then(resolve, () => resolve(null));
+    SND_QUEUE.wait.push({ dur, build, resolve });
+    sndRenderNext();
   });
+}
+function sndRenderNext() {
+  const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+  while (SND_QUEUE.run < 2 && SND_QUEUE.wait.length) {
+    const job = SND_QUEUE.wait.shift();
+    SND_QUEUE.run++;
+    let done = false;
+    const fin = (buf) => {
+      if (done) return;
+      done = true;
+      SND_QUEUE.run--;
+      job.resolve(buf || null);
+      setTimeout(sndRenderNext, 0);
+    };
+    try {
+      const c = new OAC(1, Math.max(1, Math.ceil(job.dur * SND_RATE)), SND_RATE);
+      job.build(c, c.destination);
+      c.oncomplete = (e) => fin(e.renderedBuffer);
+      const r = c.startRendering();
+      if (r && r.then) r.then(fin, () => fin(null));
+    } catch (e) {
+      fin(null);
+    }
+  }
 }
 
 // Zahl aus einem Text (Startwert je Klang und Variante)
@@ -1123,7 +1147,8 @@ const snd = {
   // Abspielen: o.x/o.y Weltort (sonst mittig), o.vol, o.rate, o.rev (Hallanteil)
   out(buf, o) {
     const c = sfx.ac();
-    if (!c || !buf || this.active >= 18) return null;
+    // am Handy höchstens 12 Stimmen gleichzeitig (PC 18)
+    if (!c || !buf || this.active >= (typeof IS_PC !== 'undefined' && IS_PC ? 18 : 12)) return null;
     let vol = o.vol == null ? 1 : o.vol;
     let pan = 0;
     const p = game.player;
@@ -1149,7 +1174,8 @@ const snd = {
     g.gain.value = vol * 0.9;
     src.connect(g);
     let node = g;
-    if (pan && c.createStereoPanner) {
+    // fast mittig ohne eigenen Panorama-Knoten (spart am Handy Knoten je Klang)
+    if (Math.abs(pan) > 0.1 && c.createStereoPanner) {
       const pn = c.createStereoPanner();
       pn.pan.value = pan;
       g.connect(pn);
@@ -1157,7 +1183,7 @@ const snd = {
     }
     node.connect(sfx.master);
     const rev = o.rev == null ? 0.18 : o.rev;
-    if (rev > 0 && sfx.verb) {
+    if (rev > 0.04 && sfx.verb) {
       const sg = c.createGain();
       sg.gain.value = rev;
       node.connect(sg);

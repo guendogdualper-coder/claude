@@ -118,6 +118,7 @@ function renderGroundChunk(cx, cy) {
   }
   // Pixel-Stil: Bodenmuster (Grashalme, Kiesel, Sprenkel) über den Boden, unter Schmuck und Brücken
   if (pix && typeof pixelGroundPass === 'function') pixelGroundPass(ctx, tx0, ty0);
+  if (pix && typeof pixelPathRound === 'function') pixelPathRound(ctx, tx0, ty0);
   if (pix && typeof pixelFences === 'function') pixelFences(ctx, tx0, ty0);
   if (pix && typeof pixelFields === 'function') pixelFields(ctx, tx0, ty0);
   for (let y = ty0; y < Math.min(MAP_H, ty0 + CHUNK); y++) {

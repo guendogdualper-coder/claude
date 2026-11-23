@@ -61,3 +61,13 @@ verkleinert auf höchstens ~160.000 Bildpunkte).
 - Am Handy und Tablet steht die Oberfläche jetzt immer still (Klasse `ruhig-ui` an `<html>`, waermeschutz.js; dieselben
   festen Zustände wie die Sparoptik von „Niedrig“, Vignette und Licht bleiben). Danach: gleichmäßig 60 Bilder je
   Sekunde, Zeichenzeit im Mittel ~6 ms. Am PC bleiben die Animationen.
+
+## Runde Wege (seit 15.71)
+
+- Erdwege folgten den Kachelkanten und liefen schräg als Treppe. Beim Backen der Bodenblöcke (renderGroundChunk,
+  umgebung.js) rundet `pixelPathRound` (pixel2d.js) jetzt jede Ecke mit einem Viertelkreis (Radius eine halbe Kachel):
+  an Außenecken legt sich der Boden daneben (Grundfarbe und Muster) über die Wegecke, an Innenecken und zwischen schräg
+  anstoßenden Wegkacheln füllt Weg (Farbe und Kiesmuster) die Ecke der Nachbarkachel. Treppen werden zu geschwungenen
+  Rändern.
+- Nur gegen freien Boden (nicht an Wasser, Eis, Pflaster, Fels, Brücken). Kostet beim Spielen nichts (gebacken).
+
