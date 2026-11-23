@@ -24,7 +24,7 @@ const MAPLOAD_TIPPS = [
   ['', () => 'Leuchtende Teleportsteine bringen dich von Insel zu Insel – jede Karte hat ihre eigene Farbe.'],
   ['', () => `Ab Stufe ${typeof GF !== 'undefined' ? GF.level : 30} findest du über den Gruppenfinder Mitspieler für Dungeons und Endbosse.`],
   ['', () => `Das Lager kostet einmalig ${typeof STORAGE !== 'undefined' ? STORAGE.price.toLocaleString('de-DE') : '1.000'} Gold und ist in jeder Stadt dasselbe.`],
-  ['', () => 'Hol dir jeden Tag die Tagesbelohnung – am siebten Tag in Folge gibt es ein Fertigkeitsbuch.'],
+  ['', () => 'Hol dir jeden Tag die Tagesbelohnung – mit einer kurzen Werbung doppelt, am siebten Tag in Folge wartet die Heldentruhe.'],
   ['', () => 'Solange dieses Bild steht, kann deiner Figur nichts passieren.']
 ];
 // Wechselnde Ladebilder (seit 15.36): neben dem Bild der eigenen Hauptstadt Szenen aus dem Spiel – Städte anderer

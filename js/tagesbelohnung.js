@@ -17,6 +17,12 @@
 //                             Erfahrungsring, Bücher, Schriftrollen, Seelensteine oder Ätherkern; Bogen-Ninja: Pfeile
 // Bücher und das Teil brauchen freie Plätze in der Tasche (bagFree: nur nutzbare Seiten). Fehlen sie, bleibt der Tag
 // offen und es geht nichts verloren.
+//
+// Mit Werbung doppelt (seit 15.72): Ohne Werbung gibt es die Hälfte der Liste (aufgerundet, mindestens 1 – dailyScale),
+// wer eine kurze Werbung ansieht (werbung.js, 30 s), bekommt das Doppelte davon, also wieder die ganze Liste.
+// Ein Ausrüstungsteil bleibt ein Teil. Die Werbung geht vor dem Abholen (dann gleich doppelt) oder danach (dann kommt
+// die zweite Hälfte dazu), einmal am Tag. Gemerkt in p.daily: ad = Tag der gesehenen Werbung, x2 = Tag der Verdopplung
+// (beides als Datumstext, gilt also nur heute). War die Tasche nach der Werbung zu voll, bleibt die Werbung gezählt.
 
 const DAILY_BANDS = [{ from: 1 }, { from: 20 }, { from: 40 }, { from: 60 }, { from: 80 }];
 const dailyBand = (L) => DAILY_BANDS.reduce((b, x, i) => (L >= x.from ? i : b), 0);
@@ -62,14 +68,31 @@ function dailyGap(a, b) {
 function dailyState(p = game.player) {
   const d = p.daily || { last: null, streak: 0 };
   const today = dailyKey();
-  if (d.last === today) return { claimed: true, day: ((d.streak - 1) % 7) + 1, streak: d.streak };
+  const adSeen = d.ad === today; // Werbung heute gesehen
+  const doubled = d.x2 === today; // heute schon verdoppelt
+  if (d.last === today) return { claimed: true, day: ((d.streak - 1) % 7) + 1, streak: d.streak, adSeen, doubled };
   const keep = d.last && dailyGap(d.last, today) === 1;
   const streak = keep ? d.streak + 1 : 1;
-  return { claimed: false, day: ((streak - 1) % 7) + 1, streak };
+  return { claimed: false, day: ((streak - 1) % 7) + 1, streak, adSeen, doubled: false };
 }
 
-function dailyRewardFor(day, level) {
-  return DAILY_DAYS[day - 1].reward(level, dailyBand(level)) || {};
+// Hälfte der Liste (aufgerundet, mindestens 1) mal mult: 1 = ohne Werbung, 2 = mit Werbung. Pfeile werden als Stückzahl
+// halbiert (arrowCount), ein Ausrüstungsteil (gear) und potUp bleiben, wie sie sind.
+function dailyScale(r, mult) {
+  const h = (n) => Math.max(1, Math.ceil(n / 2)) * mult;
+  const out = {};
+  for (const [k, v] of Object.entries(r)) {
+    if (k === 'mats') {
+      out.mats = {};
+      for (const [id, n] of Object.entries(v)) out.mats[id] = h(n);
+    } else if (k === 'arrows') out.arrowCount = h(v * (typeof ARROW_BUNDLE !== 'undefined' ? ARROW_BUNDLE : 500));
+    else if (typeof v === 'number') out[k] = h(v);
+    else out[k] = v;
+  }
+  return out;
+}
+function dailyRewardFor(day, level, mult = 1) {
+  return dailyScale(DAILY_DAYS[day - 1].reward(level, dailyBand(level)) || {}, mult === 2 ? 2 : 1);
 }
 const dailyVal = (v, day, level) => (typeof v === 'function' ? v(level, dailyBand(level)) : v);
 const dailyName = (day, level) => dailyVal(DAILY_DAYS[day - 1].name, day, level);
@@ -175,9 +198,9 @@ function dailyIcon(kind, p = game.player) {
 }
 
 // Was ein Tag bringt, als Liste mit Symbol (Kacheln) – nur was die Figur auch bekommt (Pfeile nur Bogen-Ninja)
-function dailyEntries(day, p = game.player) {
+function dailyEntries(day, p = game.player, mult = 1) {
   const L = p.level;
-  const r = dailyRewardFor(day, L);
+  const r = dailyRewardFor(day, L, mult);
   const out = [];
   const add = (icon, text, tip, cls) => out.push({ icon, text, tip: tip || '', cls: cls || '' });
   if (r.gear) {
@@ -195,18 +218,18 @@ function dailyEntries(day, p = game.player) {
     const sz = dailyPotSize(L, r.potUp).id;
     for (const k of ['hp', 'mp']) add(potionIconUrl(k, sz), `${r.potions}× ${potionInfo(k).name} ${sz}`, potionInfo(k).text);
   }
-  if (r.arrows && dailyBow(p)) {
+  if (r.arrowCount && dailyBow(p)) {
     const i = dailyArrowSort(p);
-    add(arrowIconUrl(i), `${(r.arrows * ARROW_BUNDLE).toLocaleString('de-DE')} ${ARROW_TYPES[i].name}`, 'Pfeile für deinen Bogen (die beste Sorte deiner Stufe).');
+    add(arrowIconUrl(i), `${r.arrowCount.toLocaleString('de-DE')} ${ARROW_TYPES[i].name}`, 'Pfeile für deinen Bogen (die beste Sorte deiner Stufe).');
   }
   if (r.splinters) add(lootIconUrl('splinter'), `${r.splinters} Seelensplitter`);
   if (r.gold) add(lootIconUrl('gold'), `${r.gold.toLocaleString('de-DE')} Gold`);
   return out;
 }
-// Kurzer Text, was ein Tag bringt (wie früher)
-function dailyLines(day, level) {
+// Kurzer Text, was ein Tag bringt (wie früher); mult 2 = mit Werbung
+function dailyLines(day, level, mult = 1) {
   const p = game.player && game.player.level === level ? game.player : Object.assign({}, game.player || {}, { level });
-  return dailyEntries(day, p).map((e) => e.text);
+  return dailyEntries(day, p, mult).map((e) => e.text);
 }
 
 // Ein Teil für die eigene Klasse (wie questGearItem in quests.js, aber mit fester Seltenheit und festem Plus)
@@ -221,19 +244,84 @@ function dailyGearItem(p, rarity, plus) {
 }
 
 let dailyMsg = '';
-// Abholen
-function claimDaily() {
+// Reicht der Platz in der Tasche? Sonst Meldung (dailyMsg) und false
+function dailyRoom(p, r, day) {
+  const need = dailyBagNeed(r);
+  if (!need || bagFree(p) >= need) return true;
+  dailyMsg = `Für Tag ${day} brauchst du ${need} ${need === 1 ? 'freien Platz' : 'freie Plätze'} in der Tasche. Mach Platz und hol die Belohnung dann ab – sie wartet bis Mitternacht.`;
+  ui.log(dailyMsg, 'warn');
+  return false;
+}
+// Abholen: mult 2 = mit Werbung (doppelt). Ist die Werbung heute schon gesehen, gibt es ohnehin das Doppelte.
+function claimDaily(mult) {
   const p = game.player;
   const st = dailyState(p);
   if (st.claimed) return null;
-  const r = dailyRewardFor(st.day, p.level);
-  const need = dailyBagNeed(r);
-  if (need && bagFree(p) < need) {
-    dailyMsg = `Für Tag ${st.day} brauchst du ${need} ${need === 1 ? 'freien Platz' : 'freie Plätze'} in der Tasche. Mach Platz und hol die Belohnung dann ab – sie wartet bis Mitternacht.`;
-    ui.log(dailyMsg, 'warn');
-    return null;
-  }
+  const x2 = mult === 2 || st.adSeen;
+  const r = dailyRewardFor(st.day, p.level, x2 ? 2 : 1);
+  if (!dailyRoom(p, r, st.day)) return null;
   dailyMsg = '';
+  const parts = dailyGrant(p, r);
+  p.daily = Object.assign({}, p.daily || {}, { last: dailyKey(), streak: st.streak });
+  if (x2) p.daily.x2 = dailyKey();
+  ui.log(`Tagesbelohnung${x2 ? ' (doppelt)' : ''}: ` + parts.join(', ') + '.', 'level');
+  vfxLevelUp(p);
+  saveGame();
+  if (r.books && ui.buildSkillBar) ui.buildSkillBar();
+  ui.banner(`Tagesbelohnung · Tag ${st.day}`, dailyName(st.day, p.level));
+  flashScreen(st.day === 7 ? '#c890ff' : '#ffd34d', 0.25);
+  ui.updateDailyBadge();
+  return st.day;
+}
+// Nachträglich verdoppeln (Werbung nach dem Abholen gesehen): die zweite Hälfte, ohne zweites Ausrüstungsteil
+function claimDailyDouble() {
+  const p = game.player;
+  const st = dailyState(p);
+  if (!st.claimed || st.doubled || !st.adSeen) return null;
+  const r = dailyRewardFor(st.day, p.level, 1);
+  delete r.gear;
+  if (!dailyRoom(p, r, st.day)) return null;
+  dailyMsg = '';
+  const parts = dailyGrant(p, r);
+  p.daily = Object.assign({}, p.daily, { x2: dailyKey() });
+  ui.log('Tagesbelohnung verdoppelt: ' + parts.join(', ') + '.', 'level');
+  vfxLevelUp(p);
+  saveGame();
+  if (r.books && ui.buildSkillBar) ui.buildSkillBar();
+  ui.banner('Belohnung verdoppelt', dailyName(st.day, p.level));
+  flashScreen('#ffd34d', 0.2);
+  return st.day;
+}
+// Werbung ansehen und dann doppelt abholen bzw. verdoppeln. Der Platz in der Tasche wird vorher geprüft, damit niemand
+// umsonst schaut; eine gesehene Werbung bleibt für heute gezählt (falls doch etwas schiefgeht).
+function dailyWatchAd() {
+  const p = game.player;
+  if (!p) return;
+  const st = dailyState(p);
+  if (st.doubled || typeof werbungZeigen !== 'function') return;
+  const r = dailyRewardFor(st.day, p.level, st.claimed ? 1 : 2);
+  if (st.claimed) delete r.gear;
+  if (!dailyRoom(p, r, st.day)) { renderDaily(); return; }
+  const finish = () => {
+    if (dailyState(p).claimed) claimDailyDouble();
+    else claimDaily(2);
+    if (!$('panelDaily').hidden) renderDaily();
+  };
+  if (st.adSeen) { finish(); return; }
+  werbungZeigen('tagesbelohnung').then((ok) => {
+    if (game.player !== p) return;
+    if (!ok) {
+      ui.log('Werbung abgebrochen – keine Verdopplung.', 'warn');
+      if (!$('panelDaily').hidden) renderDaily();
+      return;
+    }
+    p.daily = Object.assign({}, p.daily || {}, { ad: dailyKey() });
+    saveGame();
+    finish();
+  });
+}
+// Gibt eine Belohnung (r aus dailyRewardFor) in Tasche und Vorräte; Rückgabe: Liste für die Meldung
+function dailyGrant(p, r) {
   const parts = [];
   const loot = (name, n, icon, color) => { if (ui.loot) ui.loot(name, n, icon, color); };
   if (r.gear) {
@@ -266,10 +354,10 @@ function claimDaily() {
       loot(`${potionInfo(k).name} ${sz}`, r.potions, potionIconUrl(k, sz), potionInfo(k).color);
     }
   }
-  if (r.arrows && dailyBow(p)) {
+  if (r.arrowCount && dailyBow(p)) {
     const i = dailyArrowSort(p);
     if (!p.arrows || typeof p.arrows !== 'object') p.arrows = {};
-    const n = r.arrows * ARROW_BUNDLE;
+    const n = r.arrowCount;
     p.arrows[i] = (p.arrows[i] || 0) + n;
     parts.push(`${n.toLocaleString('de-DE')} ${ARROW_TYPES[i].name}`);
     loot(ARROW_TYPES[i].name, n, arrowIconUrl(i), ARROW_TYPES[i].color);
@@ -284,21 +372,14 @@ function claimDaily() {
     parts.push(`${r.gold.toLocaleString('de-DE')} Gold`);
     loot('Gold', r.gold, lootIconUrl('gold'), '#ffd34d');
   }
-  p.daily = { last: dailyKey(), streak: st.streak };
-  ui.log('Tagesbelohnung: ' + parts.join(', ') + '.', 'level');
-  vfxLevelUp(p);
-  saveGame();
-  if (r.books && ui.buildSkillBar) ui.buildSkillBar();
-  ui.banner(`Tagesbelohnung · Tag ${st.day}`, dailyName(st.day, p.level));
-  flashScreen(st.day === 7 ? '#c890ff' : '#ffd34d', 0.25);
-  ui.updateDailyBadge();
-  return st.day;
+  return parts;
 }
 
 function renderDaily() {
   const p = game.player;
   if (!p) return;
   const st = dailyState(p);
+  const adOk = typeof werbungZeigen === 'function' && typeof WERBUNG !== 'undefined';
   const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
   const tiles = DAILY_DAYS.map((d, i) => {
     const day = i + 1;
@@ -306,20 +387,36 @@ function renderDaily() {
     // Anzahl fett vorn („2× Verstärkung“, „500 Gold“)
     const txt = (t) => t.replace(/^([\d.]+×?) /, '<b>$1</b> ');
     const rows = dailyEntries(day, p).map((e) => `<li class="${e.cls}"${e.tip ? ` title="${esc(e.tip)}"` : ''}><img src="${e.icon}" alt=""><span>${txt(e.text)}</span></li>`).join('');
-    return `<div class="daily-tile ${cls}${d.big ? ' big' : ''}"><small>Tag ${day}</small>` +
+    // Heute: kleines Zeichen „×2“ (mit Werbung doppelt), nach dem Verdoppeln „×2 ✓“
+    const x2 = day === st.day && adOk ? `<i class="daily-x2${st.doubled ? ' on' : ''}">×2${st.doubled ? ' ✓' : ''}</i>` : '';
+    return `<div class="daily-tile ${cls}${d.big ? ' big' : ''}"><small>Tag ${day}</small>${x2}` +
       `<img class="daily-main" src="${dailyIcon(dailyVal(d.icon, day, p.level), p)}" alt=""><strong>${dailyName(day, p.level)}</strong>` +
       `<ul class="daily-rows">${rows}</ul>${cls === 'done' ? '<i class="daily-check">✓</i>' : ''}</div>`;
   }).join('');
+  // Unten: ohne Werbung (Hälfte) oder mit Werbung (doppelt); nach dem Abholen noch verdoppeln
+  const adBtn = (text) => `<button type="button" class="btn btn-primary daily-claim daily-ad" id="btnDailyAd"><span class="daily-adplay">▶ ×2</span><span>${text}</span></button>`;
+  let foot;
+  if (!st.claimed) {
+    foot = `<div class="daily-claims"><button type="button" class="btn${adOk ? '' : ' btn-primary'} daily-claim" id="btnDailyClaim">Tag ${st.day} abholen</button>` +
+      (adOk ? adBtn(st.adSeen ? 'Doppelt abholen' : 'Mit Werbung doppelt abholen') : '') + '</div>' +
+      (adOk ? `<p class="hint-text daily-adhint">Ohne Werbung gibt es die Hälfte. Mit einer kurzen Werbung (${WERBUNG.dauer} s) bekommst du das Doppelte.</p>` : '');
+  } else {
+    foot = `<p class="hint-text">Heute schon abgeholt (Reihe: ${st.streak} ${st.streak === 1 ? 'Tag' : 'Tage'}). Morgen wartet Tag ${(st.day % 7) + 1}.</p>`;
+    if (st.doubled) foot += `<p class="hint-text daily-adhint">✓ Heute mit Werbung verdoppelt.</p>`;
+    else if (adOk) {
+      foot += `<div class="daily-claims">${adBtn(st.adSeen ? 'Verdopplung abholen' : 'Mit Werbung verdoppeln')}</div>` +
+        `<p class="hint-text daily-adhint">Mit einer kurzen Werbung (${WERBUNG.dauer} s) bekommst du dasselbe noch einmal.</p>`;
+    }
+  }
   $('dailyBody').innerHTML =
     `<p>Jeden Tag einmal abholen. Sieben Tage in Folge geben immer bessere Belohnungen – wer einen Tag auslässt, fängt wieder bei Tag 1 an.</p>` +
     `<p class="daily-band">Passend zu deiner Stufe: Belohnungen für <b>${dailyBandText(dailyBand(p.level))}</b>. Tippe auf eine Zeile für Einzelheiten.</p>` +
     `<div class="daily-grid">${tiles}</div>` +
-    (dailyMsg && !st.claimed ? `<p class="daily-msg">${dailyMsg}</p>` : '') +
-    (st.claimed
-      ? `<p class="hint-text">Heute schon abgeholt (Reihe: ${st.streak} ${st.streak === 1 ? 'Tag' : 'Tage'}). Morgen wartet Tag ${(st.day % 7) + 1}.</p>`
-      : `<button type="button" class="btn btn-primary daily-claim" id="btnDailyClaim">Tag ${st.day} abholen</button>`);
+    (dailyMsg && !st.doubled ? `<p class="daily-msg">${dailyMsg}</p>` : '') + foot;
   const b = $('btnDailyClaim');
   if (b) b.addEventListener('click', () => { claimDaily(); renderDaily(); });
+  const ad = $('btnDailyAd');
+  if (ad) ad.addEventListener('click', () => dailyWatchAd());
   // Zeilen antippen (Handy, kein Mauszeiger): Hinweis unten anzeigen
   $('dailyBody').querySelectorAll('.daily-rows li[title]').forEach((li) => li.addEventListener('click', () => {
     let tip = $('dailyBody').querySelector('.daily-tip');
@@ -351,6 +448,16 @@ function renderDaily() {
     '.daily-rows li b { color: #fff1c4; font-weight: 800; }' +
     '.daily-msg { margin: 0 0 8px; padding: 6px 10px; border-radius: 6px; background: rgba(160, 60, 40, 0.3); color: #ffcf9a; font-size: 13px; text-align: center; }' +
     '.daily-tip { margin: -4px 0 8px; text-align: center; }' +
+    // Werbung doppelt (seit 15.72)
+    '.daily-claims { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin: 2px 0 4px; }' +
+    '.daily-claims .daily-claim { margin: 0; }' +
+    '.daily-ad { display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 0 14px rgba(255, 196, 60, 0.45); }' +
+    '.daily-adplay { padding: 1px 6px; border-radius: 4px; background: rgba(40, 20, 0, 0.35); font-weight: 800; font-size: 0.92em; }' +
+    '.daily-adhint { margin: 2px 0 6px; text-align: center; }' +
+    '.daily-tile { position: relative; }' +
+    '.daily-x2 { position: absolute; top: 3px; left: 4px; padding: 0 5px; border-radius: 4px; font-style: normal; font-weight: 800;' +
+    ' font-size: 10.5px; line-height: 16px; color: #2a1a04; background: linear-gradient(180deg, #ffe58a, #ffb93a); }' +
+    '.daily-x2.on { color: #0e2a0c; background: linear-gradient(180deg, #b9ff9a, #5fd85a); }' +
     '@media (max-width: 900px) { .daily-rows li { font-size: 9.5px; gap: 2px; } .daily-tile .daily-rows img { width: 15px; height: 15px; } .daily-tile .daily-main { width: 30px; height: 30px; } .daily-tile.big .daily-main { width: 36px; height: 36px; } }' +
     '@media (max-width: 700px) { .daily-rows li { font-size: 10.5px; } }';
   (document.head || document.documentElement).appendChild(css);
