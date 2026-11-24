@@ -977,7 +977,10 @@ function instMiniLoot(m, chance) {
 function instFinalLoot(m, def) {
   const p = game.player;
   const size = instGroupSize(def);
-  const leg = Math.random() < (instMobLevel(def) >= 75 ? INST.legendary80 : INST.legendary) ? dropLegendary(m) : null;
+  // seit 15.76 mit Pech-Schutz (pechschutz.js) und der Schwierigkeit (schwierigkeit.js)
+  const hi = instMobLevel(def) >= 75;
+  const base = (hi ? INST.legendary80 : INST.legendary) * (typeof diffNow === 'function' ? diffNow().leg : 1);
+  const leg = (typeof pechLeg === 'function' ? pechLeg(hi ? 'inst80' : 'inst', base) : Math.random() < base) ? dropLegendary(m) : null;
   if (!leg) instEpicItem(m, Math.random() < 0.4 ? 'waffe' : null);
   instMats(m, { splinters: randInt(10, 15) }, randInt(4, 6)); // seit 14.6 Splitter statt Boni-Materialien
   const gold = monsterGold(m.level * 800);

@@ -149,7 +149,7 @@ function aufgDone(art, e) {
     a.wt = 1;
     const more = aufgGive(AUFG_LOHN.wocheTruhe);
     // ein Ausrüstungsteil für die eigene Klasse (Stufe 80): mit Glück legendär, sonst episch
-    const leg = Math.random() < AUFG_LOHN.wocheTruhe.legendary;
+    const leg = typeof pechLeg === 'function' ? pechLeg('woche', AUFG_LOHN.wocheTruhe.legendary) : Math.random() < AUFG_LOHN.wocheTruhe.legendary;
     if (leg) dropLegendary(null);
     else giveRarityItem(rollRarityItem(80, 3), null);
     ui.banner('Wochentruhe', leg ? 'Ein legendäres Teil!' : 'Ein episches Teil!');

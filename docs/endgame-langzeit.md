@@ -10,7 +10,7 @@ Umgesetzt in drei Paketen, jedes einzeln getestet und veröffentlicht:
 | Paket | Version | Inhalt |
 |---|---|---|
 | 1 | 15.75 | Seelenstufen, Tages- und Wochenaufträge, Weltbosse (dieses Dokument) |
-| 2 | 15.76 | Erfolge und Titel, Schwierigkeitsstufen für Instanzen und Turm, Pech-Schutz, Aufstieg legendärer +20-Teile, Juwelen/Sockel |
+| 2 | 15.76 | Erfolge und Titel, Schwierigkeitsstufen für Instanzen und Turm, Pech-Schutz, Aufstieg legendärer +20-Teile, Juwelen/Sockel (Abschnitte 6–10) |
 | 3 | 15.77 | Gildenstufen und Gildenboss, Grenzschlacht, PvP-Saisons, Events (Winterfest, Doppel-EP-Wochenenden), Bonus für weitere Charaktere |
 
 Ausrüstung, Schmied, Prägungen und Veredler auf Stufe 80: `docs/endgame-80.md`.
@@ -127,3 +127,65 @@ Ereignisse (Gold, Kills ab 75, Steine), Wochentruhe mit Teil; Weltboss: Zeitplan
 Erscheinen einmal, Wegweiser (Weltentor → Boss), Beute (1 Teil, Kerne, Splitter, Gold, Seelen-EP, Wochenauftrag),
 keine Zeile und kein neuer Boss nach dem Sieg, Rückzug nach 15 Minuten, kein Erscheinen in den letzten 30 Sekunden,
 keine Ansage unter Stufe 75. Übersetzung Englisch geprüft (Seite „Seele“, Auftragsliste, Questfenster).
+
+## 6. Pech-Schutz (15.76)
+
+Code: `js/pechschutz.js`, `pechLeg(key, base)`. Spielstand: `p.pech = { key: Fehlversuche }`. Jede Quelle zählt für sich:
+Lv-80-Instanzboss (`inst80`), Lv-60-Instanzboss (`inst`), Turm (`turm`), Weltboss (`weltboss`), Wochentruhe (`woche`).
+Nach n Fehlversuchen steigt die Chance linear von der Grundchance bis 100 %: `base + (1 − base) · n / 8` – spätestens der
+**9. Versuch ist sicher legendär**, danach beginnt der Zähler neu. Bei jedem Fehlversuch steht die nächste Chance im Chat.
+
+## 7. Schwierigkeit (15.76)
+
+Code: `js/schwierigkeit.js`. Spielstand: `p.diff` (0 Normal, 1 Heroisch, 2 Mythisch). Auswahl ab Stufe 80 auf der Seite
+„Seele“ im Charakterfenster, am Tor jeder Lv-80-Instanz und im Fenster am Turm.
+
+| Stufe | eigener Schaden | erlittener Schaden | Legendär-Chance | dazu beim Boss / in der Truhe |
+|---|---|---|---|---|
+| Normal | 100 % | 100 % | ×1 | – |
+| Heroisch | 75 % | 140 % | ×1,5 | +1 Ätherkern, +½ Stufe Seelen-EP, 50 % ein Juwel |
+| Mythisch | 60 % | 180 % | ×2 | +2 Ätherkerne, +1 Stufe Seelen-EP, ein Juwel (mit Glück Stufe II) |
+
+**Persönlich, nicht je Instanz:** Instanzen sind offene Gebiete mit Wiederkehr, die sich alle im Kanal teilen; eine Stufe für
+die Instanz bräuchte einen Abgleich übers Netz und träfe alle, die gerade drin sind. So gilt die Stufe nur für einen
+selbst – in derselben Gruppe darf jeder seine eigene spielen. Sie wirkt nur in Lv-80-Instanzen (`instDefAt`,
+Instanzstufe ≥ 75) und in den Hallen des Turms (`turmSlotAt`). Eigener Schaden wird in `damageMonster` gekürzt (eigene
+Treffer, Diener, Gift – nicht die Treffer der Mitspieler, die der Host bekommt: die kommen schon gerechnet an),
+erlittener Schaden in `damagePlayer` erhöht (nicht gegen Spieler). Die höhere Legendär-Chance geht über den Pech-Schutz.
+
+## 8. Juwelen und Sockel (15.76)
+
+Code: `js/juwelen.js`, am Veredler (Seite „Sockel“). Ewige Teile (Lv 80, episch oder legendär): Waffe zwei Sockel,
+Rüstung und Helm je einer – höchstens vier Juwelen je Figur (die Nebenhand zählt nicht). Sockel öffnen: 1 Mio. Gold +
+5 Ätherkerne (zweiter Waffensockel 3 Mio. + 10). Einsetzen kostet nichts, Herausnehmen 500.000 Gold (das Juwel bleibt).
+
+| Juwel | Stufe I | Stufe II | Stufe III |
+|---|---|---|---|
+| Rubin | +0,5 % Schaden | +1 % | +1,5 % |
+| Saphir | +0,5 % Leben | +1 % | +1,5 % |
+| Smaragd | +1 % Abwehr | +2 % | +3 % |
+| Topas | +4 % Gold von Monstern | +8 % | +12 % |
+| Amethyst | +4 % Seelensplitter | +8 % | +12 % |
+
+Drei gleiche verschmelzen zur nächsten Stufe (200.000 bzw. 1 Mio. Gold). Quellen: jeder Weltboss (eins, zu 25 % Stufe
+II), Tagestruhe (eins), Wochentruhe (zwei, eins davon Stufe II), Truhe des Turms (30 %), Seelensteine ab Stufe 75 (3 %),
+Heroisch/Mythisch (siehe oben). Höchstens +6 % Schaden über vier Rubine III. Spielstand: `p.juwelen`; am Teil `item.sock`
+und `item.gems` (bleiben bei Handel, Post, Auktionshaus und Lager, `itemClean`).
+
+## 9. Aufstieg (15.76)
+
+Am Veredler (Seite „Aufstieg“): legendäre Ewig-Teile auf +20, die voll veredelt sind (5 von 5), steigen bis zu dreimal
+auf – Grundwerte je +3 % (wie die Veredelung über `rarityStatMul`). Kosten: 10 / 20 / 40 Mio. Gold, 10 / 15 / 20
+Ätherkerne, 2 / 3 / 4 Seelensteine (Gegenstand). Gelingt immer. Am Teil `item.asc`, im Hinweis „Aufgestiegen ✦✦✧“.
+
+## 10. Erfolge und Titel (15.76)
+
+Code: `js/erfolge.js`. 32 Erfolge in fünf Bereichen (Abenteuer, Kampf, Endgame, Ausrüstung), 5–100 Punkte, 19 davon mit
+Titel. Die Werte kommen aus dem Spielstand (Stufe, Gold, Kills, Seelensteine, Rangkämpfe, Endbosse, Weltbosse,
+Seelenstufe, Ausrüstung, Juwelen, Aufstieg) oder aus eigenen Zählern (`p.erf.z`: Turm, Lv-80-Instanzbosse, Mythisch,
+Tagesaufträge). Geprüft alle 3 Sekunden; mehrere auf einmal (alte Spielstände) gibt es als ein Banner.
+
+- **Titel:** im Charakterfenster (Seite „Erfolge“) wählbar, steht im Kopf des Fensters und über der Figur vor der Gilde –
+  auch bei den Mitspielern (Zustand `ti` mit der Kennung des Erfolgs, `netPlayerState`/`netApplyState`; ältere Versionen
+  ignorieren das Feld). Der Titel wird übersetzt (`trText`).
+- **Seiten im Charakterfenster:** neue Seiten kommen über `CHAR_TABS_EXTRA` dazu (`oberflaeche.js`).

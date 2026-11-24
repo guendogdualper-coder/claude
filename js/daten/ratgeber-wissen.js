@@ -434,6 +434,33 @@ const RATGEBER_WISSEN = [
       'Er bleibt 15 Minuten, hat sehr viel Leben und ruft Verstärkung – am besten mit vielen Spielern. Jeder, der mitkämpft, bekommt genau ein Ausrüstungsteil (25 % legendär, sonst episch), Ätherkerne, Seelensplitter, Gold und Seelen-Erfahrung.',
     k: 'weltboss weltbosse world boss riese zeitplan wann wo uhrzeit drei stunden kristallkoloss varnhal seelenschemen aurun riffkönig morvath sonnenkoloss helyra'
   },
+  // Paket 2 (seit 15.76): Erfolge, Schwierigkeit, Pech-Schutz, Juwelen, Aufstieg
+  {
+    c: 'sinn', p: 3, q: 'Was sind Erfolge und Titel?',
+    a: 'Im Charakterfenster (C) auf der Seite <b>„Erfolge“</b> stehen 32 Ziele – von „Erreiche Stufe 10“ bis „Besiege 50 Weltbosse“. Jeder Erfolg bringt Erfolgspunkte, besondere einen <b>Titel</b>. ' +
+      'Den Titel wählst du oben auf der Seite; er steht dann über deinem Kopf vor dem Gildennamen, auch für alle anderen Spieler.',
+    k: 'erfolge erfolg titel achievements punkte erfolgspunkte name über kopf'
+  },
+  {
+    c: 'dungeons', p: 3, q: 'Was bringt Heroisch oder Mythisch?',
+    a: 'Ab Stufe 80 wählst du deine <b>Schwierigkeit</b> – auf der Seite „Seele“, am Tor einer Lv-80-Instanz oder am Turm. Sie gilt nur für dich und nur in Lv-80-Instanzen und im Turm: ' +
+      '<b>Heroisch</b> – du machst 25 % weniger Schaden und bekommst 40 % mehr, dafür Legendär-Chance ×1,5, ein Ätherkern, eine halbe Stufe Seelen-EP und mit Glück ein Juwel. ' +
+      '<b>Mythisch</b> – 40 % weniger Schaden, 80 % mehr erlitten, Legendär ×2, zwei Ätherkerne, eine Stufe Seelen-EP und ein Juwel. In einer Gruppe darf jeder seine eigene Stufe spielen.',
+    k: 'schwierigkeit heroisch mythisch normal schwer härter instanz turm stufe 80 bessere beute'
+  },
+  {
+    c: 'ausruestung', p: 3, q: 'Gibt es einen Pech-Schutz für legendäre Teile?',
+    a: 'Ja. Bei Instanzbossen, im Turm, beim Weltboss und in der Wochentruhe steigt die Chance auf ein legendäres Teil mit jedem Fehlversuch – spätestens beim <b>9. Versuch ist es sicher legendär</b>. ' +
+      'Jede Quelle zählt für sich; die nächste Chance steht nach jedem Versuch im Chat.',
+    k: 'pech schutz pity legendär garantie immer nur episch kein legendäres glück'
+  },
+  {
+    c: 'ausruestung', p: 3, q: 'Wie funktionieren Juwelen, Sockel und Aufstieg?',
+    a: 'Beim <b>Veredler</b>: Ewige Teile (episch oder legendär) bekommen <b>Sockel</b> – die Waffe zwei, Rüstung und Helm je einen. Darin sitzen Juwelen: Rubin (Schaden), Saphir (Leben), Smaragd (Abwehr), Topas (Gold) und Amethyst (Seelensplitter), ' +
+      'je in drei Stufen; drei gleiche verschmelzen zur nächsten. Juwelen gibt es von Weltbossen, aus den Truhen der Aufträge, aus dem Turm und selten aus Seelensteinen ab Stufe 75. ' +
+      '<b>Aufstieg:</b> Ein legendäres Ewig-Teil auf +20, das voll veredelt ist, steigt bis zu dreimal auf – Grundwerte je +3 %. Teuer, aber es gelingt immer.',
+    k: 'juwel juwelen sockel edelstein rubin saphir smaragd topas amethyst verschmelzen aufstieg aufsteigen legendär +20 veredler'
+  },
   {
     c: 'ausruestung', p: 3, q: 'Was macht der Veredler?',
     a: () => (typeof E80 === 'undefined') ? 'Er würfelt Boni neu, veredelt und färbt Ausrüstung.' :

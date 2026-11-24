@@ -984,16 +984,21 @@ function e80Render() {
     return gear.tile(it, `data-e80ref="${r.where}:${r.key}" class-sel="${same(r, e80Ui.ref)}"`, label, r.where === 'equip' ? r.key : undefined);
   }).join('');
   const lv80 = item && item.tier === E80.tier;
-  if (!lv80 && e80Ui.tab !== 'reroll') e80Ui.tab = 'reroll';
+  if (!lv80 && e80Ui.tab !== 'reroll' && !(typeof E80_EXTRA_TABS !== 'undefined' && item && E80_EXTRA_TABS.some((t) => t.id === e80Ui.tab && t.ok(item)))) e80Ui.tab = 'reroll';
   if (lv80 && e80Ui.tab === 'dye' && !e80CanDye(item)) e80Ui.tab = 'reroll';
+  // weitere Seiten (seit 15.76: Aufstieg und Sockel, juwelen.js)
+  const extra = typeof E80_EXTRA_TABS !== 'undefined' ? E80_EXTRA_TABS : [];
+  let xt = extra.find((t) => t.id === e80Ui.tab) || null;
+  if (xt && !(item && xt.ok(item))) { e80Ui.tab = 'reroll'; xt = null; }
   const tab = (id, name, ok) => `<button type="button" data-e80tab="${id}" class="${e80Ui.tab === id ? 'on' : ''}" ${ok ? '' : 'disabled'}>${name}</button>`;
   let work = '';
   if (!item) work = '<p class="hint-text">Du hast keine Ausrüstung ab Stufe 60. Der Veredler arbeitet nur an starken Teilen.</p>';
   else {
     work = `<div class="e80-head"><img src="${itemIconUrl(item)}" alt=""><div><strong style="color:${itemColor(item)}">${itemFullName(item)}</strong>${rarityLineHtml(item)}${setLineHtml(item)}</div></div>` +
-      `<div class="e80-tabs">${tab('reroll', 'Bonus neu würfeln', true)}${tab('ved', 'Veredeln', lv80)}${tab('dye', 'Färben', e80CanDye(item))}</div>`;
+      `<div class="e80-tabs">${tab('reroll', 'Bonus neu würfeln', true)}${tab('ved', 'Veredeln', lv80)}${tab('dye', 'Färben', e80CanDye(item))}${extra.map((t) => tab(t.id, t.name, t.ok(item))).join('')}</div>`;
     if (e80Ui.tab === 'reroll') work += e80RerollHtml(item, p);
     else if (e80Ui.tab === 'ved') work += e80VedHtml(item, p);
+    else if (xt) work += xt.html(item, p);
     else work += e80DyeHtml(item, p);
   }
   body.innerHTML = `<div class="e80"><p>„Gold allein macht niemanden stark – aber in meinen Händen wird es zu Glanz. Ich würfle einzelne Boni neu, veredle ewige Ausrüstung und gebe ihr eine neue Farbe. Billig ist das nicht.“</p>` +
@@ -1041,6 +1046,7 @@ function e80Render() {
     e80Render();
   });
   body.querySelectorAll('[data-e80dye]').forEach((b) => b.addEventListener('click', () => { e80Ui.dye = b.dataset.e80dye; e80Render(); }));
+  if (xt && xt.bind && item) xt.bind(body, item, p);
   const db = body.querySelector('[data-e80dyego]');
   if (db) db.addEventListener('click', () => {
     const it = itemAt(e80Ui.ref);

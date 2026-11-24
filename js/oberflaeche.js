@@ -1636,6 +1636,9 @@ const ui = {
     // seit 15.75: Seelenstufen ab Stufe 80 (seelenstufen.js)
     const soul = p.level >= MAX_LEVEL && typeof seeleHtml === 'function';
     if (soul) tabs.push(['seele', 'Seele', dot(seeleFree(p))]);
+    // seit 15.76: weitere Seiten (Erfolge, erfolge.js)
+    const extraTabs = typeof CHAR_TABS_EXTRA !== 'undefined' ? CHAR_TABS_EXTRA.filter((t) => t.show(p)) : [];
+    for (const t of extraTabs) tabs.push([t.id, t.label, dot(t.dot ? t.dot(p) : 0)]);
     const pages = {
       status: this.elementHtml(p) + this.attrHtml(p),
       skills:
@@ -1668,8 +1671,12 @@ const ui = {
         `</dl>`,
       seele: soul ? seeleHtml(p) : ''
     };
+    const xtab = extraTabs.find((t) => t.id === tab) || null;
+    if (xtab) pages[tab] = xtab.html(p);
+    else if (!pages[tab]) pages[tab] = pages.status;
+    const titel = typeof erfTitelOf === 'function' ? erfTitelOf(p) : '';
     $('charBody').innerHTML =
-      `<p class="char-head"><span><strong>${escapeHtml(p.name)}</strong> · ${c.name} · ${classPath(p.classId, p.path).name} · Stufe ${p.level}</span>` +
+      `<p class="char-head"><span><strong>${escapeHtml(p.name)}</strong>${titel ? ` <em class="char-titel">«${escapeHtml(titel)}»</em>` : ''} · ${c.name} · ${classPath(p.classId, p.path).name} · Stufe ${p.level}</span>` +
       `<button type="button" class="mini-btn" id="btnLook">✂ Aussehen ändern</button></p>` +
       `<nav class="char-tabs" role="tablist">` +
       tabs.map(([id, label, extra]) => `<button type="button" role="tab" data-ctab="${id}" class="${id === tab ? 'on' : ''}" aria-selected="${id === tab}">${label}${extra}</button>`).join('') +
@@ -1685,6 +1692,7 @@ const ui = {
     });
     $('btnLook').addEventListener('click', () => this.openLookPanel());
     if (tab === 'seele' && typeof seeleBind === 'function') seeleBind($('charBody'));
+    if (xtab && xtab.bind) xtab.bind($('charBody'));
     if ($('charDoll') && typeof drawDoll === 'function') drawDoll($('charDoll'));
     $('charBody').querySelectorAll('[data-upgrade]').forEach((b) => {
       // seit 14.32: Vorschau mit Bestätigen, auch ohne Punkte/Bücher (dann ist „Bestätigen“ gesperrt)

@@ -2199,7 +2199,10 @@ function drawLabel(ctx, e) {
     const pv = typeof pvpLabelInfo === 'function' ? pvpLabelInfo(e) : null;
     const lvY = y - (mate ? 14 : 11);
     // Gildenname in der Gildenfarbe über der Stufe
-    const guild = (e === p ? (p.guild ? p.guild.name : '') : e.guild) || '';
+    // seit 15.76: Titel aus den Erfolgen (erfolge.js) vor der Gilde
+    const gname = (e === p ? (p.guild ? p.guild.name : '') : e.guild) || '';
+    const ttl = typeof erfTitelOf === 'function' ? erfTitelOf(e) : '';
+    const guild = ttl ? (gname ? `«${ttl}» · ${gname}` : `«${ttl}»`) : gname;
     const nameColor = pv ? pv.color : mate ? '#5dff6e' : e.remote ? '#a8f0a0' : '#9fe0ff';
     const tier = pv && pv.tier ? pv.tier : null; // seit 14.54 ohne Stein für die andere Seite
     // seit Wärme 2 ein fertiges Bild (Stufe, Stein, Gilde, Name), am Spieler gemerkt

@@ -126,7 +126,7 @@ function weltbossLoot(m) {
   wbMarkDone(m.wbEvent != null ? m.wbEvent : wbEvent().i);
   // genau ein Ausrüstungsteil für die eigene Klasse (Stufe 80): mit Glück legendär, sonst episch
   // (bei voller Tasche geht nur dieses eine Teil verloren, kein episches als Ersatz)
-  const leg = Math.random() < WB.legendary;
+  const leg = typeof pechLeg === 'function' ? pechLeg('weltboss', WB.legendary) : Math.random() < WB.legendary; // seit 15.76 mit Pech-Schutz
   if (leg) dropLegendary(m);
   else giveRarityItem(rollRarityItem(80, 3, null, Math.random() < 0.35 ? 'waffe' : null), m);
   const kerne = randInt(2, 3);

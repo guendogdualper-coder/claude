@@ -1951,7 +1951,9 @@ function turmMiniLoot(m) {
 // Phase 2 bis 15.73: drei epische und ein legendäres oder viertes episches. Rückgabe: was es gab
 function turmFinalLoot(m) {
   const p = game.player;
-  const leg = Math.random() < Math.max(INST.legendary80, TURM.truheLeg) ? dropLegendary(m) : null;
+  // seit 15.76 mit Pech-Schutz (pechschutz.js) und der Schwierigkeit (schwierigkeit.js)
+  const base = Math.max(INST.legendary80, TURM.truheLeg) * (typeof diffNow === 'function' ? diffNow().leg : 1);
+  const leg = (typeof pechLeg === 'function' ? pechLeg('turm', base) : Math.random() < base) ? dropLegendary(m) : null;
   if (!leg) giveRarityItem(setTagItem(rollRarityItem(80, 3, null, Math.random() < 0.5 ? 'waffe' : null), m), m);
   instMats(m, { splinters: randInt(14, 20) }, randInt(5, 7));
   const kerne = randInt(2, 3);
