@@ -434,10 +434,36 @@ const RATGEBER_WISSEN = [
       'Er bleibt 15 Minuten, hat sehr viel Leben und ruft Verstärkung – am besten mit vielen Spielern. Jeder, der mitkämpft, bekommt genau ein Ausrüstungsteil (25 % legendär, sonst episch), Ätherkerne, Seelensplitter, Gold und Seelen-Erfahrung.',
     k: 'weltboss weltbosse world boss riese zeitplan wann wo uhrzeit drei stunden kristallkoloss varnhal seelenschemen aurun riffkönig morvath sonnenkoloss helyra'
   },
+  // Paket 3 (seit 15.78): Ereignisse ohne Server (ereignisse.js)
+  {
+    c: 'sinn', p: 3, q: 'Wann gibt es doppelte Erfahrung?',
+    a: 'Am <b>ersten und dritten Wochenende</b> jedes Monats (der Samstag liegt am 1.–7. oder 15.–21.) von Freitag 18 Uhr bis Sonntag 24 Uhr: doppelte Erfahrung für alle Charaktere, auf Stufe 80 doppelte Seelen-Erfahrung. ' +
+      'Oben links in der Leiste steht dann ein Stern mit der Restzeit; das nächste Wochenende steht im Charakterfenster (C) auf der Seite „Ereignisse“.',
+    k: 'doppel ep doppelte erfahrung wochenende event xp bonus wann'
+  },
+  {
+    c: 'sinn', p: 3, q: 'Was ist das Winterfest?',
+    a: 'Vom <b>1. Dezember bis 6. Januar</b>. Monster lassen manchmal eine <b>Schneeflocke</b> fallen, Bosse fünf, Seelensteine drei (nur Gegner höchstens 10 Stufen unter dir). ' +
+      'Jeden Tag holst du dir im Charakterfenster (C) unter „Ereignisse“ ein Festgeschenk mit 10 Schneeflocken. Dort tauschst du sie gegen Gold, Seelensplitter und Erfahrungsringe, ab Stufe 75 auch gegen Ätherkerne und Juwelen. ' +
+      'Wer 1.000 Schneeflocken sammelt, bekommt den Titel „Winterherz“.',
+    k: 'winterfest winter fest schneeflocke schneeflocken geschenk festgeschenk dezember tausch'
+  },
+  {
+    c: 'pvp', p: 3, q: 'Was sind PvP-Saisons?',
+    a: 'Eine Saison der Turnierarena dauert <b>zwei Monate</b> (Saison 1 ab 1. Dezember 2026). Wer in der Saison mindestens einen Rangkampf hatte, bekommt am Ende eine Belohnung nach der <b>besten Rangstufe</b> der Saison: Gold und Seelensplitter, ab Gold auch Ätherkerne, ab Platin Juwelen. ' +
+      'Danach werden die Rangpunkte halbiert. Wer eine Saison als Champion beendet, bekommt den Titel „Saisonchampion“. Die Bestenliste der Turnierarena zeigt nur die laufende Saison.',
+    k: 'saison saisons pvp turnierarena rangpunkte belohnung champion halbiert rangstufe'
+  },
+  {
+    c: 'sinn', p: 3, q: 'Bekommen weitere Charaktere einen Bonus?',
+    a: 'Ja, das <b>Erbe der Ahnen</b>: Hat ein anderer Charakter auf deinem Konto Stufe 40, 60 oder 80, bekommen alle anderen <b>+15, +30 oder +50 % Erfahrung</b>, bis sie seine Stufe erreichen. ' +
+      'Oben links steht dann ein Baum mit dem Bonus. Zwei Charaktere auf Stufe 80 bringen den Titel „Hüter der Ahnen“.',
+    k: 'erbe ahnen twink zweitcharakter weitere charaktere bonus erfahrung zweiter charakter'
+  },
   // Paket 2 (seit 15.76): Erfolge, Schwierigkeit, Pech-Schutz, Juwelen, Aufstieg
   {
     c: 'sinn', p: 3, q: 'Was sind Erfolge und Titel?',
-    a: 'Im Charakterfenster (C) auf der Seite <b>„Erfolge“</b> stehen 32 Ziele – von „Erreiche Stufe 10“ bis „Besiege 50 Weltbosse“. Jeder Erfolg bringt Erfolgspunkte, besondere einen <b>Titel</b>. ' +
+    a: 'Im Charakterfenster (C) auf der Seite <b>„Erfolge“</b> stehen 37 Ziele – von „Erreiche Stufe 10“ bis „Besiege 50 Weltbosse“. Jeder Erfolg bringt Erfolgspunkte, besondere einen <b>Titel</b>. ' +
       'Den Titel wählst du oben auf der Seite; er steht dann über deinem Kopf vor dem Gildennamen, auch für alle anderen Spieler.',
     k: 'erfolge erfolg titel achievements punkte erfolgspunkte name über kopf'
   },

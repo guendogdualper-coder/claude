@@ -334,7 +334,9 @@ async function rankRender() {
     list = '<p class="rk-msg rk-wait">Lade die Bestenliste …</p>';
   } else {
     const full = rank.cls ? c.list.filter((e) => e.cls === rank.cls) : c.list;
-    const vis = tab === 'pvp' ? full.filter((e) => e.rp > 0) : full;
+    // seit 15.78: in der Turnierarena nur Einträge der laufenden PvP-Saison (ereignisse.js)
+    const sFrom = tab === 'pvp' && typeof evSaisonFrom === 'function' ? evSaisonFrom() : 0;
+    const vis = tab === 'pvp' ? full.filter((e) => e.rp > 0 && (!sFrom || (e.at || 0) >= sFrom)) : full;
     const shown = vis.slice(0, RANK.show);
     const myId = rankMyId();
     const pre = rankMyPrefix();
@@ -344,7 +346,7 @@ async function rankRender() {
     foot = rankOwnHtml(vis, shown, tab);
   }
   body.innerHTML = tabs + chips + `<div class="rk-scroll">${list}</div>` + foot +
-    `<div class="rk-foot"><small>${tab === 'pvp' ? 'Rangpunkte aus den Rangkämpfen der Turnierarena.' : 'Bei gleicher Stufe zählt die Erfahrung.'}</small>` +
+    `<div class="rk-foot"><small>${tab === 'pvp' ? 'Rangpunkte aus den Rangkämpfen der Turnierarena.' + (typeof evSaison === 'function' ? ' · ' + evSaisonName(evSaison().n) : '') : 'Bei gleicher Stufe zählt die Erfahrung.'}</small>` +
     (cached ? `<small class="rk-time">Stand ${new Date(c.at).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}</small>` : '') +
     `<button type="button" class="mini-btn" data-rfresh>Aktualisieren</button></div>`;
   body.querySelectorAll('[data-rtab]').forEach((b) => b.addEventListener('click', () => { rank.tab = b.dataset.rtab; rankRender(); }));

@@ -1303,31 +1303,38 @@ const ui = {
     // Buffs als Symbole mit Restzeit; der Ring zeigt, wie viel noch übrig ist
     const buffs = p.buffs.map((b) => ({ b, left: Math.max(0, Math.ceil(b.until - game.time)) }));
     const shield = p.shield > 0 ? Math.ceil(p.shield) : 0;
-    // Startbonus (seit 13.10): steht vorn in der Leiste, solange er läuft (Restzeit in Tagen)
-    const evDays = eventXpActive() ? Math.ceil((EVENT_XP.until - Date.now()) / 86400000) : 0;
+    // Erfahrungs-Ereignis (Startbonus seit 13.10, Doppel-EP-Wochenenden seit 15.78, ereignisse.js): steht vorn in der
+    // Leiste, solange es läuft (Restzeit in Stunden, ab zwei Tagen in Tagen)
+    const evLeft = eventXpActive() ? EVENT_XP.until - Date.now() : 0;
+    const evH = evLeft > 0 ? Math.ceil(evLeft / 3600000) : 0;
+    // Erbe der Ahnen (seit 15.78, ereignisse.js): Bonus, weil ein anderer Charakter des Kontos höher ist
+    const erbe = typeof evErbeMul === 'function' ? Math.round(evErbeMul(p) * 100) : 0;
     // Gift eines anderen Spielers (seit 14.15) als Debuff in der Leiste: „Vergiftet · 4 s · 312/s“
     const tox = p.toxin && p.toxin.until > game.time ? { left: Math.max(1, Math.ceil(p.toxin.until - game.time - 0.01)), dps: Math.round(p.toxin.dps) } : null;
     // Blutung eines anderen Spielers (Aderlass im PvP, seit dem Aderlass-Update): „Blutung ×3 · 4 s · 210/s“
     const bld = p.pvpBleed && p.pvpBleed.until > game.time ? { left: Math.max(1, Math.ceil(p.pvpBleed.until - game.time - 0.01)), dps: Math.round(p.pvpBleed.dps), stk: p.pvpBleed.stk || 1 } : null;
     // Erfahrungsring (seit 14.99): Restzeit in Minuten
     const ringMin = typeof epRingLeft === 'function' ? Math.ceil(epRingLeft(p) / 60) : 0;
-    this.set('buffs', buffs.map(({ b, left }) => b.id + left).join('|') + '|' + shield + '|' + evDays + '|' + (tox ? tox.left + ':' + tox.dps : '') + '|' + (bld ? bld.left + ':' + bld.dps + ':' + bld.stk : '') + '|' + ringMin, () => {
+    this.set('buffs', buffs.map(({ b, left }) => b.id + left).join('|') + '|' + shield + '|' + evH + ':' + erbe + '|' + (tox ? tox.left + ':' + tox.dps : '') + '|' + (bld ? bld.left + ':' + bld.dps + ':' + bld.stk : '') + '|' + ringMin, () => {
       const ring = ringMin ? `<div class="buff-ico buff-ring${ringMin <= 5 ? ' ending' : ''}" style="--p:${Math.min(1, ringMin / EP_RING.minutes).toFixed(3)}" data-tip="${escapeHtml(`Erfahrungsring\n+${Math.round(EP_RING.mul * 100)} % Erfahrung\nnoch ${epRingTime(epRingLeft(p))} Spielzeit`)}">` +
         `<img src="${materialIconUrl('epring')}" alt="Erfahrungsring"><span>${ringMin >= 60 ? Math.floor(ringMin / 60) + ' h' : ringMin + ' m'}</span></div>` : '';
-      const ev = evDays ? `<div class="buff-ico buff-event" style="--p:${(evDays / 22).toFixed(3)}" data-tip="${escapeHtml(`${EVENT_XP.name}\n+${Math.round(EVENT_XP.mul * 100)} % Erfahrung für alle Charaktere\nnoch ${evDays} ${evDays === 1 ? 'Tag' : 'Tage'} (bis 22.11.), bleibt auch beim Tod`)}">` +
-        `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.6 6.2 6.7.6-5.1 4.4 1.6 6.6L12 16.8l-5.8 3.5 1.6-6.6-5.1-4.4 6.7-.6z"/></svg><span>${evDays} T</span></div>` : '';
+      const evTxt = evH > 48 ? `noch ${Math.ceil(evH / 24)} Tage` : evH === 1 ? 'noch 1 Stunde' : `noch ${evH} Stunden`;
+      const ev = evH ? `<div class="buff-ico buff-event" style="--p:${Math.min(1, evLeft / Math.max(1, EVENT_XP.until - (EVENT_XP.from || 0))).toFixed(3)}" data-tip="${escapeHtml(`${EVENT_XP.name}\n+${Math.round(EVENT_XP.mul * 100)} % Erfahrung für alle Charaktere\n${evTxt}, bleibt auch beim Tod`)}">` +
+        `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.6 6.2 6.7.6-5.1 4.4 1.6 6.6L12 16.8l-5.8 3.5 1.6-6.6-5.1-4.4 6.7-.6z"/></svg><span>${evH > 48 ? Math.ceil(evH / 24) + ' T' : evH + ' h'}</span></div>` : '';
+      const erbeIco = erbe ? `<div class="buff-ico buff-event buff-erbe" style="--p:1" data-tip="${escapeHtml(`Erbe der Ahnen\n+${erbe} % Erfahrung\nwirkt bis Stufe ${evErbeScan().max} – so hoch ist dein stärkster anderer Charakter`)}">` +
+        `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5c-3 0-5.2 2.3-5.2 5 0 .9.3 1.8.7 2.5-1.6.7-2.7 2.2-2.7 4 0 2.6 2.3 4.7 5.1 4.7h1.1v2.8h2v-2.8h1.1c2.8 0 5.1-2.1 5.1-4.7 0-1.8-1.1-3.3-2.7-4 .4-.7.7-1.6.7-2.5 0-2.7-2.2-5-5.2-5z"/></svg><span>+${erbe}%</span></div>` : '';
       const debuff = tox ? `<div class="buff-ico buff-debuff" style="--p:${(tox.left / TOXIN.dur).toFixed(3)}" data-tip="${escapeHtml(`Vergiftet · ${tox.left} s · ${tox.dps}/s\nGift eines anderen Spielers`)}">` +
         `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5c3.6 4.6 6.2 8.3 6.2 11.4a6.2 6.2 0 0 1-12.4 0C5.8 10.8 8.4 7.1 12 2.5z"/><circle cx="9.6" cy="14.2" r="1.3"/><circle cx="13.8" cy="16.6" r="1"/></svg><span>${tox.left} s</span></div>` : '';
       const bleedIco = bld ? `<div class="buff-ico buff-debuff buff-bleed" style="--p:${Math.min(1, bld.left / 6).toFixed(3)}" data-tip="${escapeHtml(`Blutung${bld.stk > 1 ? ' ×' + bld.stk : ''} · ${bld.left} s · ${bld.dps}/s\nAderlass eines anderen Spielers`)}">` +
         `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5c3.6 4.6 6.2 8.3 6.2 11.4a6.2 6.2 0 0 1-12.4 0C5.8 10.8 8.4 7.1 12 2.5z"/></svg><span>${bld.left} s</span></div>` : '';
-      $('buffList').innerHTML = ev + ring + debuff + bleedIco + buffs.map(({ b, left }) => {
+      $('buffList').innerHTML = ev + erbeIco + ring + debuff + bleedIco + buffs.map(({ b, left }) => {
         const sk = skillById(b.id);
         const icon = sk ? skillIconUrl(sk) : typeof segenIconUrl === 'function' ? segenIconUrl(b.id) : '';
         const extra = b.id === 'knochenpanzer' && shield ? `<em>${shield}</em>` : '';
         return `<div class="buff-ico${left <= 10 ? ' ending' : ''}" style="--p:${(left / b.duration).toFixed(3)}" data-tip="${escapeHtml(buffTip(b))}">` +
           `<img src="${icon}" alt="${b.name}">${extra}<span>${formatBuffTime(left)}</span></div>`;
       }).join('');
-      $('hud').classList.toggle('has-buffs', buffs.length > 0 || evDays > 0 || !!tox || !!bld || ringMin > 0);
+      $('hud').classList.toggle('has-buffs', buffs.length > 0 || evH > 0 || erbe > 0 || !!tox || !!bld || ringMin > 0);
     });
 
     if (typeof segenTick === 'function') segenTick();

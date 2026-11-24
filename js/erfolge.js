@@ -38,7 +38,13 @@ const ERFOLGE = [
   { id: 'plus20', kat: 'Ausrüstung', name: 'Meisterschmied', text: 'Trage ein Teil auf +20', need: 1, val: (p) => erfEq(p).filter((it) => it.plus >= 20).length, pts: 30, titel: 'Meisterschmied' },
   { id: 'leg5', kat: 'Ausrüstung', name: 'Legendenträger', text: 'Trage {n} legendäre Teile zugleich', need: 5, val: (p) => erfEq(p).filter((it) => rarityOf(it) >= 4).length, pts: 30, titel: 'Legendenträger' },
   { id: 'juwel4', kat: 'Ausrüstung', name: 'Juwelier', text: 'Trage {n} eingesetzte Juwelen', need: 4, val: (p) => (typeof juwelSum === 'function' ? juwelSum(p).n : 0), pts: 25 },
-  { id: 'aufst', kat: 'Ausrüstung', name: 'Aufgestiegen', text: 'Lass ein Teil dreimal aufsteigen', need: 3, val: (p) => Math.max(0, ...erfEq(p).map((it) => (typeof aufstOf === 'function' ? aufstOf(it) : 0))), pts: 50, titel: 'der Aufgestiegene' }
+  { id: 'aufst', kat: 'Ausrüstung', name: 'Aufgestiegen', text: 'Lass ein Teil dreimal aufsteigen', need: 3, val: (p) => Math.max(0, ...erfEq(p).map((it) => (typeof aufstOf === 'function' ? aufstOf(it) : 0))), pts: 50, titel: 'der Aufgestiegene' },
+  // seit 15.78: Ereignisse (ereignisse.js) – Winterfest, PvP-Saisons, Erbe der Ahnen
+  { id: 'winter1', kat: 'Ereignisse', name: 'Festgast', text: 'Sammle {n} Schneeflocken beim Winterfest', need: 100, val: (p) => (p.ev && p.ev.flTot) | 0, pts: 10 },
+  { id: 'winter2', kat: 'Ereignisse', name: 'Winterherz', text: 'Sammle {n} Schneeflocken beim Winterfest', need: 1000, val: (p) => (p.ev && p.ev.flTot) | 0, pts: 30, titel: 'Winterherz' },
+  { id: 'saison1', kat: 'Ereignisse', name: 'Saisonkämpfer', text: 'Beende eine PvP-Saison mindestens auf Gold', need: 1, val: (p) => (((p.ev && p.ev.sTop) | 0) >= 2 ? 1 : 0), pts: 15 },
+  { id: 'saison2', kat: 'Ereignisse', name: 'Saisonchampion', text: 'Beende eine PvP-Saison als Champion', need: 1, val: (p) => (((p.ev && p.ev.sTop) | 0) >= 5 ? 1 : 0), pts: 50, titel: 'Saisonchampion' },
+  { id: 'erbe', kat: 'Ereignisse', name: 'Ahnenreihe', text: 'Bringe {n} Charaktere deines Kontos auf Stufe 80', need: 2, val: (p) => (p.level >= MAX_LEVEL ? 1 : 0) + (typeof evErbeScan === 'function' && p === game.player ? evErbeScan().n80 : 0), pts: 30, titel: 'Hüter der Ahnen' }
 ];
 const ERFOLG_BY_ID = Object.fromEntries(ERFOLGE.map((e) => [e.id, e]));
 if (typeof SAVE_FIELDS !== 'undefined' && !SAVE_FIELDS.includes('erf')) SAVE_FIELDS.push('erf');

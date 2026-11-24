@@ -11,7 +11,7 @@ Umgesetzt in drei Paketen, jedes einzeln getestet und veröffentlicht:
 |---|---|---|
 | 1 | 15.75 | Seelenstufen, Tages- und Wochenaufträge, Weltbosse (dieses Dokument) |
 | 2 | 15.76 | Erfolge und Titel, Schwierigkeitsstufen für Instanzen und Turm, Pech-Schutz, Aufstieg legendärer +20-Teile, Juwelen/Sockel (Abschnitte 6–10) |
-| 3 | 15.78 | Gildenstufen und Gildenboss, Grenzschlacht, PvP-Saisons, Events (Winterfest, Doppel-EP-Wochenenden), Bonus für weitere Charaktere |
+| 3 | 15.78 | PvP-Saisons, Events (Winterfest, Doppel-EP-Wochenenden), Bonus für weitere Charaktere (Abschnitte 11–14); Gildenstufen, Gildenboss und Grenzschlacht folgen (Abschnitt 15) |
 
 Ausrüstung, Schmied, Prägungen und Veredler auf Stufe 80: `docs/endgame-80.md`.
 
@@ -180,8 +180,8 @@ auf – Grundwerte je +3 % (wie die Veredelung über `rarityStatMul`). Kosten: 1
 
 ## 10. Erfolge und Titel (15.76)
 
-Code: `js/erfolge.js`. 32 Erfolge in fünf Bereichen (Abenteuer, Kampf, Endgame, Ausrüstung), 5–100 Punkte, 19 davon mit
-Titel. Die Werte kommen aus dem Spielstand (Stufe, Gold, Kills, Seelensteine, Rangkämpfe, Endbosse, Weltbosse,
+Code: `js/erfolge.js`. 32 Erfolge in vier Bereichen (Abenteuer, Kampf, Endgame, Ausrüstung), 5–100 Punkte, 19 davon mit
+Titel; seit 15.78 fünf weitere im Bereich „Ereignisse“ (Abschnitt 14). Die Werte kommen aus dem Spielstand (Stufe, Gold, Kills, Seelensteine, Rangkämpfe, Endbosse, Weltbosse,
 Seelenstufe, Ausrüstung, Juwelen, Aufstieg) oder aus eigenen Zählern (`p.erf.z`: Turm, Lv-80-Instanzbosse, Mythisch,
 Tagesaufträge). Geprüft alle 3 Sekunden; mehrere auf einmal (alte Spielstände) gibt es als ein Banner.
 
@@ -189,3 +189,73 @@ Tagesaufträge). Geprüft alle 3 Sekunden; mehrere auf einmal (alte Spielstände
   auch bei den Mitspielern (Zustand `ti` mit der Kennung des Erfolgs, `netPlayerState`/`netApplyState`; ältere Versionen
   ignorieren das Feld). Der Titel wird übersetzt (`trText`).
 - **Seiten im Charakterfenster:** neue Seiten kommen über `CHAR_TABS_EXTRA` dazu (`oberflaeche.js`).
+
+## 11. Doppel-EP-Wochenenden (15.78)
+
+Code: `js/ereignisse.js` (`evEpWochenende`, `evEpNaechstes`, `evSyncXp`). Am ersten und dritten Wochenende jedes Monats –
+der Samstag liegt am 1.–7. oder 15.–21. – von Freitag 18 Uhr bis Montag 0 Uhr (Uhr des Geräts) doppelte Erfahrung.
+Kein eigener Multiplikator: `EVENT_XP` aus `js/daten/quests.js` (früher nur der Startbonus) wird alle 5 Sekunden auf das
+laufende Wochenende gesetzt (`mul: 1`, `from`, `until`, Name) und danach wieder auf den alten, abgelaufenen Startbonus.
+`EVENT_XP` wirkt schon in `gainXp`, in den Seelenstufen (`seeleGain`) und in der Herausforderungs-Arena. Die Leiste oben
+links zeigt einen Stern mit Restzeit (Stunden, ab zwei Tagen Tage), Banner und Chat-Meldung beim Beginn.
+
+## 12. Winterfest (15.78)
+
+Vom 1. Dezember bis 6. Januar (Gerätezeit, `evWinter`). Schneeflocken (`p.ev.fl`, insgesamt `p.ev.flTot`) über eine Hülle
+um `questEvent`: Seelenstein 3, Boss/Endboss/Weltboss 5, sonst 4 % auf 1 – nur Gegner höchstens 10 Stufen unter der
+Figur. Festgeschenk einmal am Tag (`p.ev.gift`, 10 Schneeflocken), Punkt am Reiter „Ereignisse“, solange es offen ist.
+
+| Tausch | Schneeflocken | Inhalt |
+|---|---|---|
+| Festbeutel | 10 | Stufe × 2.500 Gold |
+| Seelensplitter | 15 | 40 Stück |
+| Ätherkerne | 25 | 3 Stück (ab Stufe 75) |
+| Erfahrungsring | 30 | 1 Ring (+25 % EP, 60 Min.) |
+| Juwel | 60 | Stufe I, zufällige Art (ab Stufe 75) |
+
+Außerhalb des Fests bleiben die Schneeflocken im Spielstand, getauscht wird nur während des Fests.
+
+## 13. PvP-Saisons (15.78)
+
+Je zwei Monate nach Weltzeit (`evSaison`): Saison 1 ab 1.12.2026, Saison 2 ab 1.2.2027 usw.; davor „Vorsaison“ (0).
+Der Stand steht in `p.pvp`: `sz` (Saison), `sg0` (Kämpfe zu Saisonbeginn), `sbest` (beste Punkte der Saison). Ein alter
+Spielstand ohne `sz` gehört zur Vorsaison, mit der besten Wertung, die es schon gab (`best`). Beim Saisonwechsel
+(`evSaisonCheck`, alle 5 Sekunden im Spiel): wer mindestens einen Rangkampf in der alten Saison hatte, bekommt die
+Belohnung der besten Rangstufe, danach werden die Rangpunkte halbiert (auf 25 gerundet) – auch wenn mehrere Saisons
+dazwischen lagen nur einmal.
+
+| Rangstufe | Gold (Stufe 80, darunter anteilig, mindestens 10 %) | Seelensplitter | Ätherkerne | Juwelen (ab Stufe 75) |
+|---|---|---|---|---|
+| Bronze | 100.000 | 20 | – | – |
+| Silber | 250.000 | 40 | – | – |
+| Gold | 500.000 | 60 | 2 | – |
+| Platin | 1.000.000 | 80 | 4 | 1 |
+| Diamant | 2.000.000 | 100 | 6 | 1 |
+| Champion | 3.000.000 | 150 | 10 | 2 |
+
+Die Bestenliste (`bestenliste.js`) zeigt in der Turnierarena nur Einträge, die in der laufenden Saison geschrieben wurden
+(Feld `at`, Serverzeit) – so fallen alte Wertungen heraus, bis ihr Spieler wieder online war. Beim Turniermeister und im
+Reiter „Ereignisse“ stehen Saison, Ende und beste Stufe.
+
+## 14. Erbe der Ahnen und Erfolge „Ereignisse“ (15.78)
+
+Bonus für weitere Charaktere: `evErbeScan` liest einmal in der Minute die Charakterplätze (`listSaves`, ohne die eigene
+Figur). Ist der stärkste andere Charakter Stufe 40/60/80, gibt es +15/+30/+50 % Erfahrung (Hülle um `gainXp`), solange
+die eigene Stufe darunter liegt (nie auf Stufe 80). Symbol in der Leiste oben links.
+
+Neue Erfolge (Bereich „Ereignisse“): Festgast (100 Schneeflocken), Winterherz (1.000, Titel), Saisonkämpfer (Saisonende
+mindestens Gold), Saisonchampion (Saisonende als Champion, Titel), Ahnenreihe (zwei Charaktere auf Stufe 80, Titel
+„Hüter der Ahnen“).
+
+Test: `endtest4/test.js` (Scratchpad) – Uhr mit Versatz: Wochenenden (4.12., 18.12., 1.1. ja; 11.12. nein; Freitag 17:59
+nein, Sonntag 23:30 ja, Montag 0:30 nein), Erfahrung ×2, Winterfest-Beute je Art, Festgeschenk einmal am Tag, Tausch,
+Ende des Fests am 7.1.; Saisonwechsel Vorsaison → 1 (Champion: 1.875.000 Gold auf Stufe 50, 150 Splitter, 10 Kerne,
+Punkte 1050 → 525, kein zweites Mal), 1 → 2 ohne Kampf (keine Belohnung, 525 → 275); Erbe +50 % mit einem zweiten
+Charakter auf Stufe 80; Leiste, Reiter, Turniermeister.
+
+## 15. Noch offen: Gilden-Inhalte
+
+Gildenstufen, Gildenboss und Grenzschlacht brauchen einen gemeinsamen Speicher für die Gilde (heute steht die Gilde nur
+in den Spielständen der Mitglieder). Zwei Wege: die Regeln der Firebase-Datenbank um einen Pfad für Gilden erweitern
+(die Regeln trägt der Betreiber in der Firebase-Konsole ein) oder ganz ohne Server nur das zählen, was die gerade
+eingeloggten Mitglieder beitragen. Die Entscheidung steht aus.
