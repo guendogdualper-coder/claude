@@ -5686,4 +5686,20 @@
 "Nur gegen normale Angriffe – Fertigkeiten treffen immer": "Apenas contra ataques normais – habilidades sempre acertam",
 // 15.80: Bonus Zaubergeschwindigkeit
 "Zaubergeschwindigkeit": "Velocidade de conjuração",
+// 15.81: Turnierarena gegen Bots
+"Gegen Bots": "Contra bots",
+"gegen Bots": "contra bots",
+"gegen Bots: halbe Punkte": "contra bots: metade dos pontos",
+"Bots füllen in {0} s auf": "Bots completam em {0} s",
+"Nächster Kampf gegen Bots in {0} s": "Próxima luta contra bots em {0} s",
+"Turmschlacht mit Bots.": "Batalha da torre com bots.",
+"Die Bots passen sich deiner Ausrüstung an.": "Os bots se ajustam ao seu equipamento.",
+"Alle Hallen dieser Art sind gerade belegt – versuch es gleich noch einmal.": "Todas as salas deste modo estão ocupadas – tente de novo em instantes.",
+"Nicht genug Spieler – Bots füllen auf (halbe Punkte).": "Jogadores insuficientes – bots completam (metade dos pontos).",
+"Ein echter Kampf beginnt – der Kampf gegen Bots entfällt.": "Uma luta real está começando – a luta contra bots foi cancelada.",
+"Kein echter Kampf – dieser Sieg bringt keine Punkte.": "Não foi uma luta real – esta vitória não dá pontos.",
+"Kampf gegen Bots: Sieg +{0}, Niederlage −{1} Rangpunkte (halbe Punkte).": "Luta contra bots: vitória +{0}, derrota −{1} pontos de ranque (metade dos pontos).",
+"Gegen Bots: sofort los, Sieg +{0}, Niederlage −{1}. Wartest du {2} s ohne genug Mitspieler, füllen Bots auf.": "Contra bots: começa na hora, vitória +{0}, derrota −{1}. Se esperar {2} s sem jogadores suficientes, bots completam.",
+"Ohne Server kämpfst du hier gegen Bots – mit halben Rangpunkten. Für Kämpfe gegen echte Spieler geh über „Server“ online in einen Kanal.": "Sem servidor, aqui você luta contra bots – por metade dos pontos de ranque. Para lutar contra jogadores reais, entre em um canal online em “Servidor”.",
+"Blau gegen Rot mit Bots, ohne Rang. Lade den Turm in der Mitte auf {0} % oder hol {1} Kills.": "Azul contra Vermelho com bots, sem ranque. Carregue a torre do centro até {0} % ou faça {1} abates.",
 };

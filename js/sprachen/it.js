@@ -5679,4 +5679,20 @@
 "Nur gegen normale Angriffe – Fertigkeiten treffen immer": "Solo contro gli attacchi normali – le abilità colpiscono sempre",
 // 15.80: Bonus Zaubergeschwindigkeit
 "Zaubergeschwindigkeit": "Velocità di lancio",
+// 15.81: Turnierarena gegen Bots
+"Gegen Bots": "Contro bot",
+"gegen Bots": "contro bot",
+"gegen Bots: halbe Punkte": "contro bot: metà punti",
+"Bots füllen in {0} s auf": "I bot completano tra {0} s",
+"Nächster Kampf gegen Bots in {0} s": "Prossimo scontro contro bot tra {0} s",
+"Turmschlacht mit Bots.": "Battaglia della torre con bot.",
+"Die Bots passen sich deiner Ausrüstung an.": "I bot si adattano al tuo equipaggiamento.",
+"Alle Hallen dieser Art sind gerade belegt – versuch es gleich noch einmal.": "Tutte le sale di questa modalità sono occupate – riprova tra poco.",
+"Nicht genug Spieler – Bots füllen auf (halbe Punkte).": "Giocatori insufficienti – i bot completano (metà punti).",
+"Ein echter Kampf beginnt – der Kampf gegen Bots entfällt.": "Inizia uno scontro vero – lo scontro contro i bot è annullato.",
+"Kein echter Kampf – dieser Sieg bringt keine Punkte.": "Non è stato uno scontro vero – questa vittoria non dà punti.",
+"Kampf gegen Bots: Sieg +{0}, Niederlage −{1} Rangpunkte (halbe Punkte).": "Scontro contro bot: vittoria +{0}, sconfitta −{1} punti rango (metà punti).",
+"Gegen Bots: sofort los, Sieg +{0}, Niederlage −{1}. Wartest du {2} s ohne genug Mitspieler, füllen Bots auf.": "Contro bot: si parte subito, vittoria +{0}, sconfitta −{1}. Se aspetti {2} s senza abbastanza giocatori, i bot completano.",
+"Ohne Server kämpfst du hier gegen Bots – mit halben Rangpunkten. Für Kämpfe gegen echte Spieler geh über „Server“ online in einen Kanal.": "Senza server qui combatti contro i bot – con metà dei punti rango. Per sfidare giocatori veri, entra online in un canale tramite «Server».",
+"Blau gegen Rot mit Bots, ohne Rang. Lade den Turm in der Mitte auf {0} % oder hol {1} Kills.": "Blu contro Rosso con bot, senza classifica. Carica la torre al centro al {0} % o fai {1} uccisioni.",
 };

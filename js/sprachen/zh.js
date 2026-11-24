@@ -5278,4 +5278,20 @@
 "Nur gegen normale Angriffe – Fertigkeiten treffen immer": "仅对普通攻击有效——技能必定命中",
 // 15.80: Bonus Zaubergeschwindigkeit
 "Zaubergeschwindigkeit": "施法速度",
+// 15.81: Turnierarena gegen Bots
+"Gegen Bots": "对战机器人",
+"gegen Bots": "对战机器人",
+"gegen Bots: halbe Punkte": "对战机器人：积分减半",
+"Bots füllen in {0} s auf": "{0}秒后由机器人补位",
+"Nächster Kampf gegen Bots in {0} s": "{0}秒后可再次对战机器人",
+"Turmschlacht mit Bots.": "与机器人进行高塔之战。",
+"Die Bots passen sich deiner Ausrüstung an.": "机器人会根据你的装备调整强度。",
+"Alle Hallen dieser Art sind gerade belegt – versuch es gleich noch einmal.": "该模式的所有场地都已占用——请稍后再试。",
+"Nicht genug Spieler – Bots füllen auf (halbe Punkte).": "玩家不足——由机器人补位（积分减半）。",
+"Ein echter Kampf beginnt – der Kampf gegen Bots entfällt.": "真正的对战即将开始——机器人对战取消。",
+"Kein echter Kampf – dieser Sieg bringt keine Punkte.": "不算真正的战斗——此次胜利不计积分。",
+"Kampf gegen Bots: Sieg +{0}, Niederlage −{1} Rangpunkte (halbe Punkte).": "对战机器人：胜利 +{0}，失败 −{1} 段位积分（积分减半）。",
+"Gegen Bots: sofort los, Sieg +{0}, Niederlage −{1}. Wartest du {2} s ohne genug Mitspieler, füllen Bots auf.": "对战机器人：立即开始，胜利 +{0}，失败 −{1}。若等待{2}秒仍玩家不足，将由机器人补位。",
+"Ohne Server kämpfst du hier gegen Bots – mit halben Rangpunkten. Für Kämpfe gegen echte Spieler geh über „Server“ online in einen Kanal.": "没有服务器时，你在这里与机器人对战——段位积分减半。想与真实玩家对战，请通过“服务器”进入在线频道。",
+"Blau gegen Rot mit Bots, ohne Rang. Lade den Turm in der Mitte auf {0} % oder hol {1} Kills.": "蓝队对红队（含机器人），不计段位。把中央高塔充能到{0}%或拿下{1}次击杀。",
 };

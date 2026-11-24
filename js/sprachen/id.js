@@ -5277,4 +5277,20 @@
 "Nur gegen normale Angriffe – Fertigkeiten treffen immer": "Hanya terhadap serangan biasa – skill selalu kena",
 // 15.80: Bonus Zaubergeschwindigkeit
 "Zaubergeschwindigkeit": "Kecepatan merapal",
+// 15.81: Turnierarena gegen Bots
+"Gegen Bots": "Lawan bot",
+"gegen Bots": "lawan bot",
+"gegen Bots: halbe Punkte": "lawan bot: setengah poin",
+"Bots füllen in {0} s auf": "Bot mengisi dalam {0} dtk",
+"Nächster Kampf gegen Bots in {0} s": "Pertarungan berikutnya lawan bot dalam {0} dtk",
+"Turmschlacht mit Bots.": "Pertempuran menara dengan bot.",
+"Die Bots passen sich deiner Ausrüstung an.": "Bot menyesuaikan diri dengan perlengkapanmu.",
+"Alle Hallen dieser Art sind gerade belegt – versuch es gleich noch einmal.": "Semua aula mode ini sedang terpakai – coba lagi sebentar lagi.",
+"Nicht genug Spieler – Bots füllen auf (halbe Punkte).": "Pemain tidak cukup – bot mengisi (setengah poin).",
+"Ein echter Kampf beginnt – der Kampf gegen Bots entfällt.": "Pertarungan sungguhan dimulai – pertarungan lawan bot dibatalkan.",
+"Kein echter Kampf – dieser Sieg bringt keine Punkte.": "Bukan pertarungan sungguhan – kemenangan ini tidak memberi poin.",
+"Kampf gegen Bots: Sieg +{0}, Niederlage −{1} Rangpunkte (halbe Punkte).": "Pertarungan lawan bot: menang +{0}, kalah −{1} poin peringkat (setengah poin).",
+"Gegen Bots: sofort los, Sieg +{0}, Niederlage −{1}. Wartest du {2} s ohne genug Mitspieler, füllen Bots auf.": "Lawan bot: langsung mulai, menang +{0}, kalah −{1}. Jika kamu menunggu {2} dtk tanpa cukup pemain, bot akan mengisi.",
+"Ohne Server kämpfst du hier gegen Bots – mit halben Rangpunkten. Für Kämpfe gegen echte Spieler geh über „Server“ online in einen Kanal.": "Tanpa server, di sini kamu bertarung melawan bot – dengan setengah poin peringkat. Untuk melawan pemain sungguhan, masuk ke kanal online lewat “Server”.",
+"Blau gegen Rot mit Bots, ohne Rang. Lade den Turm in der Mitte auf {0} % oder hol {1} Kills.": "Biru melawan Merah dengan bot, tanpa peringkat. Isi menara di tengah hingga {0} % atau raih {1} kill.",
 };

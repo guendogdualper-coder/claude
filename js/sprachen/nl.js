@@ -5675,4 +5675,20 @@
 "Nur gegen normale Angriffe – Fertigkeiten treffen immer": "Alleen tegen normale aanvallen – vaardigheden raken altijd",
 // 15.80: Bonus Zaubergeschwindigkeit
 "Zaubergeschwindigkeit": "Spreuksnelheid",
+// 15.81: Turnierarena gegen Bots
+"Gegen Bots": "Tegen bots",
+"gegen Bots": "tegen bots",
+"gegen Bots: halbe Punkte": "tegen bots: halve punten",
+"Bots füllen in {0} s auf": "Bots vullen aan over {0} s",
+"Nächster Kampf gegen Bots in {0} s": "Volgend gevecht tegen bots over {0} s",
+"Turmschlacht mit Bots.": "Torengevecht met bots.",
+"Die Bots passen sich deiner Ausrüstung an.": "De bots passen zich aan je uitrusting aan.",
+"Alle Hallen dieser Art sind gerade belegt – versuch es gleich noch einmal.": "Alle hallen van deze modus zijn nu bezet – probeer het zo opnieuw.",
+"Nicht genug Spieler – Bots füllen auf (halbe Punkte).": "Niet genoeg spelers – bots vullen aan (halve punten).",
+"Ein echter Kampf beginnt – der Kampf gegen Bots entfällt.": "Een echt gevecht begint – het gevecht tegen bots vervalt.",
+"Kein echter Kampf – dieser Sieg bringt keine Punkte.": "Geen echt gevecht – deze overwinning levert geen punten op.",
+"Kampf gegen Bots: Sieg +{0}, Niederlage −{1} Rangpunkte (halbe Punkte).": "Gevecht tegen bots: winst +{0}, verlies −{1} rangpunten (halve punten).",
+"Gegen Bots: sofort los, Sieg +{0}, Niederlage −{1}. Wartest du {2} s ohne genug Mitspieler, füllen Bots auf.": "Tegen bots: meteen beginnen, winst +{0}, verlies −{1}. Wacht je {2} s zonder genoeg spelers, dan vullen bots aan.",
+"Ohne Server kämpfst du hier gegen Bots – mit halben Rangpunkten. Für Kämpfe gegen echte Spieler geh über „Server“ online in einen Kanal.": "Zonder server vecht je hier tegen bots – voor de helft van de rangpunten. Wil je tegen echte spelers vechten, ga dan via „Server” online in een kanaal.",
+"Blau gegen Rot mit Bots, ohne Rang. Lade den Turm in der Mitte auf {0} % oder hol {1} Kills.": "Blauw tegen Rood met bots, zonder rang. Laad de toren in het midden op tot {0} % of haal {1} kills.",
 };

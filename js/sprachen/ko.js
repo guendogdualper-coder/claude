@@ -5278,4 +5278,20 @@
 "Nur gegen normale Angriffe – Fertigkeiten treffen immer": "일반 공격에만 적용 – 스킬은 항상 적중",
 // 15.80: Bonus Zaubergeschwindigkeit
 "Zaubergeschwindigkeit": "시전 속도",
+// 15.81: Turnierarena gegen Bots
+"Gegen Bots": "봇과 대전",
+"gegen Bots": "봇 대전",
+"gegen Bots: halbe Punkte": "봇 대전: 점수 절반",
+"Bots füllen in {0} s auf": "{0}초 후 봇이 채움",
+"Nächster Kampf gegen Bots in {0} s": "다음 봇 대전까지 {0}초",
+"Turmschlacht mit Bots.": "봇과 함께하는 탑 전투.",
+"Die Bots passen sich deiner Ausrüstung an.": "봇이 당신의 장비에 맞춰 강해집니다.",
+"Alle Hallen dieser Art sind gerade belegt – versuch es gleich noch einmal.": "이 모드의 경기장이 모두 사용 중입니다 – 잠시 후 다시 시도하세요.",
+"Nicht genug Spieler – Bots füllen auf (halbe Punkte).": "플레이어가 부족합니다 – 봇이 채웁니다 (점수 절반).",
+"Ein echter Kampf beginnt – der Kampf gegen Bots entfällt.": "실제 대전이 시작됩니다 – 봇 대전은 취소됩니다.",
+"Kein echter Kampf – dieser Sieg bringt keine Punkte.": "제대로 된 전투가 아닙니다 – 이 승리는 점수를 주지 않습니다.",
+"Kampf gegen Bots: Sieg +{0}, Niederlage −{1} Rangpunkte (halbe Punkte).": "봇 대전: 승리 +{0}, 패배 −{1} 랭크 점수 (점수 절반).",
+"Gegen Bots: sofort los, Sieg +{0}, Niederlage −{1}. Wartest du {2} s ohne genug Mitspieler, füllen Bots auf.": "봇 대전: 바로 시작, 승리 +{0}, 패배 −{1}. {2}초 동안 플레이어가 부족하면 봇이 채웁니다.",
+"Ohne Server kämpfst du hier gegen Bots – mit halben Rangpunkten. Für Kämpfe gegen echte Spieler geh über „Server“ online in einen Kanal.": "서버 없이 여기서는 봇과 싸웁니다 – 랭크 점수는 절반입니다. 실제 플레이어와 싸우려면 '서버'에서 온라인 채널에 들어가세요.",
+"Blau gegen Rot mit Bots, ohne Rang. Lade den Turm in der Mitte auf {0} % oder hol {1} Kills.": "봇과 함께하는 파랑 대 빨강, 랭크 없음. 가운데 탑을 {0}%까지 충전하거나 {1}킬을 달성하세요.",
 };

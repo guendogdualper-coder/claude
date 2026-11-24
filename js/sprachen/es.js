@@ -5683,4 +5683,20 @@
 "Nur gegen normale Angriffe – Fertigkeiten treffen immer": "Solo contra ataques normales: las habilidades siempre impactan",
 // 15.80: Bonus Zaubergeschwindigkeit
 "Zaubergeschwindigkeit": "Velocidad de lanzamiento",
+// 15.81: Turnierarena gegen Bots
+"Gegen Bots": "Contra bots",
+"gegen Bots": "contra bots",
+"gegen Bots: halbe Punkte": "contra bots: mitad de puntos",
+"Bots füllen in {0} s auf": "Los bots completan en {0} s",
+"Nächster Kampf gegen Bots in {0} s": "Próxima pelea contra bots en {0} s",
+"Turmschlacht mit Bots.": "Batalla de la torre con bots.",
+"Die Bots passen sich deiner Ausrüstung an.": "Los bots se adaptan a tu equipo.",
+"Alle Hallen dieser Art sind gerade belegt – versuch es gleich noch einmal.": "Todas las salas de este modo están ocupadas – inténtalo de nuevo en un momento.",
+"Nicht genug Spieler – Bots füllen auf (halbe Punkte).": "No hay suficientes jugadores – los bots completan (mitad de puntos).",
+"Ein echter Kampf beginnt – der Kampf gegen Bots entfällt.": "Empieza una pelea real – se cancela la pelea contra bots.",
+"Kein echter Kampf – dieser Sieg bringt keine Punkte.": "No fue una pelea real – esta victoria no da puntos.",
+"Kampf gegen Bots: Sieg +{0}, Niederlage −{1} Rangpunkte (halbe Punkte).": "Pelea contra bots: victoria +{0}, derrota −{1} puntos de rango (mitad de puntos).",
+"Gegen Bots: sofort los, Sieg +{0}, Niederlage −{1}. Wartest du {2} s ohne genug Mitspieler, füllen Bots auf.": "Contra bots: empieza al instante, victoria +{0}, derrota −{1}. Si esperas {2} s sin suficientes jugadores, los bots completan.",
+"Ohne Server kämpfst du hier gegen Bots – mit halben Rangpunkten. Für Kämpfe gegen echte Spieler geh über „Server“ online in einen Kanal.": "Sin servidor, aquí luchas contra bots, con la mitad de puntos de rango. Para luchar contra jugadores reales, conéctate a un canal desde «Servidor».",
+"Blau gegen Rot mit Bots, ohne Rang. Lade den Turm in der Mitte auf {0} % oder hol {1} Kills.": "Azul contra Rojo con bots, sin rango. Carga la torre del centro al {0} % o consigue {1} bajas.",
 };

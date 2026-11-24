@@ -5686,4 +5686,20 @@
 "Nur gegen normale Angriffe – Fertigkeiten treffen immer": "Uniquement contre les attaques normales – les compétences touchent toujours",
 // 15.80: Bonus Zaubergeschwindigkeit
 "Zaubergeschwindigkeit": "Vitesse d'incantation",
+// 15.81: Turnierarena gegen Bots
+"Gegen Bots": "Contre des bots",
+"gegen Bots": "contre des bots",
+"gegen Bots: halbe Punkte": "contre des bots : moitié des points",
+"Bots füllen in {0} s auf": "Des bots complètent dans {0} s",
+"Nächster Kampf gegen Bots in {0} s": "Prochain combat contre des bots dans {0} s",
+"Turmschlacht mit Bots.": "Bataille de la tour avec des bots.",
+"Die Bots passen sich deiner Ausrüstung an.": "Les bots s'adaptent à ton équipement.",
+"Alle Hallen dieser Art sind gerade belegt – versuch es gleich noch einmal.": "Toutes les salles de ce mode sont occupées – réessaie dans un instant.",
+"Nicht genug Spieler – Bots füllen auf (halbe Punkte).": "Pas assez de joueurs – des bots complètent (moitié des points).",
+"Ein echter Kampf beginnt – der Kampf gegen Bots entfällt.": "Un vrai combat commence – le combat contre les bots est annulé.",
+"Kein echter Kampf – dieser Sieg bringt keine Punkte.": "Pas un vrai combat – cette victoire ne rapporte aucun point.",
+"Kampf gegen Bots: Sieg +{0}, Niederlage −{1} Rangpunkte (halbe Punkte).": "Combat contre des bots : victoire +{0}, défaite −{1} points de rang (moitié des points).",
+"Gegen Bots: sofort los, Sieg +{0}, Niederlage −{1}. Wartest du {2} s ohne genug Mitspieler, füllen Bots auf.": "Contre des bots : départ immédiat, victoire +{0}, défaite −{1}. Si tu attends {2} s sans assez de joueurs, des bots complètent.",
+"Ohne Server kämpfst du hier gegen Bots – mit halben Rangpunkten. Für Kämpfe gegen echte Spieler geh über „Server“ online in einen Kanal.": "Sans serveur, tu combats ici contre des bots – pour la moitié des points de rang. Pour affronter de vrais joueurs, connecte-toi à un canal via « Serveur ».",
+"Blau gegen Rot mit Bots, ohne Rang. Lade den Turm in der Mitte auf {0} % oder hol {1} Kills.": "Bleu contre Rouge avec des bots, sans classement. Charge la tour au centre à {0} % ou obtiens {1} éliminations.",
 };

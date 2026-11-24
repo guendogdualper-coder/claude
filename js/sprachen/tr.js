@@ -5682,4 +5682,20 @@
 "Nur gegen normale Angriffe – Fertigkeiten treffen immer": "Yalnızca normal saldırılara karşı – yetenekler her zaman isabet eder",
 // 15.80: Bonus Zaubergeschwindigkeit
 "Zaubergeschwindigkeit": "Büyü hızı",
+// 15.81: Turnierarena gegen Bots
+"Gegen Bots": "Botlara karşı",
+"gegen Bots": "botlara karşı",
+"gegen Bots: halbe Punkte": "botlara karşı: yarım puan",
+"Bots füllen in {0} s auf": "Botlar {0} sn içinde tamamlar",
+"Nächster Kampf gegen Bots in {0} s": "Botlara karşı sonraki dövüş {0} sn içinde",
+"Turmschlacht mit Bots.": "Botlarla kule savaşı.",
+"Die Bots passen sich deiner Ausrüstung an.": "Botlar ekipmanına uyum sağlıyor.",
+"Alle Hallen dieser Art sind gerade belegt – versuch es gleich noch einmal.": "Bu moddaki tüm salonlar şu an dolu – birazdan tekrar dene.",
+"Nicht genug Spieler – Bots füllen auf (halbe Punkte).": "Yeterli oyuncu yok – botlar tamamlıyor (yarım puan).",
+"Ein echter Kampf beginnt – der Kampf gegen Bots entfällt.": "Gerçek bir dövüş başlıyor – botlara karşı dövüş iptal edildi.",
+"Kein echter Kampf – dieser Sieg bringt keine Punkte.": "Gerçek bir dövüş değildi – bu zafer puan getirmez.",
+"Kampf gegen Bots: Sieg +{0}, Niederlage −{1} Rangpunkte (halbe Punkte).": "Botlara karşı dövüş: zafer +{0}, yenilgi −{1} rütbe puanı (yarım puan).",
+"Gegen Bots: sofort los, Sieg +{0}, Niederlage −{1}. Wartest du {2} s ohne genug Mitspieler, füllen Bots auf.": "Botlara karşı: hemen başla, zafer +{0}, yenilgi −{1}. Yeterli oyuncu olmadan {2} sn beklersen botlar tamamlar.",
+"Ohne Server kämpfst du hier gegen Bots – mit halben Rangpunkten. Für Kämpfe gegen echte Spieler geh über „Server“ online in einen Kanal.": "Sunucu olmadan burada botlara karşı savaşırsın – yarım rütbe puanıyla. Gerçek oyunculara karşı savaşmak için “Sunucu” üzerinden çevrimiçi bir kanala gir.",
+"Blau gegen Rot mit Bots, ohne Rang. Lade den Turm in der Mitte auf {0} % oder hol {1} Kills.": "Botlarla Mavi'ye karşı Kırmızı, rütbesiz. Ortadaki kuleyi %{0} doldur ya da {1} öldürme yap.",
 };

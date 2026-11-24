@@ -966,15 +966,29 @@ const RATGEBER_WISSEN = [
   // --- PvP-Arena (Turnierarena) -----------------------------------------------------------------------------
   {
     c: 'pvp', p: 3, q: 'Gibt es PvP? Was ist die Turnierarena?',
-    a: () => `Ja, bei <b>{n:pvp}</b> (ab Stufe ${(typeof PVP !== 'undefined') ? PVP.minLevel : 10}, online in einem Kanal). Rangkampf 1 gegen 1, 2 gegen 2 und 3 gegen 3: Wer fällt, ist raus, das letzte Team gewinnt. ` +
+    a: () => `Ja, bei <b>{n:pvp}</b> (ab Stufe ${(typeof PVP !== 'undefined') ? PVP.minLevel : 10}). Online in einem Kanal kämpfst du gegen andere Spieler, sonst gegen Bots. Rangkampf 1 gegen 1, 2 gegen 2 und 3 gegen 3: Wer fällt, ist raus, das letzte Team gewinnt. ` +
       'Dazu die Turmschlacht 4 gegen 4 ohne Rang. Es gibt kein Gold und keine Beute, nur Rangpunkte – und wer fällt, verliert weder Erfahrung noch Gold.',
     k: 'pvp turnierarena arena rangkampf spieler gegen spieler 1v1 2v2 3v3 turniermeister'
   },
   {
+    c: 'pvp', p: 2, q: 'Kann ich in der Turnierarena gegen Bots kämpfen?',
+    a: () => {
+      const B = typeof ABOT !== 'undefined' ? ABOT : { wait: 20, pause: 10 };
+      const w = typeof PVP !== 'undefined' ? Math.floor(PVP.win / 2) : 25;
+      const l = typeof PVP !== 'undefined' ? Math.floor(PVP.loss / 2) : 12;
+      return `Ja. Beim <b>{n:pvp}</b> startet „Gegen Bots“ sofort einen Kampf in der gewählten Art (1 gegen 1, 2 gegen 2, 3 gegen 3 oder Turmschlacht), auch ohne Server. ` +
+        `Wartest du in der Warteschlange ${B.wait} Sekunden, ohne dass genug Spieler kommen, füllen Bots automatisch auf – als Gegner und als Mitspieler. In einen Bot-Kampf kommen keine echten Spieler. ` +
+        'Die Bots sehen aus wie Spieler (Klasse, Aussehen, Ausrüstung), haben deine Stufe und eine Ausrüstung wie deine, nutzen ihre Fertigkeiten und Tränke. Je höher dein Rang, desto stärker sind sie (Bronze etwas schwächer, Champion etwa gleich stark). ' +
+        `Ranglisten-Kämpfe gegen Bots zählen <b>halb</b>: Sieg +${w}, Niederlage −${l} Rangpunkte, auch für die Saison; Siege zählen für Erfolge halb. Aufgeben und Verlassen zählen als Niederlage. ` +
+        `Ein Sieg zählt nur nach einem echten Kampf (mindestens ${B.minFight || 12} Sekunden und selbst ordentlich Schaden gemacht). Zwischen zwei Bot-Kämpfen liegen ${B.pause} Sekunden.`;
+    },
+    k: 'bot bots computer ki gegner allein offline ohne server turnierarena pvp warten warteschlange auffüllen halbe punkte rangpunkte'
+  },
+  {
     c: 'pvp', q: 'Wie funktionieren die Rangpunkte?',
     a: () => (typeof PVP_TIERS !== 'undefined')
-      ? `Sieg +${PVP.win}, Niederlage −${PVP.loss} (nie unter 0). Stufen: ${PVP_TIERS.map((t) => `${t.name} ${rgFmt(t.min)}`).join(' · ')}. Ein Rang gilt für alle Rangkämpfe. Wer einen Rangkampf verlässt, verliert ihn.`
-      : 'Sieg +50, Niederlage −25.',
+      ? `Sieg +${PVP.win}, Niederlage −${PVP.loss} (nie unter 0), gegen Bots die Hälfte. Stufen: ${PVP_TIERS.map((t) => `${t.name} ${rgFmt(t.min)}`).join(' · ')}. Ein Rang gilt für alle Rangkämpfe. Wer einen Rangkampf verlässt, verliert ihn.`
+      : 'Sieg +50, Niederlage −25, gegen Bots die Hälfte.',
     k: 'rang rangpunkte bronze silber gold platin diamant champion punkte pvp'
   },
   {

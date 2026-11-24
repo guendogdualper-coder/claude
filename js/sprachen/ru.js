@@ -5278,4 +5278,20 @@
 "Nur gegen normale Angriffe – Fertigkeiten treffen immer": "Только против обычных атак – умения попадают всегда",
 // 15.80: Bonus Zaubergeschwindigkeit
 "Zaubergeschwindigkeit": "Скорость заклинаний",
+// 15.81: Turnierarena gegen Bots
+"Gegen Bots": "Против ботов",
+"gegen Bots": "против ботов",
+"gegen Bots: halbe Punkte": "против ботов: половина очков",
+"Bots füllen in {0} s auf": "Боты добавятся через {0} с",
+"Nächster Kampf gegen Bots in {0} s": "Следующий бой против ботов через {0} с",
+"Turmschlacht mit Bots.": "Битва за башню с ботами.",
+"Die Bots passen sich deiner Ausrüstung an.": "Боты подстраиваются под твоё снаряжение.",
+"Alle Hallen dieser Art sind gerade belegt – versuch es gleich noch einmal.": "Все залы этого режима сейчас заняты – попробуй ещё раз чуть позже.",
+"Nicht genug Spieler – Bots füllen auf (halbe Punkte).": "Недостаточно игроков – добавляются боты (половина очков).",
+"Ein echter Kampf beginnt – der Kampf gegen Bots entfällt.": "Начинается настоящий бой – бой против ботов отменён.",
+"Kein echter Kampf – dieser Sieg bringt keine Punkte.": "Это был не настоящий бой – эта победа не приносит очков.",
+"Kampf gegen Bots: Sieg +{0}, Niederlage −{1} Rangpunkte (halbe Punkte).": "Бой против ботов: победа +{0}, поражение −{1} очков ранга (половина очков).",
+"Gegen Bots: sofort los, Sieg +{0}, Niederlage −{1}. Wartest du {2} s ohne genug Mitspieler, füllen Bots auf.": "Против ботов: сразу в бой, победа +{0}, поражение −{1}. Если ждёшь {2} с без достаточного числа игроков, добавляются боты.",
+"Ohne Server kämpfst du hier gegen Bots – mit halben Rangpunkten. Für Kämpfe gegen echte Spieler geh über „Server“ online in einen Kanal.": "Без сервера здесь ты сражаешься с ботами – за половину очков ранга. Чтобы сражаться с настоящими игроками, зайди онлайн в канал через «Сервер».",
+"Blau gegen Rot mit Bots, ohne Rang. Lade den Turm in der Mitte auf {0} % oder hol {1} Kills.": "Синие против красных с ботами, без ранга. Заряди башню в центре до {0} % или набери {1} убийств.",
 };

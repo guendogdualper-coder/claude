@@ -5684,4 +5684,20 @@
 "Nur gegen normale Angriffe – Fertigkeiten treffen immer": "Tylko przeciw zwykłym atakom – umiejętności zawsze trafiają",
 // 15.80: Bonus Zaubergeschwindigkeit
 "Zaubergeschwindigkeit": "Szybkość rzucania",
+// 15.81: Turnierarena gegen Bots
+"Gegen Bots": "Z botami",
+"gegen Bots": "z botami",
+"gegen Bots: halbe Punkte": "z botami: połowa punktów",
+"Bots füllen in {0} s auf": "Boty uzupełnią za {0} s",
+"Nächster Kampf gegen Bots in {0} s": "Następna walka z botami za {0} s",
+"Turmschlacht mit Bots.": "Bitwa o wieżę z botami.",
+"Die Bots passen sich deiner Ausrüstung an.": "Boty dostosowują się do twojego ekwipunku.",
+"Alle Hallen dieser Art sind gerade belegt – versuch es gleich noch einmal.": "Wszystkie hale tego trybu są teraz zajęte – spróbuj ponownie za chwilę.",
+"Nicht genug Spieler – Bots füllen auf (halbe Punkte).": "Za mało graczy – boty uzupełniają (połowa punktów).",
+"Ein echter Kampf beginnt – der Kampf gegen Bots entfällt.": "Zaczyna się prawdziwa walka – walka z botami zostaje anulowana.",
+"Kein echter Kampf – dieser Sieg bringt keine Punkte.": "To nie była prawdziwa walka – to zwycięstwo nie daje punktów.",
+"Kampf gegen Bots: Sieg +{0}, Niederlage −{1} Rangpunkte (halbe Punkte).": "Walka z botami: zwycięstwo +{0}, porażka −{1} punktów rangi (połowa punktów).",
+"Gegen Bots: sofort los, Sieg +{0}, Niederlage −{1}. Wartest du {2} s ohne genug Mitspieler, füllen Bots auf.": "Z botami: start od razu, zwycięstwo +{0}, porażka −{1}. Jeśli czekasz {2} s bez wystarczającej liczby graczy, boty uzupełnią.",
+"Ohne Server kämpfst du hier gegen Bots – mit halben Rangpunkten. Für Kämpfe gegen echte Spieler geh über „Server“ online in einen Kanal.": "Bez serwera walczysz tu z botami – za połowę punktów rangi. Aby walczyć z prawdziwymi graczami, wejdź online na kanał przez „Serwer”.",
+"Blau gegen Rot mit Bots, ohne Rang. Lade den Turm in der Mitte auf {0} % oder hol {1} Kills.": "Niebiescy przeciw Czerwonym z botami, bez rangi. Naładuj wieżę na środku do {0} % albo zdobądź {1} zabójstw.",
 };

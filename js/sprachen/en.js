@@ -7089,4 +7089,20 @@
 "Nur gegen normale Angriffe – Fertigkeiten treffen immer": "Only against normal attacks – skills always hit",
 // 15.80: Bonus Zaubergeschwindigkeit
 "Zaubergeschwindigkeit": "Cast Speed",
+// 15.81: Turnierarena gegen Bots
+"Gegen Bots": "Vs. Bots",
+"gegen Bots": "vs. bots",
+"gegen Bots: halbe Punkte": "vs. bots: half points",
+"Bots füllen in {0} s auf": "Bots fill in in {0} s",
+"Nächster Kampf gegen Bots in {0} s": "Next fight against bots in {0} s",
+"Turmschlacht mit Bots.": "Tower Battle with bots.",
+"Die Bots passen sich deiner Ausrüstung an.": "The bots adapt to your equipment.",
+"Alle Hallen dieser Art sind gerade belegt – versuch es gleich noch einmal.": "All halls of this mode are occupied right now – try again in a moment.",
+"Nicht genug Spieler – Bots füllen auf (halbe Punkte).": "Not enough players – bots fill in (half points).",
+"Ein echter Kampf beginnt – der Kampf gegen Bots entfällt.": "A real fight is starting – the fight against bots is cancelled.",
+"Kein echter Kampf – dieser Sieg bringt keine Punkte.": "Not a real fight – this win gives no points.",
+"Kampf gegen Bots: Sieg +{0}, Niederlage −{1} Rangpunkte (halbe Punkte).": "Fight against bots: win +{0}, loss −{1} rank points (half points).",
+"Gegen Bots: sofort los, Sieg +{0}, Niederlage −{1}. Wartest du {2} s ohne genug Mitspieler, füllen Bots auf.": "Vs. bots: start right away, win +{0}, loss −{1}. If you wait {2} s without enough players, bots fill in.",
+"Ohne Server kämpfst du hier gegen Bots – mit halben Rangpunkten. Für Kämpfe gegen echte Spieler geh über „Server“ online in einen Kanal.": "Without a server you fight against bots here – for half rank points. To fight real players, go online in a channel via “Server”.",
+"Blau gegen Rot mit Bots, ohne Rang. Lade den Turm in der Mitte auf {0} % oder hol {1} Kills.": "Blue against Red with bots, unranked. Charge the tower in the middle to {0} % or get {1} kills.",
 };

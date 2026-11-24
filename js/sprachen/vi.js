@@ -5277,4 +5277,20 @@
 "Nur gegen normale Angriffe – Fertigkeiten treffen immer": "Chỉ với đòn đánh thường – kỹ năng luôn trúng",
 // 15.80: Bonus Zaubergeschwindigkeit
 "Zaubergeschwindigkeit": "Tốc độ thi triển",
+// 15.81: Turnierarena gegen Bots
+"Gegen Bots": "Đấu với bot",
+"gegen Bots": "đấu với bot",
+"gegen Bots: halbe Punkte": "đấu với bot: một nửa điểm",
+"Bots füllen in {0} s auf": "Bot bổ sung sau {0} giây",
+"Nächster Kampf gegen Bots in {0} s": "Trận đấu với bot tiếp theo sau {0} giây",
+"Turmschlacht mit Bots.": "Chiến trận tháp cùng bot.",
+"Die Bots passen sich deiner Ausrüstung an.": "Bot điều chỉnh theo trang bị của bạn.",
+"Alle Hallen dieser Art sind gerade belegt – versuch es gleich noch einmal.": "Tất cả sảnh của chế độ này đang bận – hãy thử lại sau giây lát.",
+"Nicht genug Spieler – Bots füllen auf (halbe Punkte).": "Không đủ người chơi – bot sẽ bổ sung (một nửa điểm).",
+"Ein echter Kampf beginnt – der Kampf gegen Bots entfällt.": "Một trận đấu thật đang bắt đầu – trận đấu với bot bị hủy.",
+"Kein echter Kampf – dieser Sieg bringt keine Punkte.": "Không phải trận đấu thực sự – chiến thắng này không có điểm.",
+"Kampf gegen Bots: Sieg +{0}, Niederlage −{1} Rangpunkte (halbe Punkte).": "Trận đấu với bot: thắng +{0}, thua −{1} điểm hạng (một nửa điểm).",
+"Gegen Bots: sofort los, Sieg +{0}, Niederlage −{1}. Wartest du {2} s ohne genug Mitspieler, füllen Bots auf.": "Đấu với bot: bắt đầu ngay, thắng +{0}, thua −{1}. Nếu bạn chờ {2} giây mà không đủ người chơi, bot sẽ bổ sung.",
+"Ohne Server kämpfst du hier gegen Bots – mit halben Rangpunkten. Für Kämpfe gegen echte Spieler geh über „Server“ online in einen Kanal.": "Không có máy chủ, ở đây bạn đấu với bot – nhận một nửa điểm hạng. Để đấu với người chơi thật, hãy vào một kênh trực tuyến qua “Máy chủ”.",
+"Blau gegen Rot mit Bots, ohne Rang. Lade den Turm in der Mitte auf {0} % oder hol {1} Kills.": "Xanh đấu Đỏ cùng bot, không xếp hạng. Nạp tháp ở giữa đến {0} % hoặc hạ {1} mạng.",
 };

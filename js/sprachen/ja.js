@@ -5278,4 +5278,20 @@
 "Nur gegen normale Angriffe – Fertigkeiten treffen immer": "通常攻撃にのみ有効 – スキルは必ず命中する",
 // 15.80: Bonus Zaubergeschwindigkeit
 "Zaubergeschwindigkeit": "詠唱速度",
+// 15.81: Turnierarena gegen Bots
+"Gegen Bots": "ボット戦",
+"gegen Bots": "ボット戦",
+"gegen Bots: halbe Punkte": "ボット戦：ポイント半分",
+"Bots füllen in {0} s auf": "{0}秒後にボットが補充",
+"Nächster Kampf gegen Bots in {0} s": "次のボット戦まで{0}秒",
+"Turmschlacht mit Bots.": "ボットとの塔の戦い。",
+"Die Bots passen sich deiner Ausrüstung an.": "ボットがあなたの装備に合わせて強くなります。",
+"Alle Hallen dieser Art sind gerade belegt – versuch es gleich noch einmal.": "このモードの会場はすべて使用中です。少ししてからもう一度お試しください。",
+"Nicht genug Spieler – Bots füllen auf (halbe Punkte).": "プレイヤーが足りません。ボットが補充します（ポイント半分）。",
+"Ein echter Kampf beginnt – der Kampf gegen Bots entfällt.": "本物の対戦が始まります。ボット戦は中止されます。",
+"Kein echter Kampf – dieser Sieg bringt keine Punkte.": "本格的な戦闘ではありません。この勝利にポイントはありません。",
+"Kampf gegen Bots: Sieg +{0}, Niederlage −{1} Rangpunkte (halbe Punkte).": "ボット戦：勝利 +{0}、敗北 −{1} ランクポイント（ポイント半分）。",
+"Gegen Bots: sofort los, Sieg +{0}, Niederlage −{1}. Wartest du {2} s ohne genug Mitspieler, füllen Bots auf.": "ボット戦：すぐに開始、勝利 +{0}、敗北 −{1}。{2}秒待ってもプレイヤーが足りなければ、ボットが補充します。",
+"Ohne Server kämpfst du hier gegen Bots – mit halben Rangpunkten. Für Kämpfe gegen echte Spieler geh über „Server“ online in einen Kanal.": "サーバーなしでは、ここでボットと戦います（ランクポイントは半分）。本物のプレイヤーと戦うには「サーバー」からオンラインのチャンネルに入ってください。",
+"Blau gegen Rot mit Bots, ohne Rang. Lade den Turm in der Mitte auf {0} % oder hol {1} Kills.": "ボット入りの青対赤、ランクなし。中央の塔を{0}%までチャージするか、{1}キルを取ろう。",
 };
