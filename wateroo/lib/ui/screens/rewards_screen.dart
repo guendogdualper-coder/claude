@@ -2,8 +2,10 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../logic/badges.dart';
 import '../../logic/dates.dart';
+import '../../personal.dart';
 import '../app_scope.dart';
 import '../theme.dart';
+import 'today_screen.dart' show LoveNoteCard;
 
 class RewardsScreen extends StatelessWidget {
   const RewardsScreen({super.key});
@@ -160,6 +162,47 @@ class RewardsScreen extends StatelessWidget {
                     ],
                   ],
                 ),
+              ),
+            ),
+          const SizedBox(height: 10),
+          Text(
+            'Notes for $friendName · ${state.notesUnlocked} of ${loveNotes.length}',
+            style: body(15, weight: 600),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Every day your glass is full, a new note unlocks.',
+            style: body(13, color: WColors.textSubtle),
+          ),
+          const SizedBox(height: 10),
+          for (var i = state.notesUnlocked - 1; i >= 0; i--)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: LoveNoteCard(number: i + 1, text: loveNotes[i]),
+            ),
+          if (state.notesUnlocked < loveNotes.length)
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: WColors.line),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.lock_outline_rounded,
+                    color: WColors.textSubtle,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Note #${state.notesUnlocked + 1} unlocks when your glass '
+                      'is full${state.goalReachedToday ? ' tomorrow' : ' today'}.',
+                      style: body(14, color: WColors.textMuted),
+                    ),
+                  ),
+                ],
               ),
             ),
         ],

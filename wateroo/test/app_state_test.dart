@@ -58,6 +58,21 @@ void main() {
     expect(s.totalXp, 20 + 70 + 10);
   });
 
+  test('each full glass unlocks the next love note', () async {
+    final s = await makeState();
+    await s.completeOnboarding(
+      goalMl: 500,
+      reminders: const ReminderSettings(),
+    );
+    expect(s.notesUnlocked, 0);
+    final r1 = await s.addDrink(500);
+    expect(r1.noteIndex, 0);
+    expect((await s.addDrink(250)).noteIndex, isNull, reason: 'one per day');
+    clock = DateTime(2026, 11, 25, 10);
+    expect((await s.addDrink(500)).noteIndex, 1);
+    expect(s.notesUnlocked, 2);
+  });
+
   test('undo takes back the drink, XP and goal', () async {
     final s = await makeState();
     await s.completeOnboarding(

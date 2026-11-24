@@ -31,6 +31,7 @@ void main() {
 
     // 1 Welcome
     expect(find.text('Meet Wateroo'), findsOneWidget);
+    expect(find.text('MADE WITH ♥ FOR SEDA'), findsOneWidget);
     await tester.tap(find.text('Get started'));
     await tester.pumpAndSettle();
 
@@ -80,6 +81,7 @@ void main() {
     await tester.tap(find.text('+500 ml'));
     await tester.pumpAndSettle();
     expect(find.text('Glass full!'), findsOneWidget);
+    expect(find.text('Note #1 for Seda'), findsOneWidget);
     await tester.tap(find.text('Keep going'));
     await tester.pumpAndSettle();
     expect(find.text('Glass full! Great job.'), findsOneWidget);
@@ -90,6 +92,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Badges · 2 of 6'), findsOneWidget);
     expect(find.text('1-day streak'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('Note #1 for Seda'), 300);
+    expect(find.text('Notes for Seda · 1 of 10'), findsOneWidget);
   });
 
   testWidgets('reminders screen updates the plan', (tester) async {

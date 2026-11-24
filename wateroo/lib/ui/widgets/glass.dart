@@ -28,17 +28,20 @@ class GlassView extends StatelessWidget {
     return Semantics(
       image: true,
       label: semanticLabel ?? 'Glass ${(fill.clamp(0, 1) * 100).round()}% full',
-      child: TweenAnimationBuilder<double>(
-        tween: Tween(end: fill.clamp(0.0, 1.0)),
-        duration: const Duration(milliseconds: 650),
-        curve: Curves.easeOutCubic,
-        builder: (context, value, _) => CustomPaint(
-          size: Size.square(size),
-          painter: _GlassPainter(
-            fill: value,
-            outline: outline,
-            water: water,
-            sparkle: sparkle,
+      // Own layer: the fill animation repaints only the glass, not the screen.
+      child: RepaintBoundary(
+        child: TweenAnimationBuilder<double>(
+          tween: Tween(end: fill.clamp(0.0, 1.0)),
+          duration: const Duration(milliseconds: 650),
+          curve: Curves.easeOutCubic,
+          builder: (context, value, _) => CustomPaint(
+            size: Size.square(size),
+            painter: _GlassPainter(
+              fill: value,
+              outline: outline,
+              water: water,
+              sparkle: sparkle,
+            ),
           ),
         ),
       ),

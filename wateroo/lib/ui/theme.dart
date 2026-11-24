@@ -17,8 +17,7 @@ abstract final class WColors {
   static const onDeepMuted = Color(0xFFB9D7EA);
 }
 
-/// Inter (body). The bundled font is variable, so the weight is set as a
-/// font variation too.
+/// Inter (body), bundled in weights 400, 500 and 600.
 TextStyle body(
   double size, {
   int weight = 400,
@@ -28,12 +27,11 @@ TextStyle body(
   fontFamily: 'Inter',
   fontSize: size,
   fontWeight: FontWeight.values[(weight ~/ 100) - 1],
-  fontVariations: [FontVariation.weight(weight.toDouble())],
   color: color,
   height: height,
 );
 
-/// Space Grotesk (headings and big numbers).
+/// Space Grotesk (headings and big numbers), bundled in weight 700.
 TextStyle display(
   double size, {
   int weight = 700,
@@ -43,7 +41,6 @@ TextStyle display(
   fontFamily: 'SpaceGrotesk',
   fontSize: size,
   fontWeight: FontWeight.values[(weight ~/ 100) - 1],
-  fontVariations: [FontVariation.weight(weight.toDouble())],
   color: color,
   height: height,
 );

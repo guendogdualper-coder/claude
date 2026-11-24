@@ -11,6 +11,16 @@ gebaut mit Flutter.
   von „Tiny Drop" bis „Wateroo Legend", Tagesserien und 6 Abzeichen.
 - **Onboarding** in 4 Schritten: Willkommen, Tagesziel, Erinnerungen, Fertig.
 
+## Für Seda
+
+Diese Wateroo-Version ist persönlich für Seda gemacht: Begrüßung mit ihrem
+Namen, persönliche Erinnerungen und 10 Liebesbotschaften. An jedem Tag, an dem
+ihr Glas voll wird, schaltet sich die nächste frei. Gesammelt stehen sie unter
+Rewards → „Notes for Seda".
+
+Name und Texte stehen alle in **`lib/personal.dart`** und lassen sich dort
+ändern.
+
 ## Starten
 
 Voraussetzung: [Flutter](https://docs.flutter.dev/get-started/install) 3.50 oder neuer.
@@ -32,6 +42,7 @@ Für das iPhone brauchst du einen Mac mit Xcode, für Android das Android SDK
 | `lib/logic/` | Reine Logik ohne UI: Level, Serien, Abzeichen, Erinnerungszeiten |
 | `lib/state/app_state.dart` | App-Zustand und Speicherung auf dem Gerät |
 | `lib/services/notification_service.dart` | Plant die Erinnerungen als lokale Benachrichtigungen |
+| `lib/personal.dart` | Name und Liebesbotschaften für Seda |
 | `lib/ui/` | Theme, das animierte Glas und die Screens |
 | `test/` | Tests für Logik, Zustand und den kompletten Ablauf |
 
@@ -50,5 +61,12 @@ Alle Daten bleiben auf dem Gerät. Es gibt kein Konto und keinen Server.
 - Echtes App-Icon und Startbildschirm im Wateroo-Design
 - Bundle-ID `com.wateroo.wateroo` vor der Veröffentlichung auf die eigene ändern
 
+## Web-Version
+
+`flutter build web --wasm` baut die schnelle WebAssembly-Version (skwasm).
+Browser ohne WebAssembly-GC bekommen automatisch die JavaScript-Version.
+
 Schriften: Inter und Space Grotesk, beide unter der SIL Open Font License
-(`assets/fonts/OFL-*.txt`).
+(`assets/fonts/OFL-*.txt`). Für schnelleres Zeichnen sind nur die genutzten
+Stärken als feste Varianten eingebunden (erzeugt mit fontTools
+`varLib.instancer`).

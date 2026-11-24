@@ -8,6 +8,7 @@ import '../logic/dates.dart';
 import '../logic/levels.dart';
 import '../logic/reminders.dart';
 import '../logic/streaks.dart';
+import '../personal.dart';
 
 /// Something that turns reminder settings into scheduled notifications.
 abstract class ReminderScheduler {
@@ -26,6 +27,7 @@ class DrinkResult {
     required this.goalJustReached,
     required this.newBadges,
     required this.levelUpTo,
+    this.noteIndex,
   });
 
   final int ml;
@@ -35,6 +37,9 @@ class DrinkResult {
 
   /// The new level if this drink caused a level-up, otherwise null.
   final int? levelUpTo;
+
+  /// The love note this drink unlocked (index into [loveNotes]), if any.
+  final int? noteIndex;
 }
 
 class _UndoEntry {
@@ -88,6 +93,10 @@ class AppState extends ChangeNotifier {
   int get longestStreak => bestStreak(_goalDays);
 
   Map<String, String> get unlockedBadges => Map.unmodifiable(_badges);
+
+  /// Love notes unlocked so far: one per day the glass was filled.
+  int get notesUnlocked =>
+      _goalDays.length < loveNotes.length ? _goalDays.length : loveNotes.length;
 
   bool get canUndo => _lastDrink != null && _lastDrink!.day == todayKey;
 
@@ -156,6 +165,9 @@ class AppState extends ChangeNotifier {
       goalJustReached: goalJustReached,
       newBadges: newBadges,
       levelUpTo: levelAfter > levelBefore ? levelAfter : null,
+      noteIndex: goalJustReached && _goalDays.length <= loveNotes.length
+          ? _goalDays.length - 1
+          : null,
     );
   }
 

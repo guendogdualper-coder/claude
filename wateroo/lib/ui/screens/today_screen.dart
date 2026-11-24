@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../logic/badges.dart';
 import '../../logic/dates.dart';
 import '../../logic/levels.dart';
+import '../../personal.dart';
 import '../../state/app_state.dart';
 import '../app_scope.dart';
 import '../theme.dart';
@@ -31,7 +32,7 @@ class TodayScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      longDateLabel(state.now),
+                      greetingFor(state.now),
                       style: body(14, weight: 500, color: WColors.textSubtle),
                     ),
                     Text('Today', style: display(32)),
@@ -191,6 +192,8 @@ class TodayScreen extends StatelessWidget {
         context: context,
         backgroundColor: WColors.deepWater,
         showDragHandle: true,
+        // Lets the sheet grow past half the screen when a love note is shown.
+        isScrollControlled: true,
         builder: (_) => _CelebrationSheet(result: result),
       );
     }
@@ -328,7 +331,7 @@ class _CelebrationSheet extends StatelessWidget {
         (Icons.military_tech_rounded, 'New badge', badgeById(id).name),
     ];
     return SafeArea(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -357,6 +360,13 @@ class _CelebrationSheet extends StatelessWidget {
                   ],
                 ),
               ),
+            if (result.noteIndex != null) ...[
+              const SizedBox(height: 12),
+              LoveNoteCard(
+                number: result.noteIndex! + 1,
+                text: loveNotes[result.noteIndex!],
+              ),
+            ],
             const SizedBox(height: 16),
             PrimaryButton(
               label: 'Keep going',
@@ -366,6 +376,50 @@ class _CelebrationSheet extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// A love note card: shown when the glass gets full and in Rewards.
+class LoveNoteCard extends StatelessWidget {
+  const LoveNoteCard({super.key, required this.number, required this.text});
+
+  final int number;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF4F6),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(
+            Icons.favorite_rounded,
+            color: Color(0xFFE0446A),
+            size: 24,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Note #$number for $friendName',
+                  style: body(12, weight: 600, color: const Color(0xFFB0284F)),
+                ),
+                const SizedBox(height: 4),
+                Text(text, style: body(16, weight: 500, height: 1.4)),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

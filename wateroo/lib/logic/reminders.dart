@@ -1,6 +1,8 @@
 /// Reminder settings and the times they produce.
 library;
 
+import '../personal.dart';
+
 enum ReminderMode { hourly, custom }
 
 class ReminderSettings {
@@ -130,9 +132,9 @@ DateTime? nextReminder(
 }
 
 const List<String> reminderMessages = [
-  'Time for a sip! Your glass is waiting.',
-  'A little water goes a long way. Take a sip!',
+  '$friendName, time for a sip! Your glass is waiting.',
+  'A little water goes a long way, $friendName. Take a sip!',
   'Wateroo is thirsty – are you? Fill your glass a bit more.',
-  'Quick break: one glass of water, then back to it.',
-  'Keep your streak alive – grab a drink!',
+  'Quick break, $friendName: one glass of water, then back to it.',
+  'Keep your streak alive – grab a drink! ♥',
 ];

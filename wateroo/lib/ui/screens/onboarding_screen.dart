@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../logic/dates.dart';
 import '../../logic/levels.dart';
 import '../../logic/reminders.dart';
+import '../../personal.dart';
 import '../app_scope.dart';
 import '../theme.dart';
 import '../widgets/glass.dart';
@@ -172,13 +173,19 @@ class _Welcome extends StatelessWidget {
           child: Center(child: GlassView(fill: 0.6, size: 240, sparkle: true)),
         ),
         Text(
+          'MADE WITH ♥ FOR ${friendName.toUpperCase()}',
+          style: body(13, weight: 600, color: WColors.splash),
+        ),
+        const SizedBox(height: 8),
+        Text(
           'Meet Wateroo',
           style: display(40, color: Colors.white, height: 1.05),
         ),
         const SizedBox(height: 12),
         Text(
-          'Your thirsty little buddy. Gentle reminders, a glass that fills as '
-          'you drink, and a level-up for every good day.',
+          'Hi $friendName! I’m your thirsty little buddy. Gentle reminders, a '
+          'glass that fills as you drink – and a little surprise every time '
+          'it’s full.',
           style: body(17, color: const Color(0xFFC8DFEE), height: 1.5),
         ),
         const SizedBox(height: 24),

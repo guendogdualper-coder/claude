@@ -59,9 +59,17 @@ flutter:
   uses-material-design: true
 
   fonts:
+    # Static instances of the variable fonts (faster to render than
+    # variable fonts). Made with fontTools varLib.instancer.
     - family: Inter
       fonts:
-        - asset: assets/fonts/Inter.ttf
+        - asset: assets/fonts/Inter-400.ttf
+          weight: 400
+        - asset: assets/fonts/Inter-500.ttf
+          weight: 500
+        - asset: assets/fonts/Inter-600.ttf
+          weight: 600
     - family: SpaceGrotesk
       fonts:
-        - asset: assets/fonts/SpaceGrotesk.ttf
+        - asset: assets/fonts/SpaceGrotesk-700.ttf
+          weight: 700
