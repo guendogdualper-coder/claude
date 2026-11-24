@@ -631,7 +631,7 @@ function huntOffers() {
   // in der Rostschlucht gab es dann Aufträge für den Dunkelwald). Passt keins zur Stufe, die nächstliegenden der Karte.
   const here = mapOfTile(p.x / TILE, p.y / TILE);
   const local = new Set(ZONES.filter((z) => here && z.map === here.id && z.groups && !z.safe).flatMap((z) => z.groups.map((g) => g[0])));
-  const ok = ([id, t]) => !t.dungeon && !t.crystal && !t.raidBoss && !t.night && (!local.size || local.has(id));
+  const ok = ([id, t]) => !t.dungeon && !t.crystal && !t.raidBoss && !t.night && !t.weltboss && (!local.size || local.has(id));
   const near = (a, b) => Math.abs(a[1].level - p.level) - Math.abs(b[1].level - p.level);
   let types = Object.entries(MONSTER_TYPES).filter((e) => ok(e) && e[1].level <= p.level + 3 && e[1].level >= p.level - 6).sort(near);
   if (types.length < 3) types = types.concat(Object.entries(MONSTER_TYPES).filter((e) => ok(e) && !types.includes(e)).sort(near)).slice(0, 3);
@@ -741,6 +741,9 @@ Object.assign(ui, {
     if (q.hunt) row('side', 'Jagd: ' + MONSTER_TYPES[q.hunt.monster].name, `${q.hunt.count} × ${MONSTER_TYPES[q.hunt.monster].name} besiegen`, q.hunt.progress, q.hunt.count, monsterWhere(q.hunt.monster), '', 'hunt', 'einer Jägerin');
     // Nachtjagden (seit 13.63 auch hier; vorher standen sie nur im Questfenster)
     if (typeof nightQuestList === 'function') for (const e of nightQuestList()) row('side', e.title, e.goal, e.have, e.need, e.where, '', e.key, e.giver);
+    // Tagesaufträge ab Stufe 80 (seit 15.75, tagesauftraege.js): eine Zeile, solange einer offen ist
+    if (typeof aufgTrackRows === 'function') for (const e of aufgTrackRows()) row('side', e.title, e.goal, e.have, e.need, e.where, '', e.key, e.giver);
+    if (typeof wbTrackRows === 'function') for (const e of wbTrackRows()) row('main', e.title, e.goal, e.have, e.need, e.where, '', e.key, e.giver);
     el.innerHTML = rows.length ? `<button type="button" class="ql-head" aria-expanded="${!this.questLogClosed}">Aufträge <small>${rows.length}</small><span>${this.questLogClosed ? '▸' : '▾'}</span></button>` +
       (this.questLogClosed ? '' : `<ul class="ql-list">${rows.join('')}</ul>`) : '';
     el.hidden = !rows.length;

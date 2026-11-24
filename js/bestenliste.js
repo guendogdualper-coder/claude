@@ -57,7 +57,10 @@ function rankEntryOf(sv) {
   if (!sv || sv.deleted || !CLASSES[sv.classId] || typeof sv.name !== 'string' || !sv.name.trim()) return null;
   const level = Math.max(1, Math.min(RANK.maxLevel, Math.floor(Number(sv.level) || 1)));
   const rp = Math.min(RANK.maxRp, rankPts(sv));
-  const e = { name: sv.name.trim().slice(0, RANK.nameMax), cls: sv.classId, level, xp: Math.max(0, Math.floor(Number(sv.xp) || 0)), rp,
+  // seit 15.75: auf Stufe 80 die gesamte Seelen-Erfahrung im Feld xp (daraus die Seelenstufe, rankSoul) – die
+  // Datenbank-Regeln kennen kein eigenes Feld dafür
+  const xp = level >= RANK.maxLevel && sv.seele ? Number(sv.seele.tot) : Number(sv.xp);
+  const e = { name: sv.name.trim().slice(0, RANK.nameMax), cls: sv.classId, level, xp: Math.max(0, Math.floor(xp || 0)), rp,
     // Zeit vom Server (eine falsch gehende Uhr am Gerät soll das Schreiben nicht verhindern)
     at: { '.sv': 'timestamp' } };
   if (sv.path != null && Number.isInteger(sv.path) && sv.path >= 0) e.path = sv.path;
@@ -199,8 +202,9 @@ async function rankFetch(tab) {
     }
   }
   if (tab === 'pvp') list.sort((a, b) => b.rp - a.rp || b.level - a.level || b.xp - a.xp || a.at - b.at);
-  // seit 15.51: bei gleicher Stufe entscheidet das Ausrüstungslevel (GS), danach Erfahrung
-  else list.sort((a, b) => b.level - a.level || (b.gs || 0) - (a.gs || 0) || b.xp - a.xp || b.rp - a.rp || a.at - b.at);
+  // seit 15.51: bei gleicher Stufe entscheidet das Ausrüstungslevel (GS), danach Erfahrung; seit 15.75 auf Stufe 80 zuerst
+  // die Seelenstufe
+  else list.sort((a, b) => b.level - a.level || rankSoul(b) - rankSoul(a) || (b.gs || 0) - (a.gs || 0) || b.xp - a.xp || b.rp - a.rp || a.at - b.at);
   rank.cache[tab] = { at: Date.now(), list };
   return list;
 }
@@ -227,13 +231,23 @@ function rankToggle() {
   rankOpen();
 }
 
+// Seelenstufe eines Eintrags (seit 15.75): nur auf Stufe 80, aus der gesamten Seelen-Erfahrung im Feld xp
+function rankSoul(e) {
+  if (!e || e.level < RANK.maxLevel || !(e.xp > 0) || typeof seeleLevelOf !== 'function') return 0;
+  if (e.soulOf !== e.xp) {
+    e.soulOf = e.xp;
+    e.soul = seeleLevelOf(e.xp);
+  }
+  return e.soul;
+}
 // Wert einer Zeile (rechts): Stufe bzw. Rangpunkte mit Liga
 function rankValHtml(e, tab) {
   if (tab === 'pvp') {
     const badge = typeof pvpBadgeHtml === 'function' ? pvpBadgeHtml(e.rp, 15) : '';
     return `<span class="rk-val"><b>${rankFmt(e.rp)}</b><small>${badge}</small></span>`;
   }
-  return `<span class="rk-val"><b>${e.level}</b><small>Stufe</small></span>`;
+  const soul = rankSoul(e);
+  return `<span class="rk-val"><b>${e.level}</b><small>${soul ? '★ ' + soul : 'Stufe'}</small></span>`;
 }
 // seit 14.48 mit einer Zeile Eckdaten: Stufe, Rang (Liga) und Ausrüstungslevel – vorher nur Name und Klasse
 function rankWhoHtml(e) {
@@ -251,7 +265,7 @@ function rankWhoHtml(e) {
 function rankOnlineList() {
   const out = [];
   const p = game.running ? game.player : null;
-  if (p) out.push({ id: 'me', name: p.name, cls: p.classId, path: p.path != null ? p.path : null, level: p.level, xp: p.xp || 0,
+  if (p) out.push({ id: 'me', name: p.name, cls: p.classId, path: p.path != null ? p.path : null, level: p.level, xp: p.level >= RANK.maxLevel && p.seele ? p.seele.tot || 0 : p.xp || 0,
     rp: rankPts(p), gs: typeof gearLevelOf === 'function' ? gearLevelOf(p.equipment) : 0, online: true, fac: p.faction || null });
   if (typeof net !== 'undefined' && net.players) {
     for (const rp of net.players.values()) {
@@ -262,7 +276,7 @@ function rankOnlineList() {
         level: Math.max(1, Math.min(RANK.maxLevel, rp.level | 0)), xp: 0, rp: rp.rk | 0, gs: rp.gs | 0, online: true, fac: rp.faction || 'licht' });
     }
   }
-  out.sort((a, b) => b.level - a.level || b.gs - a.gs || b.rp - a.rp);
+  out.sort((a, b) => b.level - a.level || rankSoul(b) - rankSoul(a) || b.gs - a.gs || b.rp - a.rp);
   return out;
 }
 function rankRowHtml(e, place, tab, mine) {
@@ -279,7 +293,7 @@ function rankOwnHtml(full, shown, tab) {
   const myId = rankMyId();
   if (myId && shown.some((e) => e.id === myId)) return '';
   const idx = myId ? full.findIndex((e) => e.id === myId) : -1;
-  const me = idx >= 0 ? full[idx] : { id: myId, name: p.name, cls: p.classId, path: p.path != null ? p.path : null, level: p.level, xp: p.xp || 0, rp: rankPts(p),
+  const me = idx >= 0 ? full[idx] : { id: myId, name: p.name, cls: p.classId, path: p.path != null ? p.path : null, level: p.level, xp: p.level >= RANK.maxLevel && p.seele ? p.seele.tot || 0 : p.xp || 0, rp: rankPts(p),
     gs: typeof gearLevelOf === 'function' ? Math.max(0, Math.min(300, gearLevelOf(p.equipment))) : 0 };
   const note = !myId ? '<p class="rk-note">Nur mit Konto kommst du in die Bestenliste.</p>'
     : idx < 0 && (tab !== 'pvp' || rankPts(p) > 0) ? `<p class="rk-note">Noch nicht unter den besten ${RANK.fetch}.</p>` : '';

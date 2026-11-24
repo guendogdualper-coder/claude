@@ -1260,10 +1260,19 @@ const ui = {
     this.set('lowHp', !p.dead && p.hp / s.maxHp < 0.3, (v) => { $('hudChar').classList.toggle('low', v); });
     this.set('lvl', p.level, (v) => { $('hudLevel').textContent = v; });
     // Roter Punkt am Charakter-Knopf, solange Punkte zu verteilen sind
-    this.set('points', (p.statPoints || 0) + p.skillPoints > 0, (v) => { $('btnChar').classList.toggle('has-points', v); });
+    this.set('points', (p.statPoints || 0) + p.skillPoints + (p.level >= MAX_LEVEL && typeof seeleFree === 'function' ? seeleFree(p) : 0) > 0, (v) => { $('btnChar').classList.toggle('has-points', v); });
     this.set('statPts', (p.statPoints || 0) > 0, (v) => { $('btnStatPlus').hidden = !v; });
     const need = xpToNext(p.level);
-    this.set('xp', p.xp + '/' + need, () => {
+    // seit 15.75: auf Stufe 80 die Seelenstufe (seelenstufen.js) statt „Höchststufe“
+    const sl = p.level >= MAX_LEVEL && typeof seeleState === 'function' ? seeleState(p) : null;
+    this.set('xp', sl ? 's' + sl.lv + '/' + Math.floor(sl.xp) : p.xp + '/' + need, () => {
+      if (sl) {
+        const sn = sl.lv >= SEELE.max ? 0 : seeleNeed(sl.lv);
+        const sp = sn ? (sl.xp / sn) * 100 : 100;
+        $('xpFill').style.width = sp + '%';
+        $('xpText').textContent = sn ? `★ ${sl.lv} · ${Math.floor(sl.xp).toLocaleString('de-DE')} / ${sn.toLocaleString('de-DE')} Seelen-EP (${sp.toFixed(1).replace('.', ',')} %)` : `★ ${sl.lv} · Höchste Seelenstufe`;
+        return;
+      }
       const pct = p.level >= MAX_LEVEL ? 100 : (p.xp / need) * 100;
       $('xpFill').style.width = pct + '%';
       $('xpText').textContent = p.level >= MAX_LEVEL ? 'Höchststufe' : `${p.xp.toLocaleString('de-DE')} / ${need.toLocaleString('de-DE')} EP (${pct.toFixed(1).replace('.', ',')} %)`;
@@ -1620,9 +1629,13 @@ const ui = {
     // Summe der Boni mit Obergrenze (BONUS_CAPS), z. B. „8 % / 25 %“
     const capPct = (v, k) => pct(v || 0) + (BONUS_CAPS[k] ? ` <small class="cap">/ ${pct(BONUS_CAPS[k])}</small>` : '');
     // Seit 12.4 auf Seiten verteilt (kein langes Scrollen): Status, Fertigkeiten, Werte
+    if (this.charTab === 'seele' && !(p.level >= MAX_LEVEL)) this.charTab = 'status';
     const tab = this.charTab || 'status';
     const dot = (n) => (n > 0 ? `<i class="tab-dot">${n}</i>` : '');
     const tabs = [['status', 'Status', dot(p.statPoints || 0)], ['skills', 'Fertigkeiten', dot(p.skillPoints || 0)], ['werte', 'Werte', '']];
+    // seit 15.75: Seelenstufen ab Stufe 80 (seelenstufen.js)
+    const soul = p.level >= MAX_LEVEL && typeof seeleHtml === 'function';
+    if (soul) tabs.push(['seele', 'Seele', dot(seeleFree(p))]);
     const pages = {
       status: this.elementHtml(p) + this.attrHtml(p),
       skills:
@@ -1652,7 +1665,8 @@ const ui = {
         `</dl>` + (typeof setCharHtml === 'function' ? setCharHtml(p) : '') + `<h3>Erfolge</h3><dl class="stats">` +
         row('Besiegte Monster', p.kills.toLocaleString('de-DE')) + row('Zerstörte Seelensteine', p.stones) +
         row('Tode', p.deaths) + row('Spielzeit', formatTime(p.playTime)) +
-        `</dl>`
+        `</dl>`,
+      seele: soul ? seeleHtml(p) : ''
     };
     $('charBody').innerHTML =
       `<p class="char-head"><span><strong>${escapeHtml(p.name)}</strong> · ${c.name} · ${classPath(p.classId, p.path).name} · Stufe ${p.level}</span>` +
@@ -1670,6 +1684,7 @@ const ui = {
       });
     });
     $('btnLook').addEventListener('click', () => this.openLookPanel());
+    if (tab === 'seele' && typeof seeleBind === 'function') seeleBind($('charBody'));
     if ($('charDoll') && typeof drawDoll === 'function') drawDoll($('charDoll'));
     $('charBody').querySelectorAll('[data-upgrade]').forEach((b) => {
       // seit 14.32: Vorschau mit Bestätigen, auch ohne Punkte/Bücher (dann ist „Bestätigen“ gesperrt)

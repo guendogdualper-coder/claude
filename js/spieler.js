@@ -1152,7 +1152,9 @@ function usePotion(kind, sizeId) {
   snd.player('potion', { vol: 0.4 });
   // seit 14.32: im Duell und in der Turnierarena wirken Tränke zu PVP_DMG.potion (85 %) – so bleibt die Heilung im PvP
   // trotz der stärkeren Tränke etwa wie vorher (die PvP-Messung aus 14.30 gilt weiter)
-  const k = typeof pvpActive === 'function' && pvpActive() ? PVP_DMG.potion : 1;
+  // seit 15.75: Heilkunde (Seelenstufen) verstärkt Tränke, gegen Spieler zur Hälfte
+  const pvpNow = typeof pvpActive === 'function' && pvpActive();
+  const k = (pvpNow ? PVP_DMG.potion : 1) * (1 + (s.potionBonus || 0) * (pvpNow ? 0.5 : 1));
   if (hp) {
     // nur die wirklich geheilte Menge anzeigen, ganzzahlig (Leben hat durch Regeneration Nachkommastellen)
     const amount = Math.min(Math.round(size.hp * k), s.maxHp - p.hp);

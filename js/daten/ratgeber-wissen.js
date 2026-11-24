@@ -117,8 +117,9 @@ const RATGEBER_WISSEN = [
   },
   {
     c: 'sinn', q: 'Was kann ich machen, wenn ich weit oben bin?',
-    a: 'Höchststufe 80, Ausrüstung bis +20, epische und legendäre Teile, Endbosse mit fünf Spielern, Instanzen wie der Thron der Unterwelt, ein Rang in der Turnierarena bis Champion und eine neue Bestwelle in der Prüfungsarena.',
-    k: 'endgame ende maximal hohe stufe was danach ziel langfristig legendaer champion'
+    a: 'Höchststufe 80, Ausrüstung bis +20, epische und legendäre Teile, Endbosse mit fünf Spielern, Instanzen wie der Thron der Unterwelt, ein Rang in der Turnierarena bis Champion und eine neue Bestwelle in der Prüfungsarena. ' +
+      'Seit 15.75 geht es auf Stufe 80 weiter: <b>Seelenstufen</b> (bis 100, jede gibt einen Punkt), jeden Tag drei <b>Tagesaufträge</b> und jede Woche drei <b>Wochenaufträge</b> mit Truhen und alle drei Stunden ein <b>Weltboss</b> auf einer Lv-80-Karte.',
+    k: 'endgame ende maximal hohe stufe was danach ziel langfristig legendaer champion seelenstufen tagesaufträge weltboss stufe 80'
   },
   {
     c: 'sinn', q: 'Wie hoch ist die Höchststufe?',
@@ -403,6 +404,35 @@ const RATGEBER_WISSEN = [
       '<b>Veredler</b> (in Kazehana, Mondfall, Lichtwacht und den Lagern Seelenwacht, Leuchtwacht und Sonnenhof, neben dem Schmied): einzelne Boni neu würfeln, ewige Ausrüstung in fünf Stufen veredeln und Teile färben. ' +
       'Dazu die Glutschwinge beim Stallmeister und Handel im Auktionshaus.',
     k: 'gold stufe 80 endgame was tun ausgeben veredler veredeln schmied reich geld wohin lv80'
+  },
+  // Seelenstufen, Tages-/Wochenaufträge, Weltbosse (seit 15.75, docs/endgame-langzeit.md)
+  {
+    c: 'sinn', p: 3, q: 'Was sind Seelenstufen?',
+    a: 'Ab Stufe 80 geht keine Erfahrung mehr verloren: Sie füllt deine <b>Seelenstufen</b> (höchstens 100, unten in der Erfahrungsleiste mit ★). ' +
+      'Jede Seelenstufe gibt einen Punkt, den du im Charakterfenster (C) auf der Seite <b>„Seele“</b> verteilst – auf zehn Seelenwerte mit je höchstens 10 Punkten. ' +
+      'Drei davon stärken den Kampf ein wenig (Kraft, Ausdauer, Härte – zusammen höchstens +8 %), sieben machen das Grinden angenehmer: mehr Gold, Beute, Seelensplitter, Seelen-Erfahrung, Trankwirkung, Reittempo und billigerer Schmied. ' +
+      'Jede Seelenstufe braucht mehr Erfahrung als die davor. Neu verteilen kostet 500.000 Gold, jedes weitere Mal das Doppelte.',
+    k: 'seelenstufe seelenstufen seele punkte stufe 80 erfahrung weiter paragon kraft ausdauer härte gier glück sammler gelehrter heilkunde reiter schmiedekunst verteilen'
+  },
+  {
+    c: 'sinn', p: 3, q: 'Werde ich mit Seelenstufen zu stark für Bosse und Instanzen?',
+    a: 'Nein. Die Kampfwerte der Seelenstufen geben <b>zusammen höchstens +8 %</b> (Kraft +3 % Schaden, Ausdauer +3 % Leben, Härte +2 % Abwehr) – das spürt man, aber kein Boss wird dadurch allein schaffbar. ' +
+      'Der Rest sind Komfortwerte, die keinen Kampf leichter machen. Gegen andere Spieler zählen die Kampfwerte nur zur Hälfte. Die Mechaniken der Bosse (Stampfer, Salven, Kristallschild) bleiben gleich.',
+    k: 'seelenstufen zu stark bosse instanzen alleine solo op übermächtig balance grenze deckel'
+  },
+  {
+    c: 'quests', p: 3, q: 'Gibt es Tages- und Wochenaufträge?',
+    a: 'Ja, ab Stufe 80. Jeden Tag bekommst du drei <b>Tagesaufträge</b> (z. B. Monster ab Stufe 75 besiegen, Seelensteine zerstören, Elite-Gegner, einen Instanzboss oder Gold von Monstern sammeln) und jede Woche (Montag bis Sonntag) drei <b>Wochenaufträge</b> ' +
+      '(15 Tagesaufträge, 3 Weltbosse, 5 große Bosse ab Stufe 75). Der Fortschritt zählt überall, die Belohnung kommt <b>sofort</b> – ohne Abgabe. ' +
+      'Alle drei eines Tages geben zusätzlich die <b>Tagestruhe</b>, alle drei einer Woche die <b>Wochentruhe</b> mit einem Ausrüstungsteil (mit Glück legendär). Du findest sie im Questfenster (L) und rechts in der Auftragsliste.',
+    k: 'tagesauftrag tagesaufträge wochenauftrag wochenaufträge daily weekly täglich wöchentlich truhe stufe 80 aufgaben'
+  },
+  {
+    c: 'kampf', p: 3, q: 'Was sind Weltbosse und wann kommen sie?',
+    a: 'Alle <b>drei Stunden</b> erscheint ein riesiger Weltboss auf einer der Lv-80-Karten – reihum Kristallhänge, Seelenhain, Nebelküste und Himmelsterrassen (im Winter um 1:30, 4:30, 7:30 … Uhr). ' +
+      'Fünf Minuten und eine Minute vorher kommt eine Ansage, rechts in der Auftragsliste steht, wann und wo; antippen zeigt dir den goldenen Pfeil. ' +
+      'Er bleibt 15 Minuten, hat sehr viel Leben und ruft Verstärkung – am besten mit vielen Spielern. Jeder, der mitkämpft, bekommt genau ein Ausrüstungsteil (25 % legendär, sonst episch), Ätherkerne, Seelensplitter, Gold und Seelen-Erfahrung.',
+    k: 'weltboss weltbosse world boss riese zeitplan wann wo uhrzeit drei stunden kristallkoloss varnhal seelenschemen aurun riffkönig morvath sonnenkoloss helyra'
   },
   {
     c: 'ausruestung', p: 3, q: 'Was macht der Veredler?',

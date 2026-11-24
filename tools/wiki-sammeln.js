@@ -112,16 +112,20 @@ window.collectWiki = async function () {
       const d = dungeonOfZone(z);
       chips.push(d ? 'dungeon/' + d.id : z.safe ? 'karte/' + zoneMap(z) : 'gebiet/' + z.id);
     }
-    const kind = t.raidBoss ? 'Endboss' : t.boss ? 'Dungeon-Boss' : t.dungeon ? 'Dungeon-Monster' : 'Monster';
+    const kind = t.weltboss ? 'Weltboss' : t.raidBoss ? 'Endboss' : t.boss ? 'Dungeon-Boss' : t.dungeon ? 'Dungeon-Monster' : 'Monster';
     const firstMap = places.length ? mapById(zoneMap(places[0])).name : '';
-    const group = t.raidBoss ? 'Endbosse' : t.boss ? 'Dungeon-Bosse' : firstMap;
+    const group = t.weltboss ? 'Weltbosse' : t.raidBoss ? 'Endbosse' : t.boss ? 'Dungeon-Bosse' : firstMap;
     const sections = [];
+    // Weltbosse (seit 15.75): Karte aus dem Zeitplan
+    const wbMap = t.weltboss && typeof WB !== 'undefined' ? +Object.keys(WB.types).find((k) => WB.types[k] === id) : 0;
+    if (wbMap) sections.push({ title: 'Wann und wo', html: `<p>Erscheint nach Zeitplan auf [[karte/${wbMap}|${mapById(wbMap).name}]] und bleibt 15 Minuten – siehe [[system/weltbosse|Weltbosse]].</p>` });
     if (chips.length) sections.push({ title: 'Hier zu finden', chips });
     const drops = [];
     if (MOB_MATS[id]) drops.push(`[[teil/${id}|${MOB_MATS[id].name}]] – ${pc(MOB_MAT_CHANCE)} je Kill (${pc(SIDE_DROP)}, solange ein Wanderer dieses Teil sammeln lässt)`);
     drops.push(`Gold ${st.gold[0]}–${st.gold[1]} · ${de(st.xp)} EP`);
     if (!t.boss && !t.raidBoss) drops.push('Ausrüstung mit 2,5 % Chance, Seelensplitter und Tränke');
-    if (t.boss && !t.raidBoss) drops.push('Boss-Beute: 2 Gegenstände +3 bis +6, 3–5 Monster-Teile, Boni-Plus, Switcher, mit Glück Boni-5 und Stern, Gold = Stufe × 300');
+    if (t.boss && !t.raidBoss && !t.weltboss) drops.push('Boss-Beute: 2 Gegenstände +3 bis +6, 3–5 Monster-Teile, Boni-Plus, Switcher, mit Glück Boni-5 und Stern, Gold = Stufe × 300');
+    if (t.weltboss) drops.push(`Weltboss-Beute für jeden, der mitkämpft: genau ein Ausrüstungsteil deiner Klasse (${pc(WB.legendary)} legendär, sonst episch), 2–3 Ätherkerne, 25–35 Seelensplitter, 4–6 Monster-Teile, Gold = Stufe × 2.500 und ${String(WB.ep).replace('.', ',')} Stufen Seelen-Erfahrung`);
     if (t.raidBoss) drops.push('Endboss-Beute: 1 legendärer Gegenstand deiner Klasse (+0, 4 Boni, zu einem Drittel eine Waffe), 8–12 Monster-Teile, 15–25 Seelensplitter, Gold = Stufe × 1.500');
     sections.push({ title: 'Beute', html: '<ul>' + drops.map((d) => `<li>${d}</li>`).join('') + '</ul>' });
     const tiers = usedForTiers(id);
@@ -129,14 +133,14 @@ window.collectWiki = async function () {
     const quests = MAIN_QUESTS.filter((q) => q.goal.type === 'kill' && q.goal.monster === id).map((q) => 'quest/' + q.id);
     if (quests.length) sections.push({ title: 'Quests', chips: quests });
     const badges = [['Stufe ' + t.level, 'lv']];
-    if (t.boss || t.raidBoss) badges.push([t.raidBoss ? 'ENDBOSS' : 'BOSS', 'boss']);
+    if (t.boss || t.raidBoss) badges.push([t.weltboss ? 'WELTBOSS' : t.raidBoss ? 'ENDBOSS' : 'BOSS', 'boss']);
     add({
       id: 'monster/' + id, cat: 'monster', group, name: t.name, img: monImg[id], badges,
-      sub: `${kind} · Stufe ${t.level}${places.length ? ' · ' + zonePlaceText(places[0]) : ''}`,
-      answer: places.length ? 'Fundort: ' + places.slice(0, 2).map(zonePlaceText).join(' oder ') : '',
+      sub: `${kind} · Stufe ${t.level}${places.length ? ' · ' + zonePlaceText(places[0]) : wbMap ? ' · ' + mapById(wbMap).name : ''}`,
+      answer: places.length ? 'Fundort: ' + places.slice(0, 2).map(zonePlaceText).join(' oder ') : wbMap ? 'Weltboss: alle 3 Stunden reihum, auf ' + mapById(wbMap).name : '',
       facts: [['Stufe', String(t.level)], ['Leben', de(st.maxHp)], ['Angriff', de(st.atk)], ['Rüstung', de(st.def)], ['Erfahrung', de(st.xp)], ['Gold', `${st.gold[0]}–${st.gold[1]}`],
         ['Verhalten', t.aggressive ? 'greift an (bis 10 Stufen unter dir)' : 'friedlich, bis man angreift'], ['Kampf', t.ranged ? 'Fernkampf' : 'Nahkampf']],
-      sections, prio: t.raidBoss ? 8 : t.boss ? 6 : 0, tags: 'monster gegner ' + kind
+      sections, prio: t.raidBoss || t.weltboss ? 8 : t.boss ? 6 : 0, tags: 'monster gegner ' + kind + (t.weltboss ? ' weltboss world boss' : '')
     });
   }
   await tick();
@@ -477,6 +481,36 @@ window.collectWiki = async function () {
   // seit 15.72: ohne Werbung die Hälfte, mit Werbung das Doppelte (Tage zählen ab 1, Namen können von der Stufe abhängen)
   try { daily = tbl(['Tag', 'Ohne Werbung (Beispiel Stufe 30)', 'Mit Werbung (doppelt)'], DAILY_DAYS.map((d, i) => [`${i + 1}. ${dailyName(i + 1, 30)}`, dailyLines(i + 1, 30).join(' · '), dailyLines(i + 1, 30, 2).join(' · ')])); } catch (err) { daily = ''; }
   sys('tagesbelohnung', 'Tagesbelohnung', 'Jeden Tag einloggen lohnt sich – 7 Tage im Kreis', `<p>Einmal am Tag gibt es eine Belohnung (Taste <kbd>T</kbd>). Je mehr Tage am Stück, desto besser. Ohne Werbung gibt es die Hälfte; wer eine kurze Werbung (30 Sekunden) ansieht, bekommt das Doppelte – vor dem Abholen oder danach, einmal am Tag.</p>${daily}`, null, 'tagesbelohnung daily login belohnung werbung doppelt');
+  // Endgame ab Stufe 80 (seit 15.75): Seelenstufen, Tages- und Wochenaufträge, Weltbosse (docs/endgame-langzeit.md)
+  if (typeof SEELE !== 'undefined') sys('seelenstufen', 'Seelenstufen', `Ab Stufe ${MAX_LEVEL}: bis ${SEELE.max} Seelenstufen, jede gibt einen Punkt`,
+    `<p>Ab Stufe ${MAX_LEVEL} geht keine Erfahrung mehr verloren: Sie füllt deine Seelenstufen (höchstens ${SEELE.max}, in der Erfahrungsleiste mit ★). Jede Seelenstufe gibt einen Punkt, den du im Charakterfenster (Taste <kbd>C</kbd>) auf der Seite „Seele“ verteilst. Jeder Seelenwert nimmt höchstens ${SEELE.perWert} Punkte.</p>` +
+    tbl(['Wert', 'je Punkt', `mit ${SEELE.perWert} Punkten`, 'Art'], SEELE_WERTE.map((w) => [`${w.icon} ${w.name}`, `${w.minus ? '−' : '+'}${pc(w.per, 1)} ${w.eff}`, `${w.minus ? '−' : '+'}${pc(w.per * SEELE.perWert)}`, w.kampf ? 'Kampf (gegen Spieler halb)' : 'Komfort'])) +
+    `<p>Die drei Kampfwerte geben zusammen höchstens +8 % – kein Boss wird dadurch allein schaffbar. Gegen andere Spieler zählen sie nur zur Hälfte.</p>` +
+    `<p>Jede Seelenstufe braucht mehr Erfahrung als die davor: die erste etwa eine halbe Stufe ${MAX_LEVEL}, die letzte gut das Dreieinhalbfache. Alle ${SEELE.max} zusammen entsprechen rund 200 Aufstiegen auf Stufe ${MAX_LEVEL}. Neu verteilen kostet ${de(SEELE.resetBase)} Gold, jedes weitere Mal das Doppelte (höchstens ${de(SEELE.resetMax)}). In der Bestenliste steht auf Stufe ${MAX_LEVEL} die Seelenstufe – bei gleicher Stufe ist die höhere vorn.</p>`,
+    null, 'seele seelenstufe seelenstufen stufe 80 endgame punkte kraft ausdauer härte gier glück sammler gelehrter heilkunde reiter schmiedekunst');
+  if (typeof AUFG_TAG !== 'undefined') {
+    const lohn = (r) => [r.gold ? de(r.gold) + ' Gold' : '', r.splinters ? r.splinters + ' Seelensplitter' : '', r.kerne ? r.kerne + ' Ätherkern' + (r.kerne > 1 ? 'e' : '') : '', r.seelenstein ? r.seelenstein + ' Seelenstein (Gegenstand)' : '', r.ep ? String(r.ep).replace('.', ',') + ' Stufen Seelen-Erfahrung' : ''].filter(Boolean).join(', ');
+    sys('auftraege', 'Tages- und Wochenaufträge', `Ab Stufe ${AUFG.level}: jeden Tag drei, jede Woche drei – Belohnung sofort`,
+      `<p>Ab Stufe ${AUFG.level} bekommst du jeden Tag drei Tagesaufträge (für jede Figur und jeden Tag fest ausgewählt) und jede Woche (Montag bis Sonntag) drei Wochenaufträge. Der Fortschritt zählt überall, die Belohnung kommt sofort – ohne Abgabe. Du findest sie im Questfenster (Taste <kbd>L</kbd>) bei den Nebenquests und rechts in der Auftragsliste.</p>` +
+      `<h3>Tagesaufträge (drei aus diesem Vorrat)</h3>` + tbl(['Auftrag', 'Wo'], AUFG_TAG.map((t) => [t.text(t.need[0] === t.need[1] ? t.need[0] : `${de(t.need[0])}–${de(t.need[1])}`), t.where])) +
+      `<h3>Wochenaufträge</h3>` + tbl(['Auftrag', 'Wo'], AUFG_WOCHE.map((t) => [t.text(t.need), t.where])) +
+      `<h3>Belohnungen</h3>` + tbl(['Wofür', 'Belohnung'], [['Je Tagesauftrag', lohn(AUFG_LOHN.tag)], ['Tagestruhe (alle drei des Tages)', lohn(AUFG_LOHN.tagTruhe)], ['Je Wochenauftrag', lohn(AUFG_LOHN.woche)], ['Wochentruhe (alle drei der Woche)', lohn(AUFG_LOHN.wocheTruhe) + `, ein Ausrüstungsteil (${pc(AUFG_LOHN.wocheTruhe.legendary)} legendär, sonst episch)`]]),
+      null, 'tagesauftrag tagesaufträge wochenauftrag wochenaufträge daily weekly truhe stufe 80');
+  }
+  if (typeof WB !== 'undefined') sys('weltbosse', 'Weltbosse', `Alle ${WB.every / 3600e3} Stunden ein Riese auf einer Lv-80-Karte – alle kämpfen zusammen`,
+    `<p>Alle ${WB.every / 3600e3} Stunden erscheint ein Weltboss auf einer der Lv-80-Karten, reihum (im Winter um 1:30, 4:30, 7:30, 10:30, 13:30, 16:30, 19:30 und 22:30 Uhr, im Sommer eine Stunde später). ${WB.warn / 60e3} Minuten und eine Minute vorher kommt eine Ansage; rechts in der Auftragsliste steht ab ${15} Minuten vorher, wann und wo. Tippst du die Zeile an, führt dich der goldene Pfeil hin.</p>` +
+    tbl(['Weltboss', 'Karte', 'Uhrzeit (Winterzeit)'], WB.maps.map((m, k) => {
+      // jeden Tag dieselben Zeiten (8 Ereignisse am Tag, 4 Karten reihum); Winterzeit = Weltzeit + 1 Stunde
+      const at = [];
+      for (let j = k; j < 86400e3 / WB.every; j += WB.maps.length) {
+        const min = ((j * WB.every + WB.offset) / 60000 + 60) % 1440;
+        at.push(`${Math.floor(min / 60)}:${String(min % 60).padStart(2, '0')}`);
+      }
+      return [`[[monster/${WB.types[m]}|${MONSTER_TYPES[WB.types[m]].name}]]`, `[[karte/${m}|${mapById(m).name}]]`, at.join(' und ') + ' Uhr'];
+    })) +
+    `<p>Der Boss bleibt ${WB.dur / 60e3} Minuten. Er hat sehr viel Leben – ab dem vierten Spieler auf der Karte je +${pc(WB.hpPerPlayer)} –, stampft, schießt Salven und ruft Verstärkung. Wird er nicht rechtzeitig besiegt, zieht er sich zurück.</p>` +
+    `<p>Jeder, der mitgekämpft hat, bekommt genau ein Ausrüstungsteil für die eigene Klasse (${pc(WB.legendary)} legendär, sonst episch), 2–3 Ätherkerne, 25–35 Seelensplitter, Monster-Teile, Gold und ${String(WB.ep).replace('.', ',')} Stufen Seelen-Erfahrung. Besiegte Weltbosse zählen für den [[system/auftraege|Wochenauftrag]].</p>`,
+    monImg[WB.types[WB.maps[0]]] || null, 'weltboss weltbosse world boss riese zeitplan stufe 80 endgame');
   sys('tod', 'Tod und Wiederbeleben', 'Kostenlos im Lager oder gegen Erfahrung vor Ort', `<p>Stirbst du, kannst du kostenlos im Lager der aktuellen Map aufstehen oder an Ort und Stelle (kostet 3 % der Erfahrung zur nächsten Stufe, du stehst mit halbem Leben und Mana auf und bist 3 s geschützt).</p>`, null, 'tod sterben wiederbeleben respawn');
   sys('inventar', 'Inventar und Lager', `${BAG_SIZE} Plätze im Inventar, ${STORAGE.page * STORAGE.pages} im Lager`, `<p>Das Inventar (Taste <kbd>I</kbd>) hat ${BAG_PAGES} Seiten mit je ${BAG_PAGE} Plätzen. Das [[npc/lager|Lager]] kostet einmalig ${de(STORAGE.price)} Gold und ist in allen Städten dasselbe. Verkaufen kannst du bei Händlerin, Waffen- und Rüstungshändler, Alchemist und Schmied.</p>`, null, 'inventar tasche lager verkaufen');
   sys('status', 'Statuspunkte', `${STAT_POINTS_PER_LEVEL} Statuspunkt je Stufe`, tbl(['Wert', 'Wirkung'], ATTRS.map((a) => [a.name, a.text])) + `<p>Höchstens ${MAX_ATTR} Punkte je Wert. Der [[npc/lehrmeister|Lehrmeister]] setzt sie gegen Gold zurück.</p>`, null, 'status statuspunkte stärke vitalität intelligenz geschick');

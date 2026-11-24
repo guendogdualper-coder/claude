@@ -7618,7 +7618,8 @@ function syncMonster3(m, dt) {
   if (a.model.teufel && typeof teufelAura3 === 'function') teufelAura3(a, m);
   // Bosse stehen in einem pulsierenden Schein (seit 14.82 nicht mehr die mit eigenem Modell aus bosse3d.js: kein
   // Bodenring, ihre Dauereffekte zeigen sie selbst)
-  if (m.type.boss && !a.model.boss3) {
+  // (Weltbosse ohne Bodenring)
+  if (m.type.boss && !a.model.boss3 && !m.type.weltboss) {
     if (!a.aura) {
       a.aura = groundRing(new THREE.Color(m.type.boss.color), false);
       a.group.add(a.aura);

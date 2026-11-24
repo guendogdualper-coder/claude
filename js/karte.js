@@ -945,6 +945,12 @@ function guideTarget(e, p) {
   const area = mapAreaAt(p.x / TILE, p.y / TILE);
   if (!area) return null;
   if (e.pin) return inArea(area, guide.pin.x, guide.pin.y) ? { x: guide.pin.x, y: guide.pin.y, name: 'Markierung' } : null;
+  // fester Ort (Weltboss): erst zur Karte, dort zum Monster selbst, solange es lebt, sonst zu seinem Platz
+  if (e.at) {
+    if (!inArea(area, e.at.x, e.at.y)) return routeOut(area, p, e.at.mapName || '');
+    const m = e.monster ? nearestIn(game.monsters, area, p, (x) => !x.dead && x.typeId === e.monster) : null;
+    return m ? { x: m.x, y: m.y, name: e.at.name, follow: m } : { x: e.at.x, y: e.at.y, name: e.at.name };
+  }
   if (e.npc) {
     if (inArea(area, e.npc.x, e.npc.y)) return { x: e.npc.x, y: e.npc.y, name: e.npc.name };
     const wm = mapOfTile(e.npc.x / TILE, e.npc.y / TILE);

@@ -7,6 +7,7 @@ viel Geld“).
 Code: `js/endgame80.js` (neu, nach `js/turm.js` geladen), dazu kleine Eingriffe in `js/drei-figuren.js` (Prägung an die
 Waffe weiterreichen), `js/daten/ratgeber-wissen.js` (fünf Einträge), `index.html` und `sw.js` (Skript einbinden).
 Dropliste aller Seelensteine: `docs/seelenstein-drops.md`.
+Seelenstufen, Tages- und Wochenaufträge und Weltbosse (seit 15.75): `docs/endgame-langzeit.md`.
 
 ## 1. Bestandsaufnahme Lv-80-Ausrüstung
 
