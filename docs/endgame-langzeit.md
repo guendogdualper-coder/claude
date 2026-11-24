@@ -11,7 +11,7 @@ Umgesetzt in drei Paketen, jedes einzeln getestet und veröffentlicht:
 |---|---|---|
 | 1 | 15.75 | Seelenstufen, Tages- und Wochenaufträge, Weltbosse (dieses Dokument) |
 | 2 | 15.76 | Erfolge und Titel, Schwierigkeitsstufen für Instanzen und Turm, Pech-Schutz, Aufstieg legendärer +20-Teile, Juwelen/Sockel (Abschnitte 6–10) |
-| 3 | 15.77 | Gildenstufen und Gildenboss, Grenzschlacht, PvP-Saisons, Events (Winterfest, Doppel-EP-Wochenenden), Bonus für weitere Charaktere |
+| 3 | 15.78 | Gildenstufen und Gildenboss, Grenzschlacht, PvP-Saisons, Events (Winterfest, Doppel-EP-Wochenenden), Bonus für weitere Charaktere |
 
 Ausrüstung, Schmied, Prägungen und Veredler auf Stufe 80: `docs/endgame-80.md`.
 

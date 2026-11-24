@@ -124,7 +124,7 @@ window.collectWiki = async function () {
     if (MOB_MATS[id]) drops.push(`[[teil/${id}|${MOB_MATS[id].name}]] – ${pc(MOB_MAT_CHANCE)} je Kill (${pc(SIDE_DROP)}, solange ein Wanderer dieses Teil sammeln lässt)`);
     drops.push(`Gold ${st.gold[0]}–${st.gold[1]} · ${de(st.xp)} EP`);
     if (!t.boss && !t.raidBoss) drops.push('Ausrüstung mit 2,5 % Chance, Seelensplitter und Tränke');
-    if (t.boss && !t.raidBoss && !t.weltboss) drops.push('Boss-Beute: 2 Gegenstände +3 bis +6, 3–5 Monster-Teile, Boni-Plus, Switcher, mit Glück Boni-5 und Stern, Gold = Stufe × 300');
+    if (t.boss && !t.raidBoss && !t.weltboss) drops.push('Boss-Beute: 1 Ausrüstungsteil +1 bis +4 (grün oder blau, ab Stufe 50 mit kleiner Chance episch), 3–5 Monster-Teile, 4–7 Seelensplitter, Gold = Stufe × 300');
     if (t.weltboss) drops.push(`Weltboss-Beute für jeden, der mitkämpft: genau ein Ausrüstungsteil deiner Klasse (${pc(WB.legendary)} legendär, sonst episch), 2–3 Ätherkerne, 25–35 Seelensplitter, 4–6 Monster-Teile, Gold = Stufe × 2.500 und ${String(WB.ep).replace('.', ',')} Stufen Seelen-Erfahrung`);
     if (t.raidBoss) drops.push('Endboss-Beute: 1 legendärer Gegenstand deiner Klasse (+0, 4 Boni, zu einem Drittel eine Waffe), 8–12 Monster-Teile, 15–25 Seelensplitter, Gold = Stufe × 1.500');
     sections.push({ title: 'Beute', html: '<ul>' + drops.map((d) => `<li>${d}</li>`).join('') + '</ul>' });

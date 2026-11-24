@@ -1200,15 +1200,16 @@ function lootKind(p, cls) {
   return own[randInt(0, own.length - 1)];
 }
 
-// Bosse: zwei Teile Ausrüstung über der eigenen Stufe (+3 bis +6), Bücher, Schmiede-Teile,
+// Bosse: ein Teil Ausrüstung über der eigenen Stufe (seit 15.77; vorher zwei), Bücher, Schmiede-Teile,
 // Materialien, eine Segensschriftrolle und viel Gold
 function bossLoot(m) {
   const p = game.player;
   const b = m.type.boss;
   let tier = 0;
   ITEM_TIERS.forEach((t, i) => { if (m.level + 8 >= t.level) tier = i; });
-  // seit 15.74: Wächter des Höllenthrons (Zerberos, Ifrah) geben ihr eines Teil in htGuardLoot, hier keins dazu
-  const n = typeof htIsGuard === 'function' && htIsGuard(m) ? 0 : 2;
+  // seit 15.74: Wächter des Höllenthrons (Zerberos, Ifrah) geben ihr eines Teil in htGuardLoot, hier keins dazu;
+  // seit 15.77 auch jeder andere Dungeon-Boss nur noch ein Teil (wie Endbosse, Instanzbosse und die Truhe im Turm)
+  const n = typeof htIsGuard === 'function' && htIsGuard(m) ? 0 : 1;
   for (let k = 0; k < n; k++) {
     const cls = Math.random() < 0.85 ? p.classId : CLASS_ORDER[randInt(0, CLASS_ORDER.length - 1)];
     const slots = lootSlots(EQUIP_SLOTS.map((sl) => sl.id), cls);

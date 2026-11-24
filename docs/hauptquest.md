@@ -52,11 +52,11 @@ fand, hatte ab 70 keine goldene Quest mehr.
 | Zerberos und Ifrah (Höllenthron) | 2–3 epische + 2 Teile eines Dungeon-Bosses | 1 episches (2 % legendär) |
 | Abaddor (Höllenthron) | 3 legendäre + 1 Zusatzteil | 1 legendäres Teil |
 | Turm der Verdammten, Truhe des Wächters | 3 epische + 1 legendäres oder 4. episches | 1 Teil: 35 % legendär, sonst episch |
-| normale Dungeon-Bosse (`bossLoot`) | 2 grüne/blaue | unverändert 2 |
+| normale Dungeon-Bosse (`bossLoot`) | 2 grüne/blaue | seit 15.77 auch nur 1 (grün/blau, selten episch) |
 
 Schmiede-Teile, Seelensplitter, Ätherkerne, Gold und Erfahrung bleiben, wie sie waren.
 
 ## Test
 
 `questtest/test.js` (Scratchpad der Sitzung): Reihe, alle Umrechnungsfälle (Licht und Schatten), Ablauf bei Bao/Selenor,
-Zählen und Abgeben der Endbosse, Beute je Boss (je 40–60 Würfe: immer genau 1 Teil, Dungeon-Boss 2).
+Zählen und Abgeben der Endbosse, Beute je Boss (je 40–60 Würfe: immer genau 1 Teil, Dungeon-Boss 2). Seit 15.77 gibt auch jeder normale Dungeon-Boss genau 1 Teil (`endtest3/test.js`: alle Dungeon-Bosse je 25 Würfe, immer 1).
