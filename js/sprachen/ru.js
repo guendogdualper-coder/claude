@@ -5272,4 +5272,10 @@
 "{0} Juwelen": "{0} самоцвета",
 "Doppelte Erfahrung bis Sonntag {0} Uhr": "Двойной опыт до воскресенья {0}:00",
 "doppelte Erfahrung für alle Charaktere bis Sonntag {0} Uhr": "двойной опыт для всех персонажей до воскресенья {0}:00",
+// 15.80: Aufstieg in den nächsten Rang an der Fertigkeitsleiste
+"Aufstieg möglich": "Повышение ранга доступно",
+// 15.80: Ausweichen/Blocken nur gegen normale Angriffe
+"Nur gegen normale Angriffe – Fertigkeiten treffen immer": "Только против обычных атак – умения попадают всегда",
+// 15.80: Bonus Zaubergeschwindigkeit
+"Zaubergeschwindigkeit": "Скорость заклинаний",
 };

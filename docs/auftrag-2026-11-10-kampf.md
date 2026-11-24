@@ -197,7 +197,16 @@ und nicht den PvP-Wert; (c) negative Werte wären angezeigt worden.
 Dateien: js/spieler.js, js/oberflaeche.js.
 
 ### Auffälligkeiten (nur dokumentiert, nicht geändert – Designfrage)
-- Boss-Mechaniken, denen man durch Stellung ausweichen soll (Endboss-„Untergang“ außerhalb der sicheren Kreise,
+- **Seit 15.80 umgesetzt (Wunsch des Spielers):** Fähigkeiten lassen sich weder ausweichen noch blocken. `damagePlayer`
+  (js/kampf.js) kennt dafür `o.sure`; gesetzt wird es bei Fertigkeiten anderer Spieler (Duell, offenes PvP,
+  Turnierarena: `pvpOutgoing` schickt `sk: 1`, `pvpReceiveHit` reicht es weiter) und bei allen Boss-Fähigkeiten:
+  Boss-Stampfer (gegner.js, netz.js), Raid-Spezialangriffe (gegner.js, hoellenthron.js), Endboss-„Untergang“
+  (endboss.js), eigene Boss-Angriffe (bossangriffe.js `bskHurt`), Instanz-Mechaniken und Gefahrenflächen
+  (instanzen.js) sowie Geschosse von Bossen/Raid-Bossen (Salven, kampf.js). Ausweichbar und blockbar bleiben
+  Grundangriffe anderer Spieler, normale Monsterschläge (auch über das Netz, `mhit`) und normale Monstergeschosse.
+  Schaden über Zeit (`o.dot`) war schon vorher nie ausweichbar. Die Anzeige der Werte im Charakterfenster hat dazu
+  einen Hinweis (title), der Ratgeber eine eigene Frage.
+- (Stand vor 15.80) Boss-Mechaniken, denen man durch Stellung ausweichen soll (Endboss-„Untergang“ außerhalb der sicheren Kreise,
   Stampfen), sowie die Gift-Lachen in Instanzen (Tick alle 0,5 s) sind ausweichbar und blockbar. Mit 45 % verfehlt jeder
   zweite Tick bzw. fast jeder zweite Boss-Schlag. Vorschlag: diese als `{ dot: true }` bzw. eigene Flagge „nicht
   ausweichbar“ führen.

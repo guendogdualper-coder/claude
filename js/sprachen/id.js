@@ -5271,4 +5271,10 @@
 "{0} Juwelen": "{0} permata",
 "Doppelte Erfahrung bis Sonntag {0} Uhr": "EXP ganda sampai Minggu pukul {0}.00",
 "doppelte Erfahrung für alle Charaktere bis Sonntag {0} Uhr": "EXP ganda untuk semua karakter sampai Minggu pukul {0}.00",
+// 15.80: Aufstieg in den nächsten Rang an der Fertigkeitsleiste
+"Aufstieg möglich": "Bisa naik peringkat",
+// 15.80: Ausweichen/Blocken nur gegen normale Angriffe
+"Nur gegen normale Angriffe – Fertigkeiten treffen immer": "Hanya terhadap serangan biasa – skill selalu kena",
+// 15.80: Bonus Zaubergeschwindigkeit
+"Zaubergeschwindigkeit": "Kecepatan merapal",
 };

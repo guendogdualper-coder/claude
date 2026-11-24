@@ -24,7 +24,11 @@
     {"id": "kharzul2", "stimmung": "kharzul2", "synth": "klang-synth/musik.py", "lufs": -18, "tp": -1.5, "vbr": 2, "bpm": 150, "takt": 4, "blende": 0.5, "schleife": [3.2, 105.6],
      "hinweis": "Kharzul ab der Verwandlung: dasselbe Stück mit mehr Wucht, gleiche Schleife (Gleichlauf); eigene Komposition, im Rechner erzeugt (tools/klang-synth/musik.py, Rohdatei <roh>/musik/<id>.wav); Prompt für eine Fassung von außen: docs/musik-prompts.md"},
     {"id": "arena", "stimmung": "arena", "synth": "klang-synth/arena_varianten.py", "lufs": -18, "tp": -1.5, "vbr": 2, "bpm": 132, "takt": 4, "blende": 0.5, "schleife": [3.636372, 120.0],
-     "hinweis": "Prüfungs- und Turnierarena (seit 15.52): „Titanen“, episch-orchestral, g-Moll, 132 BPM, 64 Takte; eigene Komposition aus CC0-Instrumenten-Samples (VSCO 2 CE, VCSL), gebaut mit tools/klang-synth/arena_varianten.py (Fassung a, Rohdatei <roh>/musik/<id>.wav); siehe docs/musik-prompts.md"}
+     "hinweis": "Prüfungs- und Turnierarena (seit 15.52): „Titanen“, episch-orchestral, g-Moll, 132 BPM, 64 Takte; eigene Komposition aus CC0-Instrumenten-Samples (VSCO 2 CE, VCSL), gebaut mit tools/klang-synth/arena_varianten.py (Fassung a, Rohdatei <roh>/musik/<id>.wav); siehe docs/musik-prompts.md"},
+    {"id": "glut", "stimmung": "glut", "synth": "klang-synth/musik.py", "lufs": -18, "tp": -1.5, "vbr": 2, "bpm": 100, "takt": 4, "blende": 0.5, "schleife": [4.8, 120.0],
+     "hinweis": "Feuerberg, im Wechsel mit vulkan und heiss (Stimmung „feuer“, MUSIC_REIHE in js/klang-dateien.js): „Glut“, treibend, e-Moll fünftönig, 100 BPM, 48 Takte; Fasstrommeln, Koto, Erhu-Thema, Bambusflöte; eigene Komposition, im Rechner erzeugt (tools/klang-synth/musik.py, Rohdatei <roh>/musik/<id>.wav)"},
+    {"id": "vulkan", "stimmung": "vulkan", "synth": "klang-synth/musik.py", "lufs": -18, "tp": -1.5, "vbr": 2, "bpm": 84, "takt": 4, "blende": 0.5, "schleife": [5.714286, 120.0],
+     "hinweis": "Feuerberg, im Wechsel mit glut und heiss (Stimmung „feuer“, MUSIC_REIHE in js/klang-dateien.js): „Vulkan“, dunkel und wuchtig, h-Moll mit phrygischem C, 84 BPM, 40 Takte; tiefes Blech, Männerchor, Gong, Grollen, Erhu und Bambusflöte; eigene Komposition, im Rechner erzeugt (tools/klang-synth/musik.py, Rohdatei <roh>/musik/<id>.wav)"}
   ],
   "sfx": [
     {"id": "hieb_schwert", "gruppe": "kampf", "dauer": 4, "einfluss": 0.55, "hp": 70, "abstand": 0.5, "ausklang": -32, "max": 0.6,

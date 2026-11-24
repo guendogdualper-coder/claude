@@ -98,7 +98,8 @@ function bskHurt(S, mul, m, o) {
   const p = game.player;
   if (!p || p.dead) return 0;
   const amt = calcDamage(S.a, mul * levelBonus(S.l, p.level), game.stats.def, o && o.dot ? 0 : 0.05, S.l).amount;
-  damagePlayer(amt, m, o && o.dot ? { dot: true } : undefined);
+  // Boss-Fähigkeiten treffen immer (seit 15.80: kein Ausweichen, kein Blocken)
+  damagePlayer(amt, m, o && o.dot ? { dot: true } : { sure: true });
   return amt;
 }
 // Verlangsamung des eigenen Spielers (playerStats unten), Festhalten (lockPlayer, kampf.js)

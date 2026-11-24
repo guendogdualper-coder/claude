@@ -191,7 +191,7 @@ function raidDoomResolve(m, safe, atk, lvl) {
     addText(p.x, p.y - 40, 'Sicher!', 'heal');
     return;
   }
-  damagePlayer(calcDamage(atk, RAID_MUL.doom * levelBonus(lvl, p.level), game.stats.def, 0.05, lvl).amount, m);
+  damagePlayer(calcDamage(atk, RAID_MUL.doom * levelBonus(lvl, p.level), game.stats.def, 0.05, lvl).amount, m, { sure: true });
 }
 
 // --- Für alle: Übergänge sichtbar machen (Kuppel entsteht, Kuppel zerspringt) ----------------------------

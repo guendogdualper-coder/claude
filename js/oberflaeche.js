@@ -579,18 +579,24 @@ const ui = {
         const act = acts.find((a) => a.type === 'point') || acts.find((a) => a.type === 'rankup' && rank < 0) || acts.find((a) => a.type === 'book');
         // „E“, wenn der Tipp erweckt (der Punkt auf Stufe 15 macht seit 8.9 sofort E1)
         const awaken = act && (act.type === 'rankup' || (act.type === 'point' && p.skillLevels[i] + 1 >= SKILL_POINT_MAX));
+        // seit 15.80: Geht nur der Aufstieg in den nächsten Rang (H, L oder V – mit Schriftrollen bzw. Seelensteinen, schon
+        // ab Stufe 8 im Rang), zeigt der Knopf den Buchstaben dieses Rangs statt „+“ und öffnet die Seite „Fertigkeiten“ bei
+        // dieser Fertigkeit. Vorher stand dort „+“, das die Seite „Status“ öffnete – sah aus wie ein Plus für Bücher, das
+        // nicht weggeht (Spieler-Rückmeldung).
+        const up = !act && rank >= 0 && SKILL_RANKS[rank + 1] ? SKILL_RANKS[rank + 1] : null;
         const plus = document.createElement('button');
         plus.type = 'button';
-        plus.className = 'plus' + (awaken ? ' awaken' : '');
-        plus.title = awaken ? skillRankName(sk, p.skillLevels[i]) + ' erwecken' : skillRankName(sk, p.skillLevels[i]) + ' verbessern';
-        plus.textContent = awaken ? 'E' : '+';
+        plus.className = 'plus' + (awaken ? ' awaken' : '') + (up ? ' rankup' : '');
+        plus.title = awaken ? skillRankName(sk, p.skillLevels[i]) + ' erwecken' : up ? skillRankName(sk, p.skillLevels[i]) + ' · Aufstieg möglich' : skillRankName(sk, p.skillLevels[i]) + ' verbessern';
+        plus.textContent = awaken ? 'E' : up ? up.id : '+';
+        if (up) plus.style.setProperty('--rk', up.color);
         plus.addEventListener('pointerdown', (e) => e.stopPropagation());
         // seit 14.32: erst die Vorschau (alte → neue Werte), verbessert wird mit „Bestätigen“ (fertigkeit-vorschau.js)
         if (act && typeof skillPreviewBind === 'function') skillPreviewBind(plus, i, act.type);
         else plus.addEventListener('click', (e) => {
           e.stopPropagation();
           if (act) upgradeSkill(i, act.type);
-          else this.toggle('panelChar');
+          else this.openSkillsAt(i);
         });
         wrap.append(plus);
       }
@@ -606,6 +612,21 @@ const ui = {
   // - auf einen freien Platz (7/8) ziehen oder ihn antippen: die Fertigkeit wandert dorthin, ihr Platz wird frei,
   // - aus der Leiste hinausziehen und loslassen: sie wird herausgenommen, der Platz ist frei.
   // Ein leerer Platz zeigt „+“: Antippen öffnet die Auswahl der Fertigkeiten.
+  // Charakterfenster auf der Seite „Fertigkeiten“ öffnen und den Aufstiegsknopf dieser Fertigkeit zeigen (seit 15.80)
+  openSkillsAt(i) {
+    this.charTab = 'skills';
+    if ($('panelChar').hidden) this.toggle('panelChar');
+    else this.renderCharPanel();
+    setTimeout(() => {
+      const body = $('charBody');
+      const b = body && (body.querySelector(`[data-upgrade="${i}"][data-act="rankup"]`) || body.querySelector(`[data-upgrade="${i}"]`));
+      if (!b) return;
+      try { b.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) { b.scrollIntoView(); }
+      b.classList.add('hint-pulse');
+      setTimeout(() => b.classList.remove('hint-pulse'), 2600);
+    }, 60);
+  },
+
   pressSkill(btn, i, slot) {
     let timer = null;
     let lifted = false;
@@ -1631,7 +1652,9 @@ const ui = {
     if (!p) return;
     const s = playerStats(p);
     const c = CLASSES[p.classId];
-    const row = (k, v) => `<div><dt>${k}</dt><dd>${v}</dd></div>`;
+    const row = (k, v, t) => `<div${t ? ` title="${t}"` : ''}><dt>${k}</dt><dd>${v}</dd></div>`;
+    // seit 15.80: Ausweichen und Blocken wirken nur gegen normale Angriffe (damagePlayer, o.sure)
+    const onlyNormal = 'Nur gegen normale Angriffe – Fertigkeiten treffen immer';
     const pct = (v) => Math.round(v * 100) + ' %';
     // Summe der Boni mit Obergrenze (BONUS_CAPS), z. B. „8 % / 25 %“
     const capPct = (v, k) => pct(v || 0) + (BONUS_CAPS[k] ? ` <small class="cap">/ ${pct(BONUS_CAPS[k])}</small>` : '');
@@ -1664,8 +1687,8 @@ const ui = {
         row('Magiestärke', '+' + pct(s.magic || 0)) + row('Lauftempo', speedText(p, s)) +
         // seit 14.32 mit Obergrenze und dem Wert gegen Spieler (dort zählt die Hälfte, PVP_DMG.dodgeMul). Blocken wird nur
         // gewürfelt, wenn der Treffer nicht schon ausgewichen ist (damagePlayer)
-        row('Blocken', pct(s.block) + (s.block > 0 ? ` <small class="cap">/ ${pct(MAX_BLOCK)} · PvP ${pct(s.block * PVP_DMG.dodgeMul)}</small>` : '')) +
-        row('Ausweichen', pct(s.dodge) + ` <small class="cap">/ ${pct(DODGE_RULES.cap)} · PvP ${pct(s.dodge * PVP_DMG.dodgeMul)}</small>`) +
+        row('Blocken', pct(s.block) + (s.block > 0 ? ` <small class="cap">/ ${pct(MAX_BLOCK)} · PvP ${pct(s.block * PVP_DMG.dodgeMul)}</small>` : ''), onlyNormal) +
+        row('Ausweichen', pct(s.dodge) + ` <small class="cap">/ ${pct(DODGE_RULES.cap)} · PvP ${pct(s.dodge * PVP_DMG.dodgeMul)}</small>`, onlyNormal) +
         `</dl><h3>Boni</h3><dl class="stats">` +
         row('Stark gegen Monster', capPct(s.monsterDmg, 'monsterDmg')) + row('Lebensraub', pct(s.hpSteal || 0)) +
         (s.natureDmg ? row(p.classId === 'magier' ? 'Elementschaden' : 'Naturschaden', '+' + pct(s.natureDmg)) : '') + (s.critDmg ? row('Kritischer Schaden', '+' + pct(s.critDmg)) : '') + (s.omniVamp ? row('Omni-Vampir', pct(s.omniVamp)) : '') +
@@ -2556,6 +2579,8 @@ function lookEditor(box, classId, start, onChange, equipment = null, path = 0) {
 
 // Neue Boni (seit 14.15) auf der Seite „Werte“ des Charakterfensters
 const CHAR_NEW_BONI = [
+  // seit 15.80
+  ['castSpeed', 'Zaubergeschwindigkeit'],
   ['poison', 'Vergiftungschance'], ['vsBeast', 'Stark gegen Tiere'], ['vsHuman', 'Stark gegen Menschen'],
   ['vsOrc', 'Stark gegen Orks und Riesen'], ['vsUndead', 'Stark gegen Untote und Geister'], ['vsDemon', 'Stark gegen Teufel und Dämonen'],
   ['resHuman', 'Abwehr gegen Menschen'], ['resMagic', 'Abwehr gegen Magie'], ['resMelee', 'Abwehr gegen Nahkampf'],

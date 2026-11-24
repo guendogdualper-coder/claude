@@ -5678,4 +5678,10 @@
 "{0} Juwelen": "{0} klejnoty",
 "Doppelte Erfahrung bis Sonntag {0} Uhr": "Podwójne doświadczenie do niedzieli do {0}:00",
 "doppelte Erfahrung für alle Charaktere bis Sonntag {0} Uhr": "podwójne doświadczenie dla wszystkich postaci do niedzieli do {0}:00",
+// 15.80: Aufstieg in den nächsten Rang an der Fertigkeitsleiste
+"Aufstieg möglich": "Awans możliwy",
+// 15.80: Ausweichen/Blocken nur gegen normale Angriffe
+"Nur gegen normale Angriffe – Fertigkeiten treffen immer": "Tylko przeciw zwykłym atakom – umiejętności zawsze trafiają",
+// 15.80: Bonus Zaubergeschwindigkeit
+"Zaubergeschwindigkeit": "Szybkość rzucania",
 };

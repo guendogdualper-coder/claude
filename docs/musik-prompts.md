@@ -46,6 +46,7 @@ Cold, crystalline and lonely snowy mountain music for a fantasy online role-play
 ```
 
 ## Wüste und Feuerberg (`heiss`) – 80 BPM, D-Phrygisch
+Läuft in der Wüste; am Feuerberg im Wechsel mit `vulkan` und `glut` (siehe unten „Feuerberg“).
 ```
 Hot desert and volcanic wasteland exploration music for a fantasy online role-playing game. A hypnotic groove of goblet drum and frame drum in steady sixteenths, a plucked lute (oud-like) and a guzheng repeat a short ostinato in D phrygian, a smoky low double-reed melody (duduk-like) wanders above, low droning strings hold the tonic, shimmering metallic textures suggest heat haze. Mysterious, warm and adventurous, not aggressive. Key: D phrygian (tonic D). Tempo: exactly 80 BPM in 4/4. Length: 2 minutes 30 seconds. Loop-friendly: strict constant tempo from the first to the last bar, no tempo changes, no ritardando, no rubato, no time-signature changes, no pauses or breaks; a steady, clearly audible pulse on every beat throughout; very short intro of at most two bars, then the main theme; clear 8-bar phrases; keep the arrangement density and loudness even from start to end, no big build-ups and no drops; no fade-out – the final bar ends cleanly on a sustained D tonic chord on the downbeat. Instrumental only, no vocals, no lyrics, no spoken words.
 ```
@@ -104,6 +105,35 @@ Läuft in der Prüfungsarena (Wellen) und in der Turnierarena. Ohne Datei spielt
 Cool, energetic arena combat groove for a fantasy online role-playing game with an East Asian flavour: fighting wave after wave in front of an imagined crowd. A punchy kick drum and snare with layered hand claps, crisp sixteenth-note hi-hats and shaker, a syncopated sixteenth-note bass riff in E dorian, a plucked koto playing fast sixteenth-note arpeggios, a catchy erhu hook answered by a bamboo flute, brass stabs on the off-beat accents, taiko and tom fills every four bars, big ensemble hand claps with stadium reverb in the loudest part (no voices), a half-time break with horns and big drums before the full groove returns. Confident, driving and focused, not frantic. Harmony E minor – C – D – A major – B major. Key: E dorian. Tempo: exactly 125 BPM in 4/4, straight sixteenths, no swing. Length: 2 minutes. Loop-friendly: strict constant tempo from the first to the last bar, no tempo changes, no ritardando, no rubato, no time-signature changes, no pauses; a steady, clearly audible pulse on every beat throughout; very short intro of at most two bars; clear 8-bar phrases; keep the loudness within a few decibels from start to end; no fade-out – the final two bars are a drum fill and a rising swell that lead into the first bar. Instrumental only, no vocals, no lyrics, no spoken words.
 ```
 
+## Feuerberg (`feuer`): Vulkan und Glut im Wechsel mit `heiss`
+Am Feuerberg (Boden Basalt oder Lavaseen: Feuerberg, Titanenkamm) spielt die Stimmung `feuer` drei Stücke im Wechsel:
+`vulkan` → `glut` → `heiss` (`MUSIC_REIHE` in `js/klang-dateien.js`); die Wüste bleibt bei `heiss`. Jedes Stück läuft
+einmal ganz (Vorspiel und einmal die Schleife A–B), dann blendet das Spiel über sein Ende in das Vorspiel des nächsten
+(gleiche Leistung, so lang wie das Vorspiel des neuen, 4–6 s) – die Schleife des neuen setzt genau am Schleifenende des
+alten ein. Wer die Gegend verlässt und wiederkommt, hört das nächste Stück der Reihe von vorn; nach einer Pause (Musik
+aus, Spiel im Hintergrund) läuft das Stück an seiner Stelle weiter. Fehlt eine Datei, kommt die nächste der Reihe, ohne
+jede Datei die erzeugte Musik (wie `heiss`). `vulkan` und `glut` sind eigene Kompositionen, im Rechner erzeugt (siehe
+„Im Rechner erzeugt“); ihre letzten zwei Takte – das Vorspiel – sind Überleitungen.
+
+- **Vulkan (`vulkan`)** – dunkel und wuchtig, h-Moll mit phrygischem C, 84 BPM, 40 Takte (114,3 s), Leitmotiv h–c–h:
+  V1 Grollen (große Trommel als Herzschlag, tiefe Streicher im Tremolo, Chor „u“, tiefe Bambusflöte, Glutfunken der
+  Koto), V2 Riff im tiefen Blech mit Fasstrommeln, Koto und Chor „o“, V3 Thema in Hörnern und Posaunen mit Ambossen und
+  Antworten der Flöte, V4 Glutkammer (halbes Tempo, Gong, Koto im Tremolo, die Erhu singt über G – D – e – C), V5 Ausbruch
+  (Thema mit Erhu und Chor in der Oktave, Steigerung über C-Dur, im letzten Takt der Schlag des Ausbruchs mit Gong und
+  Chorcluster h/c, der ins Grollen des Anfangs ausklingt).
+- **Glut (`glut`)** – treibend, e-Moll fünftönig, 100 BPM, 48 Takte (115,2 s): G1 Groove (Fasstrommeln, Koto in
+  rollenden Sechzehnteln, Holzblock, Funken der Flöte), G2 Thema der Erhu, G3 die Flöte ruft, die Erhu antwortet, G4 halbes
+  Tempo (Gong, tiefes Blech, Männerchor, Koto im Tremolo, Erhu-Lied über a – F – e – C – H), G5 Thema mit der Flöte in der
+  Oktave und Blechstößen, G6 Thema auf der Koto mit Tremolo, Flöte als Gegenstimme, Wirbel und Anstieg auf H-Dur.
+
+Prompts für eine Fassung von außen:
+```
+Dark, heavy and volcanic exploration music for a mountain of glowing lava in a fantasy online role-playing game with an East Asian flavour. A deep rumbling drone and a war drum heartbeat open the piece with low tremolo strings and a breathy low bamboo flute playing a smoky original melody built on a groaning semitone (B – C – B). Then a stomping low brass riff with a taiko ensemble, a male choir singing dark sustained "oh" chords (no lyrics), a heavy horn and trombone theme in B minor with a Phrygian C, anvil strikes on beats two and four, a gong. A half-time middle part: plucked koto tremolo, soft choir, a singing erhu melody. The last part brings the theme with erhu and choir, a build-up over C major and one huge eruption hit with gong and a dissonant choir cluster that dies away into the rumble of the beginning. Powerful but steady, music to explore and fight to, not a boss battle. Key: B minor. Tempo: exactly 84 BPM in 4/4. Length: 2 minutes. Loop-friendly: strict constant tempo from the first to the last bar, no tempo changes, no ritardando, no rubato, no time-signature changes, no pauses; a steady, clearly audible pulse on every beat throughout; very short intro of at most two bars; clear 8-bar phrases; keep the loudness within a few decibels from start to end; no fade-out – the final bar is the eruption hit on B minor that rings out into the first bar. Instrumental only (wordless choir allowed), no lyrics, no spoken words.
+```
+```
+Driving, warm and adventurous exploration music for fields of glowing embers on a fire mountain in a fantasy online role-playing game with an East Asian flavour. A taiko ensemble plays a syncopated groove with a deep drum on beats one and three, a small high drum and temple blocks in eighth notes, a plucked koto rolls in sixteenth notes, low strings pulse in eighth notes. An erhu sings an original pentatonic theme in E minor, a bamboo flute calls and the erhu answers, soft horns hold the harmony. A half-time middle part with a gong, low brass, a male choir (no lyrics) and a koto tremolo while the erhu sings over F major (a Phrygian glow). The theme returns with the flute an octave above and short brass stabs, then on the koto with long tremolo notes. Confident and moving forward, not frantic. Key: E minor. Tempo: exactly 100 BPM in 4/4. Length: 2 minutes. Loop-friendly: strict constant tempo from the first to the last bar, no tempo changes, no ritardando, no rubato, no time-signature changes, no pauses; a steady, clearly audible pulse on every beat throughout; very short intro of at most two bars; clear 8-bar phrases; keep the loudness within a few decibels from start to end; no fade-out – the final two bars are a drum fill and a rising swell on B major that lead into the first bar. Instrumental only (wordless choir allowed), no lyrics, no spoken words.
+```
+
 ## Im Rechner erzeugt: Turm, Kharzul, Arenen (seit 15.51)
 
 `turm`, `kharzul`, `kharzul2` und `arena` stammen nicht von einem Generator, sondern sind eigene Kompositionen, die
@@ -117,6 +147,7 @@ Glocke, Amboss, Koto, Erhu, Flöte; Hall als Faltung). Keine Aufnahmen, keine Sa
 - **Neu bauen:** `python3 tools/klang-erzeugen.py roh turm kharzul kharzul2 arena --neu` (rechnet die Rohdateien, etwa
   eine bis drei Minuten je Stück, ohne Netz und ohne Schlüssel), dann `python3 tools/klang-erzeugen.py bauen turm
   kharzul kharzul2 arena`. Die Einträge in `tools/klang-liste.json` tragen dafür `"synth": "klang-synth/musik.py"`.
+  Ebenso die beiden Stücke des Feuerbergs: `… roh glut vulkan --neu`, dann `… bauen glut vulkan`.
 - **Ändern:** Abläufe, Melodien und Mischung stehen in `tools/klang-synth/musik.py` (je Stück eine Funktion für die
   Spuren und eine für die Mischung). Bleibt die Zahl der Takte gleich, bleibt auch `schleife` gleich.
 - **Von außen ersetzen:** mit einem Prompt oben eine Fassung erzeugen, als `<Rohordner>/musik/<id>.mp3` ablegen und im
@@ -170,7 +201,7 @@ bauen arena` und die Version in `sw.js` erhöhen.
 2. **Rohdatei ablegen:** `<Rohordner>/musik/<id>.mp3` – Standard ist `~/.cache/seelenstein-klang-roh/musik/`, ein anderer
    Ordner geht mit `--roh <Ordner>` (Rohdateien gehören nicht ins Repo).
 3. **Eintrag in `tools/klang-liste.json` (`musik`):** `id`, `stimmung` (dorf, feld, wald, kalt, heiss, dunkel, boss,
-   arena, turm, kharzul oder kharzul2), `bpm` (Tempo aus dem Prompt; 0 nur bei Stücken ohne festen Puls), `takt` (4), `phrase` (4 Takte), `blende`
+   arena, turm, kharzul, kharzul2, glut oder vulkan; die beiden letzten spielt der Feuerberg im Wechsel mit heiss), `bpm` (Tempo aus dem Prompt; 0 nur bei Stücken ohne festen Puls), `takt` (4), `phrase` (4 Takte), `blende`
    (Überblendung an der Naht in s, etwa zwei Schläge), `lufs` (−18), `tp` (−1.5), `vbr` (2). Ein altes Feld `schleife`
    entfernen, damit neu gesucht wird. Suchbereich bei Bedarf mit `a_von`/`a_bis` (A nach dem Vorspiel) und `ende_weg`
    (so viele s vor dem Ende darf B höchstens liegen).

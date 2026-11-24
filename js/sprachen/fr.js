@@ -5680,4 +5680,10 @@
 "{0} Juwelen": "{0} gemmes",
 "Doppelte Erfahrung bis Sonntag {0} Uhr": "Expérience doublée jusqu'à dimanche {0} h",
 "doppelte Erfahrung für alle Charaktere bis Sonntag {0} Uhr": "expérience doublée pour tous les personnages jusqu'à dimanche {0} h",
+// 15.80: Aufstieg in den nächsten Rang an der Fertigkeitsleiste
+"Aufstieg möglich": "Ascension possible",
+// 15.80: Ausweichen/Blocken nur gegen normale Angriffe
+"Nur gegen normale Angriffe – Fertigkeiten treffen immer": "Uniquement contre les attaques normales – les compétences touchent toujours",
+// 15.80: Bonus Zaubergeschwindigkeit
+"Zaubergeschwindigkeit": "Vitesse d'incantation",
 };

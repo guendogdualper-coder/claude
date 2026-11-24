@@ -422,7 +422,7 @@ const FOOT_SPEED_CAP = 1.25;
 // Endwerte aus Klasse, Stufe und aktiven Buffs
 const PLAYER_CRIT_CAP = 0.4;
 // Boni, die unverändert als Wert in playerStats landen (seit 14.15)
-const PLAYER_BONUS_KEYS = ['poison', 'vsBeast', 'vsHuman', 'vsOrc', 'vsUndead', 'vsDemon', 'resHuman', 'resMagic', 'resMelee', 'resRanged', 'goldFind', 'dropFind'];
+const PLAYER_BONUS_KEYS = ['poison', 'vsBeast', 'vsHuman', 'vsOrc', 'vsUndead', 'vsDemon', 'resHuman', 'resMagic', 'resMelee', 'resRanged', 'goldFind', 'dropFind', 'castSpeed'];
 // Ausweichen (seit 14.32 als Tabelle statt fester Zahl im Code, Werte unverändert): cap ist die Obergrenze der Summe aus
 // Ausrüstung (Umhang, Schuhe, Ninja-Rüstung), Boni (zusammen höchstens BONUS_CAPS.dodge), Geschick (ATTR_PT.dodge je
 // Punkt) und Buffs (Schattenschleier). Gewürfelt wird einmal je Treffer in damagePlayer (kampf.js), vor dem Blocken;

@@ -780,7 +780,8 @@ function rewardKillInner(m) {
 // --- Schaden am Spieler ----------------------------------------------------------
 
 // o.pvp: Treffer eines anderen Spielers, schon mit allen Abzügen gerechnet (pvpIncoming); o.dot: Gift (kein Ausweichen
-// oder Blocken, grüne Zahl)
+// oder Blocken, grüne Zahl); o.sure (seit 15.80): Fähigkeit – Fertigkeit eines Spielers (d.sk) oder Boss-Fähigkeit
+// (Stampfer, Salve, Spezialangriff, Gefahrenfläche): trifft immer, kein Ausweichen und kein Blocken
 function damagePlayer(amount, attacker, o = {}) {
   const p = game.player;
   const s = game.stats;
@@ -804,12 +805,14 @@ function damagePlayer(amount, attacker, o = {}) {
     if (net.mode === 'client') netClientDamage(attacker, 0, false, false);
   }
   if (p.protectUntil > game.time) return;
-  if (!o.dot && Math.random() < s.dodge * (o.pvp ? PVP_DMG.dodgeMul : 1)) {
+  // seit 15.80: Ausweichen und Blocken nur gegen normale Angriffe – Fähigkeiten (o.sure: Fertigkeiten anderer Spieler,
+  // Boss-Fähigkeiten wie Stampfer, Salven, Spezialangriffe und Gefahrenflächen) treffen immer (Spieler-Rückmeldung)
+  if (!o.dot && !o.sure && Math.random() < s.dodge * (o.pvp ? PVP_DMG.dodgeMul : 1)) {
     addText(p.x, p.y - 30, 'Ausgewichen', 'info');
     return;
   }
   // Ein Schild kann Treffer ganz abblocken
-  if (!o.dot && s.block > 0 && Math.random() < s.block * (o.pvp ? PVP_DMG.dodgeMul : 1)) {
+  if (!o.dot && !o.sure && s.block > 0 && Math.random() < s.block * (o.pvp ? PVP_DMG.dodgeMul : 1)) {
     addText(p.x, p.y - 30, 'Geblockt', 'block');
     vfxBlock(p, attacker);
     snd.block(p);
@@ -1091,21 +1094,30 @@ function skillMana(sk, p = game.player) {
 function skillManaPerSec(sk, p = game.player) {
   return sk.mpPerSec ? skillMana(sk, p) / sk.mp * sk.mpPerSec : 0;
 }
+// Zaubergeschwindigkeit (seit 15.80, Bonus der Ausrüstung, Summe höchstens BONUS_CAPS.castSpeed): verkürzt die
+// Abklingzeit der fünf Fertigkeiten und die gemeinsame Abklingzeit (gcdTime) um ihren Anteil – nur bei der eigenen Figur
+function castSpeedMul() {
+  const v = typeof game !== 'undefined' && game.stats ? +game.stats.castSpeed || 0 : 0;
+  const cap = typeof BONUS_CAPS !== 'undefined' && BONUS_CAPS.castSpeed ? BONUS_CAPS.castSpeed : 0.25;
+  return 1 - Math.max(0, Math.min(cap, v));
+}
 // Abklingzeit einer Fertigkeit (seit 13.87 eine Stelle für Spiel und Infofeld): fest je Fertigkeit, weder Stufe,
-// Rang noch Angriffstempo verkürzen sie. Dazu kommt bei den Zauberern die globale Abklingzeit (GCD_TIME, applyGcd).
+// Rang noch Angriffstempo verkürzen sie – seit 15.80 aber die Zaubergeschwindigkeit (castSpeedMul). Dazu kommt bei
+// den Zauberern und dem Krieger die globale Abklingzeit (GCD_CLASS_TIME, applyGcd).
 // Die Uhr läuft in Spielzeit: Trefferstopps (hitStop, je kritischem Treffer 0,06 s) halten sie kurz an.
 // Rang-Boni (docs/rang-boni.md) dürfen sie verkürzen: sk.rb mit cooldown (rankSk, spieler.js). Ohne lvl gilt die Stufe
 // der eigenen Figur.
 function skillCooldown(sk, lvl) {
+  let cd = sk.cooldown;
   if (sk && Array.isArray(sk.rb) && typeof rankSk === 'function') {
     const p = game.player;
     if (lvl == null && p && p.skillLevels && typeof classSkills === 'function') {
       const i = classSkills(p).indexOf(sk.base || sk);
       if (i >= 0) lvl = p.skillLevels[i];
     }
-    if (lvl != null) return rankSk(sk.base || sk, lvl).cooldown;
+    if (lvl != null) cd = rankSk(sk.base || sk, lvl).cooldown;
   }
-  return sk.cooldown;
+  return Math.round(cd * castSpeedMul() * 100) / 100;
 }
 // Beschreibung mit Werten der Stufe (seit 13.87): {dauer} im Text wird zur echten Dauer (skillDuration),
 // ohne Stufe (Klassenwahl, Wiki) zur Dauer auf Stufe 1
@@ -1141,8 +1153,10 @@ function setSkillCd(p, i, v) {
 // (längere bleiben, wie sie sind). Ulti, Klassensegen, Tränke und Grundangriff zählen nicht, ein Kanal (Eisstrahl,
 // Blutsauger) zählt als ein Zauber. Nur die eigene Figur: Mitspieler sehen nur die Optik.
 // Seit 13.91 auch der Krieger, kürzer (1,5 s): Sichelwelle, Wirbel und Sprung kamen sonst alle im selben Augenblick.
-const GCD_TIME = 2;
-const GCD_CLASS_TIME = { schamane: 2, nekromant: 2, magier: 2, krieger: 1.5 };
+// Seit 15.80 für alle 1,5 s statt 2 s (Spieler-Rückmeldung: zu lange warten zwischen zwei Fertigkeiten); die
+// Zaubergeschwindigkeit der Ausrüstung verkürzt sie weiter (castSpeedMul).
+const GCD_TIME = 1.5;
+const GCD_CLASS_TIME = { schamane: 1.5, nekromant: 1.5, magier: 1.5, krieger: 1.5 };
 const GCD_CLASSES = new Set(Object.keys(GCD_CLASS_TIME));
 // Frostmagier seit 13.94 nur 0,5 s: Eisstrahl, Blizzard und Frostgefängnis sollen sich flüssig verbinden lassen, aber nicht
 // im selben Augenblick
@@ -1150,7 +1164,8 @@ const GCD_PATH_TIME = { frost: 0.5 };
 const gcdTime = (p) => {
   if (!p) return 0;
   const path = CLASSES[p.classId] && CLASSES[p.classId].paths[p.path || 0];
-  return (path && GCD_PATH_TIME[path.id]) || GCD_CLASS_TIME[p.classId] || 0;
+  const g = (path && GCD_PATH_TIME[path.id]) || GCD_CLASS_TIME[p.classId] || 0;
+  return g && p === game.player ? Math.round(g * castSpeedMul() * 100) / 100 : g;
 };
 function applyGcd(p, i) {
   const g = gcdTime(p);
@@ -2381,7 +2396,9 @@ function updateProjectiles(dt) {
         pr.done = true;
         particles(v.x, feetY(v) - 18, { count: 8, color: [pr.color, '#ffffff'], speed: [60, 140], life: [0.15, 0.3], size: [1.5, 2.5], shape: 'spark', drag: 6 });
         if (v === p) {
-          if (!game.stats.invisible) damagePlayer(calcDamage(pr.atk, levelBonus(pr.source.level, p.level), game.stats.def, 0.03, pr.source.level).amount, pr.source);
+          // Geschosse von Bossen (Salven) sind Fähigkeiten: kein Ausweichen, kein Blocken (seit 15.80)
+          const bt = pr.source && pr.source.type;
+          if (!game.stats.invisible) damagePlayer(calcDamage(pr.atk, levelBonus(pr.source.level, p.level), game.stats.def, 0.03, pr.source.level).amount, pr.source, bt && (bt.boss || bt.raid) ? { sure: true } : {});
         } else {
           damageAlly(v, calcDamage(pr.atk, 1, v.def, 0, pr.source.level).amount);
         }
@@ -2483,6 +2500,8 @@ function pvpOutgoing(mul, opts) {
     // Rang-Boni (docs/rang-boni.md): trifft ein Rang-Extra dasselbe Ziel erneut (Rücksprung, Nachschlag …), zählt es gegen Spieler halb
     (opts.rankEcho ? RANK_PVP_ECHO : 1);
   const d = { a: Math.round(raw), c: crit ? 1 : 0, l: p.level, at: pvpAttackKind(p, opts) };
+  // sk (seit 15.80): Treffer einer Fertigkeit – der Getroffene kann ihr nicht ausweichen und sie nicht blocken
+  if (opts.skill && !opts.basic) d.sk = 1;
   if (opts.ally) d.al = 1; // Treffer eines Dieners: kein Lebensraub für den Herrn
   if (!opts.ally && !opts.dot && s.poison > 0 && Math.random() < s.poison) d.pz = Math.max(1, Math.round((raw * TOXIN.share) / TOXIN.dur));
   // seit dem Aderlass: stapelnde Blutung als roher Schaden je Sekunde und Stapel [je Stapel, Dauer, höchstens Stapel]
@@ -2524,7 +2543,7 @@ function pvpReceiveHit(d, src, fb) {
   p.pvpWin = p.pvpWin || [];
   const amount = pvpIncoming(p.level, s, d, p.pvpWin, game.time);
   const before = p.hp;
-  if (amount > 0) damagePlayer(amount, src, { pvp: true });
+  if (amount > 0) damagePlayer(amount, src, { pvp: true, sure: !!d.sk });
   const dealt = Math.max(0, Math.round(before - p.hp));
   // ausgewichen, geblockt oder vom Schild geschluckt zählt nicht zum Deckel in 1,5 s
   if (dealt > 0) p.pvpWin.push({ t: game.time, a: dealt });

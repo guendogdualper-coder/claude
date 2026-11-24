@@ -825,7 +825,7 @@ function instResolve(m, kind, circles, inner, atk, lvl) {
   const inC = (c) => p && hyp(p.x - c.x, (fyp - c.y) * 1.2) < c.r;
   const hurt = (mul) => {
     if (!p || p.dead) return;
-    damagePlayer(calcDamage(atk, mul * levelBonus(lvl, p.level), game.stats.def, 0.05, lvl).amount, m);
+    damagePlayer(calcDamage(atk, mul * levelBonus(lvl, p.level), game.stats.def, 0.05, lvl).amount, m, { sure: true });
   };
   shakeScreen(kind === 'ult' ? 16 : 8);
   if (kind === 'ult') {
@@ -911,7 +911,7 @@ function instHazardTick() {
     if (game.time > h.until) { INST_HAZ.splice(i, 1); continue; }
     if (game.time < h.next || !p || p.dead) continue;
     h.next = game.time + 0.5;
-    if (hyp(p.x - h.x, (feetY(p) - h.y) * 1.2) < h.r) damagePlayer(calcDamage(h.atk, 0.22 * levelBonus(h.lvl, p.level), game.stats.def, 0, h.lvl).amount, h.m);
+    if (hyp(p.x - h.x, (feetY(p) - h.y) * 1.2) < h.r) damagePlayer(calcDamage(h.atk, 0.22 * levelBonus(h.lvl, p.level), game.stats.def, 0, h.lvl).amount, h.m, { sure: true });
   }
 }
 EXTRA_EFFECTS.ipool = (ctx, e, k, x, y) => {

@@ -5669,4 +5669,10 @@
 "{0} Juwelen": "{0} edelstenen",
 "Doppelte Erfahrung bis Sonntag {0} Uhr": "Dubbele ervaring tot zondag {0}:00 uur",
 "doppelte Erfahrung für alle Charaktere bis Sonntag {0} Uhr": "dubbele ervaring voor alle personages tot zondag {0}:00 uur",
+// 15.80: Aufstieg in den nächsten Rang an der Fertigkeitsleiste
+"Aufstieg möglich": "Opwaardering mogelijk",
+// 15.80: Ausweichen/Blocken nur gegen normale Angriffe
+"Nur gegen normale Angriffe – Fertigkeiten treffen immer": "Alleen tegen normale aanvallen – vaardigheden raken altijd",
+// 15.80: Bonus Zaubergeschwindigkeit
+"Zaubergeschwindigkeit": "Spreuksnelheid",
 };

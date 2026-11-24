@@ -5272,4 +5272,10 @@
 "{0} Juwelen": "{0} 颗宝石",
 "Doppelte Erfahrung bis Sonntag {0} Uhr": "双倍经验持续到周日 {0} 点",
 "doppelte Erfahrung für alle Charaktere bis Sonntag {0} Uhr": "所有角色双倍经验持续到周日 {0} 点",
+// 15.80: Aufstieg in den nächsten Rang an der Fertigkeitsleiste
+"Aufstieg möglich": "可升阶",
+// 15.80: Ausweichen/Blocken nur gegen normale Angriffe
+"Nur gegen normale Angriffe – Fertigkeiten treffen immer": "仅对普通攻击有效——技能必定命中",
+// 15.80: Bonus Zaubergeschwindigkeit
+"Zaubergeschwindigkeit": "施法速度",
 };

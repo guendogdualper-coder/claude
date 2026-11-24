@@ -243,6 +243,13 @@ const RATGEBER_WISSEN = [
     k: 'hauptwert wichtig statuspunkte wohin skillen beste verteilung stats klasse'
   },
   {
+    c: 'kampf', q: 'Kann man Fertigkeiten ausweichen oder sie blocken?',
+    a: 'Nein. Ausweichen und Blocken (Blocken nur mit Schild) wirken nur gegen <b>normale Angriffe</b>: Grundangriffe anderer Spieler sowie normale Schläge und Geschosse von Monstern. ' +
+      '<b>Fertigkeiten</b> anderer Spieler und die <b>Fähigkeiten der Bosse</b> – Stampfer, Salven, Spezialangriffe und Gefahrenflächen – treffen immer. Gift, Brand und Blutung (Schaden über Zeit) konnte man noch nie ausweichen. ' +
+      'Gegen Fähigkeiten helfen Leben, Verteidigung, Abwehr, Schilde – und aus der Warnfläche herauszulaufen.',
+    k: 'ausweichen blocken block dodge fertigkeit fertigkeiten faehigkeit boss stampfer salve treffen immer verfehlen schild'
+  },
+  {
     c: 'kampf', q: 'Kann ich Statuspunkte oder Fertigkeiten zurücksetzen?',
     a: 'Ja, bei <b>{n:lehrmeister}</b>. Das erste Zurücksetzen kostet 10.000 Gold, jedes weitere das Doppelte (höchstens 5 Millionen) – Statuspunkte und Fertigkeiten zählen getrennt. ' +
       'Beim Zurücksetzen der Fertigkeiten bekommst du alle Punkte zurück und die Gegenstände, die die Stufen mindestens gekostet haben: Fertigkeitsbücher für E, Schriftrollen für H, Seelensteine für L und V.',
@@ -301,8 +308,9 @@ const RATGEBER_WISSEN = [
   },
   {
     c: 'kampf', q: 'Warum kann ich nach einem Zauber nicht gleich den nächsten wirken?',
-    a: 'Schamane, Nekromant und Magier haben eine gemeinsame Abklingzeit: Nach jeder Fertigkeit haben ihre übrigen Fertigkeiten mindestens 2 Sekunden Abklingzeit.',
-    k: 'abklingzeit cooldown gcd zauber warten global'
+    a: 'Schamane, Nekromant, Magier und Krieger haben eine gemeinsame Abklingzeit: Nach jeder Fertigkeit haben ihre übrigen Fertigkeiten mindestens 1,5 Sekunden Abklingzeit (Frostmagier nur 0,5 Sekunden, Ninja gar keine). ' +
+      'Ulti, Klassensegen, Tränke und der Grundangriff zählen nicht. Der Bonus <b>Zaubergeschwindigkeit</b> auf der Ausrüstung verkürzt diese Pause und die Abklingzeit der Fertigkeiten.',
+    k: 'abklingzeit cooldown gcd zauber warten global pause zwischen fertigkeiten zaubergeschwindigkeit'
   },
   {
     c: 'kampf', q: 'Die Monster sind zu stark – was tun?',
@@ -545,6 +553,14 @@ const RATGEBER_WISSEN = [
       'Alle diese Materialien gibt es <b>nur aus Seelensteinen</b>: Die Steine der ersten Karte (Stufe 5–15) geben vor allem Verstärkungen, Switcher nur sehr selten; ' +
       'ab Stufe 20 (zweite Karte) kommen Switcher, Seltene Verstärkung und Sternensteine richtig, je höher der Stein, desto öfter.',
     k: 'boni bonus verstaerkung switcher sternenstein sternen-switcher seltene verstaerkung wuerfeln'
+  },
+  // seit 15.80
+  {
+    c: 'ausruestung', q: 'Was bewirkt Zaubergeschwindigkeit?',
+    a: () => `<b>Zaubergeschwindigkeit</b> verkürzt die Abklingzeit deiner fünf Fertigkeiten und die gemeinsame Pause zwischen zwei Fertigkeiten um ihren Anteil – bei 20 % kommt eine Fertigkeit mit 10 Sekunden Abklingzeit schon nach 8 Sekunden zurück. ` +
+      `Ulti und Klassensegen verkürzt sie nicht. Es gibt sie auf Waffe, Helm, Schultern, Umhang und Gürtel, zusammen höchstens ${(typeof BONUS_CAPS !== 'undefined' && BONUS_CAPS.castSpeed) ? rgPct(BONUS_CAPS.castSpeed) : '25 %'}. ` +
+      'Die Abklingzeiten im Infofeld der Fertigkeiten zeigen schon den verkürzten Wert.',
+    k: 'zaubergeschwindigkeit zaubertempo cast speed abklingzeit cooldown schneller fertigkeiten bonus pause'
   },
   // seit 14.15: neue Boni
   {
@@ -974,7 +990,7 @@ const RATGEBER_WISSEN = [
       return `Bei ähnlicher Stufe (weniger als 10 Stufen Abstand) nicht: Ein Treffer nimmt höchstens ${rgPct(P.maxHit)} des Lebens (kritisch ${rgPct(P.maxCrit)}), und in ${String(P.window).replace('.', ',')} Sekunden höchstens ${rgPct(P.windowMax)} – auch bei mehreren Gegnern. ` +
         `Der Schaden zwischen Spielern zählt weniger (bis Stufe ${P.mulFrom} zu ${rgPct(P.mulLow)}, auf Stufe ${P.mulTo} zu ${rgPct(P.mulHigh)}), Rüstung zählt doppelt (höchstens ${rgPct(P.armorMax)} weniger), ` +
         `dazu Schadensreduktion und <b>Abwehr gegen Menschen</b>, Magie, Nahkampf oder Fernkampf (zusammen höchstens ${rgPct(P.otherMax)}), und je Stufe hält man ${rgPct(P.pad)} mehr aus. ` +
-        `Ausweichen und Blocken wirken im PvP halb, Heilung und Lebensraub zu ${rgPct(P.heal)}. Gute Werte gegen Spieler: Abwehr gegen Menschen und <b>Stark gegen Menschen</b>. ` +
+        `Ausweichen und Blocken wirken im PvP halb und nur gegen Grundangriffe – Fertigkeiten treffen immer. Heilung und Lebensraub wirken zu ${rgPct(P.heal)}. Gute Werte gegen Spieler: Abwehr gegen Menschen und <b>Stark gegen Menschen</b>. ` +
         'Ein Duell dauert so bei gleicher Stufe meist 10 bis 20 Sekunden. Bei großem Stufenabstand bleibt es hart.';
     },
     k: 'pvp duell schaden one-shot oneshot einschlag ruestung abwehr menschen stark gegen menschen turnierarena rangkampf deckel heilung'

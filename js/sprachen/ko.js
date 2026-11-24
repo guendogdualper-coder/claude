@@ -5272,4 +5272,10 @@
 "{0} Juwelen": "보석 {0}개",
 "Doppelte Erfahrung bis Sonntag {0} Uhr": "일요일 {0}시까지 경험치 2배",
 "doppelte Erfahrung für alle Charaktere bis Sonntag {0} Uhr": "일요일 {0}시까지 모든 캐릭터 경험치 2배",
+// 15.80: Aufstieg in den nächsten Rang an der Fertigkeitsleiste
+"Aufstieg möglich": "승급 가능",
+// 15.80: Ausweichen/Blocken nur gegen normale Angriffe
+"Nur gegen normale Angriffe – Fertigkeiten treffen immer": "일반 공격에만 적용 – 스킬은 항상 적중",
+// 15.80: Bonus Zaubergeschwindigkeit
+"Zaubergeschwindigkeit": "시전 속도",
 };

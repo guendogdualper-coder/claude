@@ -295,7 +295,7 @@ function htQuarterResolve(m, kind, c, inner, atk, lvl) {
   if (kind === 'quarter') hit = d < c.r && htSector(dx, dy) !== -inner - 1;
   else if (kind === 'qring') hit = d < c.r && d >= inner;
   else hit = d < c.r;
-  if (hit) damagePlayer(calcDamage(atk, RAID_MUL[kind] * levelBonus(lvl, p.level), game.stats.def, 0.05, lvl).amount, m);
+  if (hit) damagePlayer(calcDamage(atk, RAID_MUL[kind] * levelBonus(lvl, p.level), game.stats.def, 0.05, lvl).amount, m, { sure: true });
 }
 
 // --- Zusatzbeute ---------------------------------------------------------------------------------------------

@@ -698,7 +698,7 @@ function netOnClientData(d) {
       } else addEffect({ type: 'ring', x: m.x, y: feetY(m), r: d.r, dur: 0.5, color: col, width: 12, grow: true });
       addEffect({ type: 'decal', kind: 'crack', x: m.x, y: feetY(m), r: d.r * 0.6, dur: 2.5, color: '#1a1210' });
       if (!p.dead && hyp(p.x - m.x, (p.y - m.y) * 1.2) < d.r) {
-        damagePlayer(calcDamage(d.atk, 2.2 * levelBonus(d.lvl, p.level), game.stats.def, 0.05, d.lvl).amount, m);
+        damagePlayer(calcDamage(d.atk, 2.2 * levelBonus(d.lvl, p.level), game.stats.def, 0.05, d.lvl).amount, m, { sure: true });
       }
       break;
     }

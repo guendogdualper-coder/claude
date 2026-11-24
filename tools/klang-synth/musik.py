@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Eigene Musik für Seelenstein, ganz im Rechner erzeugt (seit 15.51): Turm der Verdammten („turm“), der Kampf gegen
-Kharzul („kharzul“, ab seiner Verwandlung „kharzul2“) und die Arenen („arena“: Prüfungs- und Turnierarena).
+Kharzul („kharzul“, ab seiner Verwandlung „kharzul2“) und die Arenen („arena“: Prüfungs- und Turnierarena). Dazu zwei
+Stücke für den Feuerberg, die das Spiel im Wechsel mit „heiss“ spielt: „glut“ (treibend) und „vulkan“ (dunkel, wuchtig).
 
 Keine Aufnahmen, keine Samples, keine fremden Melodien: Jeder Klang entsteht hier aus Schwingungen und Rauschen
-(große Trommeln, Schlagzeug, Streicher, Blech, Chor aus Formantfiltern, Totenglocke, Amboss, Zupfinstrument, Erhu,
-Bambusflöte), alle Melodien, Harmonien und Abläufe sind eigene Kompositionen.
+(große Trommeln, Schlagzeug, Streicher, Blech, Chor aus Formantfiltern, Totenglocke, Amboss, Gong, Holzblock, Grollen,
+Zupfinstrument, Erhu, Bambusflöte), alle Melodien, Harmonien und Abläufe sind eigene Kompositionen.
 
 Jedes Stück wird als geschlossene Schleife gerechnet: Ausklang und Hall des Endes laufen in den Anfang hinein (wie
 beim endlosen Abspielen), Filter, Hall und Verdichter rechnen eingeschwungen. Die Rohdatei <roh>/musik/<id>.wav
@@ -16,9 +17,13 @@ kharzul und kharzul2 sind dasselbe Stück (gleiches Tempo, gleiche Länge, gleic
 kharzul2 hat mehr Wucht (doppelte Trommeln, Chor, Höllenblech, schreiende Streicher). Das Spiel blendet bei der
 Verwandlung an derselben Stelle über (klang-dateien.js, MUSIC_SYNC).
 
+glut und vulkan spielen am Feuerberg im Wechsel mit heiss (klang-dateien.js, MUSIC_REIHE): jedes Stück einmal ganz
+(Vorspiel und Schleife), dann blendet das Spiel über sein Ende ins Vorspiel des nächsten. Ihre letzten zwei Takte – das
+Vorspiel – sind darum Überleitungen (Wirbel und Anstieg auf H-Dur bzw. der Schlag des Ausbruchs mit Ausklang).
+
 Aufruf:
-  python3 tools/klang-synth/musik.py [turm kharzul kharzul2 arena] [--roh <ordner>]   # Rohdateien rechnen
-  python3 tools/klang-erzeugen.py bauen turm kharzul kharzul2 arena [--roh <ordner>]  # MP3 + klang-dateien.js
+  python3 tools/klang-synth/musik.py [turm kharzul kharzul2 arena glut vulkan] [--roh <ordner>]   # Rohdateien rechnen
+  python3 tools/klang-erzeugen.py bauen turm kharzul kharzul2 arena glut vulkan [--roh <ordner>] # MP3 + klang-dateien.js
 (oder beides: python3 tools/klang-erzeugen.py roh turm … – Einträge mit „synth“ in tools/klang-liste.json rufen dieses
 Skript statt ElevenLabs). Rohordner wie bei klang-erzeugen.py (Standard ~/.cache/seelenstein-klang-roh), nicht im Repo.
 
@@ -667,6 +672,63 @@ class Klang:
             atem = bp(rng.standard_normal(n), 1800, 5200)
             y += 0.16 * atem / (np.abs(atem).max() + 1e-9) * 3
         return y * amp * vel
+
+    # Gong (Tamtam, Feuerberg): tiefe Grundschwingungen, die nach dem Schlag leicht absinken, darüber viele unharmonische
+    # Teiltöne, die umso später aufblühen, je höher sie liegen (das typische Anschwellen nach dem Schlag), Filzschlägel
+    def gong(self, vel=1.0, f0=68.0, dauer=7.0):
+        return self._var(('go', f0, dauer), 2, lambda: self._gong(f0, dauer)) * vel
+
+    def _gong(self, f0, dauer):
+        rng = self.rng
+        n = int(dauer * SR)
+        t = np.arange(n) / SR
+        y = np.zeros(n)
+        for rr, a, d in ((1.0, 1.0, 3.4), (1.47, 0.6, 2.7), (2.09, 0.45, 2.2), (2.76, 0.3, 1.7), (3.51, 0.2, 1.3)):
+            ff = f0 * rr * (1 + rng.normal(0, 0.003)) * (1 + 0.015 * np.exp(-t / 0.35))
+            y += a * np.sin(TAU * np.cumsum(ff) / SR + rng.uniform(0, TAU)) * np.exp(-t / d)
+        lo, hi = np.log(260.0), np.log(6500.0)
+        for _ in range(80):
+            ff = float(np.exp(rng.uniform(lo, hi)))
+            k = (np.log(ff) - lo) / (hi - lo)
+            an = 0.04 + 1.1 * k * rng.uniform(0.6, 1.3)
+            d = rng.uniform(1.2, 3.2) * (1.25 - 0.7 * k)
+            e = (1 - np.exp(-t / (an / 3))) * np.exp(-np.maximum(0, t - an) / d)
+            y += 0.07 * (1 - 0.55 * k) * np.sin(TAU * ff * t + rng.uniform(0, TAU)) * e
+        y += 0.45 * bp(rng.standard_normal(n), 50, 500) * np.exp(-t / 0.035)
+        y *= np.minimum(1, t / 0.004)
+        fo = int(0.6 * SR)
+        y[-fo:] *= np.linspace(1, 0, fo) ** 2
+        return (y / (np.abs(y).max() + 1e-9)).astype(np.float32)
+
+    # Grollen des Bergs: tiefes, langsam wogendes Rauschen mit einem unruhigen Unterton (Erde und Lava in der Tiefe)
+    def grollen(self, dauer, vel=1.0, hell=150.0):
+        rng = self.rng
+        n = int(dauer * SR)
+        t = np.arange(n) / SR
+        y = hp(tp(rng.standard_normal(n), hell, 4), 30, 2)
+        y /= np.sqrt((y ** 2).mean()) + 1e-9
+        w = np.ones(n)
+        for _ in range(3):
+            w *= 0.72 + 0.28 * np.sin(TAU * rng.uniform(0.08, 0.6) * t + rng.uniform(0, TAU))
+        f = rng.uniform(40, 50) * (1 + 0.05 * np.sin(TAU * rng.uniform(0.05, 0.15) * t + rng.uniform(0, TAU)))
+        y = 0.85 * y * w + 0.5 * np.sin(TAU * np.cumsum(f) / SR) * w ** 2
+        rand = min(1.5, dauer / 3)
+        y *= np.minimum(1, t / rand) * np.minimum(1, (dauer - t) / rand)
+        return y * vel
+
+    # Holzblock (Tempelblock): zwei kurze Resonanzen und ein Klick
+    def holz(self, vel=1.0, f=820.0):
+        return self._var(('ho', f), 4, lambda: self._holz(f)) * vel
+
+    def _holz(self, f):
+        rng = self.rng
+        n = int(0.22 * SR)
+        t = np.arange(n) / SR
+        ff = f * (1 + rng.normal(0, 0.008))
+        y = np.sin(TAU * ff * t) * np.exp(-t / 0.032) + 0.4 * np.sin(TAU * ff * 2.74 * t + rng.uniform(0, TAU)) * np.exp(-t / 0.014)
+        y += 0.25 * bp(rng.standard_normal(n), 1500, 6500) * np.exp(-t / 0.0018)
+        y *= np.minimum(1, t / 0.0005)
+        return (y / (np.abs(y).max() + 1e-9)).astype(np.float32)
 
 
 # --- Hilfen für die Komposition ---------------------------------------------------------------------------------------------
@@ -1486,11 +1548,585 @@ def arena_mix():
     return specs, raeume, master
 
 
+# === Feuerberg: Glut (glut) und Vulkan (vulkan) ==========================================================================
+# Zwei Stücke für den Feuerberg (Basalt und Lavaseen), die das Spiel im Wechsel mit dem bisherigen Stück der heißen
+# Gegenden spielt (Reihe vulkan → glut → heiss, MUSIC_REIHE in js/klang-dateien.js). Glühende Lava, Hitze, ein Berg, der
+# arbeitet – mit dem fernöstlichen Klang des Spiels (Erhu, Bambusflöte, Koto), großen Trommeln, tiefem Blech und Chor.
+# Musik zum Farmen: treibend, aber nicht so dicht wie Boss- oder Arenamusik.
+
+def akkord_lauf(akk, i):
+    """Takte, die der Akkord ab Takt i liegt (0, wenn er schon im Takt davor lag)."""
+    if i > 0 and akk[i - 1] == akk[i]:
+        return 0
+    n = 1
+    while i + n < len(akk) and akk[i + n] == akk[i]:
+        n += 1
+    return n
+
+
+def tremolo(M, K, spur, t, midi, dauer, beat, vel=0.5, pan=0.0, dichte=8, nachhall=0.55, hell=0.6):
+    """Tremolo eines Zupfinstruments (wie die Pipa): „dichte“ Anschläge je Schlag, weich an- und abschwellend."""
+    n = max(1, int(round(dauer / beat * dichte)))
+    for k in range(n):
+        u = k / max(1, n - 1)
+        v = vel * (0.72 + 0.28 * np.sin(np.pi * u)) * (1.0 if k % 2 == 0 else 0.82)
+        M(spur, t + k * beat / dichte + K.r(-0.004, 0.004), K.zupf(midi, v, nachhall=nachhall, hell=hell), pan)
+
+
+# --- Glut (glut): e-Moll fünftönig, 100 BPM, 48 Takte (115,2 s) ----------------------------------------------------------
+# Fasstrommeln im Muster 3+3, große Trommel auf 1 und 3, kleine Trommel und Holzblock in Achteln, eine Koto in rollenden
+# Sechzehnteln, tiefe Streicher in Achteln; darüber singt die Erhu ein fünftöniges Thema. Teile: G1 (Groove, Funken der
+# Flöte), G2 (Thema der Erhu, leise Hörner), G3 (die Flöte ruft, die Erhu antwortet: C – D – h – a – G – D – C – H),
+# G4 (halbes Tempo: Gong, tiefes Blech und Männerchor, Koto im Tremolo, die Erhu singt ein Lied über a – F – e – C – H,
+# das F-Dur ist der phrygische Glutschimmer), G5 (Thema mit der Flöte eine Oktave darüber, Blechstöße, Chor), G6 (das
+# Thema auf der Koto, lange Töne im Tremolo, die Flöte als Gegenstimme; Wirbel und Anstieg auf H-Dur in den Anfang).
+# Die letzten zwei Takte sind auch das Vorspiel.
+GL_AKK = {'Em': (40, (4, 7, 11)), 'C': (36, (0, 4, 7)), 'D': (38, (2, 6, 9)), 'G': (43, (7, 11, 2)), 'Am': (45, (9, 0, 4)),
+          'Bm': (35, (11, 2, 6)), 'B': (35, (11, 3, 6)), 'F': (41, (5, 9, 0))}
+_GA = ['Em', 'C', 'Em', 'D', 'G', 'D', 'Am', 'Em']
+GL_PLAN = [('G1', ['Em', 'Em', 'C', 'C', 'Am', 'Am', 'B', 'B']), ('G2', _GA), ('G3', ['C', 'D', 'Bm', 'Am', 'G', 'D', 'C', 'B']),
+           ('G4', ['Am', 'Am', 'F', 'F', 'Em', 'Em', 'C', 'B']), ('G5', _GA), ('G6', _GA[:7] + ['B'])]
+# Thema (Erhu): [Beginn in Schlägen ab Teilbeginn, Dauer, MIDI]
+GL_THEMA = [(0, 0.75, 64), (0.75, 0.75, 67), (1.5, 0.5, 69), (2, 2, 71), (4, 0.5, 74), (4.5, 0.5, 71), (5, 1, 69), (6, 1, 67), (7, 1, 69),
+            (8, 0.75, 64), (8.75, 0.75, 67), (9.5, 0.5, 69), (10, 1, 74), (11, 1, 71), (12, 3, 69), (15, 0.5, 67), (15.5, 0.5, 69),
+            (16, 0.75, 71), (16.75, 0.75, 74), (17.5, 0.5, 76), (18, 2, 79), (20, 0.5, 81), (20.5, 0.5, 79), (21, 1, 76), (22, 1, 74),
+            (23, 1, 76), (24, 1, 74), (25, 0.5, 71), (25.5, 0.5, 69), (26, 1.5, 71), (27.5, 0.5, 67), (28, 4, 64)]
+# Teil G3: die Flöte ruft (Takte 1–2, 5–6), die Erhu antwortet (3–4, 7–8)
+GL_RUF = [(0, 1, 79), (1, 0.5, 81), (1.5, 0.5, 79), (2, 1, 76), (3, 1, 74), (4, 1.5, 76), (5.5, 0.5, 79), (6, 2, 81),
+          (16, 1, 83), (17, 0.5, 81), (17.5, 0.5, 79), (18, 1, 81), (19, 1, 79), (20, 1.5, 78), (21.5, 0.5, 76), (22, 2, 74)]
+GL_ANTWORT = [(8, 1, 71), (9, 1, 74), (10, 1.5, 78), (11.5, 0.5, 76), (12, 2, 76), (14, 1, 72), (15, 1, 69),
+              (24, 1, 76), (25, 1, 74), (26, 1, 72), (27, 1, 71), (28, 4, 75)]
+# Teil G4: Lied der Erhu im halben Tempo
+GL_LIED = [(0, 3, 76), (3, 1, 74), (4, 2, 72), (6, 2, 69), (8, 3, 72), (11, 1, 74), (12, 4, 76), (16, 2, 79), (18, 1, 78), (19, 1, 76),
+           (20, 3, 71), (23, 1, 74), (24, 2, 76), (26, 2, 79), (28, 3, 78), (31, 1, 75)]
+# Teil G1: Funken (kurze Läufe der Flöte); Teil G6: Gegenstimme der Flöte (lange Töne, eine Oktave höher gespielt)
+GL_FUNKEN = [(10, 0.25, 76), (10.25, 0.25, 79), (10.5, 0.25, 81), (10.75, 0.25, 83), (11, 1.5, 84),
+             (26, 0.25, 75), (26.25, 0.25, 78), (26.5, 0.25, 81), (26.75, 0.25, 83), (27, 1.5, 87)]
+GL_GEGEN = [(0, 4, 71), (4, 3, 72), (7, 1, 71), (8, 4, 67), (12, 4, 69), (16, 3, 71), (19, 1, 74), (20, 4, 69), (24, 4, 72), (28, 4, 75)]
+# tiefe Streicher (Achtel, Abstand zum Grundton der oberen Stimme), Fasstrommeln und Koto (Sechzehntel, Akkordton)
+GL_OST = [0, 0, 12, 0, 0, 12, 7, 12]
+GL_TAIKO = [(0, 0.95), (3, 0.6), (6, 0.8), (10, 0.65), (12, 0.85)]
+GL_KOTO = [(0, 0), (2, 2), (3, 1), (6, 3), (8, 0), (10, 2), (11, 1), (14, 4)]
+
+
+def glut():
+    K = Klang(4401)
+    TA, TB = 0.958, 1.14  # Fasstrommeln auf e-Moll gestimmt: E2 und G2 (das Paar)
+    bpm = 100
+    beat = 60 / bpm
+    takt = 4 * beat
+    s16 = beat / 4
+    N = sum(len(p[1]) for p in GL_PLAN)
+    M = Mischer(int(round(N * takt * SR)))
+
+    def T(b, st=0.0):
+        """Takt b, Sechzehntel st"""
+        return (b * 16 + st) * s16
+
+    def jit(ms=4):
+        return K.r(-ms, ms) / 1000
+
+    spic = dict(stimmen=3, cent=7, a=0.007, d=0.07, s=0.42, r=0.08, p=1.1)
+    for b in range(N):
+        teil, akk = GL_PLAN[b // 8]
+        i = b % 8
+        name = akk[i]
+        bass, pcs = GL_AKK[name]
+        L = akkord_lauf(akk, i)
+        halb = teil == 'G4'
+        voll = teil in ('G3', 'G5')
+        # --- tiefe Streicher ---
+        if not halb:
+            for k in range(8):
+                acc = 1.0 if k in (0, 4) else 0.75 if k in (3, 6) else 0.55
+                t = T(b, 2 * k)
+                M('ost', t + jit(), K.streich(bass + 12 + GL_OST[k], 0.17, acc, **spic), -0.3)
+                M('ost', t + jit(), K.streich(bass, 0.17, acc, **spic), 0.25)
+        else:
+            for m, pan in ((bass, 0.25), (bass + 12, -0.3)):
+                M('ost', T(b), K.streich(m, takt - 0.06, 0.45, stimmen=4, cent=6, a=0.12, d=0.5, s=0.85, r=0.15, p=1.2, vib=4, trem=1,
+                                         bpm=bpm, cache=False), pan)
+        # --- Trommeln ---
+        if not halb:
+            M('trom', T(b) + jit(2), K.trommel('odaiko', 1.0 if voll else 0.85), K.r(-0.1, 0.1))
+            M('trom', T(b, 8) + jit(2), K.trommel('odaiko', 0.65), K.r(-0.1, 0.1))
+            if i % 2 == 1 and i != 7:
+                M('trom', T(b, 14) + jit(2), K.trommel('odaiko', 0.45), 0.1)
+            for st, v in GL_TAIKO:
+                if i == 7 and st >= 8:
+                    continue  # Platz für den Wirbel
+                v *= 0.92 if teil == 'G1' else 1.0
+                M('trom', T(b, st) + jit(), K.trommel('taiko', v, TA), -0.35)
+                M('trom', T(b, st) + 0.006 + jit(), K.trommel('taiko', v * 0.85, TB), 0.35)
+            for st in range(0, 16, 2):
+                v = (0.45 if st in (4, 12) else 0.24) * (0.9 if teil == 'G1' else 1.0)
+                M('shime', T(b, st) + jit(3), K.trommel('shime', v), 0.45)
+                if voll:
+                    M('shime', T(b, st + 1) + jit(3), K.trommel('shime', 0.12), 0.45)
+            if teil in ('G1', 'G3', 'G6'):
+                for st, f in ((2, 1050), (6, 820), (10, 1050), (14, 820)):
+                    M('holz', T(b, st) + jit(3), K.holz(0.5 if f < 900 else 0.38, f), -0.4 if f > 900 else -0.2)
+            if i == 3:
+                for k, art in enumerate(('tom_h', 'tom_h', 'tom_m', 'tom_t')):
+                    M('trom', T(b, 12 + k) + jit(), K.trommel(art, 0.5 + 0.08 * k, TA if art == 'taiko' else 1.0), 0.4 - 0.25 * k)
+            if i == 7:
+                # Wirbel in den nächsten Teil (am Ende der Schleife länger und kräftiger)
+                ab = 4 if b == N - 1 else 8
+                for k in range(16 - ab):
+                    art = ('taiko', 'tom_h', 'taiko', 'tom_m', 'taiko', 'tom_t')[k % 6] if k < 15 - ab else 'odaiko'
+                    v = 0.45 + 0.5 * k / (15 - ab)
+                    M('trom', T(b, ab + k) + jit(), K.trommel(art, v, TA if art == 'taiko' else 1.0), 0.4 - 0.8 * k / (15 - ab))
+        else:
+            # halbes Tempo: große Trommel auf 1, Fasstrommeln auf 3, zum Ende ein Wirbel
+            M('trom', T(b) + jit(2), K.trommel('odaiko', 0.95), 0)
+            M('trom', T(b, 8) + jit(), K.trommel('taiko', 0.8, TA), -0.35)
+            M('trom', T(b, 8) + 0.006 + jit(), K.trommel('taiko', 0.7, TB), 0.35)
+            if i in (1, 3, 5):
+                M('trom', T(b, 14) + jit(2), K.trommel('odaiko', 0.45), 0.1)
+            if i == 3:
+                for k, art in enumerate(('tom_m', 'tom_m', 'tom_t', 'tom_t')):
+                    M('trom', T(b, 12 + k) + jit(), K.trommel(art, 0.4 + 0.07 * k, TA if art == 'taiko' else 1.0), 0.3 - 0.2 * k)
+            if i == 6:
+                for k in range(8):
+                    M('trom', T(b, 2 * k) + jit(), K.trommel('taiko', 0.3 + 0.04 * k, TA), -0.3 if k % 2 else 0.3)
+            if i == 7:
+                for k in range(16):
+                    art = 'taiko' if k < 12 else ('tom_h', 'tom_m', 'tom_t', 'odaiko')[k - 12]
+                    M('trom', T(b, k) + jit(), K.trommel(art, 0.4 + 0.55 * k / 15, TA if art == 'taiko' else 1.0), -0.35 if k % 2 else 0.35)
+                    M('shime', T(b, k) + jit(2), K.trommel('shime', 0.15 + 0.3 * k / 15), 0.45)
+        # --- Becken, Gong, Einschläge, Anstiege ---
+        if b in (0, 32):
+            M('becken', T(b), K.crash(1.0 if b == 32 else 0.75), 0.25)
+            M('tief', T(b), K.einschlag(1.0 if b == 32 else 0.7, 62, 30, 1.8), 0)
+        if b in (8, 16, 40):
+            M('becken', T(b), K.crash(0.55), -0.25)
+        if b == 24:
+            M('gong', T(b), K.gong(1.0), -0.15)
+            M('tief', T(b), K.einschlag(0.8, 55, 28, 2.2), 0)
+        if b == 15:
+            M('fx', T(b) + takt - 1.6, K.rueckwaerts_becken(1.6, 0.7), 0)
+        if b in (30, 46):
+            M('fx', T(b), K.anstieg(2 * takt, 0.85 if b == 30 else 1.0, ton=mton(47)), 0)
+        if b == N - 1:
+            M('fx', T(b) + takt - 1.8, K.rueckwaerts_becken(1.8, 0.8), 0)
+        # --- Koto (unter der Melodie, wenn Erhu oder Flöte singen) ---
+        tones = lage(pcs, 62, 90) if teil == 'G1' else lage(pcs, 50, 80)
+        if teil in ('G1', 'G2', 'G5'):
+            for st, s in GL_KOTO:
+                acc = (1.0 if st in (0, 3, 6, 8) else 0.7) * (1.0 if teil == 'G1' else 0.85)
+                M('zupf', T(b, st) + jit(2), K.zupf(tones[s], acc, nachhall=1.2, hell=0.55), 0.35 if st % 4 else -0.2)
+        if teil == 'G3':
+            for k, s in enumerate((1, 3, 2, 4, 1, 3, 2, 5)):
+                M('zupf', T(b, 2 * k) + jit(2), K.zupf(tones[s], 0.9 if k % 2 == 0 else 0.65, nachhall=1.3, hell=0.55), 0.3 if k % 2 else -0.25)
+        if halb:
+            oben = voicing(pcs, 64, 81, 4)
+            for h, s in ((0, -1), (8, -2)):
+                tremolo(M, K, 'zupf', T(b, h), oben[s], 2 * beat - 0.05, beat, 0.42 + 0.04 * (i % 4), 0.3)
+        # --- Blech ---
+        if teil in ('G2', 'G3', 'G6') and L:
+            for m in voicing(pcs, 52, 64, 3):
+                M('blech', T(b) + jit(), K.blech(m, L * takt - 0.3, 0.4, stimmen=2, a=0.9, hell=0.45), K.r(-0.3, 0.3))
+        if teil == 'G3':
+            for m in voicing(pcs, 52, 67, 4):
+                M('blech', T(b) + jit(), K.blech(m, 0.3, 0.6, stimmen=2, stoss=True, hell=0.9), K.r(-0.35, 0.35))
+        if halb:
+            for m in voicing(pcs, 40, 59, 4):
+                M('tiefblech', T(b) + jit(), K.blech(m, takt - 0.1, 0.6, stimmen=2, a=0.6, hell=0.5, r=0.3), K.r(-0.3, 0.3))
+        if teil == 'G5':
+            for st, v in ((0, 0.9), (6, 0.65), (10, 0.75)):
+                if i == 7 and st > 0:
+                    continue
+                for m in voicing(pcs, 52, 69, 4):
+                    M('blech', T(b, st) + jit(), K.blech(m, 0.3, v, stimmen=2, stoss=True, hell=0.95), K.r(-0.35, 0.35))
+                M('blech', T(b, st), K.blech(bass + 12, 0.32, v, stimmen=2, stoss=True, hell=0.8), 0)
+        # --- Chor ---
+        if halb and L:
+            for m in voicing(pcs, 45, 62, 4):
+                M('chor_o', T(b), K.chor(m, L * takt - 0.15, 0.6), K.r(-0.4, 0.4))
+            if i >= 4:
+                for m in voicing(pcs, 60, 76, 3):
+                    M('chor_a', T(b), K.chor(m, L * takt - 0.15, 0.4), K.r(-0.5, 0.5))
+        if teil == 'G5':
+            for m in voicing(pcs, 57, 76, 4):
+                M('chor_a', T(b), K.chor(m, takt - 0.1, 0.6, a=0.3, r=0.5), K.r(-0.6, 0.6))
+        # --- hohe Streicher ---
+        if L and teil in ('G1', 'G3', 'G5', 'G6'):
+            for m in voicing(pcs, 67, 84, 3):
+                M('vl', T(b), K.streich(m, L * takt - 0.1, 0.26 if teil == 'G1' else 0.32, stimmen=4, cent=6, a=0.3, d=0.5, s=0.9, r=0.35, p=1.3, vib=8,
+                                        trem=1 if teil == 'G5' else 0, bpm=bpm, cache=False), K.r(-0.5, 0.5))
+        if L and halb:
+            for m in voicing(pcs, 60, 79, 4):
+                M('vl', T(b), K.streich(m, L * takt - 0.1, 0.27, stimmen=4, cent=6, a=0.6, d=0.6, s=0.9, r=0.5, p=1.3, vib=10,
+                                        cache=False), K.r(-0.5, 0.5))
+    # Melodien (je Teil einmal, über acht Takte)
+    for q in range(len(GL_PLAN)):
+        teil = GL_PLAN[q][0]
+        t0 = T(q * 8)
+        if teil == 'G1':
+            M('dizi', t0, K.dizi(GL_FUNKEN, beat, 0.7), 0.25)
+        if teil == 'G2':
+            M('erhu', t0, K.erhu(GL_THEMA, beat, 0.9), -0.1)
+        if teil == 'G3':
+            M('dizi', t0, K.dizi(GL_RUF, beat, 0.85), 0.25)
+            M('erhu', t0, K.erhu(GL_ANTWORT, beat, 0.9), -0.15)
+        if teil == 'G4':
+            M('erhu', t0, K.erhu(GL_LIED, beat, 0.8, vib=26), -0.05)
+        if teil == 'G5':
+            M('erhu', t0, K.erhu(GL_THEMA, beat, 1.0), -0.1)
+            M('dizi', t0, K.dizi([(s, d, m + 12) for s, d, m in GL_THEMA], beat, 0.55), 0.25)
+        if teil == 'G6':
+            # Thema auf der Koto: kurze Töne gezupft, lange im Tremolo
+            for s, d, m in GL_THEMA:
+                if d >= 1.5:
+                    tremolo(M, K, 'zupf', t0 + s * beat, m, d * beat - 0.05, beat, 0.7, 0.1)
+                else:
+                    M('zupf', t0 + s * beat + jit(2), K.zupf(m, 0.95, nachhall=1.4, hell=0.6), 0.1)
+            M('dizi', t0, K.dizi([(s, d, m + 12) for s, d, m in GL_GEGEN], beat, 0.55), 0.3)
+    return M, takt
+
+
+def glut_mix():
+    raeume = {'gross': hall_ir(np.random.default_rng(47), (2.6, 2.2, 1.6, 0.8), 3.4, 0.024, 0.22),
+              'raum': hall_ir(np.random.default_rng(48), (1.1, 0.95, 0.7, 0.4), 1.6, 0.007, 0.3)}
+    specs = {
+        'ost': dict(eq=kette(_sos('hp', 38), eq_spitze(240, 1.5, 1.0), eq_spitze(520, -3, 1.2), eq_spitze(1800, 2, 0.9), _sos('lp', 5500)),
+                    ziel=-22, hall={'gross': 0.3}),
+        'trom': dict(eq=kette(_sos('hp', 38), eq_spitze(300, -2, 1.0), eq_spitze(2000, 2, 1.0)), ziel=-20.5, hall={'raum': 0.35, 'gross': 0.2}),
+        'shime': dict(eq=_sos('hp', 200), ziel=-28, hall={'raum': 0.4, 'gross': 0.2}),
+        'holz': dict(eq=_sos('hp', 400), ziel=-29, hall={'raum': 0.45, 'gross': 0.2}),
+        'zupf': dict(eq=kette(_sos('hp', 140), eq_spitze(400, 2, 1.2), eq_spitze(2500, 2, 1.0)), ziel=-22.5, hall={'gross': 0.35, 'raum': 0.2}),
+        'erhu': dict(eq=kette(_sos('hp', 180), _sos('lp', 7000)), ziel=-20, hall={'gross': 0.45}),
+        'dizi': dict(eq=kette(_sos('hp', 250), _sos('lp', 9000)), ziel=-22.5, hall={'gross': 0.5}),
+        'blech': dict(eq=kette(_sos('hp', 45), eq_spitze(320, -2.5, 1.0), eq_spitze(1400, 2.5, 1.0), _sos('lp', 6500)), ziel=-23.5, hall={'gross': 0.55}),
+        'tiefblech': dict(eq=kette(_sos('hp', 40), eq_spitze(320, -2.5, 1.0), eq_spitze(1200, 2, 1.0), _sos('lp', 5500)), ziel=-24.5, hall={'gross': 0.6}),
+        'chor_o': dict(eq=_sos('hp', 110), vokal='o', ziel=-25.5, hall={'gross': 0.9}),
+        'chor_a': dict(eq=_sos('hp', 160), vokal='a', ziel=-24, hall={'gross': 0.9}),
+        'vl': dict(eq=kette(_sos('hp', 230), eq_spitze(3200, -1, 1.0), _sos('lp', 9000)), ziel=-25, hall={'gross': 0.8}),
+        'becken': dict(ziel=-27, hall={'gross': 0.4}),
+        'gong': dict(eq=_sos('hp', 40), ziel=-25, hall={'gross': 0.6}),
+        'tief': dict(eq=kette(_sos('lp', 140), _sos('hp', 30)), ziel=-27),
+        'fx': dict(eq=_sos('hp', 150), ziel=-28, hall={'gross': 0.6}),
+    }
+    master = dict(eq=kette(_sos('hp', 32, 2), eq_kuhle(90, -3.0), eq_spitze(300, -1.5, 0.8), eq_spitze(1300, 1.5, 0.9),
+                           eq_kuhle(2400, 3.0, hoch=True)), schwelle=-16, ratio=2.3, treiben=1.15)
+    return specs, raeume, master
+
+
+# --- Vulkan (vulkan): h-Moll mit phrygischem C, 84 BPM, 40 Takte (114,3 s) -----------------------------------------------
+# Dunkler und wuchtiger: tiefes Blech, Männerchor, Gong, die Ambosse der Schmiede und das Grollen des Bergs. Leitmotiv
+# ist sein Stöhnen h – c – h (kleine Sekunde), in Flöte, Thema, Riff und Koto. Teile: V1 (Grollen: Herzschlag der großen
+# Trommel, tiefe Streicher im Tremolo, Chor „u“, die Bambusflöte tief und rauchig), V2 (der Berg setzt sich in Gang:
+# Riff im tiefen Blech, Fasstrommeln, Koto, Chor „o“), V3 (Thema in Hörnern und Posaunen, die Flöte antwortet,
+# Ambosse), V4 (Glutkammer: halbes Tempo, Gong, Koto im Tremolo, Chor „u“, die Erhu singt fünftönig über G – D – e – C),
+# V5 (Ausbruch: Thema mit Erhu und Chor in der Oktave, alles; im vorletzten Takt die Steigerung über C-Dur, im letzten der
+# Schlag des Ausbruchs mit Gong und Chorcluster h/c, der in das Grollen des Anfangs ausklingt).
+# Die letzten zwei Takte sind auch das Vorspiel.
+VK_AKK = {'Bm': (35, (11, 2, 6)), 'C': (36, (0, 4, 7)), 'G': (43, (7, 11, 2)), 'Em': (40, (4, 7, 11)), 'F#': (42, (6, 10, 1)),
+          'D/F#': (42, (2, 6, 9))}
+_V1 = ['Bm', 'Bm', 'C', 'Bm', 'G', 'Em', 'C', 'F#']
+_V3 = ['Bm', 'G', 'Em', 'F#', 'Bm', 'G', 'C', 'Bm']
+VK_PLAN = [('V1', _V1), ('V2', _V1), ('V3', _V3), ('V4', ['G', 'D/F#', 'Em', 'C', 'G', 'D/F#', 'C', 'F#']), ('V5', _V3)]
+# Thema (Hörner, Posaunen eine Oktave tiefer; im Ausbruch die Erhu eine Oktave höher)
+VK_THEMA = [(0, 2, 59), (2, 1, 60), (3, 1, 59), (4, 1.5, 67), (5.5, 0.5, 66), (6, 1, 64), (7, 1, 62), (8, 1.5, 64), (9.5, 0.5, 66),
+            (10, 1, 67), (11, 1, 64), (12, 4, 66), (16, 2, 59), (18, 1, 60), (19, 1, 59), (20, 1.5, 71), (21.5, 0.5, 69), (22, 1, 67),
+            (23, 1, 66), (24, 1, 64), (25, 1, 67), (26, 2, 72), (28, 4, 71)]
+# V1: die Bambusflöte, tief und rauchig; V3: ihre Antworten, wenn das Blech hält
+VK_RAUCH = [(1, 1, 71), (2, 0.5, 72), (2.5, 1.5, 71), (4, 1, 66), (5, 0.5, 67), (5.5, 2.5, 64), (9, 1, 72), (10, 0.5, 71), (10.5, 1.5, 67),
+            (12, 1, 64), (13, 1, 66), (14, 2, 71), (17, 1, 74), (18, 0.5, 76), (18.5, 1.5, 74), (20, 1, 71), (21, 0.5, 72), (21.5, 2.5, 67),
+            (25, 1, 76), (26, 0.5, 79), (26.5, 1.5, 76), (28, 1, 73), (29, 1, 70), (30, 2, 66)]
+VK_ANTWORT = [(13, 0.5, 78), (13.5, 0.5, 79), (14, 0.5, 78), (14.5, 0.5, 76), (15, 1, 73), (29, 0.5, 83), (29.5, 0.5, 84), (30, 2, 83)]
+# V4: Lied der Erhu in der Glutkammer
+VK_KLAGE = [(0, 1.5, 74), (1.5, 0.5, 76), (2, 2, 79), (4, 1, 78), (5, 1, 76), (6, 2, 74), (8, 1.5, 71), (9.5, 0.5, 74), (10, 1, 76),
+            (11, 1, 79), (12, 3, 76), (15, 1, 72), (16, 1.5, 74), (17.5, 0.5, 76), (18, 2, 83), (20, 1, 81), (21, 1, 78), (22, 2, 76),
+            (24, 1, 79), (25, 1, 76), (26, 2, 71), (28, 2, 70), (30, 2, 73)]
+# Riff im tiefen Blech: (Schlag, Dauer in Schlägen, Nachbarton?, Stärke); Nachbarton je Akkord (Halbtöne)
+VK_RIFF = [(0, 1.25, 0, 1.0), (1.5, 0.5, 0, 0.7), (2.5, 0.5, 0, 0.6), (3, 0.5, 1, 0.8), (3.5, 0.5, 0, 0.6)]
+VK_NACHBAR = {'Bm': 1, 'C': -1, 'G': 2, 'Em': 2, 'F#': 1, 'D/F#': 1}
+VK_TAIKO = [(0, 1.0), (3, 0.5), (6, 0.8), (8, 0.9), (11, 0.5), (14, 0.65)]
+
+
+def vulkan():
+    K = Klang(4501)
+    TA, TB = 1.0756, 0.8535  # Fasstrommeln auf h-Moll gestimmt: Fis2 und D2 (das Paar)
+    bpm = 84
+    beat = 60 / bpm
+    takt = 4 * beat
+    s16 = beat / 4
+    N = sum(len(p[1]) for p in VK_PLAN)
+    M = Mischer(int(round(N * takt * SR)))
+
+    def T(b, st=0.0):
+        """Takt b, Sechzehntel st"""
+        return (b * 16 + st) * s16
+
+    def jit(ms=4):
+        return K.r(-ms, ms) / 1000
+
+    spic = dict(stimmen=3, cent=8, a=0.008, d=0.08, s=0.45, r=0.09, p=1.1)
+    for b in range(N):
+        teil, akk = VK_PLAN[b // 8]
+        i = b % 8
+        name = akk[i]
+        bass, pcs = VK_AKK[name]
+        L = akkord_lauf(akk, i)
+        nb = VK_NACHBAR[name]
+        wucht = teil in ('V3', 'V5')
+        ausbruch = b == N - 1
+        steig = teil == 'V5' and i == 6
+        # --- tiefe Streicher ---
+        if teil in ('V1', 'V4'):
+            if L:
+                for m, pan in ((bass, 0.25), (bass + 12, -0.3)):
+                    M('ost', T(b), K.streich(m, L * takt - 0.06, 0.6 if teil == 'V1' else 0.48, stimmen=4, cent=7, a=0.25, d=0.5, s=0.9, r=0.25, p=1.2, vib=4,
+                                             trem=1 if teil == 'V1' else 0, bpm=bpm, cache=False), pan)
+        elif ausbruch:
+            for m, pan in ((bass, 0.25), (bass + 12, -0.3)):
+                M('ost', T(b), K.streich(m, takt - 0.1, 1.0, stimmen=4, cent=9, a=0.01, d=0.5, s=0.35, r=0.6, p=1.1, vib=3, cache=False), pan)
+        else:
+            for k in range(8):
+                acc = 1.0 if k in (0, 3) else 0.6 if k in (5, 6) else 0.45
+                if steig:
+                    acc = 0.55 + 0.45 * k / 7
+                t = T(b, 2 * k)
+                M('ost', t + jit(), K.streich(bass + 12, 0.2, acc, **spic), -0.3)
+                M('ost', t + jit(), K.streich(bass, 0.2, acc, **spic), 0.25)
+        # --- Trommeln ---
+        if teil == 'V1':
+            M('trom', T(b) + jit(2), K.trommel('odaiko', 0.9), 0)
+            M('trom', T(b, 3) + jit(2), K.trommel('odaiko', 0.5), 0.1)
+            M('trom', T(b, 8) + jit(), K.trommel('taiko', 0.4 + 0.05 * i, TA), -0.3)
+            M('trom', T(b, 8) + 0.006 + jit(), K.trommel('taiko', 0.35 + 0.045 * i, TB), 0.3)
+            if i % 2 == 1:
+                M('trom', T(b, 14) + jit(), K.trommel('taiko', 0.3 + 0.04 * i, TA), 0.2)
+            if i == 7:
+                for k in range(8):
+                    M('trom', T(b, 8 + k) + jit(), K.trommel(('taiko', 'tom_t')[k % 2], 0.4 + 0.07 * k), 0.3 - 0.08 * k)
+        elif teil == 'V4':
+            M('trom', T(b) + jit(2), K.trommel('odaiko', 0.9 if i % 2 == 0 else 0.6), 0)
+            if i % 2 == 1:
+                M('trom', T(b, 8) + jit(), K.trommel('taiko', 0.6, TA), -0.35)
+                M('trom', T(b, 8) + 0.006 + jit(), K.trommel('taiko', 0.5, TB), 0.35)
+            if i == 3:
+                for k, art in enumerate(('tom_m', 'tom_m', 'tom_t', 'tom_t')):
+                    M('trom', T(b, 12 + k) + jit(), K.trommel(art, 0.35 + 0.07 * k, TA if art == 'taiko' else 1.0), 0.3 - 0.2 * k)
+            if i == 6:
+                for k in range(8):
+                    M('trom', T(b, 2 * k) + jit(), K.trommel('taiko', 0.3 + 0.05 * k, TA), -0.3 if k % 2 else 0.3)
+            if i == 7:
+                for k in range(16):
+                    art = 'taiko' if k < 12 else ('tom_h', 'tom_m', 'tom_t', 'odaiko')[k - 12]
+                    M('trom', T(b, k) + jit(), K.trommel(art, 0.4 + 0.55 * k / 15, TA if art == 'taiko' else 1.0), -0.35 if k % 2 else 0.35)
+        elif ausbruch:
+            # der Schlag des Ausbruchs, danach nur noch ein Nachbeben
+            M('trom', T(b), K.trommel('odaiko', 1.0), -0.1)
+            M('trom', T(b) + 0.012, K.trommel('odaiko', 0.95, 0.9), 0.15)
+            M('trom', T(b) + 0.006, K.trommel('taiko', 1.0, TA), 0)
+            M('trom', T(b, 10) + jit(2), K.trommel('odaiko', 0.4), 0)
+        else:
+            M('trom', T(b) + jit(2), K.trommel('odaiko', 1.0), K.r(-0.1, 0.1))
+            M('trom', T(b, 8) + jit(2), K.trommel('odaiko', 0.75), K.r(-0.1, 0.1))
+            if teil == 'V5' and not steig:
+                M('trom', T(b, 12) + jit(2), K.trommel('odaiko', 0.55), 0.1)
+            elif teil == 'V3' and i % 2 == 1:
+                M('trom', T(b, 14) + jit(2), K.trommel('odaiko', 0.5), 0.1)
+            fill = i in (3, 7) or steig
+            for st, v in VK_TAIKO:
+                if fill and st >= 8:
+                    continue
+                v *= 0.85 if teil == 'V2' else 1.0
+                M('trom', T(b, st) + jit(), K.trommel('taiko', v, TA), -0.35)
+                M('trom', T(b, st) + 0.006 + jit(), K.trommel('taiko', v * 0.85, TB), 0.35)
+            for st in range(0, 16, 2):
+                M('shime', T(b, st) + jit(3), K.trommel('shime', (0.4 if st in (4, 12) else 0.2) * (0.8 if teil == 'V2' else 1.0)), 0.45)
+            if wucht and not steig:
+                for st, f, v in ((4, 700, 0.7), (12, 560, 0.6)):
+                    M('metall', T(b, st) + jit(2), K.amboss(v, f), 0.3 if f > 600 else -0.3)
+            if teil == 'V5' and not steig:
+                M('snare', T(b, 12) + jit(2), K.snare(0.5), 0.1)
+            if i in (3, 7):
+                for k in range(8):
+                    art = ('taiko', 'tom_h', 'taiko', 'tom_m', 'taiko', 'tom_t', 'taiko', 'odaiko')[k]
+                    M('trom', T(b, 8 + k) + jit(), K.trommel(art, 0.5 + 0.06 * k, TA if art == 'taiko' else 1.0), 0.4 - 0.1 * k)
+            if steig:
+                # Steigerung in den Ausbruch: Wirbel der kleinen Trommel, Fasstrommeln in Achteln, zuletzt Toms
+                for k in range(16):
+                    M('snare', T(b, k) + jit(2), K.snare(0.2 + 0.65 * (k / 15) ** 1.4), 0.1)
+                for k in range(8):
+                    art = 'taiko' if k < 6 else ('tom_m', 'tom_t')[k - 6]
+                    M('trom', T(b, 8 + k) + jit(), K.trommel(art, 0.55 + 0.06 * k, TA if art == 'taiko' else 1.0), -0.35 if k % 2 else 0.35)
+        # --- Becken, Gong, Einschläge, Anstiege ---
+        if b in (16, 32):
+            M('becken', T(b), K.crash(1.0), 0.25)
+            M('becken', T(b) + 0.01, K.crash(0.7), -0.3)
+            M('tief', T(b), K.einschlag(1.0, 60, 26, 2.2), 0)
+        if b == 8:
+            M('becken', T(b), K.crash(0.5), -0.2)
+            M('tief', T(b), K.einschlag(0.75, 58, 26, 2.2), 0)
+        if b == 24:
+            M('gong', T(b) + 0.01, K.gong(0.9), -0.2)
+        if ausbruch:
+            M('gong', T(b), K.gong(1.0), 0.15)
+            M('becken', T(b), K.crash(1.0, 4.0), 0.3)
+            M('becken', T(b) + 0.012, K.crash(0.9, 4.0), -0.3)
+            M('tief', T(b), K.einschlag(1.0, 64, 24, 3.0), 0)
+        if b in (15, 31):
+            M('fx', T(b) + takt - 1.6, K.rueckwaerts_becken(1.6, 0.75), 0)
+        if b == 30:
+            M('fx', T(b), K.anstieg(2 * takt, 0.85, ton=mton(42)), 0)
+        if steig:
+            M('fx', T(b), K.anstieg(takt, 1.0, ton=mton(47)), 0)
+            M('fx', T(b) + takt - 2.0, K.rueckwaerts_becken(2.0, 0.85), 0)
+        # --- Grollen des Bergs (zwei unabhängige, links und rechts) ---
+        if i % 4 == 0 and not ausbruch:
+            st = {'V1': 0.6, 'V2': 0.45, 'V3': 0.35, 'V4': 0.6, 'V5': 0.35}[teil]
+            for pan in (-0.6, 0.6):
+                M('grollen', T(b), K.grollen(4 * takt + 1.5, st), pan)
+        if ausbruch:
+            for pan in (-0.6, 0.6):
+                M('grollen', T(b), K.grollen(3 * takt, 1.4), pan)
+        # --- Koto ---
+        r = 59 + ((pcs[0] - 59) % 12)
+        terz = (pcs[1] - pcs[0]) % 12
+        if teil in ('V2', 'V3', 'V5') and not ausbruch and not steig:
+            # im Thema eine Oktave über den Hörnern
+            hoch = 12 if teil == 'V3' else 0
+            for k, o in enumerate((0, 7, 12, 12 + nb, 12, 7, terz, 7)):
+                acc = (1.0 if k in (0, 3) else 0.65) * {'V2': 1.0, 'V3': 0.8, 'V5': 0.75}[teil]
+                M('zupf', T(b, 2 * k) + jit(2), K.zupf(r + o + hoch, acc, nachhall=1.0, hell=0.5), 0.35 if k % 2 else -0.25)
+        if teil == 'V1':
+            # Glutfunken: zwei leise, hohe Töne je Takt (Quinte, dann der Nachbarton über der Oktave)
+            for st, o, v in ((8, 19, 0.75), (14, 24 + nb, 0.6)):
+                M('zupf', T(b, st) + jit(2), K.zupf(r + o, v, nachhall=1.6, hell=0.5), 0.4 if st == 8 else -0.4)
+        if teil == 'V4':
+            oben = voicing(pcs, 64, 83, 4)
+            for h, s in ((0, -1), (8, -2)):
+                tremolo(M, K, 'zupf', T(b, h), oben[s], 2 * beat - 0.05, beat, 0.45, 0.3)
+        # --- Chor ---
+        if L and not ausbruch:
+            d = L * takt - 0.15
+            if teil == 'V1':
+                for m in voicing(pcs, 47, 62, 3):
+                    M('chor_u', T(b), K.chor(m, d, 0.9, a=1.2, r=1.0), K.r(-0.5, 0.5))
+            if teil in ('V2', 'V3'):
+                for m in voicing(pcs, 43, 60, 4):
+                    M('chor_o', T(b), K.chor(m, d, 0.65), K.r(-0.4, 0.4))
+            if teil == 'V3' and i >= 4:
+                for m in voicing(pcs, 59, 74, 3):
+                    M('chor_a', T(b), K.chor(m, d, 0.5), K.r(-0.5, 0.5))
+            if teil == 'V4':
+                for m in voicing(pcs, 50, 67, 4):
+                    M('chor_u', T(b), K.chor(m, d, 0.45, a=0.8), K.r(-0.5, 0.5))
+                if i >= 4:
+                    for m in voicing(pcs, 62, 76, 3):
+                        M('chor_a', T(b), K.chor(m, d, 0.45), K.r(-0.5, 0.5))
+            if teil == 'V5':
+                for m in voicing(pcs, 43, 60, 3):
+                    M('chor_o', T(b), K.chor(m, d, 0.7), K.r(-0.4, 0.4))
+                for m in voicing(pcs, 59, 79, 5):
+                    M('chor_a', T(b), K.chor(m, d, 0.75 if not steig else 0.85, a=0.3 if not steig else 1.2), K.r(-0.6, 0.6))
+        if ausbruch:
+            # Schrei des Bergs: Chorcluster h/c, der langsam verklingt
+            for m in (47, 54, 59, 60, 66, 71, 72):
+                M('chor_a', T(b), K.chor(m, takt * 0.8, 0.85, a=0.03, r=1.6), K.r(-0.6, 0.6))
+        # --- Blech ---
+        if teil == 'V1' and L and i >= 4:
+            for m in voicing(pcs, 35, 52, 3):
+                M('blech', T(b) + jit(), K.blech(m, L * takt - 0.2, 0.45, stimmen=2, a=1.2, hell=0.4, r=0.4), K.r(-0.3, 0.3))
+        if teil in ('V2', 'V3', 'V5') and not ausbruch and not steig:
+            for s, dd, o, v in VK_RIFF:
+                m = bass + (nb if o else 0)
+                vv = v * (1.0 if teil == 'V2' else 0.8)
+                M('riff', T(b, 4 * s) + jit(), K.blech(m, dd * beat * 0.9, vv, stimmen=3, cent=10, stoss=True, hell=0.9), 0)
+                if teil == 'V2':
+                    M('riff', T(b, 4 * s) + jit(), K.blech(m + 12, dd * beat * 0.9, vv * 0.85, stimmen=2, cent=8, stoss=True, hell=0.85), 0.15)
+        if teil == 'V4' and L:
+            for m in voicing(pcs, 40, 59, 4):
+                M('blech', T(b) + jit(), K.blech(m, L * takt - 0.15, 0.42, stimmen=2, a=1.0, hell=0.5, r=0.35), K.r(-0.3, 0.3))
+        if teil == 'V5' and not ausbruch and not steig:
+            for m in voicing(pcs, 47, 64, 4):
+                M('blech', T(b) + jit(), K.blech(m, 0.32, 0.9, stimmen=2, stoss=True, hell=0.95), K.r(-0.35, 0.35))
+        if steig:
+            for k in range(8):
+                v = 0.55 + 0.45 * k / 7
+                for m in voicing(pcs, 47, 64, 4):
+                    M('blech', T(b, 2 * k) + jit(), K.blech(m, 0.22, v, stimmen=2, stoss=True, hell=1.0), K.r(-0.35, 0.35))
+                M('blech', T(b, 2 * k), K.blech(bass, 0.24, v, stimmen=2, stoss=True, hell=0.85), 0)
+        if ausbruch:
+            for m in (35, 47, 54, 59, 60):
+                M('blech', T(b) + jit(2), K.blech(m, 1.4, 1.0, stimmen=3, cent=12, stoss=True, hell=1.0, r=0.8), K.r(-0.3, 0.3))
+        # --- hohe Streicher ---
+        if L and teil == 'V1' and i >= 2:
+            for m in voicing(pcs, 71, 86, 2):
+                M('vl', T(b), K.streich(m, L * takt - 0.1, 0.3, stimmen=4, cent=7, a=0.6, d=0.5, s=0.9, r=0.4, p=1.35, vib=6, trem=1,
+                                        bpm=bpm, cache=False), K.r(-0.5, 0.5))
+        if L and wucht and not ausbruch:
+            for m in voicing(pcs, 66, 83, 3):
+                M('vl', T(b), K.streich(m, L * takt - 0.1, 0.3, stimmen=4, cent=6, a=0.3, d=0.5, s=0.9, r=0.35, p=1.3, vib=8, trem=1,
+                                        bpm=bpm, cache=False), K.r(-0.5, 0.5))
+        if L and teil == 'V4':
+            for m in voicing(pcs, 62, 79, 4):
+                M('vl', T(b), K.streich(m, L * takt - 0.1, 0.26, stimmen=4, cent=6, a=0.6, d=0.6, s=0.9, r=0.5, p=1.3, vib=10,
+                                        cache=False), K.r(-0.5, 0.5))
+    # Melodien und Thema (je Teil einmal, über acht Takte)
+    for q in range(len(VK_PLAN)):
+        teil = VK_PLAN[q][0]
+        t0 = T(q * 8)
+        if teil == 'V1':
+            M('dizi', t0, K.dizi(VK_RAUCH, beat, 1.0, vib=10), 0.15)
+        if teil in ('V3', 'V5'):
+            v = 0.85 if teil == 'V3' else 1.0
+            for s, d, m in VK_THEMA:
+                M('horn', t0 + s * beat + jit(), K.blech(m, d * beat * 0.96, v, stimmen=3, cent=7, a=0.06, hell=0.75), -0.2)
+                M('horn', t0 + s * beat + jit(), K.blech(m - 12, d * beat * 0.96, v * 0.9, stimmen=3, cent=7, a=0.05, hell=0.8), 0.25)
+                if teil == 'V5':
+                    M('chor_a', t0 + s * beat, K.chor(m + 12, d * beat, 0.45, a=0.1, r=0.3), 0.0)
+            if teil == 'V3':
+                M('dizi', t0, K.dizi(VK_ANTWORT, beat, 0.8), 0.3)
+            else:
+                M('erhu', t0, K.erhu([(s, d, m + 12) for s, d, m in VK_THEMA], beat, 0.95), -0.1)
+        if teil == 'V4':
+            M('erhu', t0, K.erhu(VK_KLAGE, beat, 0.95, vib=26), -0.05)
+    return M, takt
+
+
+def vulkan_mix():
+    raeume = {'gross': hall_ir(np.random.default_rng(57), (3.6, 3.0, 2.0, 1.0), 4.6, 0.03, 0.2),
+              'raum': hall_ir(np.random.default_rng(58), (1.4, 1.2, 0.8, 0.45), 2.0, 0.008, 0.3)}
+    specs = {
+        'ost': dict(eq=kette(_sos('hp', 32), eq_spitze(240, 1.5, 1.0), eq_spitze(520, -3, 1.2), eq_spitze(1800, 2, 0.9), _sos('lp', 5000)),
+                    ziel=-22, hall={'gross': 0.35}),
+        'trom': dict(eq=kette(_sos('hp', 36), eq_spitze(300, -2, 1.0), eq_spitze(2000, 2, 1.0)), ziel=-20.5, hall={'raum': 0.35, 'gross': 0.25}),
+        'shime': dict(eq=_sos('hp', 200), ziel=-29, hall={'raum': 0.4, 'gross': 0.25}),
+        'metall': dict(eq=_sos('hp', 300), ziel=-27.5, hall={'gross': 0.65}),
+        'snare': dict(eq=_sos('hp', 150), ziel=-27, hall={'raum': 0.45, 'gross': 0.3}),
+        'zupf': dict(eq=kette(_sos('hp', 120), eq_spitze(400, 2, 1.2), eq_spitze(2500, 1.5, 1.0)), ziel=-24, hall={'gross': 0.4, 'raum': 0.2}),
+        'erhu': dict(eq=kette(_sos('hp', 180), _sos('lp', 7000)), ziel=-20.5, hall={'gross': 0.5}),
+        'dizi': dict(eq=kette(_sos('hp', 200), _sos('lp', 8000)), ziel=-22, hall={'gross': 0.6}),
+        'riff': dict(eq=kette(_sos('hp', 35), eq_spitze(800, 2.5, 0.8), _sos('lp', 4500)), ziel=-22, hall={'gross': 0.3}),
+        'blech': dict(eq=kette(_sos('hp', 40), eq_spitze(320, -2.5, 1.0), eq_spitze(1400, 2.5, 1.0), _sos('lp', 6500)), ziel=-23, hall={'gross': 0.6}),
+        'horn': dict(eq=kette(_sos('hp', 90), eq_spitze(1200, 2, 1.0), _sos('lp', 5500)), ziel=-20.5, hall={'gross': 0.7}),
+        'chor_o': dict(eq=_sos('hp', 100), vokal='o', ziel=-23.5, hall={'gross': 0.9}),
+        'chor_a': dict(eq=_sos('hp', 160), vokal='a', ziel=-24, hall={'gross': 0.9}),
+        'chor_u': dict(eq=_sos('hp', 100), vokal='u', ziel=-25, hall={'gross': 1.0}),
+        'vl': dict(eq=kette(_sos('hp', 230), eq_spitze(3200, -1, 1.0), _sos('lp', 9000)), ziel=-25, hall={'gross': 0.85}),
+        'grollen': dict(eq=kette(_sos('hp', 32), _sos('lp', 300)), ziel=-27.5, hall={'gross': 0.25}),
+        'gong': dict(eq=_sos('hp', 40), ziel=-24, hall={'gross': 0.6}),
+        'becken': dict(ziel=-27, hall={'gross': 0.45}),
+        'tief': dict(eq=kette(_sos('lp', 140), _sos('hp', 28)), ziel=-26),
+        'fx': dict(eq=_sos('hp', 150), ziel=-28, hall={'gross': 0.6}),
+    }
+    master = dict(eq=kette(_sos('hp', 30, 2), eq_kuhle(85, -2.5), eq_spitze(300, -2.0, 0.8), eq_spitze(1300, 2.0, 0.9),
+                           eq_kuhle(2400, 3.5, hoch=True)), schwelle=-16, ratio=2.5, treiben=1.2)
+    return specs, raeume, master
+
+
 STUECKE = {
     'turm': (turm, turm_mix),
     'kharzul': (kharzul, kharzul_mix),
     'kharzul2': (lambda: kharzul(True), lambda: kharzul_mix(True)),
     'arena': (arena, arena_mix),
+    'glut': (glut, glut_mix),
+    'vulkan': (vulkan, vulkan_mix),
 }
 
 

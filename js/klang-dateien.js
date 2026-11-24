@@ -13,6 +13,7 @@
 // blenden gleichmäßig über (gleiche Leistung); die alte Datei spielt weiter, bis die neue dekodiert ist. Fehlt eine
 // Datei (oder lädt sie nach kurzer Wartezeit noch), spielt die im Browser erzeugte Musik (musik.js) – nie beides.
 // Die Schleifen liegen auf Taktgrenzen und sind in der Datei vorbereitet (tools/klang-erzeugen.py, docs/musik-prompts.md).
+// Eine Stimmung kann auch mehrere Stücke im Wechsel spielen (MUSIC_REIHE, Feuerberg): jedes einmal ganz, dann das nächste.
 //
 // Fehlt eine Datei oder lädt sie nicht (offline, ohne Speicher), bleibt alles beim erzeugten Klang – ohne Fehler.
 
@@ -228,25 +229,134 @@ const MUSIC_SYNC = { kharzul: 'kharzul2', kharzul2: 'kharzul' };
 // Stücke, die bei jedem Einsetzen von vorn beginnen (am Anfang der Schleife) statt dort weiterzulaufen, wo sie aufgehört
 // haben: die Klage des Turms (seit 15.73) soll beim Betreten mit ihrem Thema einsetzen
 const MUSIC_VON_VORN = new Set(['turmklage']);
+// Stimmungen mit mehreren Stücken im Wechsel (Reihe): am Feuerberg „vulkan“ und „glut“ (eigene Kompositionen,
+// tools/klang-synth/musik.py) und das bisherige Stück der heißen Gegenden „heiss“. Jedes Stück läuft einmal ganz durch
+// (Vorspiel und einmal die Schleife A–B) und blendet dann über sein Ende in das Vorspiel des nächsten (gleiche Leistung,
+// so lang wie das Vorspiel des neuen, 4–6 s): die Schleife des neuen setzt genau dort ein, wo die des alten endet. Wer
+// die Gegend verlässt und wiederkommt, hört das nächste Stück der Reihe (von vorn); nach einer Pause (Musik aus, Spiel im
+// Hintergrund) läuft das Stück an seiner Stelle weiter. Fehlt eine Datei, kommt die nächste der Reihe, ohne jede Datei
+// die erzeugte Musik (musik.js, MOODS.feuer).
+const MUSIC_REIHE = { feuer: ['vulkan', 'glut', 'heiss'] };
+// Überblendung zwischen zwei Stücken einer Reihe: so lang wie das Vorspiel des neuen, aber mindestens/höchstens (s)
+const MUSIC_REIHE_BLENDE = [4, 6];
 const musicFiles = {
   bytes: new Map(),
   bufs: new Map(),
   fail: new Set(),
   pos: new Map(),
   alt: new Map(),
+  reihen: new Map(),
   cur: null,
 
   has(k) {
     return typeof MUSIC_FILES !== 'undefined' && !!MUSIC_FILES[k] && !this.fail.has(k);
   },
 
-  // Datei für Stimmung k: ihre eigene oder, solange die fehlt, die bisherige (MUSIC_FALLBACK); null: keine Datei
+  // Datei für Stimmung k: ihre eigene (bei einer Reihe das Stück, das dran ist) oder, solange die fehlt, die bisherige
+  // (MUSIC_FALLBACK); null: keine Datei
   fileFor(k) {
     for (let i = 0; i < 4 && k; i++) {
-      if (this.has(k)) return k;
+      if (MUSIC_REIHE[k]) {
+        const f = this.reiheFile(k);
+        if (f) return f;
+      } else if (this.has(k)) return k;
       k = MUSIC_FALLBACK[k];
     }
     return null;
+  },
+
+  // Stand der Reihe r: i = Stück, das dran ist; k/p = Stück und Stelle nach einer Pause
+  reiheZ(r) {
+    let z = this.reihen.get(r);
+    if (!z) {
+      z = { i: 0, k: null, p: null };
+      this.reihen.set(r, z);
+    }
+    return z;
+  },
+
+  // Datei der Reihe r: das Stück, das dran ist, oder (fehlt es) das nächste vorhandene; null: keines da
+  reiheFile(r) {
+    const R = MUSIC_REIHE[r];
+    const z = this.reiheZ(r);
+    for (let j = 0; j < R.length; j++) {
+      const f = R[(z.i + j) % R.length];
+      if (this.has(f)) return f;
+    }
+    return null;
+  },
+
+  // das nächste vorhandene Stück der Reihe r nach f (f selbst, wenn sonst keines da ist)
+  reiheNach(r, f) {
+    const R = MUSIC_REIHE[r];
+    const i = R.indexOf(f);
+    for (let j = 1; j <= R.length; j++) {
+      const k = R[(i + j) % R.length];
+      if (k === f || this.has(k)) return k;
+    }
+    return null;
+  },
+
+  // Reihe r weiterschalten: nach Stück f kommt das nächste (von vorn)
+  reiheWeiter(r, f) {
+    const R = MUSIC_REIHE[r];
+    const z = this.reiheZ(r);
+    z.i = (R.indexOf(f) + 1) % R.length;
+    z.k = null;
+    z.p = null;
+  },
+
+  // Uhrzeit (Klang-Uhr), zu der die laufende Datei o das nächste Mal ihr Schleifenende B erreicht – frühestens in min s
+  reiheEnde(o, min) {
+    const now = sfx.ctx ? sfx.ctx.currentTime : 0;
+    const L = o.b - o.a;
+    let e = o.t0 + o.b;
+    if (e < now + min) e += Math.ceil((now + min - e) / L) * L;
+    return e;
+  },
+
+  // Die laufende Datei spielt jetzt für Stimmung k weiter (dieselbe Datei in zwei Stimmungen, z. B. „heiss“): gehörte sie
+  // zu einer anderen Reihe, verlässt sie diese (dort kommt beim nächsten Mal das nächste Stück); gehört k eine Reihe,
+  // übernimmt die Reihe sie und wechselt an ihrem nächsten Schleifenende
+  reiheAn(k) {
+    const o = this.cur;
+    const r = o && MUSIC_REIHE[k] && MUSIC_REIHE[k].includes(o.k) ? k : null;
+    if (!o || o.reihe === r) return;
+    if (o.reihe) this.reiheWeiter(o.reihe, o.k);
+    o.reihe = r;
+    o.ende = r ? this.reiheEnde(o, 8) : null;
+    if (r) this.reiheZ(r).i = MUSIC_REIHE[r].indexOf(o.k);
+  },
+
+  // Wechsel innerhalb der Reihe (bei jedem tick der Musik, alle 200 ms): das nächste Stück rechtzeitig holen und
+  // dekodieren, dann so starten, dass es mit seinem Vorspiel einblendet und seine Schleife (A) genau am Schleifenende (B)
+  // des laufenden beginnt. Ist es dann noch nicht fertig (langsames Netz) oder fehlt es, läuft das jetzige noch eine Runde.
+  reiheTick(now) {
+    const o = this.cur;
+    if (!o || !o.reihe || o.ende == null || o.weiter || this.wantK !== o.reihe || this.pending) return;
+    const L = o.b - o.a;
+    const nk = this.reiheNach(o.reihe, o.k);
+    if (!nk || nk === o.k) {
+      if (now > o.ende - 1) o.ende += L;
+      return;
+    }
+    const N = MUSIC_FILES[nk];
+    const fade = Math.min(MUSIC_REIHE_BLENDE[1], Math.max(MUSIC_REIHE_BLENDE[0], N.loop[0]));
+    const at = o.ende - fade;
+    if (now < at - 45) return;
+    this.fetch(nk);
+    if (now < at - 25) return;
+    const buf = this.bufs.get(nk);
+    if (!buf) {
+      this.decode(nk);
+      if (now > at - 1) o.ende += L;
+      return;
+    }
+    if (now < at - 1.5) return;
+    // o.weiter: Wechsel innerhalb der Reihe (stop schaltet die Reihe dann nicht noch einmal weiter)
+    o.weiter = true;
+    this.start(nk, buf, fade, o.reihe, at, Math.max(0, N.loop[0] - fade));
+    if (this.cur === o) o.weiter = false;
   },
 
   // nur die Bytes holen (Vorladen der Nachbargegenden). Die Größe muss zu MUSIC_FILES passen: Der Service Worker
@@ -321,9 +431,9 @@ const musicFiles = {
     }
   },
 
-  // läuft für diese Stimmung schon eine Datei (ihre eigene oder ihr Ersatz)?
+  // läuft für diese Stimmung schon eine Datei (ihre eigene, ihr Ersatz oder ein Stück ihrer Reihe)?
   playing(k) {
-    return !!(this.cur && (this.cur.k === k || this.cur.k === this.fileFor(k)));
+    return !!(this.cur && (this.cur.k === k || this.cur.reihe === k || this.cur.k === this.fileFor(k)));
   },
 
   // Soll die erzeugte Musik schweigen? Ja, solange irgendeine Datei läuft (auch die alte, während die neue noch
@@ -337,6 +447,8 @@ const musicFiles = {
   want(k, fade = 2.5) {
     if (this.wantK === k && (this.playing(k) || this.pending)) return;
     this.wantK = k;
+    // Gegend einer Reihe während einer Pause verlassen (Musik war aus): dort beim nächsten Mal das nächste Stück
+    for (const [r, z] of this.reihen) if (r !== k && z.k) this.reiheWeiter(r, z.k);
     const f = this.fileFor(k);
     if (!f) {
       this.pending = false;
@@ -346,6 +458,7 @@ const musicFiles = {
     // zurück zur Stimmung, deren Datei noch läuft (die neue war noch nicht fertig): einfach weiterspielen
     if (this.playing(k)) {
       this.pending = false;
+      this.reiheAn(k);
       return;
     }
     this.pending = true;
@@ -364,20 +477,30 @@ const musicFiles = {
         this.stop(fade);
         return;
       }
-      this.start(f, buf, fade);
+      this.start(f, buf, fade, MUSIC_REIHE[k] && MUSIC_REIHE[k].includes(f) ? k : null);
     });
   },
 
-  start(k, buf, fade) {
+  // Datei k starten (Überblendung fade s); reihe: Stimmung, deren Reihe sie spielt; at: frühester Beginn (Klang-Uhr),
+  // ab: Stelle beim Wechsel innerhalb der Reihe
+  start(k, buf, fade, reihe, at, ab) {
     const c = sfx.ctx;
     if (!c || !music.fileBus) return;
     const M = MUSIC_FILES[k];
     if (this.cur && this.cur.k === k) return;
-    const t = c.currentTime + 0.05;
+    const t = Math.max(c.currentTime + 0.05, at || 0);
     const dur = Math.max(0.1, fade);
     // zurück in eine Gegend: dort weiter, wo das Stück aufgehört hat (innerhalb der Schleife), sonst von vorn;
-    // im Gleichlauf (MUSIC_SYNC) an derselben Stelle wie die laufende Datei
+    // im Gleichlauf (MUSIC_SYNC) an derselben Stelle wie die laufende Datei. Ein Stück einer Reihe beginnt von vorn mit
+    // seinem Vorspiel, nach einer Pause an seiner Stelle
     let off = MUSIC_VON_VORN.has(k) ? M.loop[0] : this.pos.get(k) || 0;
+    if (reihe) {
+      const z = this.reiheZ(reihe);
+      off = z.k === k && z.p != null ? z.p : ab || 0;
+      z.i = MUSIC_REIHE[reihe].indexOf(k);
+      z.k = null;
+      z.p = null;
+    }
     const o = this.cur;
     if (o && MUSIC_SYNC[k] === o.k) {
       off = t - o.t0;
@@ -399,20 +522,31 @@ const musicFiles = {
     g.connect(music.fileBus);
     if (off >= src.loopEnd) off = src.loopStart;
     src.start(t, off);
-    this.cur = { k, src, g, t0: t - off, M, a: src.loopStart, b: src.loopEnd };
+    this.cur = { k, src, g, t0: t - off, M, a: src.loopStart, b: src.loopEnd, reihe: reihe || null };
+    // Stück einer Reihe: Wechsel zum nächsten, sobald es sein Schleifenende B erreicht (einmal ganz gespielt)
+    if (reihe) this.cur.ende = this.reiheEnde(this.cur, 0);
     music.procFade(0, dur);
   },
 
-  stop(fade = 2, keepProc, at) {
+  // Datei ausblenden (ab at, fade s); pause: nur angehalten (Musik aus, Spiel im Hintergrund), nicht verlassen
+  stop(fade = 2, keepProc, at, pause) {
     const c = sfx.ctx;
     const o = this.cur;
     this.cur = null;
     if (!o || !c) return;
     const t = at || c.currentTime;
-    // Stelle merken (innerhalb der Schleife)
-    let p = t - o.t0;
+    // Stelle merken (innerhalb der Schleife; nie vor dem Anfang, falls die Datei noch gar nicht eingesetzt hat)
+    let p = Math.max(0, t - o.t0);
     if (p > o.b) p = o.a + ((p - o.a) % (o.b - o.a));
-    this.pos.set(o.k, p);
+    if (o.reihe) {
+      // Stück einer Reihe: nach einer Pause dort weiter; wer die Gegend verlässt, hört beim nächsten Mal das nächste
+      // Stück (beim Wechsel innerhalb der Reihe, o.weiter, steht sie schon darauf)
+      const z = this.reiheZ(o.reihe);
+      if (pause) {
+        z.k = o.k;
+        z.p = p;
+      } else if (!o.weiter) this.reiheWeiter(o.reihe, o.k);
+    } else this.pos.set(o.k, p);
     const dur = Math.max(0.1, fade);
     sfx.fade(o.g.gain, t, dur, 0);
     try {
@@ -425,11 +559,11 @@ const musicFiles = {
   off() {
     this.wantK = null;
     this.pending = false;
-    this.stop(0.4);
+    this.stop(0.4, false, 0, true);
   },
 
-  // Nachbargegenden vorab holen (nur Bytes), Boss, wenn einer nahe ist, und den Gleichlauf-Partner der laufenden
-  // Stimmung (Kharzul: die Fassung nach der Verwandlung)
+  // Nachbargegenden vorab holen (nur Bytes), Boss, wenn einer nahe ist, den Gleichlauf-Partner der laufenden
+  // Stimmung (Kharzul: die Fassung nach der Verwandlung) und in einer Reihe (Feuerberg) das nächste Stück
   prefetch(p) {
     if (!p || typeof music === 'undefined' || !game.running || !game.world) return;
     const seen = new Set();
@@ -445,6 +579,11 @@ const musicFiles = {
     for (const k of seen) {
       const f = this.fileFor(k);
       if (f) this.fetch(f);
+    }
+    const o = this.cur;
+    if (o && o.reihe) {
+      const nk = this.reiheNach(o.reihe, o.k);
+      if (nk && nk !== o.k) this.fetch(nk);
     }
   }
 };

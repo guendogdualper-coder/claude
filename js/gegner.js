@@ -213,7 +213,7 @@ function updateBoss(m, dt) {
       addEffect({ type: 'decal', kind: 'crack', x: m.x, y: feetY(m), r: b.slam * 0.6, dur: 2.5, color: '#1a1210' });
       particles(m.x, feetY(m), { count: 40, color: [b.color, '#ffffff', '#5a4a3a'], speed: [120, 320], life: [0.3, 0.7], size: [2, 4.5], shape: 'square', drag: 3, glow: false });
       if (!p.dead && hyp(p.x - m.x, (p.y - m.y) * 1.2) < b.slam) {
-        damagePlayer(calcDamage(m.atk, 2.2 * levelBonus(m.level, p.level), game.stats.def, 0.05, m.level).amount, m);
+        damagePlayer(calcDamage(m.atk, 2.2 * levelBonus(m.level, p.level), game.stats.def, 0.05, m.level).amount, m, { sure: true });
       }
     }
     return true;
@@ -475,7 +475,7 @@ function raidResolve(m, kind, circles, inner, atk = m.atk, lvl = m.level) {
     const d = hyp(p.x - c.x, (fyp - c.y) * 1.2);
     return d < c.r && d >= (inner || 0);
   });
-  if (hit) damagePlayer(calcDamage(atk, RAID_MUL[kind] * levelBonus(lvl, p.level), game.stats.def, 0.05, lvl).amount, m);
+  if (hit) damagePlayer(calcDamage(atk, RAID_MUL[kind] * levelBonus(lvl, p.level), game.stats.def, 0.05, lvl).amount, m, { sure: true });
 }
 
 // Kleine Helfer: wenig Leben, schnell, lassen mit etwas Glück Tränke, Splitter oder Verstärkungen fallen

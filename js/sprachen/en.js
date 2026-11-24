@@ -7083,4 +7083,10 @@
 "Beende eine PvP-Saison mindestens auf Gold": "Finish a PvP season at Gold or higher",
 "Beende eine PvP-Saison als Champion": "Finish a PvP season as Champion",
 "Bringe {0} Charaktere deines Kontos auf Stufe {1}": "Bring {0} characters of your account to level {1}",
+// 15.80: Aufstieg in den nächsten Rang an der Fertigkeitsleiste
+"Aufstieg möglich": "Rank-up possible",
+// 15.80: Ausweichen/Blocken nur gegen normale Angriffe
+"Nur gegen normale Angriffe – Fertigkeiten treffen immer": "Only against normal attacks – skills always hit",
+// 15.80: Bonus Zaubergeschwindigkeit
+"Zaubergeschwindigkeit": "Cast Speed",
 };

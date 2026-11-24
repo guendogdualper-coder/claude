@@ -5271,4 +5271,10 @@
 "{0} Juwelen": "{0} viên ngọc",
 "Doppelte Erfahrung bis Sonntag {0} Uhr": "Nhân đôi kinh nghiệm đến {0} giờ Chủ nhật",
 "doppelte Erfahrung für alle Charaktere bis Sonntag {0} Uhr": "nhân đôi kinh nghiệm cho mọi nhân vật đến {0} giờ Chủ nhật",
+// 15.80: Aufstieg in den nächsten Rang an der Fertigkeitsleiste
+"Aufstieg möglich": "Có thể thăng hạng",
+// 15.80: Ausweichen/Blocken nur gegen normale Angriffe
+"Nur gegen normale Angriffe – Fertigkeiten treffen immer": "Chỉ với đòn đánh thường – kỹ năng luôn trúng",
+// 15.80: Bonus Zaubergeschwindigkeit
+"Zaubergeschwindigkeit": "Tốc độ thi triển",
 };

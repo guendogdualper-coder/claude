@@ -404,6 +404,8 @@ const COMPARE_STATS = [
   ['damageTaken', 'Erlittener Schaden', 'lessPct'],
   // seit 14.15
   ['critDmg', 'Kritischer Schaden', 'pct'], ['poison', 'Vergiftungschance', 'pct'],
+  // seit 15.80
+  ['castSpeed', 'Zaubergeschwindigkeit', 'pct'],
   ['vsBeast', 'Gegen Tiere', 'pct'], ['vsHuman', 'Gegen Menschen', 'pct'], ['vsOrc', 'Gegen Orks und Riesen', 'pct'],
   ['vsUndead', 'Gegen Untote und Geister', 'pct'], ['vsDemon', 'Gegen Teufel und Dämonen', 'pct'],
   ['resHuman', 'Abwehr gegen Menschen', 'pct'], ['resMagic', 'Abwehr gegen Magie', 'pct'], ['resMelee', 'Abwehr gegen Nahkampf', 'pct'],

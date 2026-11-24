@@ -1621,6 +1621,15 @@ kbd {
   will-change: transform;
 }
 @keyframes awaken-pulse { 50% { transform: scale(1.18); } }
+/* seit 15.80: Aufstieg in den nächsten Rang möglich (H, L, V) – Buchstabe in der Rangfarbe statt „+“ */
+.plus.rankup {
+  background: radial-gradient(circle at 40% 35%, #ffffff, var(--rk, #c58cff) 62%, #241634);
+  color: #14081e; font-weight: 900; border-color: #ffffff;
+  box-shadow: 0 0 8px 1px var(--rk, #c58cff);
+}
+/* Aufstiegsknopf im Charakterfenster kurz hervorheben, wenn man über die Leiste kommt */
+.hint-pulse { animation: hint-pulse 0.65s ease-in-out 4; }
+@keyframes hint-pulse { 50% { box-shadow: 0 0 0 3px #ffd34d, 0 0 14px 4px rgba(255, 211, 77, 0.8); transform: scale(1.05); } }
 
 /* Laufender Buff an seiner Fertigkeit: ein Lichtring läuft um den Knopf, darüber die Restzeit */
 .skill-wrap .runring {

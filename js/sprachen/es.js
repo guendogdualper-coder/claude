@@ -5677,4 +5677,10 @@
 "{0} Juwelen": "{0} gemas",
 "Doppelte Erfahrung bis Sonntag {0} Uhr": "Experiencia doble hasta el domingo a las {0}:00",
 "doppelte Erfahrung für alle Charaktere bis Sonntag {0} Uhr": "experiencia doble para todos los personajes hasta el domingo a las {0}:00",
+// 15.80: Aufstieg in den nächsten Rang an der Fertigkeitsleiste
+"Aufstieg möglich": "Ascenso posible",
+// 15.80: Ausweichen/Blocken nur gegen normale Angriffe
+"Nur gegen normale Angriffe – Fertigkeiten treffen immer": "Solo contra ataques normales: las habilidades siempre impactan",
+// 15.80: Bonus Zaubergeschwindigkeit
+"Zaubergeschwindigkeit": "Velocidad de lanzamiento",
 };

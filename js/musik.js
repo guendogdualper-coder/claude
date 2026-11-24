@@ -11,6 +11,9 @@
 // Seit 15.51 eigene Musikdateien (tools/klang-synth/musik.py): Turm der Verdammten (turm), Kharzul (kharzul, ab seiner
 // Verwandlung kharzul2 an derselben Stelle) und die Arenen (arena). Fehlt eine Datei, spielt die bisherige (Dungeon,
 // Boss, erzeugte Arenamusik: MUSIC_FALLBACK in klang-dateien.js).
+// Der Feuerberg (Basalt, Lavaseen) hat eine eigene Stimmung „feuer“: drei Musikdateien im Wechsel – Vulkan, Glut
+// (eigene Kompositionen, tools/klang-synth/musik.py) und das Stück der Wüste (MUSIC_REIHE in klang-dateien.js); die
+// Wüste bleibt bei „heiss“. Ohne Datei klingt „feuer“ erzeugt wie bisher die heißen Gegenden.
 
 const MIDI = (n) => 440 * Math.pow(2, (n - 69) / 12);
 // Musikdateien im Verhältnis zur erzeugten Musik: im Browser gemessen (Effektivwert am Musikausgang). Früher lagen die
@@ -149,7 +152,9 @@ const music = {
     if (z.safe) return 'dorf';
     const g = z.ground;
     if (g === 'SNOW' || g === 'ICE' || g === 'KRISTALL' || z.liquid === 'ICE') return 'kalt';
-    if (g === 'SAND' || g === 'BASALT' || z.liquid === 'LAVA') return 'heiss';
+    if (g === 'SAND') return 'heiss';
+    // Feuerberg: eigene Stimmung mit drei Stücken im Wechsel (klang-dateien.js, MUSIC_REIHE)
+    if (g === 'BASALT' || z.liquid === 'LAVA') return 'feuer';
     if (g === 'ASH' || g === 'SWAMP' || z.liquid === 'BOG') return 'dunkel';
     if (g === 'FOREST') return 'wald';
     return 'feld';
@@ -171,6 +176,8 @@ const music = {
       this.preAt = c.currentTime;
       files.prefetch(game.player);
     }
+    // Stimmung mit mehreren Stücken im Wechsel (Feuerberg): am Schleifenende ins nächste überblenden
+    if (files) files.reiheTick(c.currentTime);
     // Hing das Spiel (Laden, Hintergrund, schwaches Handy), liegen die geplanten Takte schon in der Vergangenheit:
     // verpasste Takte überspringen statt nachholen – sonst setzen alle ihre Töne auf einmal ein (Stolpern, Klumpen)
     if (this.nextBar < c.currentTime + 0.05) {
@@ -623,6 +630,8 @@ MOODS.turm = MOODS.dunkel;
 MOODS.turmklage = MOODS.dunkel; // seit 15.73: Klage des Turms (Datei), erzeugt wie der Turm
 MOODS.kharzul = MOODS.boss;
 MOODS.kharzul2 = MOODS.boss;
+// Feuerberg (eigene Stimmung, Musikdateien im Wechsel): erzeugt wie bisher die heißen Gegenden
+MOODS.feuer = MOODS.heiss;
 // Bosskämpfe: schneller Wechsel der Musikdatei (0,9 s)
 const MUSIC_BOSSY = new Set(['boss', 'kharzul', 'kharzul2']);
 Object.assign(music, {

@@ -458,6 +458,9 @@ const BONUS_TYPES = {
   dex: { name: 'Geschick', fmt: 'flat', range: [1, 4], tierScale: 0.15, slots: ALL_SLOTS },
   crit: { name: 'Kritische Treffer', fmt: 'pct', range: [0.01, 0.04], max: 0.08, slots: ['waffe', 'helm', 'guertel', 'koecher'] },
   atkSpeed: { name: 'Angriffstempo', fmt: 'pct', range: [0.02, 0.06], max: 0.12, slots: ['waffe', 'schuhe', 'guertel', 'koecher'] },
+  // seit 15.80: Zaubergeschwindigkeit verkürzt die Abklingzeit der fünf Fertigkeiten und die gemeinsame Abklingzeit
+  // zwischen zwei Fertigkeiten (castSpeedMul, kampf.js) – Ulti und Klassensegen nicht; zusammen höchstens BONUS_CAPS.castSpeed
+  castSpeed: { name: 'Zaubergeschwindigkeit', fmt: 'pct', range: [0.02, 0.04], max: 0.08, slots: ['waffe', 'helm', 'schultern', 'umhang', 'guertel'] },
   speed: { name: 'Lauftempo', fmt: 'pct', range: [0.01, 0.03], max: 0.05, slots: ['schuhe'] },
   dodge: { name: 'Ausweichen', fmt: 'pct', range: [0.01, 0.03], max: 0.06, slots: ['ruestung', 'umhang', 'schild', 'schuhe'] },
   block: { name: 'Blocken', fmt: 'pct', range: [0.01, 0.04], max: 0.08, slots: ['schild'] },
@@ -532,7 +535,9 @@ const BONUS_CAPS = {
   skillDmg: 0.4, basicDmg: 0.4, hpPct: 0.3, resist: 0.15,
   // seit 14.15
   poison: 0.12, critDmg: 0.4, vsBeast: 0.25, vsHuman: 0.25, vsOrc: 0.25, vsUndead: 0.25, vsDemon: 0.25,
-  resHuman: 0.3, resMagic: 0.25, resMelee: 0.2, resRanged: 0.2, goldFind: 0.25, dropFind: 0.25
+  resHuman: 0.3, resMagic: 0.25, resMelee: 0.2, resRanged: 0.2, goldFind: 0.25, dropFind: 0.25,
+  // seit 15.80
+  castSpeed: 0.25
 };
 
 // Statuswerte, die je Klasse als Bonus gewürfelt werden (seit 13.49): ein Krieger bekommt keine Intelligenz,
