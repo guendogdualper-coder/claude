@@ -221,14 +221,15 @@ function rankHitExtra3(h, e, x, y, z, t, k, r, low) {
   // V – Meteor: glühender Brocken mit Flammenschweif schlägt ein, danach eine kurze Lichtsäule
   if (t < 0.25) {
     const u = t / 0.25;
+    // seit 15.79 größer (der Rang zeigt sich am Treffer, nicht mehr an der Figur)
     const my = y + 4.5 * (1 - u);
     const mx = x - 1.2 * (1 - u);
-    n3Glow(h, mx, my, z, 0.55, '#ffb03a', 0.95);
-    n3Glow(h, mx, my, z, 0.22, '#ffffff', 1);
-    for (let j = 1; j < 6; j++) n3Flame(h, mx - j * 0.18, my + j * 0.32, z, 0.26 - j * 0.03, 0.5, j % 2 ? '#ff4a1a' : '#ffd34d', 0.9 - j * 0.12, 0.6);
+    n3Glow(h, mx, my, z, 0.8, '#ffb03a', 0.95);
+    n3Glow(h, mx, my, z, 0.32, '#ffffff', 1);
+    for (let j = 1; j < 7; j++) n3Flame(h, mx - j * 0.2, my + j * 0.36, z, 0.36 - j * 0.035, 0.68, j % 2 ? '#ff4a1a' : '#ffd34d', 0.92 - j * 0.11, 0.6);
   } else {
     const u = Math.min(1, (t - 0.25) / 0.3);
-    fx3MageSprite(h, 'sprite', 'disc', x, y + 1.5, z, 0.7 * (1 - u * 0.5), 3.5, '#ff8a3a', (1 - u) * 0.6);
+    fx3MageSprite(h, 'sprite', 'disc', x, y + 1.7, z, 0.95 * (1 - u * 0.5), 4.2, '#ff8a3a', (1 - u) * 0.65);
   }
 }
 
@@ -268,12 +269,13 @@ FX3_DRAW.rankhit3 = function (h, e) {
   }
   if (r >= 3) {
     // Feuernova: Flammenkranz wächst nach außen, Glut regnet
-    const rr = 0.3 + k * 1.3;
-    for (let i = 0; i < (low ? 6 : 12); i++) {
-      const a = (i / (low ? 6 : 12)) * Math.PI * 2 + e.seed;
-      n3Flame(h, x + Math.cos(a) * rr, 0.3 + (1 - k) * 0.2, z + Math.sin(a) * rr * 0.8, 0.26, 0.6 * (1 - k * 0.6), i % 2 ? '#ff6a2a' : '#ffd34d', fade * 0.9);
+    const rr = 0.35 + k * 1.8;
+    const nf = low ? 8 : 16;
+    for (let i = 0; i < nf; i++) {
+      const a = (i / nf) * Math.PI * 2 + e.seed;
+      n3Flame(h, x + Math.cos(a) * rr, 0.35 + (1 - k) * 0.25, z + Math.sin(a) * rr * 0.8, 0.34, 0.85 * (1 - k * 0.6), i % 2 ? '#ff6a2a' : '#ffd34d', fade * 0.92);
     }
-    for (let i = 0; i < (low ? 6 : 12); i++) {
+    for (let i = 0; i < (low ? 8 : 18); i++) {
       const a = i * 1.7 + e.seed;
       n3Glow(h, x + Math.cos(a) * 0.5 * n2h(i, 5), y + 0.8 - k * 1.4 * (0.6 + n2h(i, 6)), z + Math.sin(a) * 0.4, 0.08, i % 3 ? '#ff8a3a' : '#c84aff', fade);
     }
@@ -289,5 +291,5 @@ function rankCast3(p, rank, soft = false) {
 function rankHit3(m, rank) {
   if (typeof V3 === 'undefined' || !V3.on) return;
   const c = bodyCenter(m);
-  addEffect({ type: 'rankhit3', target: m, x: m.x, y: feetY(m), h: Math.max(0.5, (feetY(m) - c.y) * U3 + 0.3), rank, seed: Math.random() * 10, dur: 0.45 + rank * 0.12 });
+  addEffect({ type: 'rankhit3', target: m, x: m.x, y: feetY(m), h: Math.max(0.5, (feetY(m) - c.y) * U3 + 0.3), rank, seed: Math.random() * 10, dur: 0.45 + rank * 0.12 + (rank >= 3 ? 0.15 : 0) });
 }

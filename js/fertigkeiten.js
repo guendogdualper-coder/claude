@@ -1404,7 +1404,8 @@ function rankHitFx(m, rank) {
     // seit 14.3 nur noch in 2D: in 3D legte jeder Treffer einen Ring (mit Rang-Runen) auf den Boden – bei Feuertornados
     // und Glutfeld dutzende große rote Bodenringe; rankHit3 zeigt dort Glutwelle und Meteor in der Luft
     // seit 14.89 auch in 2D kein Ring mehr am Boden (vorher große rote Kreise um jeden getroffenen Gegner)
-    particles(c.x, c.y, { count: 14, color: ['#ff6a4a', '#ffd34d'], speed: [80, 200], life: [0.3, 0.6], size: [2, 3.5], shape: 'ember', drag: 3 });
+    // seit 15.79 kräftiger: der Rang zeigt sich jetzt am Treffer statt an der Figur
+    particles(c.x, c.y, { count: 26, color: ['#ff6a4a', '#ffd34d', '#ffffff'], speed: [100, 260], life: [0.35, 0.75], size: [2.2, 4.2], shape: 'ember', drag: 3 });
   }
 }
 

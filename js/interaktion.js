@@ -798,8 +798,7 @@ function remoteSkillFx(rp, d) {
   // Rang-Effekte der Mitspieler in 3D (seit 12.6), nicht bei Kanal-Meldungen und Abbrüchen
   // seit 14.61 leise (soft) bei Fertigkeiten mit eigener Wirk-Animation (Schwertaura)
   const sfx = SKILL_FX[d.s];
-  // seit 15.71 auch in 2D (rankCastFx mit remote: kein Bildschirmblitz und kein Beben bei dir)
-  if (Number.isInteger(d.rk) && d.rk >= 0 && d.rk < SKILL_RANKS.length && !d.cx && d.bm !== 0 && d.bm !== 2 && typeof rankCastFx === 'function') rankCastFx(rp, d.rk, SKILL_RANKS[d.rk].color, !!(sfx && sfx.rankSoft), true);
+  // seit 15.79 auch bei Mitspielern kein Rang-Effekt mehr an der Figur (kampf.js): der Rang zeigt sich an der Attacke
   // Eisstrahl (seit 9.6): Anfang, Richtung, Ende
   if (sk.type === 'beam') {
     if (d.bm === 1) snd.skill(sk, rp);

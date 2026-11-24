@@ -300,7 +300,7 @@ function spearFx(owner, x0, y0, x1, y1, sk, local, pw) {
   const fly = Math.max(0.08, len / 2440);
   // seit der Überarbeitung des Blitzmagiers: längerer, wuchtiger Speer, die Bahn glüht länger nach (0,7 → 1,05 s)
   // rk (seit 15.71): Rang des Speers für die 2D-Optik (fxRank, auch bei Mitspielern über withRank)
-  addEffect({ type: 'mspear3', x: (x0 + x1) / 2, y: (y0 + y1) / 2 + 9, x0, y0: y0 + 9, x1, y1: y1 + 9, fly, dur: fly + 0.85 + (fxRank >= 2 ? 0.25 : 0), seed: Math.random() * 90, rk: fxRank });
+  addEffect({ type: 'mspear3', x: (x0 + x1) / 2, y: (y0 + y1) / 2 + 9, x0, y0: y0 + 9, x1, y1: y1 + 9, fly, dur: fly + 0.85 + (fxRank >= 2 ? 0.25 : 0) + (fxRank >= 3 ? 0.35 : 0), seed: Math.random() * 90, rk: fxRank });
   later(fly, () => {
     addEffect({ type: 'sparks3', x: x1, y: y1 + 9, h: 0.8, count: 14, color: '#fff7b0', speed: 3, up: 1.1, dur: 0.5 });
     if (!V3.on) particles(x1, y1 - 14, { count: 12, color: ['#ffffff', '#fff7b0', '#8a5aff'], speed: [70, 190], life: [0.2, 0.4], size: [1.5, 3], shape: 'spark', drag: 4 });
@@ -1112,7 +1112,8 @@ EXTRA_EFFECTS.mspear3 = (ctx, e) => {
   if (rk >= 2) {
     ctx.globalCompositeOperation = 'lighter';
     ctx.lineCap = 'round';
-    for (const [col, w, al] of rk >= 3 ? [['#ff2a1a', 22, 0.22], ['#ff8a2a', 13, 0.3], ['#ffe08a', 5, 0.45]] : [['#ffd34d', 16, 0.2], ['#fff3b0', 6, 0.35]]) {
+    // seit 15.79 bei V breiter und heller (der Rang zeigt sich am Speer, nicht mehr an der Figur)
+    for (const [col, w, al] of rk >= 3 ? [['#ff2a1a', 34, 0.24], ['#ff8a2a', 19, 0.34], ['#ffe08a', 8, 0.52]] : [['#ffd34d', 18, 0.22], ['#fff3b0', 7, 0.38]]) {
       ctx.globalAlpha = al * fade;
       ctx.strokeStyle = col;
       ctx.lineWidth = w;
@@ -1825,6 +1826,48 @@ FX3_DRAW.mignite3 = function (h, e) {
 
 // Blitzspeer: ein langer Speer mit gleißender Spitze schießt nach vorn, dahinter eine dicke Blitzbahn, die noch
 // zuckt und nachglüht (seit der Überarbeitung des Blitzmagiers länger und wuchtiger)
+// Rang am Blitzspeer in 3D: ab E Schein in der Rangfarbe auf der Bahn, ab H zwei Nebenblitze, ab L goldener Schein,
+// bei V Himmelsspeer in Rot-Gold mit Flammen und Glut, die entlang der Bahn aufsteigen (_n3a Anfang, _n3b Spitze)
+const _sr3a = new THREE.Vector3();
+const _sr3b = new THREE.Vector3();
+function mspearRank3(h, e, t, u, y, len, fade, rk, low) {
+  const ax = _n3a.x;
+  const az = _n3a.z;
+  const bx = _n3b.x;
+  const bz = _n3b.z;
+  const nx = -(bz - az) / len;
+  const nz = (bx - ax) / len;
+  const glowCol = rk >= 3 ? '#ff6a2a' : rk >= 2 ? '#ffd34d' : SKILL_RANKS[rk].color;
+  const steps = Math.max(3, Math.round(len / (low ? 2.5 : 1.4)));
+  for (let i = 0; i <= steps; i++) {
+    const f = i / steps;
+    n3Glow(h, ax + (bx - ax) * f, y, az + (bz - az) * f, 0.5 + rk * 0.22, glowCol, fade * (0.22 + rk * 0.06));
+  }
+  if (rk >= 1) {
+    const off = 0.32 + rk * 0.08;
+    const cols = rk >= 3 ? ['#ff4a2a', '#ffd34d'] : ['#c58cff', '#8a9aff'];
+    for (let j = 0; j < 2; j++) {
+      const s = j ? 1 : -1;
+      _sr3a.set(ax + nx * s * 0.12, y, az + nz * s * 0.12);
+      _sr3b.set(bx + nx * s * off, y + 0.05, bz + nz * s * off);
+      n3Zap(h, _sr3a, _sr3b, 0.025 + 0.035 * fade, Math.min(1, fade * 1.3) * 0.85, (e.seed || 0) + 7 + j * 13 + Math.floor(t / 0.05), { segs: Math.max(4, Math.round(len / (low ? 2.6 : 1.4))), jit: 0.14 + 0.16 * fade, branch: 0, color: cols[j], rim: false, halo: false });
+    }
+  }
+  if (rk < 3) return;
+  const ne = low ? 8 : 16;
+  for (let i = 0; i < ne; i++) {
+    const f = n2h(i, e.seed || 0);
+    if (f > u) continue;
+    const age = t - e.fly * f;
+    const life = 0.7 + 0.4 * n2h(i, 7);
+    if (age < 0 || age > life) continue;
+    const q = age / life;
+    const px = ax + (bx - ax) * f;
+    const pz = az + (bz - az) * f;
+    n3Flame(h, px, y - 0.25 + q * 0.6, pz, 0.22 * (1 - q * 0.5), 0.5 * (1 - q * 0.4), i % 2 ? '#ff6a2a' : '#ffd34d', (1 - q) * 0.9);
+    n3Glow(h, px + Math.sin(i * 3) * 0.1, y + 0.2 + q * 1.1, pz, 0.08, i % 3 ? '#ff8a3a' : '#c84aff', 1 - q);
+  }
+}
 FX3_DRAW.mspear3 = function (h, e) {
   const t = game.time - e.start;
   const u = Math.min(1, t / e.fly);
@@ -1837,6 +1880,8 @@ FX3_DRAW.mspear3 = function (h, e) {
   if (len < 0.05) return;
   // Bahn: dick beim Durchschlag, glüht dünner werdend nach
   n3Zap(h, _n3a, _n3b, 0.04 + 0.1 * fade, Math.min(1, fade * 1.5), (e.seed || 0) + Math.floor(t / 0.05), { segs: Math.max(4, Math.round(len / (low ? 2.2 : 1.15))), jit: 0.1 + 0.24 * fade, branch: 3 });
+  // Rang (seit 15.79, in 2D seit 15.71): der Rang zeigt sich am Speer selbst, nicht an der Figur
+  if (e.rk != null && e.rk >= 0) mspearRank3(h, e, t, u, y, len, fade, e.rk, low);
   if (u < 1) {
     // der Speer selbst: gerader, gleißender Schaft und lange Spitze
     _n3d.subVectors(_n3b, _n3a).normalize();

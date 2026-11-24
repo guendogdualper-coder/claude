@@ -710,6 +710,15 @@ PvP (6 Würfe, alle Wege auf V, alle vier Magier-Wege mit Rang-Boni gegen ohne):
 
 ## 8. Rang-Optik in 2D (seit 15.71)
 
+**Seit 15.79 (Spieler-Rückmeldung):** Beim Wirken erscheint an der Figur kein Rang-Effekt mehr – weder in 2D noch in 3D,
+weder bei dir noch bei Mitspielern. Funkenspirale, Kränze, Goldsäule, Flammenflügel, Feuerkrone und Glutsturm wirkten
+wie ein Buff am Charakter. `rankCastFx` läuft nur noch beim Erwecken und beim Rangaufstieg (`spieler.js`). Der Rang
+zeigt sich an der Attacke selbst: Effekte in der Rangfarbe und größer (`rankLook`), mehr Funken und bei V viel Glut
+(`particles` in `effekte.js`), kräftigere Treffer (`rankHitFx`; V in 2D mit größeren Flammenzungen und mehr Glutregen,
+in 3D größerer Meteor und weiterer Flammenkranz). Der Blitzspeer zeigt seinen Rang jetzt auch in 3D (Schein auf der
+Bahn, ab H Nebenblitze, bei V Flammen und Glut entlang der Bahn, `mspearRank3` in `magier-neu.js`); in 2D ist die
+V-Bahn breiter und glüht länger nach. Die Tabelle unten beschreibt den alten Stand der Wirk-Effekte.
+
 Spieler-Rückmeldung: In 2D sah eine Attacke auf V kaum anders aus als auf E. In 3D zeigten Wirken und Treffer den Rang
 schon (rang-fx.js), in 2D stiegen nur ein paar Funken auf. Jetzt in 2D wie in 3D (js/rang2d.js), aufrecht an der Figur,
 nichts am Boden, keine Sterne und Runen:

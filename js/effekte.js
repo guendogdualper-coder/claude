@@ -346,7 +346,9 @@ function particles(x, y, o) {
   if (fxRank >= 0 && !o.rankExtra) {
     // mehr Teilchen, dazu Funken in der Rangfarbe
     o = { ...o, count: (o.count || 8) * (1 + 0.25 * (fxRank + 1)) };
-    particles(x, y, { ...o, count: Math.ceil(o.count * (0.25 + 0.1 * fxRank)), color: [SKILL_RANKS[fxRank].color, '#ffffff'], shape: fxRank >= 2 ? 'spark' : o.shape, glow: true, rankExtra: true });
+    // seit 15.79: bei Vollendet sprüht die Attacke selbst deutlich mehr Glut in Rot und Gold (statt Flammen an der Figur)
+    const v = fxRank >= 3;
+    particles(x, y, { ...o, count: Math.ceil(o.count * (0.25 + 0.1 * fxRank + (v ? 0.4 : 0))), color: v ? ['#ff6a2a', '#ffd34d', '#ffffff'] : [SKILL_RANKS[fxRank].color, '#ffffff'], shape: v ? 'ember' : fxRank >= 2 ? 'spark' : o.shape, glow: true, rankExtra: true });
   }
   const n = Math.max(1, Math.round((o.count || 8) * gfx().particles));
   // seit 15.16: die Höchstzahl kommt vom Lastschutz (am Handy und unter Last weniger)

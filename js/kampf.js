@@ -1226,8 +1226,10 @@ function useSkill(i) {
   if (sMul > 1) addText(p.x, p.y - 52, `Aus der Tarnung ×${sMul}`, 'crit');
   stealthCastEnd(p, sMul);
   withRank(rank, () => skillCastFx(sk));
-  // seit 14.61: rankSoft (Schwertaura) – die eigene Wirk-Animation zeigt den Rang, die Rang-Effekte bleiben leise
-  if (rank >= 0) rankCastFx(p, rank, SKILL_RANKS[rank].color, !!(SKILL_FX[sk.id] && SKILL_FX[sk.id].rankSoft));
+  // seit 15.79 kein Rang-Effekt mehr an der Figur beim Wirken: Funkenspirale, Kränze, Goldsäule, Flammenflügel und
+  // Feuerkrone sahen aus wie ein Buff (Spieler-Rückmeldung). Der Rang zeigt sich nur noch an der Attacke selbst –
+  // größer in der Rangfarbe (rankLook), mehr Funken, bei V Glut (particles, effekte.js) und kräftigere Treffer
+  // (rankHitFx). rankCastFx gibt es nur noch beim Erwecken und beim Rangaufstieg (spieler.js).
   snd.skill(sk, p);
   p.mp -= skillMana(sk, p);
   setSkillCd(p, i, skillCooldown(sk));

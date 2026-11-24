@@ -188,26 +188,27 @@ EXTRA_EFFECTS.rankhit2 = (ctx, e, k) => {
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
   // Legendär: goldener Lichtstoß, Lichter steigen auf
-  glow(ctx, c.x, c.y, (24 + r * 8) * (0.6 + k * 0.8), r >= 3 ? '#ffb03a' : '#ffd34d', fade * 0.85);
+  // seit 15.79 größer (der Rang zeigt sich am Treffer, nicht mehr an der Figur)
+  glow(ctx, c.x, c.y, (28 + r * 10 + (r >= 3 ? 16 : 0)) * (0.6 + k * 0.8), r >= 3 ? '#ffb03a' : '#ffd34d', fade * 0.9);
   for (let i = 0; i < (low ? 3 : 6); i++) {
     const a = e.seed + i * 1.9;
     rk2Dot(ctx, c.x + Math.cos(a) * (6 + k * 14), c.y - k * (22 + i * 3), 2.4, i % 2 ? '#fff6d0' : '#ffd34d', fade);
   }
   if (r >= 3) {
     // Vollendet: Flammenzungen schlagen nach außen, Glut regnet
-    const nf = low ? 6 : 10;
+    const nf = low ? 8 : 14;
     for (let i = 0; i < nf; i++) {
       const a = e.seed * 2 + (i / nf) * Math.PI * 2;
-      const d = 6 + k * 26;
+      const d = 8 + k * 40;
       const fx = c.x + Math.cos(a) * d;
       const fyy = c.y + Math.sin(a) * d * 0.6;
       ctx.save();
       ctx.translate(fx, fyy);
       ctx.rotate(a + Math.PI / 2);
-      rk2Flame(ctx, 0, 0, 3.6 * (1 - k * 0.4), (12 + (i % 3) * 3) * (1 - k * 0.3), i % 2 ? '#ff6a2a' : '#ffd34d', fade, Math.sin(t * 15 + i) * 1.2);
+      rk2Flame(ctx, 0, 0, 5.2 * (1 - k * 0.4), (18 + (i % 3) * 5) * (1 - k * 0.3), i % 2 ? '#ff6a2a' : '#ffd34d', fade, Math.sin(t * 15 + i) * 1.6);
       ctx.restore();
     }
-    for (let i = 0; i < (low ? 5 : 10); i++) {
+    for (let i = 0; i < (low ? 8 : 16); i++) {
       const a = e.seed * 3 + i * 2.3;
       rk2Dot(ctx, c.x + Math.cos(a) * (10 + i * 2), c.y - 20 + k * (40 + (i % 4) * 8), 2.2, rk2c(3, i), fade);
     }
