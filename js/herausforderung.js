@@ -16,7 +16,7 @@
 //   Wellengold, das mit der Stufe steigt (arenaGoldStep; Messung im Bericht des Umbaus).
 // - Wellen (arenaWave): Welle 1 schon viele, aber schwächere Monster aus den Gebieten deiner Stufe; danach mehr, höhere
 //   Stufe, mehr Leben und Schaden, ab Welle 4 Elite-Monster (dreifaches Leben), jede 5. Welle ein Dungeon-Boss als
-//   Wellenmeister (Stampfer, Salven, Verstärkung), ab Welle 8 jagen alle wie in Dungeons. Ab etwa Welle 10–15 wird es
+//   Wellenmeister (Stampfer, Salven, Verstärkung), ab Welle 10 jagen sie wie in Dungeons (seit 15.83 zuerst sanft, ab Welle 14 stärker; vorher ab Welle 8). Ab etwa Welle 10–15 wird es
 //   wirklich hart.
 // - seit 13.70: Gold je Welle fest 2.000 × Welle, ausgezahlt beim Verlassen; drei Leben (beim dritten Tod ist das Gold
 //   weg); Monster geben volle EP und Kill-Gold (keine Gegenstände); mehr Monster in Schüben nach der Uhr (arenaBatches).
@@ -46,7 +46,14 @@ const ARENA = {
   batchGap: 2.5, batchSize: 4, batchGrow: 2,
   // Monster je Welle (allein): 12 + nPer × (Welle − 1), höchstens nMax (bis zum Umbau 12 + 4 × (Welle − 1), höchstens
   // 60: Welle 12 hatte 56 Monster, jetzt 36). Ab Welle 9 je Welle strPer mehr Leben (vorher 0,06)
-  nPer: 2.2, nMax: 36, strPer: 0.045,
+  // seit 15.83 (Spieler-Rückmeldung: „ab Welle 8 stirbt man gefühlt immer"): Welle 1 mit 10 statt 12, je Welle +2 statt
+  // +2,2 – Welle 8 hat 24 statt 27, die Höchstzahl 36 kommt erst in Welle 14 statt 12; ab Welle 9 +4 % statt +4,5 % Leben
+  nStart: 10, nPer: 2, nMax: 36, strPer: 0.04,
+  // seit 15.83: Jagd wie in Dungeons (aufholen, Ansturm) erst ab Welle huntFrom statt 8, zuerst sanft: in den Wellen bis
+  // huntHard − 1 holen die Monster mit 85 % des Lauftempos auf, nur 40 % von ihnen stürmen, und das nur halb so oft;
+  // ab huntHard 90 %, 70 % stürmen, Abstand ×1,4. Vorher ab Welle 8 alle mit 95 % und Ansturm alle 4,5–7 s.
+  huntFrom: 10, huntHard: 14,
+  hunt: { soft: { chase: 0.85, rush: 0.4, cd: 2 }, hard: { chase: 0.9, rush: 0.7, cd: 1.4 } },
   // Leben der Monster nach Stufe des Laufs (seit dem Umbau): bis Stufe 30 × 0,6, dann gleichmäßig weniger bis × 0,46
   // ab Stufe 80. Gemessen mit echter Figur (Ausrüstung +15, selten) dauerte Welle 12 auf Stufe 80 rund 160 s, auf
   // Stufe 30 rund 65 s – auf hohen Stufen wachsen die Monster schneller als die Figur. Jetzt etwa die Hälfte.
@@ -214,7 +221,8 @@ generateWorld = function () {
 // seit 13.92 baut sich die Stärke langsamer auf (nicht die Menge): Welle 1 deutlich leichter (Stufe −7, 60 % Leben und
 // Schaden), Welle 2–3 noch angenehm, 4–7 ungefähr wie draußen, ab Welle 8 spürbar härter (über der eigenen Stufe,
 // jede Welle +6 % Leben und +4 % Schaden). Vorher: Welle 1 schon Stufe −4 mit vollen Werten, Elite ab Welle 3.
-const ARENA_STR = [0, 0.6, 0.72, 0.82, 0.9, 0.95, 1.0, 1.05, 1.15];
+// seit 15.83 sanfter (vorher 0,72 / 0,82 / 0,9 / 0,95 / 1,0 / 1,05 / 1,15): Welle 8 ist kein Sprung mehr
+const ARENA_STR = [0, 0.6, 0.7, 0.78, 0.85, 0.9, 0.95, 1.0, 1.06];
 function arenaStr(w) {
   return w < ARENA_STR.length ? ARENA_STR[Math.max(1, w)] : ARENA_STR[ARENA_STR.length - 1] + ARENA.strPer * (w - ARENA_STR.length + 1);
 }
@@ -234,7 +242,7 @@ function arenaWave(L, w, players = 1) {
   const str = arenaStr(w);
   const pl = arenaPl(players);
   const sc = arenaScale(pl);
-  const n = Math.round(Math.min(ARENA.nMax, 12 + ARENA.nPer * (w - 1)) * (boss ? 0.6 : 1) * sc.n);
+  const n = Math.round(Math.min(ARENA.nMax, ARENA.nStart + ARENA.nPer * (w - 1)) * (boss ? 0.6 : 1) * sc.n);
   // seit 14.32: Schübe von etwa 4 (zu zweit 6, zu dritt 8) Monstern alle 3 s; bis 14.31 waren es 2 + Welle/2 Schübe
   // (höchstens 10) im Abstand von 10, 12, 14 … s – Welle 4 brauchte so 36 s, bis das letzte Monster kam, jetzt 15 s.
   // Seit dem Umbau wachsen die Schübe mit der Welle (ARENA.batchGrow) und kommen alle 2,5 s; höchstens 30 leben (allein)
@@ -321,8 +329,17 @@ function arenaTune(m, W, role) {
     m.xp *= 2;
   }
   m.hp = m.maxHp;
-  // ab Welle 8 jagen sie wie in Dungeons (holen auf, Ansturm), davor kann man ausweichen
-  m.inDungeon = W.wave >= 8;
+  // ab Welle ARENA.huntFrom jagen sie wie in Dungeons (holen auf, Ansturm), davor kann man ausweichen – seit 15.83 erst
+  // ab Welle 10 und zuerst sanft (ARENA.hunt): langsameres Aufholen, nicht jedes Monster stürmt, seltener Ansturm, und
+  // der erste Ansturm kommt frühestens 2–6 s nach dem Erscheinen
+  m.inDungeon = W.wave >= ARENA.huntFrom;
+  if (m.inDungeon) {
+    const H = W.wave >= ARENA.huntHard ? ARENA.hunt.hard : ARENA.hunt.soft;
+    m.chaseMul = H.chase;
+    m.rushCdMul = H.cd;
+    m.noRush = role !== 'boss' && Math.random() >= H.rush;
+    m.rushAt = game.time + 2 + Math.random() * 4;
+  }
 }
 
 // --- Hallen führen (wer die Monster führt: allein man selbst, im Kanal der Host) --------------------------------

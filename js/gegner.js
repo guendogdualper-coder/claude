@@ -1075,7 +1075,8 @@ const RUSH_SPEED = 820;
 const LUNGE = 60;         // so weit setzt ein Dungeon-Monster mit dem Schlag nach
 function startRush(m) {
   m.rush = { wind: 0.32, left: 0.7 };
-  m.rushAt = game.time + 4.5 + Math.random() * 2.5;
+  // m.rushCdMul (seit 15.83, Prüfungsarena): längerer Abstand bis zum nächsten Ansturm
+  m.rushAt = game.time + (4.5 + Math.random() * 2.5) * (m.rushCdMul || 1);
   m.moving = false;
   addEffect({ type: 'ring', x: m.x, y: feetY(m), r: m.r * 1.6, dur: 0.32, color: '#ff8a3a', width: 4, grow: false });
   particles(m.x, feetY(m), { count: 8, color: ['#c8b89a', '#8a7a62'], speed: [30, 90], life: [0.25, 0.45], size: [2, 3.5], drag: 4, glow: false });
@@ -1762,10 +1763,12 @@ function updateMonsters(dt) {
         if (dun) {
           // Fußtempo: Reiten macht die Monster nicht schneller; Mitspieler senden ihr Fußtempo mit (fs)
           const ts = t === p ? game.stats.footSpeed : t.footSpeed || (CLASSES[t.classId] ? CLASSES[t.classId].base.speed : 160);
-          chaseSpeed = Math.max(m.type.speed, ts * DUNGEON_CHASE) * slowMul;
+          // seit 15.83 kann ein Monster langsamer aufholen (m.chaseMul, Prüfungsarena: ARENA.hunt)
+          chaseSpeed = Math.max(m.type.speed, ts * (m.chaseMul || DUNGEON_CHASE)) * slowMul;
           if (m.rush) { monsterRush(m, t, dt, reach); continue; }
           // seit 13.63 nur bei freier Bahn – sonst rannte es in die Mauer
-          if (!m.type.ranged && !m.windup && d > reach * 1.7 && d < RUSH_RANGE && game.time >= (m.rushAt || 0) && navSees(m, t.x, t.y)) {
+          // m.noRush (seit 15.83, Prüfungsarena): dieses Monster stürmt nie
+          if (!m.type.ranged && !m.noRush && !m.windup && d > reach * 1.7 && d < RUSH_RANGE && game.time >= (m.rushAt || 0) && navSees(m, t.x, t.y)) {
             startRush(m);
             continue;
           }
