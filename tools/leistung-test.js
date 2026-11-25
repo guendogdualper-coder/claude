@@ -191,8 +191,8 @@ function pageLib() {
 
 async function measureClass(browser, url, cls) {
   const ctx = await browser.newContext(HANDY
-    ? { viewport: { width: CFG.groesse[0], height: CFG.groesse[1] }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }
-    : { viewport: { width: CFG.groesse[0], height: CFG.groesse[1] }, deviceScaleFactor: 1 });
+    ? { viewport: { width: CFG.groesse[0], height: CFG.groesse[1] }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, bypassCSP: true }
+    : { viewport: { width: CFG.groesse[0], height: CFG.groesse[1] }, deviceScaleFactor: 1, bypassCSP: true });
   await ctx.route('**/sw.js', (r) => r.fulfill({ status: 404, body: '' }));
   const pg = await ctx.newPage();
   pg.on('pageerror', (e) => console.log('  [Seitenfehler]', e.message));

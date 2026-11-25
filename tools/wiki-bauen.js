@@ -12,7 +12,7 @@ const IMG = path.join(OUT, 'bilder');
 
 (async () => {
   const b = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
-  const p = await (await b.newContext({ viewport: { width: 1280, height: 720 } })).newPage();
+  const p = await (await b.newContext({ viewport: { width: 1280, height: 720 }, bypassCSP: true })).newPage();
   const errs = [];
   p.on('pageerror', (e) => errs.push(e.message));
   p.on('console', (m) => { if (m.text().startsWith('[wiki]')) console.log(m.text()); });

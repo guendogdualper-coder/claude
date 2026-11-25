@@ -168,6 +168,7 @@ if (typeof turmWindowOpen === 'function') {
 // Hinweis beim Betreten (einmal je Betreten)
 let diffWasZone = '';
 setInterval(() => {
+  if (typeof game === 'undefined') return; // seit 15.85: Zeitgeber kann vor spiel.js feuern (Laden unter Last)
   const p = game.player;
   if (!p || !game.running) return;
   const z = p.level >= MAX_LEVEL ? diffZone(p) : '';

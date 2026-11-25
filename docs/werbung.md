@@ -29,7 +29,9 @@ Verdopplung), beides als Datumstext – es gilt also nur am selben Tag.
 
 1. **Werbenetz im Browser** (Google „Ad Placement API“ für Spiele) – nur, wenn `WERBUNG.h5Kunde` eingetragen ist und
    das Netz gerade eine Werbung hat. Sonst nach höchstens 8 s weiter mit 2.
-2. **Eigene Werbepause** (jetzt immer): 30 Sekunden Spiel-Trailer `video/werbung.mp4` mit Vorschaubild `video/werbung.jpg`.
+2. **Eigene Werbepause** (jetzt immer): 30 Sekunden Spiel-Trailer `video/werbung.mp4` mit Vorschaubild `video/werbung.jpg`
+   – im Wechsel mit einer zweiten Fassung aus Szenen des Spiels und Abschlusskarte „Folge uns auf Instagram und TikTok“
+   (`docs/werbung-ladebilder.md`).
    Lädt das Video nicht (offline), laufen Spieltipps mit demselben Zähler.
 
 Die eigene Werbepause bringt **kein Geld** und sammelt keine Daten. Sie macht die Verdopplung schon jetzt spielbar,

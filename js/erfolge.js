@@ -89,6 +89,7 @@ function erfTitelSet(id) {
 
 // Prüfen (alle 3 s): neue Erfolge freischalten
 function erfCheck() {
+  if (typeof game === 'undefined') return; // seit 15.85: Zeitgeber kann vor spiel.js feuern (Laden unter Last)
   const p = game.player;
   if (!p || !game.running) return;
   const e = erfState(p);

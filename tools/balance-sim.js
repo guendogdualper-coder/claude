@@ -711,7 +711,7 @@ function startServer(port = 0) {
 }
 
 async function openPage(browser, url) {
-  const ctx = await browser.newContext({ viewport: { width: 800, height: 450 } });
+  const ctx = await browser.newContext({ viewport: { width: 800, height: 450 }, bypassCSP: true });
   // kein Service Worker (sonst liefert er alte Dateien aus dem Zwischenspeicher)
   await ctx.route('**/sw.js', (r) => r.fulfill({ status: 404, body: '' }));
   const pg = await ctx.newPage();

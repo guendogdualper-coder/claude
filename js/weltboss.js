@@ -83,6 +83,7 @@ function wbSpawn(e) {
 
 // jede Sekunde: Ansagen, Erscheinen und Verschwinden
 function wbTick() {
+  if (typeof game === 'undefined') return; // seit 15.85: Zeitgeber kann vor spiel.js feuern (Laden unter Last)
   const p = game.player;
   if (!p || !game.running || !game.world) return;
   const now = Date.now();
@@ -196,6 +197,7 @@ if (typeof guideEntries === 'function') {
 // Auftragsliste neu zeichnen, wenn sich die Minuten ändern
 let wbTrackMin = -1;
 setInterval(() => {
+  if (typeof game === 'undefined') return; // seit 15.85: Zeitgeber kann vor spiel.js feuern (Laden unter Last)
   const p = game.player;
   if (!p || !game.running || p.level < WB.minLevel || typeof ui === 'undefined' || !ui.renderQuestTrack) return;
   const now = Date.now();

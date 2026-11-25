@@ -46,7 +46,7 @@ async function openPage(ctx, dragonJs, errs) {
 (async () => {
   fs.mkdirSync(OUT, { recursive: true });
   const b = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
-  const ctx = await b.newContext({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1 });
+  const ctx = await b.newContext({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1, bypassCSP: true });
   const errs = [];
   const p = await openPage(ctx, path.join(ROOT, 'js', 'drei-drache.js'), errs);
   await p.evaluate(() => {
