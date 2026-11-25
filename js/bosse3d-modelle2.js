@@ -845,7 +845,7 @@ function bsKnight3(b, id, V) {
   // --- Helm: geschlossen, Sehschlitz glüht, Kamm, Krone ---
   // seit 14.82 (bosse3d-modelle3.js): V.helm 'skull' (Schädel mit Krone, Gruftkönig), 'bucket' (Topfhelm mit Tang,
   // Ertrunkener Ritter), 'horned' (geschlossener Helm mit Hörnern statt Krone, Morvaine); V.drowned (Rost, Tang,
-  // Muscheln), V.weapon 'glaive' (Glefe), V.blade 'broken' (abgebrochene Klinge)
+  // Muscheln), V.weapon 'glaive' (Glefe), V.bladeForm 'broken' (abgebrochene Klinge)
   const hb = BB3.head;
   const H0 = [0, 2.22, 0.08];
   if (V.helm === 'skull') {
@@ -930,7 +930,7 @@ function bsKnight3(b, id, V) {
   const bl = [];
   if (V.ice) {
     bl.push([0.2, 0.085], [1.2, 0.07], [1.62, 0.0], [1.2, -0.07], [0.2, -0.085]);
-  } else if (V.blade === 'broken') {
+  } else if (V.bladeForm === 'broken') {
     bl.push([0.2, 0.09], [0.7, 0.085], [0.95, 0.06], [1.05, 0.1], [1.12, -0.02], [1.0, -0.05], [0.85, -0.08], [0.2, -0.09]);
   } else {
     for (let i = 0; i <= 6; i++) bl.push([0.2 + i * 0.22, 0.09 + (i % 2 ? 0.05 : 0) - i * 0.006]);
@@ -938,7 +938,7 @@ function bsKnight3(b, id, V) {
     for (let i = 6; i >= 0; i--) bl.push([0.2 + i * 0.22, -0.09 - (i % 2 ? 0.035 : 0) + i * 0.006]);
   }
   A(bsBlade3(id + '-klinge', bl, 0.035, 0.01), C.blade, { bone: hbR, p: [G[0], G[1], G[2]], top: C.bladeTop, topK: 0.5, shine: 1 });
-  A(box3(), C.glow, { bone: hbR, p: [G[0], G[1], G[2] + (V.blade === 'broken' ? 0.6 : 0.9)], s: [0.042, 0.022, V.blade === 'broken' ? 0.7 : 1.25], mat: 'glow', noShadow: true });
+  A(box3(), C.glow, { bone: hbR, p: [G[0], G[1], G[2] + (V.bladeForm === 'broken' ? 0.6 : 0.9)], s: [0.042, 0.022, V.bladeForm === 'broken' ? 0.7 : 1.25], mat: 'glow', noShadow: true });
   return bsRes3(id, rig, J, 2.55, V.worldH);
 }
 const BS_KALDOR3 = {

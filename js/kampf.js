@@ -729,13 +729,13 @@ function rewardKillInner(m) {
     const potHp = dropCount(randInt(drops.potions[0], drops.potions[1]));
     const potMp = Math.round(potHp * 0.6);
     const size = potionSizeFor(m.level);
-    p.splinters += splinters;
     p.stones++;
     p.potions[potKey('hp', size.id)] = (p.potions[potKey('hp', size.id)] || 0) + potHp;
     p.potions[potKey('mp', size.id)] = (p.potions[potKey('mp', size.id)] || 0) + potMp;
     ui.log(`${m.name} zerstört! +${xp.toLocaleString('de-DE')} EP.`, 'level');
     ui.loot('Gold', gold, lootIconUrl('gold'), '#ffd96a');
-    ui.loot('Seelensplitter', splinters, lootIconUrl('splinter'), '#c9a8ff');
+    // seit 15.84 über giveSplinters, damit Sammler (Seelenstufen) und Amethyst (Juwelen) auch hier wirken
+    giveSplinters(splinters);
     ui.loot(`${potionInfo('hp').name} (${size.id})`, potHp, potionIconUrl('hp', size.id), potionInfo('hp').color);
     ui.loot(`${potionInfo('mp').name} (${size.id})`, potMp, potionIconUrl('mp', size.id), potionInfo('mp').color);
     questEvent('stone', m);
@@ -761,8 +761,7 @@ function rewardKillInner(m) {
     }
     if (Math.random() < 0.3) {
       const n = randInt(1, 3);
-      p.splinters += n;
-      ui.loot('Seelensplitter', n, lootIconUrl('splinter'), '#c9a8ff');
+      giveSplinters(n);
     }
     // seit 14.6 keine Verstärkung mehr (12 %): Boni-Materialien gibt es nur aus Seelensteinen
   }
@@ -2514,8 +2513,10 @@ function pvpOutgoing(mul, opts) {
 // Treffer ({ t, a }) für den Deckel in 1,5 s (null = ohne; alte Einträge fallen heraus, den neuen trägt der Aufrufer
 // ein). Ergebnis ganzzahlig, 0 = gedeckelt.
 function pvpIncoming(level, s, d, win, now) {
-  const L = Math.max(1, d.l || 1);
-  let a = (+d.a || 0) * pvpMulAt(L);
+  // seit 15.84: Stufe des Angreifers auf 1..MAX_LEVEL geklemmt, roher Schaden endlich – vorher umging eine gemeldete
+  // hohe Stufe (d.l) den Deckel je Treffer
+  const L = Math.max(1, Math.min(MAX_LEVEL, Math.round(+d.l || 1)));
+  let a = Math.max(0, Math.min(1e9, +d.a || 0)) * pvpMulAt(L);
   const defP = PVP_DMG.defMul * (s.def || 0);
   const armor = defP / (defP + 40 + 5 * (L - 1));
   // Rüstung höchstens armorMax; Schadensreduktion, „Erlittener Schaden“ (auch aus Buffs) und Abwehr zusammen höchstens
@@ -2541,6 +2542,9 @@ function pvpReceiveHit(d, src, fb) {
   const p = game.player;
   const s = game.stats;
   p.pvpWin = p.pvpWin || [];
+  // seit 15.84: es zählt die bekannte Stufe des Gegners aus dem Netzzustand (Stellvertreter src.level), nicht die im
+  // Treffer gemeldete; ohne Stellvertreter die gemeldete, geklemmt (pvpIncoming)
+  if (src && Number.isFinite(src.level) && src.level >= 1) d = Object.assign({}, d, { l: src.level });
   const amount = pvpIncoming(p.level, s, d, p.pvpWin, game.time);
   const before = p.hp;
   if (amount > 0) damagePlayer(amount, src, { pvp: true, sure: !!d.sk });

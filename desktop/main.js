@@ -11,13 +11,18 @@
 // Sicherheit: contextIsolation, kein Node im Fenster, Sandbox. Im App-Fenster darf nur die eigene Domain geöffnet
 // werden; fremde Links öffnen sich im Standardbrowser.
 //
+// Erinnerungen (Einstellung „Benachrichtigungen“ im Spiel): Das Hauptfenster bekommt die kleine Brücke preload.js,
+// darüber plant das Spiel Windows-Systemmeldungen; die Zeitgeber laufen hier im Hauptprozess (meldungen.js), solange
+// das Programm läuft – auch minimiert. Angenommen wird nur vom Spiel im Hauptfenster.
+//
 // Umgebungsvariable SEELENSTEIN_URL (nur zum Testen): andere Startadresse, z. B. http://localhost:8000/
 
 'use strict';
 
-const { app, BrowserWindow, Menu, shell, screen, session } = require('electron');
+const { app, BrowserWindow, Menu, shell, screen, session, ipcMain, Notification } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const { meldungenAnlegen } = require('./meldungen');
 
 // ---------- Startadresse und erlaubte Adressen ----------
 const STANDARD_URL = 'https://seelenstein.online/';
@@ -186,6 +191,25 @@ app.on('web-contents-created', (_e, wc) => {
 // ---------- Hauptfenster ----------
 let hauptfenster = null;
 
+// ---------- Erinnerungen als Systemmeldung (Brücke preload.js → meldungen.js) ----------
+const MELDUNGEN = meldungenAnlegen({
+  Notification,
+  fenster: () => hauptfenster,
+  icon: path.join(__dirname, 'offline', 'symbol.png')
+});
+// Nur das Spiel im Hauptfenster darf planen (nicht Wiki-Fenster, nicht die Offline-Seite)
+function vomSpiel(ev) {
+  const w = hauptfenster;
+  const adresse = ev && ev.senderFrame ? ev.senderFrame.url : '';
+  return !!w && !w.isDestroyed() && ev.sender === w.webContents && istSpielAdresse(adresse);
+}
+ipcMain.handle('benachrichtigungen:unterstuetzt', (ev) => vomSpiel(ev) && Notification.isSupported());
+ipcMain.handle('benachrichtigungen:planen', (ev, liste) => (vomSpiel(ev) ? MELDUNGEN.planen(liste) : 0));
+ipcMain.handle('benachrichtigungen:loeschen', (ev) => {
+  if (vomSpiel(ev)) MELDUNGEN.loeschen();
+  return true;
+});
+
 function offlineZeigen(w) {
   w.loadFile(OFFLINE_DATEI, { query: { ziel: SPIEL_URL } }).catch(() => {});
 }
@@ -205,7 +229,8 @@ function fensterOeffnen() {
     backgroundColor: '#12100C',
     autoHideMenuBar: true,
     icon: path.join(__dirname, 'offline', 'symbol.png'), // Windows nimmt das Symbol aus der .exe
-    webPreferences: { ...WEB_PREFS }
+    // nur das Hauptfenster bekommt die Brücke für Erinnerungen (preload.js)
+    webPreferences: { ...WEB_PREFS, preload: path.join(__dirname, 'preload.js') }
   });
   hauptfenster = w;
 

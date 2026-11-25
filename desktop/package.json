@@ -10,7 +10,7 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "pruefen": "node --check main.js",
+    "pruefen": "node --check main.js && node --check preload.js && node --check meldungen.js",
     "bauen:installer": "electron-builder --win nsis --x64 --publish never",
     "bauen:store": "electron-builder --win appx --x64 --publish never",
     "bauen:linux-test": "electron-builder --linux dir --publish never"
@@ -25,6 +25,8 @@
     },
     "files": [
       "main.js",
+      "preload.js",
+      "meldungen.js",
       "offline/**/*"
     ],
     "asar": true,

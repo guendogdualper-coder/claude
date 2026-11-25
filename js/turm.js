@@ -1536,6 +1536,9 @@ function turmOnMsg(d) {
   if (d.k === 'vts') {
     if ((d.s | 0) !== run.slot) return;
     const prev = run.st;
+    // seit 15.84: Zahlen erzwingen – der Stand steht im Fenster (turmHud) und wählt die Ebene (TURM_EBENEN)
+    d = Object.assign({}, d, { e: Math.max(1, Math.min(TURM.ebenen, d.e | 0)), n: Math.max(0, Math.min(TURM.maxPlayers, d.n | 0)),
+      a: d.a | 0, b: d.b | 0, pl: Math.max(1, Math.min(TURM.maxPlayers, d.pl | 0)), g: d.g | 0, mn: d.mn | 0, ky: d.ky | 0, c: d.c | 0, ut: d.ut | 0, t: Math.max(0, +d.t || 0), mt: Math.max(0, +d.mt || 0), zt: Math.max(0, +d.zt || 0) });
     run.st = d;
     const E = TURM_EBENEN[d.e] || TURM_EBENEN[1];
     run.until = game.time + (+d.t || 0);
@@ -1580,7 +1583,8 @@ function turmOnEvent(run, d) {
   // Zuschauer auf den Rängen (tribuene.js): jubeln bei geschafften Ebenen, Steinen, Toren – und wenn alle fallen
   const jubel = (k, dur) => { if (here && typeof tribJubel === 'function') tribJubel(k, dur); };
   if (d.t === 'lv') {
-    const e = d.e | 0;
+    // seit 15.84 höchstens die letzte Ebene (das Gold wächst mit e)
+    const e = Math.min(TURM.ebenen, d.e | 0);
     if (e <= run.cleared || !here) return;
     run.cleared = e;
     const g = TURM.gold * e;
@@ -1703,7 +1707,9 @@ function turmSocial(pid, d) {
     if (s >= 0) turmGateUse(s, pid, d.g);
     return;
   }
-  if (pid === 'me' || pid === 'host' || net.mode !== 'host') turmOnMsg(d);
+  // seit 15.84: Nachrichten zum Durchgang nur vom echten Host (bzw. aus der eigenen Hallenführung) – vorher nahm ein
+  // Mitspieler sie von jedem an (falscher Stand im Fenster, Gold für „geschaffte Ebenen“, Schaden)
+  if (pid === 'me' || pid === 'host') turmOnMsg(d);
 }
 const _turmOnSocial = onSocial;
 onSocial = function (pid, d) {
@@ -1952,7 +1958,7 @@ function turmMiniLoot(m) {
 function turmFinalLoot(m) {
   const p = game.player;
   // seit 15.76 mit Pech-Schutz (pechschutz.js) und der Schwierigkeit (schwierigkeit.js)
-  const base = Math.max(INST.legendary80, TURM.truheLeg) * (typeof diffNow === 'function' ? diffNow().leg : 1);
+  const base = Math.max(INST.legendary80, TURM.truheLeg) * (typeof diffLoot === 'function' ? diffLoot().leg : 1);
   const leg = (typeof pechLeg === 'function' ? pechLeg('turm', base) : Math.random() < base) ? dropLegendary(m) : null;
   if (!leg) giveRarityItem(setTagItem(rollRarityItem(80, 3, null, Math.random() < 0.5 ? 'waffe' : null), m), m);
   instMats(m, { splinters: randInt(14, 20) }, randInt(5, 7));

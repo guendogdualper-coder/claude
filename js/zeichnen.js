@@ -434,11 +434,14 @@ function drawCloudShadows(ctx, view) {
 // Leuchtpunkt: ein fertig gemalter Verlauf je Farbe, der nur noch skaliert gezeichnet wird.
 // Ein neuer Verlauf in jedem Bild kostet gerade auf dem iPhone viel mehr Zeit.
 const glowCache = new Map();
-function glowSprite(hex) {
-  let c = glowCache.get(hex);
+// cpu (seit 15.84): eigene Fassung im Arbeitsspeicher für Bilder, die danach mit getImageData gelesen werden
+// (bakePixelSprite) – eine Leinwand der Grafikkarte dort hineinzumalen erzwang ein Zurücklesen und kurzes Stocken
+function glowSprite(hex, cpu) {
+  const key = cpu ? hex + '/c' : hex;
+  let c = glowCache.get(key);
   if (!c) {
     c = newCanvas(64, 64);
-    const x = c.getContext('2d');
+    const x = c.getContext('2d', cpu && typeof CPU_CANVAS !== 'undefined' ? CPU_CANVAS : undefined);
     const n = parseInt(hex.slice(1), 16);
     const rgb = `${(n >> 16) & 255},${(n >> 8) & 255},${n & 255}`;
     const g = x.createRadialGradient(32, 32, 0, 32, 32, 32);
@@ -446,7 +449,7 @@ function glowSprite(hex) {
     g.addColorStop(1, `rgba(${rgb},0)`);
     x.fillStyle = g;
     x.fillRect(0, 0, 64, 64);
-    glowCache.set(hex, c);
+    glowCache.set(key, c);
   }
   return c;
 }
@@ -454,7 +457,7 @@ function glow(ctx, x, y, r, hex, alpha) {
   if (alpha <= 0.01 || r <= 0) return;
   const a = ctx.globalAlpha;
   ctx.globalAlpha = a * Math.min(1, alpha);
-  ctx.drawImage(glowSprite(hex), x - r, y - r, r * 2, r * 2);
+  ctx.drawImage(glowSprite(hex, ctx._cpu), x - r, y - r, r * 2, r * 2);
   ctx.globalAlpha = a;
 }
 

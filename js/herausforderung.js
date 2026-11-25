@@ -1253,7 +1253,8 @@ function arenaSocial(pid, d) {
     if (s >= 0) arenaDrop(s, pid, null);
     return;
   }
-  if (pid === 'host' || net.mode !== 'host') arenaOnMsg(d);
+  // seit 15.84: Nachrichten zum Lauf nur vom echten Host (wie im Turm) – vorher nahm ein Mitspieler sie von jedem an
+  if (pid === 'host' || pid === 'me') arenaOnMsg(d);
 }
 const _arenaOnSocial = onSocial;
 onSocial = function (pid, d) {

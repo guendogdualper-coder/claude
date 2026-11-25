@@ -479,8 +479,8 @@ const RATGEBER_WISSEN = [
     c: 'dungeons', p: 3, q: 'Was bringt Heroisch oder Mythisch?',
     a: 'Ab Stufe 80 wählst du deine <b>Schwierigkeit</b> – auf der Seite „Seele“, am Tor einer Lv-80-Instanz oder am Turm. Sie gilt nur für dich und nur in Lv-80-Instanzen und im Turm: ' +
       '<b>Heroisch</b> – du machst 25 % weniger Schaden und bekommst 40 % mehr, dafür Legendär-Chance ×1,5, ein Ätherkern, eine halbe Stufe Seelen-EP und mit Glück ein Juwel. ' +
-      '<b>Mythisch</b> – 40 % weniger Schaden, 80 % mehr erlitten, Legendär ×2, zwei Ätherkerne, eine Stufe Seelen-EP und ein Juwel. In einer Gruppe darf jeder seine eigene Stufe spielen.',
-    k: 'schwierigkeit heroisch mythisch normal schwer härter instanz turm stufe 80 bessere beute'
+      '<b>Mythisch</b> – 40 % weniger Schaden, 80 % mehr erlitten, Legendär ×2, zwei Ätherkerne, eine Stufe Seelen-EP und ein Juwel. In einer Gruppe darf jeder seine eigene Stufe spielen. Wechseln kannst du sie nur vorher: mitten in einer Instanz oder im Turm bleibt sie, wie sie ist.',
+    k: 'schwierigkeit heroisch mythisch normal schwer härter instanz turm stufe 80 bessere beute wechseln ändern'
   },
   {
     c: 'ausruestung', p: 3, q: 'Gibt es einen Pech-Schutz für legendäre Teile?',

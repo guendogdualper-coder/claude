@@ -26,9 +26,20 @@ function diffNow(p) {
   p = p || game.player;
   return p && p.level >= MAX_LEVEL && diffZone(p) ? diffOf(p) : DIFF[0];
 }
+// Stufe für die Beute: im Turm die des Laufs, auch wenn die Truhe erst beim Hinausgehen aufgeht (seit 15.84)
+function diffLoot(p) {
+  p = p || game.player;
+  if (game.turmRun && p && p.level >= MAX_LEVEL) return diffOf(p);
+  return diffNow(p);
+}
 function diffSet(id) {
   const p = game.player;
   if (!p || p.level < MAX_LEVEL || !DIFF[id]) return false;
+  // seit 15.84 nur vorher: sonst ließe sich leicht kämpfen und schwer plündern
+  if (id !== diffOf(p).id && (diffZone(p) || game.turmRun)) {
+    ui.log('Die Schwierigkeit lässt sich nur vor einer Instanz oder dem Turm ändern.', 'warn');
+    return false;
+  }
   p.diff = id;
   ui.log(`Schwierigkeit · ${DIFF[id].name}`, 'info');
   saveGame();
@@ -78,7 +89,7 @@ if (typeof instFinalLoot === 'function') {
 if (typeof turmFinalLoot === 'function') {
   const _diffTurmFinal = turmFinalLoot;
   turmFinalLoot = function (m) {
-    const D = diffNow();
+    const D = diffLoot();
     const r = _diffTurmFinal(m);
     diffBonus(D);
     return r;

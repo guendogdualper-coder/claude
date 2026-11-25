@@ -153,6 +153,11 @@ Instanzstufe ≥ 75) und in den Hallen des Turms (`turmSlotAt`). Eigener Schaden
 Treffer, Diener, Gift – nicht die Treffer der Mitspieler, die der Host bekommt: die kommen schon gerechnet an),
 erlittener Schaden in `damagePlayer` erhöht (nicht gegen Spieler). Die höhere Legendär-Chance geht über den Pech-Schutz.
 
+**Seit 15.84 nur vorher wählbar:** `diffSet` lehnt einen Wechsel ab, solange man in einer Lv-80-Instanz steht oder ein
+Turmlauf läuft (`game.turmRun`). Sonst ließ sich auf Normal kämpfen und kurz vor dem Boss auf Mythisch umstellen. Die
+Truhe des Turms nimmt die Stufe des Laufs (`diffLoot`), auch wenn sie erst beim Hinausgehen aufgeht. Vorher galt dort
+Normal, weil man beim Hinausgehen nicht mehr in der Halle stand.
+
 ## 8. Juwelen und Sockel (15.76)
 
 Code: `js/juwelen.js`, am Veredler (Seite „Sockel“). Ewige Teile (Lv 80, episch oder legendär): Waffe zwei Sockel,

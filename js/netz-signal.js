@@ -42,7 +42,16 @@ const sigTrace = (msg) => { if (window.SIG_TRACE) console.log(`[sig ${((performa
 const sigRand = (n = 10) => Array.from(crypto.getRandomValues(new Uint8Array(n)), (b) => 'abcdefghijkmnpqrstuvwxyz23456789'[b % 32]).join('');
 const sigParse = (s) => { try { return JSON.parse(s); } catch (e) { return null; } };
 const sigChTopic = (id, part) => `seelenstein8/ch/${id}/${part}`;
-const sigFresh = (m) => m && m.t === 'host' && (!m.at || Date.now() - m.at < SIG_FRESH);
+// seit 15.84 nur mit gültiger Zeit at (vorher galt eine Meldung ohne at als frisch – ein gespeicherter falscher Eintrag
+// hielt einen Kanal für immer „besetzt“); höchstens 10 Minuten vorgehende Uhren werden toleriert
+const sigFresh = (m) => !!m && m.t === 'host' && Number.isFinite(m.at) && Date.now() - m.at < SIG_FRESH && m.at - Date.now() < 600000;
+// seit 15.84: Formen der Kennungen aus dem Netz – Postfach eines Mitspielers ('p' + sigRand) und Notweg (sigRand); andere
+// Zeichen (/, +, #) hätten als Thema fremde Postfächer oder alle Notwege abonniert
+const SIG_INBOX_RE = /^p[a-z0-9]{4,32}$/;
+const SIG_RELAY_RE = /^[a-z0-9]{4,40}$/;
+// seit 15.84: lange Nachrichten höchstens so viele Stücke, höchstens so viele unfertige zugleich
+const SIG_PARTS_MAX = 64;
+const SIG_PARTS_OPEN = 4;
 
 class SigEmitter {
   constructor() { this.handlers = {}; }
@@ -345,13 +354,26 @@ class SigConn extends SigEmitter {
   receive(d) {
     if (!d) return;
     if (d.__c) {
-      // Stück einer langen Nachricht
-      const list = this.parts.get(d.__c) || [];
-      list[d.i] = d.s;
-      this.parts.set(d.__c, list);
-      if (list.filter((x) => x != null).length === d.n) {
+      // Stück einer langen Nachricht; seit 15.84 geprüft: n 1..SIG_PARTS_MAX, i 0..n-1, s Text bis SIG_CHUNK, höchstens
+      // SIG_PARTS_OPEN unfertige Nachrichten (die älteste fällt weg) – vorher ließ sich der Speicher beliebig füllen
+      const n = d.n;
+      const i = d.i;
+      if (typeof d.__c !== 'string' || d.__c.length > 16 || !Number.isInteger(n) || n < 1 || n > SIG_PARTS_MAX ||
+        !Number.isInteger(i) || i < 0 || i >= n || typeof d.s !== 'string' || d.s.length > SIG_CHUNK) return;
+      let e = this.parts.get(d.__c);
+      if (!e) {
+        while (this.parts.size >= SIG_PARTS_OPEN) this.parts.delete(this.parts.keys().next().value);
+        e = { n, list: new Array(n), got: 0 };
+        this.parts.set(d.__c, e);
+      }
+      if (e.n !== n) return;
+      if (e.list[i] == null) {
+        e.list[i] = d.s;
+        e.got++;
+      }
+      if (e.got === n) {
         this.parts.delete(d.__c);
-        const full = sigParse(list.join(''));
+        const full = sigParse(e.list.join(''));
         if (full) this.emit('data', full);
       }
       return;
@@ -498,14 +520,19 @@ class SigPeer extends SigEmitter {
     if (m.t === 'claim') this.bus.pub(this.chT, { t: 'taken', to: m.k, k: this.key });
     else if (m.t === 'offer' && m.from && m.sdp) this.answer(m);
   }
+  // seit 15.84 vergibt der Host die Kennung der Verbindung selbst (cid). Vorher galt d.from aus dem Angebot: wer die
+  // Kennung eines anderen schickte, beendete dessen Verbindung, und „host“ wäre als Nachricht des Hosts weitergereicht
+  // worden. d.from bleibt nur das Postfach für die Antwort (in der Form eigener Kennungen), d.r der Notweg.
   async answer(d) {
     sigTrace('angebot erhalten');
-    if (this.conns.has(d.from)) this.conns.get(d.from).end();
+    if (typeof d.from !== 'string' || !SIG_INBOX_RE.test(d.from) || typeof d.sdp !== 'string' || (d.r != null && (typeof d.r !== 'string' || !SIG_RELAY_RE.test(d.r)))) return;
+    let cid = 'c' + sigRand(12);
+    while (this.conns.has(cid)) cid = 'c' + sigRand(12);
     const pc = new RTCPeerConnection({ iceServers: SIG_ICE });
-    const conn = new SigConn(d.from, pc);
-    this.conns.set(d.from, conn);
+    const conn = new SigConn(cid, pc);
+    this.conns.set(cid, conn);
     pc.ondatachannel = (e) => conn.attach(e.channel);
-    conn.on('close', () => { if (this.conns.get(d.from) === conn) this.conns.delete(d.from); this.beaconSoon(); });
+    conn.on('close', () => { if (this.conns.get(cid) === conn) this.conns.delete(cid); this.beaconSoon(); });
     conn.on('open', () => this.beaconSoon());
     this.emit('connection', conn);
     let sdp = '';
@@ -515,7 +542,7 @@ class SigPeer extends SigEmitter {
       sdp = await sigLocalSdp(pc);
     } catch (e) { /* dann eben nur der Notweg */ }
     if (this.destroyed || conn.ended) return;
-    this.bus.pub(`seelenstein8/p/${d.from}`, { t: 'answer', c: d.c, sdp });
+    this.bus.pub(`seelenstein8/p/${d.from}`, { t: 'answer', c: typeof d.c === 'string' ? d.c.slice(0, 16) : '', sdp });
     conn.relayLater(d.r, 'h');
   }
 

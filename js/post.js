@@ -27,6 +27,8 @@ const postStr = (s, max) => (typeof s === 'string' ? s.slice(0, max) : '');
 // Brief aus der Datenbank prüfen (nur bekannte Felder, Längen begrenzt); Anhänge über wareClean
 function postClean(id, raw) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  // seit 15.84: nur Schlüssel in der Form, die das Spiel selbst vergibt (handelIdOk, handel-db.js)
+  if (!handelIdOk(id)) return null;
   const m = {
     id, an: postStr(raw.an, 20), anKey: postStr(raw.anKey, 20), von: postStr(raw.von, 20), vonUid: postStr(raw.vonUid, 64),
     at: Number.isFinite(raw.at) ? raw.at : 0, betreff: postStr(raw.betreff, POST_SUBJECT), text: postStr(raw.text, POST_TEXT),
@@ -166,13 +168,15 @@ function postRender() {
   }
   const mine = (POST.list || []).filter(postMine);
   const unread = mine.filter((m) => !m.gelesen).length;
-  const note = POST.msg ? `<p class="${POST.msg.ok ? 'gear-msg success' : 'form-error'}">${POST.msg.text}</p>` : '';
+  // seit 15.84: Meldungen nur als Text (sie enthalten Namen aus der Datenbank, z. B. den Empfänger)
+  const note = POST.msg ? `<p class="${POST.msg.ok ? 'gear-msg success' : 'form-error'}">${escapeHtml(POST.msg.text)}</p>` : '';
   const tabs = `<div class="soc-tabs hd-tabs">` +
     `<button type="button" class="bag-tab${POST.tab === 'ein' ? ' on' : ''}" data-ptab="ein">Posteingang${unread ? ` <small>${unread}</small>` : ''}</button>` +
     `<button type="button" class="bag-tab${POST.tab === 'neu' ? ' on' : ''}" data-ptab="neu">Brief schreiben</button>` +
     `<button type="button" class="mini-btn hd-refresh" id="btnPostRefresh" ${POST.busy ? 'disabled' : ''}>Aktualisieren</button></div>`;
+  // seit 15.84: mit fremd angemeldetem Namen geht kein Brief hinaus (postSend, Regeln der Datenbank)
   const warn = POST.nameState === 'belegt'
-    ? `<p class="form-error">Den Namen <span class="no-tr">${escapeHtml(p.name)}</span> hat schon ein Charakter eines anderen Kontos angemeldet – Briefe an diesen Namen bekommt er, nicht du. Schreiben kannst du trotzdem.</p>` : '';
+    ? `<p class="form-error">Den Namen <span class="no-tr">${escapeHtml(p.name)}</span> hat schon ein Charakter eines anderen Kontos angemeldet – Briefe an diesen Namen bekommt er, nicht du. Schreiben kannst du mit diesem Charakter darum nicht.</p>` : '';
   let main;
   if (POST.tab === 'neu') main = postComposeHtml();
   else if (POST.sel) main = postReadHtml(mine.find((m) => m.id === POST.sel));
@@ -196,7 +200,8 @@ function postListHtml(mine) {
   const rows = mine.map((m) => {
     const stuff = [m.ware.length ? `<span class="hd-chip">${m.ware.length} ${m.ware.length === 1 ? 'Anhang' : 'Anhänge'}</span>` : '',
       m.gold ? `<span class="hd-chip gold">${fmtN(m.gold)} Gold</span>` : ''].join('');
-    return `<button type="button" class="hd-mail${m.gelesen ? '' : ' unread'}" data-mail="${m.id}">` +
+    // seit 15.84: Kennung im Attribut immer maskiert (zusätzlich zur Prüfung in postClean)
+    return `<button type="button" class="hd-mail${m.gelesen ? '' : ' unread'}" data-mail="${escapeHtml(m.id)}">` +
       `<span class="hd-env" aria-hidden="true"></span>` +
       `<span class="hd-mail-main"><b class="hd-from${m.sys ? '' : ' no-tr'}">${escapeHtml(m.von)}</b><span class="hd-subj no-tr">${escapeHtml(m.betreff || '(ohne Betreff)')}</span></span>` +
       `<span class="hd-mail-side">${stuff}<small>${postDate(m.at)}</small></span></button>`;
@@ -378,9 +383,18 @@ async function postSend() {
   postRender();
   let held = null;
   try {
+    // seit 15.84: Absender ist nur, wer den eigenen Namen angemeldet hat (die Regeln der Datenbank prüfen das, siehe
+    // docs/sicherheit-15.84.md). Noch nicht angemeldet (Netz war weg): jetzt nachholen; gehört der Name einem anderen
+    // Konto, geht kein Brief unter diesem Namen hinaus.
+    if (POST.nameState !== 'ok') await postRegister(p);
+    if (POST.nameState === 'belegt') {
+      POST.busy = false;
+      return fail('Deinen Namen hat ein Charakter eines anderen Kontos angemeldet – mit diesem Charakter kannst du keine Briefe schicken.');
+    }
     const r = await hdb.get('namen/' + charKey(an));
     const to = r.val;
-    if (!to || typeof to.uid !== 'string') {
+    // seit 15.84: Konto-Kennung nur in gültiger Form (sie wird Teil des Pfads)
+    if (!to || !handelUidOk(to.uid)) {
       POST.busy = false;
       return fail('Einen Charakter mit diesem Namen gibt es nicht (oder er hat noch nie mit Konto gespielt).');
     }
@@ -396,7 +410,8 @@ async function postSend() {
       return fail('Ein Anhang ist nicht mehr in deiner Tasche.');
     }
     p.gold -= gold + POST_PORTO;
-    const msg = { an: typeof to.name === 'string' ? to.name : an, anKey: charKey(an), von: p.name, vonUid: account.uid, vonKey: charKey(p.name), at: Date.now(),
+    // seit 15.84: angezeigter Name aus namen/ nur, wenn er zum Schlüssel passt (sonst der eingetippte)
+    const msg = { an: typeof to.name === 'string' && charKey(to.name) === charKey(an) ? to.name.slice(0, 14) : an, anKey: charKey(an), von: p.name, vonUid: account.uid, vonKey: charKey(p.name), at: Date.now(),
       betreff: c.betreff.trim().slice(0, POST_SUBJECT), text: c.text.trim().slice(0, POST_TEXT), gold, ware: held.length ? waresText(held) : '', gelesen: false };
     await hdb.put(postPath(to.uid, handelId()), msg);
     held = null;

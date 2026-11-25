@@ -11,6 +11,24 @@
 // Lebenspolster, Deckel je Treffer und je 1,5 s – gemeinsam für Duell und Turnierarena
 const DUEL = { countdown: 3, maxTime: 210, arena: 400 };
 const TRADE_SLOTS = 8;
+// seit 15.84: eigene offene Anfragen je Mitspieler (Kennung → Zeit). Eine Antwort ('ir' Betrachten, 'ta' Handel) gilt nur
+// auf eine eigene Anfrage an dieselbe Kennung – vorher öffnete jeder Mitspieler bei anderen Handel oder Betrachten.
+const ASKED = { iq: new Map(), tq: new Map() };
+const ASK_TTL = 60000;
+function askMark(kind, pid) {
+  ASKED[kind].set(pid, Date.now());
+}
+function askTake(kind, pid) {
+  const at = ASKED[kind].get(pid);
+  ASKED[kind].delete(pid);
+  return at != null && Date.now() - at < ASK_TTL;
+}
+// seit 15.84: angezeigter Name des Absenders aus der Verbindung (Zustand der Figur bzw. Stempel des Hosts, netz.js),
+// nicht aus der Nachricht selbst
+function interactName(pid) {
+  const rp = net.players.get(pid);
+  return (rp && rp.name) || (typeof netSenderName === 'function' && netSenderName(pid)) || '?';
+}
 
 // --- Spielerkarte oben in der Mitte -------------------------------------------------------------
 
@@ -58,7 +76,8 @@ const pcard = {
     $('playerCard').innerHTML =
       `<div class="pc-head"><canvas id="pcPortrait" width="72" height="72"></canvas>` +
       `<div class="pc-info"><strong>${escapeHtml(rp.name)}</strong>` +
-      `<small>LVL ${rp.level} · ${CLASSES[rp.classId] ? CLASSES[rp.classId].name : '?'}${rp.guild ? ` · <b style="color:${guildColor(rp.guild)}">‹${escapeHtml(rp.guild)}›</b>` : ''}</small>` +
+      // seit 15.84: Stufe immer als Zahl
+      `<small>LVL ${rp.level | 0} · ${CLASSES[rp.classId] ? CLASSES[rp.classId].name : '?'}${rp.guild ? ` · <b style="color:${guildColor(rp.guild)}">‹${escapeHtml(rp.guild)}›</b>` : ''}</small>` +
       `<div class="pc-hp"><i id="pcHp"></i></div></div>` +
       `<button type="button" class="pc-close" data-pc="close" aria-label="Schließen">×</button></div>` +
       `<div class="pc-actions">` +
@@ -108,10 +127,14 @@ const pcard = {
     if (a === 'friend') askFriend(pid);
     if (a === 'guild') inviteGuild(pid);
     if (a === 'party') inviteParty(pid);
-    if (a === 'inspect') netSocial(pid, { k: 'iq', n: game.player.name });
+    if (a === 'inspect') {
+      askMark('iq', pid);
+      netSocial(pid, { k: 'iq', n: game.player.name });
+    }
     // seit 15.38: erst die Regeln wählen (Tränke, Goldeinsatz), dann geht die Anfrage raus
     if (a === 'duel') duelAsk(pid, rp.name);
     if (a === 'trade') {
+      askMark('tq', pid);
       netSocial(pid, { k: 'tq', n: game.player.name });
       ui.log(`Handelsanfrage an ${rp.name} geschickt.`, 'info');
     }
@@ -142,8 +165,9 @@ function inviteToast(text, onYes, onNo) {
 // Nachrichten zu Betrachten, Handel und Duell
 function onInteract(pid, d) {
   const p = game.player;
-  const rp = net.players.get(pid);
-  const name = escapeHtml(d.n || (rp && rp.name) || '?');
+  const who = interactName(pid);
+  const name = escapeHtml(who);
+  const why = (w, def) => (typeof w === 'string' && w ? w.slice(0, 80) : def);
   switch (d.k) {
     // Betrachten: Ausrüstung und Werte schicken
     case 'iq': {
@@ -152,7 +176,8 @@ function onInteract(pid, d) {
       break;
     }
     case 'ir':
-      showInspect(d);
+      // seit 15.84: nur als Antwort auf die eigene Anfrage, Inhalt geprüft (inspectClean)
+      if (askTake('iq', pid)) showInspect(inspectClean(d, who));
       break;
     // Handel
     case 'tq':
@@ -162,14 +187,16 @@ function onInteract(pid, d) {
       }
       inviteToast(`<b>${name}</b> möchte mit dir handeln.`, () => {
         netSocial(pid, { k: 'ta', n: p.name });
-        startTrade(pid, d.n);
+        startTrade(pid, who);
       }, () => netSocial(pid, { k: 'tn', n: p.name, why: 'hat abgelehnt' }));
       break;
     case 'ta':
-      if (!game.trade) startTrade(pid, d.n);
+      // seit 15.84: nur nach eigener Handelsanfrage an diesen Spieler
+      if (!game.trade && askTake('tq', pid)) startTrade(pid, who);
       break;
     case 'tn':
-      ui.log(`${d.n} ${d.why || 'hat abgelehnt'}.`, 'warn');
+      ASKED.tq.delete(pid);
+      ui.log(`${who} ${why(d.why, 'hat abgelehnt')}.`, 'warn');
       break;
     case 'to':
       if (game.trade && game.trade.pid === pid) {
@@ -187,7 +214,7 @@ function onInteract(pid, d) {
       }
       break;
     case 'tx':
-      if (game.trade && game.trade.pid === pid) endTrade(`${d.n} hat den Handel abgebrochen.`);
+      if (game.trade && game.trade.pid === pid) endTrade(`${who} hat den Handel abgebrochen.`);
       break;
     // Duell
     case 'dq': {
@@ -199,29 +226,31 @@ function onInteract(pid, d) {
       const rules = duelRules(d);
       if (rules.w > p.gold) {
         netSocial(pid, { k: 'dn', n: p.name, why: 'hat nicht genug Gold für den Einsatz' });
-        ui.log(`${d.n || 'Jemand'} wollte ein Duell um ${rules.w.toLocaleString('de-DE')} Gold – so viel hast du nicht.`, 'info');
+        ui.log(`${who} wollte ein Duell um ${rules.w.toLocaleString('de-DE')} Gold – so viel hast du nicht.`, 'info');
         break;
       }
       inviteToast(`<b>${name}</b> fordert dich zum Duell heraus: ${duelRulesText(rules)}.`, () => {
         if (rules.w > p.gold) { netSocial(pid, { k: 'dn', n: p.name, why: 'hat nicht genug Gold für den Einsatz' }); return; }
         netSocial(pid, { k: 'da', n: p.name, np: rules.np ? 1 : 0, w: rules.w });
-        startDuel(pid, d.n, rules);
+        startDuel(pid, who, rules);
       }, () => netSocial(pid, { k: 'dn', n: p.name, why: 'hat das Duell abgelehnt' }));
       break;
     }
     case 'da': {
-      if (game.duel) break;
+      // seit 15.84: nur nach eigener Duellanfrage an diesen Spieler (vorher zwang jeder einen in ein Duell)
+      if (game.duel || !DUEL_ASKED.has(pid)) break;
       // nur die Regeln gelten, die der andere bestätigt hat (eine ältere Version bestätigt keine: dann ohne Einsatz)
       const mine = DUEL_ASKED.get(pid) || { np: false, w: 0 };
       const theirs = duelRules(d);
       DUEL_ASKED.delete(pid);
       const rules = { np: mine.np && theirs.np, w: theirs.w === mine.w ? Math.min(mine.w, p.gold) : 0 };
       if (mine.w && !rules.w) ui.log('Der Einsatz wurde nicht bestätigt – dieses Duell geht um nichts.', 'warn');
-      startDuel(pid, d.n, rules);
+      startDuel(pid, who, rules);
       break;
     }
     case 'dn':
-      ui.log(`${d.n} ${d.why}.`, 'warn');
+      DUEL_ASKED.delete(pid);
+      ui.log(`${who} ${why(d.why, 'hat abgelehnt')}.`, 'warn');
       break;
     case 'dh':
       duelReceive(pid, d);
@@ -243,6 +272,37 @@ function onInteract(pid, d) {
 }
 
 // --- Betrachten -----------------------------------------------------------------------------------
+
+// Kennung eines fremden Gegenstands (Handel, Betrachten): nur einfache Zeichen, sonst keine
+const foreignUid = (u) => ((typeof u === 'string' || typeof u === 'number') && /^[\w.:-]{1,40}$/.test(String(u)) ? String(u) : null);
+// seit 15.84: Antwort auf „Betrachten“ prüfen – Klasse aus CLASSES, Stufe und Werte als Zahlen, Ausrüstung über
+// itemClean (handel-ware.js). Vorher standen Stufe, Werte und Teile ungeprüft im Fenster.
+function inspectClean(d, who) {
+  const num = (v) => Math.max(0, Math.min(1e9, Math.round(+v || 0)));
+  const c = typeof d.c === 'string' && Object.prototype.hasOwnProperty.call(CLASSES, d.c) ? d.c : '';
+  const C = c ? CLASSES[c] : null;
+  const eq = {};
+  if (C && d.eq && typeof d.eq === 'object') {
+    for (const sl of equipSlotsFor(c)) {
+      const raw = d.eq[sl.id];
+      const it = raw ? itemClean(raw) : null;
+      if (!it || it.book != null) continue;
+      // Kennung des Besitzers behalten: an ihr hängt die Farbvariante (gearVariant, figuren.js)
+      const uid = foreignUid(raw.uid);
+      if (uid) it.uid = uid;
+      // übertragenes Aussehen (Garderobe: Schlüssel „Platz:Form:Stufe:Farbe“) für die Puppe; geprüft wird es beim Zeichnen
+      if (typeof raw.optik === 'string' && /^[\w:.-]{1,90}$/.test(raw.optik)) it.optik = raw.optik;
+      eq[sl.id] = it;
+    }
+  }
+  const st = d.s && typeof d.s === 'object' ? d.s : {};
+  return {
+    n: String(who || '?').slice(0, 20), c, l: Math.max(1, Math.min(MAX_LEVEL, Math.round(+d.l || 1))),
+    path: C ? Math.max(0, Math.min(C.paths.length - 1, Math.round(+d.path || 0))) : 0,
+    guild: typeof d.guild === 'string' ? d.guild.slice(0, 16) : '', eq,
+    s: { atk: num(st.atk), def: num(st.def), hp: num(st.hp), mp: num(st.mp), crit: Math.max(0, Math.min(10, +st.crit || 0)) }
+  };
+}
 
 function showInspect(d) {
   const who = { classId: d.c, path: d.path, level: d.l, name: d.n, equipment: d.eq || {}, buffs: [], x: 0, y: 0, r: 11 };
@@ -299,11 +359,20 @@ function myOfferItems() {
   }).filter(Boolean);
 }
 // Angebot des anderen lesen: Bücher älterer Versionen umbenennen, unbekannte weglassen (sonst bricht die Anzeige)
+// seit 15.84 wie bei der Post: höchstens TRADE_SLOTS Teile, jedes über itemClean (handel-ware.js) geprüft und neu
+// aufgebaut; nur die Kennung des anderen bleibt (für den Abgleich beider Angebote, tradeHash). Gold als endliche Zahl.
 let tradeEarly = null;
 function tradeOfferIn(d) {
-  const items = (d.items || []).filter(Boolean).map((it) => (it.book && SKILL_RENAMED[it.book] ? { ...it, book: SKILL_RENAMED[it.book] } : it))
-    .filter((it) => !it.book || (skillEntry(it.book) && it.count > 0));
-  return { items, gold: Math.max(0, Math.floor(d.gold || 0)) };
+  const items = [];
+  for (const raw of Array.isArray(d && d.items) ? d.items.slice(0, TRADE_SLOTS) : []) {
+    const uid = raw && foreignUid(raw.uid);
+    const it = uid ? itemClean(raw) : null;
+    if (!it) continue;
+    it.uid = uid;
+    items.push(it);
+  }
+  const gold = Math.floor(+(d && d.gold) || 0);
+  return { items, gold: Number.isFinite(gold) ? Math.max(0, Math.min(1e13, gold)) : 0 };
 }
 
 // Kurzer Fingerabdruck beider Angebote, aus Sicht eines Spielers (flip: aus Sicht des anderen)
@@ -397,13 +466,14 @@ const trade = {
     const mine = myOfferItems();
     const slots = (items, attr) => {
       let html = '';
-      for (let i = 0; i < TRADE_SLOTS; i++) html += gear.tile(items[i], items[i] && attr ? `${attr}="${items[i].uid}"` : '');
+      // seit 15.84: Kennungen im Attribut maskiert
+      for (let i = 0; i < TRADE_SLOTS; i++) html += gear.tile(items[i], items[i] && attr ? `${attr}="${escapeHtml(items[i].uid)}"` : '');
       return html;
     };
     let bag = '';
     for (const it of bagPageItems(p, this.page)) { // seit 14.20: dieselben Plätze wie im Rucksack
       const picked = it && t.mine.uids.includes(it.uid);
-      bag += gear.tile(it, it ? `data-tbag="${it.uid}"${picked ? ' data-picked="1"' : ''}` : '');
+      bag += gear.tile(it, it ? `data-tbag="${escapeHtml(it.uid)}"${picked ? ' data-picked="1"' : ''}` : '');
     }
     const tabs = Array.from({ length: BAG_PAGES }, (_, k) => `<button type="button" class="bag-tab${k === this.page ? ' on' : ''}" data-tpage="${k}">${['I', 'II', 'III', 'IV'][k]}</button>`).join('');
     // seit 14.84: nur nutzbare Plätze; was ich hergebe, macht nur auf Seite I/II einen nutzbaren Platz frei

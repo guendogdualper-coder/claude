@@ -1,6 +1,6 @@
 // Service Worker: speichert das Spiel auf dem Gerät, damit es auch ohne Internet startet.
 // Bei jeder neuen Version VERSION erhöhen, dann holen sich installierte Apps die neuen Dateien.
-const VERSION = 'seelenstein-v411';
+const VERSION = 'seelenstein-v412';
 // Klänge und Musik (snd/, seit 14.8) liegen in einem eigenen Speicher, der Versionswechsel übersteht: einmal geladen,
 // sind sie offline da und werden nach einem Update nicht neu heruntergeladen. Große Musikdateien stehen bewusst
 // nicht in FILES (kein Vorabladen beim Installieren), sie kommen erst, wenn das Spiel sie braucht.
@@ -196,6 +196,14 @@ const FILES = [
   'js/erfolge.js',
   'js/ereignisse.js',
   'js/arena-bots.js',
+  'js/begleiter.js',
+  'js/benachrichtigung.js',
+  'js/garderobe.js',
+  'js/haustiere.js',
+  'js/emotes.js',
+  'js/risslauf.js',
+  'js/stadtangriff.js',
+  'js/gilden-inhalte.js',
   'js/peerjs.min.js',
   'js/nativ.js',
   'js/spiel.js',
@@ -245,11 +253,23 @@ self.addEventListener('fetch', (e) => {
     e.respondWith(klang(e));
     return;
   }
+  // seit 15.84: fremde Adressen (Firebase mit ?auth=…, Werbung, Broker) gehen am Speicher vorbei – vorher landete jede
+  // Antwort samt Zugangsschlüssel in der Adresse im Speicher des Geräts
+  if (!sameOrigin) return;
   e.respondWith(
     caches.open(VERSION).then(async (cache) => {
       try {
-        const res = await fetch(sameOrigin ? new Request(e.request.url, { cache: 'no-cache' }) : e.request);
-        if (res.ok || res.type === 'opaque') cache.put(e.request, res.clone());
+        const res = await fetch(new Request(e.request.url, { cache: 'no-cache' }));
+        // seit 15.84 nur vollständige eigene Antworten. Abfragen wählen im Spiel keine andere Datei: Die Seite selbst
+        // (?quelle=…, ?server=…&kanal=…) liegt unter ihrer Adresse ohne Abfrage; Dateien mit Abfrage (die Prüfung auf eine
+        // neue Version, js/spiel.js?v=Zeit) kommen gar nicht in den Speicher – vorher legte jede Prüfung einen neuen Eintrag
+        // an. Gesucht wird ohnehin mit ignoreSearch.
+        const key = new URL(e.request.url);
+        if (res.ok && res.type === 'basic' && (!key.search || e.request.mode === 'navigate')) {
+          key.search = '';
+          key.hash = '';
+          cache.put(key.href, res.clone());
+        }
         return res;
       } catch {
         const cached = await cache.match(e.request, { ignoreSearch: true });

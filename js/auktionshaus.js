@@ -40,7 +40,10 @@ const ahFee = (preis, dauer) => Math.max(AH_MIN_FEE, Math.round(preis * (AH_FEE[
 // Auktion aus der Datenbank prüfen; die Einordnung (Kategorie, Stufe …) wird aus der Ware neu berechnet
 function ahParse(id, raw) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
-  if (typeof raw.uid !== 'string' || typeof raw.von !== 'string' || typeof raw.ware !== 'string') return null;
+  // seit 15.84: Schlüssel und Konto-Kennungen nur in der Form, die das Spiel erzeugt (handelIdOk, handel-db.js) – sie
+  // stehen in data-Attributen und in Pfaden der Briefe
+  if (!handelIdOk(id) || !handelUidOk(raw.uid)) return null;
+  if (typeof raw.von !== 'string' || typeof raw.ware !== 'string') return null;
   if (!Number.isSafeInteger(raw.preis) || raw.preis < 1 || raw.preis > AH_MAX_PRICE || !Number.isFinite(raw.ende) || !Number.isFinite(raw.at)) return null;
   let w = null;
   try { w = wareClean(JSON.parse(raw.ware)); } catch { w = null; }
@@ -48,7 +51,7 @@ function ahParse(id, raw) {
   const a = { id, uid: raw.uid, von: raw.von.slice(0, 20), preis: raw.preis, at: raw.at, ende: raw.ende, w, wareText: raw.ware, info: wareInfo(w), kaeufer: null };
   a.info.name = wareBaseName(w).toLowerCase();
   const k = raw.kaeufer;
-  if (k && typeof k === 'object' && typeof k.uid === 'string' && ['kauf', 'abbruch', 'ablauf'].includes(k.art)) {
+  if (k && typeof k === 'object' && handelUidOk(k.uid) && ['kauf', 'abbruch', 'ablauf'].includes(k.art)) {
     a.kaeufer = { uid: k.uid, name: String(k.name || '').slice(0, 20), key: String(k.key || charKey(k.name)).slice(0, 20), art: k.art, at: Number(k.at) || 0 };
   }
   return a;
@@ -86,8 +89,10 @@ async function ahSettle(a) {
   if (!k) return;
   const name = wareName(a.w);
   const now = Date.now();
+  // ah (seit 15.84): Kennung der Auktion – damit prüfen die Regeln der Datenbank, dass ein Brief des Auktionshauses zu
+  // einer echten, gerade abgerechneten Auktion gehört (docs/sicherheit-15.84.md)
   const mail = (an, anKey, betreff, text, gold, ware) => ({ an, anKey, von: 'Auktionshaus', vonUid: account.uid, vonKey: '', at: now,
-    betreff: betreff.slice(0, POST_SUBJECT), text: text.slice(0, POST_TEXT), gold, ware, gelesen: false, sys: 'ah' });
+    betreff: betreff.slice(0, POST_SUBJECT), text: text.slice(0, POST_TEXT), gold, ware, gelesen: false, sys: 'ah', ah: a.id });
   const patch = { ['auktion/' + a.id]: null };
   const seller = charKey(a.von);
   if (k.art === 'kauf') {
@@ -164,7 +169,8 @@ function ahRender() {
     return;
   }
   const own = (AH.list || []).filter((a) => a.uid === account.uid && !a.kaeufer).length;
-  const note = AH.msg ? `<p class="${AH.msg.ok ? 'gear-msg success' : 'form-error'}">${AH.msg.text}</p>` : '';
+  // seit 15.84: Meldungen nur als Text
+  const note = AH.msg ? `<p class="${AH.msg.ok ? 'gear-msg success' : 'form-error'}">${escapeHtml(AH.msg.text)}</p>` : '';
   const tab = (id, label) => `<button type="button" class="bag-tab${AH.tab === id ? ' on' : ''}" data-atab="${id}">${label}</button>`;
   const head = `<div class="soc-tabs hd-tabs">${tab('kaufen', 'Kaufen')}${tab('verkaufen', 'Verkaufen')}` +
     `<button type="button" class="bag-tab${AH.tab === 'meine' ? ' on' : ''}" data-atab="meine">Meine Auktionen${own ? ` <small>${own}</small>` : ''}</button>` +
@@ -282,9 +288,10 @@ function ahRowHtml(a, mode) {
   let btn = '';
   if (mode === 'kaufen') {
     btn = mine ? '<small class="hint-text">dein Angebot</small>'
-      : `<button type="button" class="mini-btn ${armed ? 'danger' : 'primary'}" data-buy="${a.id}" ${p.gold < a.preis || AH.busy ? 'disabled' : ''}>${armed ? 'Wirklich kaufen?' : 'Kaufen'}</button>`;
+      // seit 15.84: Kennung im Attribut immer maskiert (zusätzlich zur Prüfung in ahParse)
+      : `<button type="button" class="mini-btn ${armed ? 'danger' : 'primary'}" data-buy="${escapeHtml(a.id)}" ${p.gold < a.preis || AH.busy ? 'disabled' : ''}>${armed ? 'Wirklich kaufen?' : 'Kaufen'}</button>`;
   } else if (!a.kaeufer && Date.now() < a.ende) {
-    btn = `<button type="button" class="mini-btn ${armed ? 'danger' : ''}" data-cancel="${a.id}" ${AH.busy ? 'disabled' : ''}>${armed ? 'Wirklich abbrechen?' : 'Abbrechen'}</button>`;
+    btn = `<button type="button" class="mini-btn ${armed ? 'danger' : ''}" data-cancel="${escapeHtml(a.id)}" ${AH.busy ? 'disabled' : ''}>${armed ? 'Wirklich abbrechen?' : 'Abbrechen'}</button>`;
   } else btn = `<small class="hint-text">${a.kaeufer ? (a.kaeufer.art === 'kauf' ? 'verkauft – Gold kommt per Post' : 'beendet – kommt per Post zurück') : 'abgelaufen – kommt per Post zurück'}</small>`;
   return `<div class="ah-row">${wareTile(a.w, '')}` +
     `<div class="ah-name"><b style="color:${wareColor(a.w)}">${wareName(a.w)}${a.w.t === 'it' ? '' : ` × ${fmtN(a.w.n)}`}</b>` +

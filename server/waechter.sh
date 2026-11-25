@@ -18,6 +18,19 @@ apt-get install -y chromium fonts-dejavu-core
 id seelenstein >/dev/null 2>&1 || useradd --system --create-home --home-dir /var/lib/seelenstein --shell /usr/sbin/nologin seelenstein
 mkdir -p /var/lib/seelenstein && chown seelenstein:seelenstein /var/lib/seelenstein
 
+# seit 15.84: Die Sandbox von Chromium bleibt an, wenn sie auf diesem Server startet (Debian 13 erlaubt die dafür nötigen
+# Benutzer-Namensräume). Nur wenn der Probestart scheitert, läuft der Wächter wie bisher mit --no-sandbox.
+# Die Fernsteuerung (--remote-debugging-…) ist ganz weg: sie wurde von nichts genutzt, erlaubte aber jedem Programm auf
+# dem Server, den Wächter – den Host aller Kanäle – zu steuern.
+SANDBOX=""
+mkdir -p /var/lib/seelenstein/sandbox-probe && chown seelenstein:seelenstein /var/lib/seelenstein/sandbox-probe
+if ! timeout 60 runuser -u seelenstein -- env HOME=/var/lib/seelenstein /usr/bin/chromium --headless=new --disable-gpu --no-first-run \
+    --user-data-dir=/var/lib/seelenstein/sandbox-probe --dump-dom about:blank >/dev/null 2>&1; then
+  SANDBOX="--no-sandbox"
+  echo "!! Die Sandbox von Chromium startet auf diesem Server nicht – der Wächter läuft wie bisher mit --no-sandbox."
+fi
+rm -rf /var/lib/seelenstein/sandbox-probe
+
 cat > /etc/systemd/system/seelenstein-waechter@.service <<UNIT
 [Unit]
 Description=Seelenstein Welt-Waechter Kanal %i
@@ -27,7 +40,7 @@ Wants=network-online.target
 [Service]
 User=seelenstein
 Environment=HOME=/var/lib/seelenstein
-ExecStart=/usr/bin/chromium --headless=new --no-sandbox --disable-gpu --mute-audio --no-first-run --disable-dev-shm-usage --disable-background-timer-throttling --disable-renderer-backgrounding --disable-backgrounding-occluded-windows --enable-logging=stderr --v=0 --user-data-dir=/var/lib/seelenstein/k%i --remote-debugging-address=127.0.0.1 --remote-debugging-port=922%i "${URL_BASE}?waechter=1&kanal=%i"
+ExecStart=/usr/bin/chromium --headless=new ${SANDBOX} --disable-gpu --mute-audio --no-first-run --disable-dev-shm-usage --disable-background-timer-throttling --disable-renderer-backgrounding --disable-backgrounding-occluded-windows --enable-logging=stderr --v=0 --user-data-dir=/var/lib/seelenstein/k%i "${URL_BASE}?waechter=1&kanal=%i"
 Restart=always
 RestartSec=5
 MemoryMax=1200M

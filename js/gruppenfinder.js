@@ -383,14 +383,19 @@ function onGroupFinder(pid, d) {
   const p = game.player;
   if (!p) return;
   const rp = net.players.get(pid);
-  const name = String(d.n || (rp && rp.name) || '?');
+  // seit 15.84: Absender aus der Verbindung (netSenderName, netz.js); nur ohne bekannte Verbindung wie bisher
+  const name = (typeof netSenderName === 'function' && netSenderName(pid)) || String(d.n || (rp && rp.name) || '?').slice(0, 16);
   switch (d.k) {
     case 'lfl': {
       const l = d.l;
       if (!l || l.lead !== name || !gfAct(l.a) || !Array.isArray(l.m)) break;
+      // seit 15.84: Größe auf die Gruppengröße der Aktivität geklemmt (vorher lief die Liste der freien Plätze bis sz –
+      // eine riesige Zahl legte das Fenster lahm), Stufen und Einträge geprüft
+      const size = Math.max(1, Math.min(20, gfAct(l.a).size || GF.size));
       gf.listings.set(name, {
-        id: String(l.id), a: l.a, note: String(l.note || '').slice(0, GF.noteMax), ml: Number(l.ml) || 1, sz: Number(l.sz) || GF.size, lead: name,
-        m: l.m.slice(0, 8).map((x) => [String(x[0]), CLASSES[x[1]] ? x[1] : 'krieger', Number(x[2]) || 0, GF_ROLES[x[3]] ? x[3] : 'schaden', x[4] | 0]),
+        id: String(l.id).slice(0, 40), a: l.a, note: String(l.note || '').slice(0, GF.noteMax), ml: Math.max(1, Math.min(MAX_LEVEL, Math.round(Number(l.ml) || 1))),
+        sz: Math.max(1, Math.min(size, Math.round(Number(l.sz) || size))), lead: name,
+        m: l.m.filter(Array.isArray).slice(0, 8).map((x) => [String(x[0]).slice(0, 16), CLASSES[x[1]] ? x[1] : 'krieger', Math.max(0, Math.min(MAX_LEVEL, Math.round(Number(x[2]) || 0))), GF_ROLES[x[3]] ? x[3] : 'schaden', x[4] | 0]),
         rd: l.rd && typeof l.rd === 'object' ? l.rd : null, auto: !!l.auto, pid, seen: gfNow()
       });
       if (gf.check && !gf.check.mine && gf.check.lead === name) gfReadyRender();

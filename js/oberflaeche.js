@@ -858,7 +858,8 @@ const ui = {
     let players = '';
     if (online) {
       const names = [`${escapeHtml(p.name)} <small>(du${net.mode === 'host' ? ', deine Welt' : ''})</small>`];
-      for (const rp of net.players.values()) names.push(`${escapeHtml(rp.name)} <small>LVL ${rp.level} · ${CLASSES[rp.classId].name}</small>`);
+      // seit 15.84: Stufe immer als Zahl, Klasse nur aus CLASSES
+      for (const rp of net.players.values()) names.push(`${escapeHtml(rp.name)} <small>LVL ${rp.level | 0} · ${CLASSES[rp.classId] ? CLASSES[rp.classId].name : '?'}</small>`);
       players = `<h3>Im Kanal</h3><ul class="net-list">${names.map((n) => `<li>${n}</li>`).join('')}</ul>` +
         '<div class="net-row"><button type="button" class="btn btn-ghost" data-net="share">Freunde einladen</button><button type="button" class="btn btn-ghost" data-net="solo">Allein spielen</button></div>';
     } else {
@@ -972,7 +973,11 @@ const ui = {
   chatLines: [],
 
   chat(name, text, c, type) {
-    c = c || (name ? 'g' : 'sys');
+    // seit 15.84: Kanal nur aus den bekannten (ein anderer Wert ließ classList.add und die Reiter-Suche werfen und legte
+    // den Chat lahm), Text als Text und gekürzt
+    c = ['g', 'gi', 'o', 'sys'].includes(c) ? c : name ? 'g' : 'sys';
+    text = String(text == null ? '' : text).slice(0, 2000);
+    name = name ? String(name).slice(0, 40) : '';
     this.chatLines.push({ name, text, c, type });
     if (this.chatLines.length > 200) this.chatLines.shift();
     // seit 13.77: Nachrichten blockierter Spieler nicht zeigen (bleiben für eine Meldung im Verlauf)

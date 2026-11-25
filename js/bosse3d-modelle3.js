@@ -326,7 +326,7 @@ BOSS3.glimra = Object.assign({}, BS_SPI_BOSS3, {
 // Gestalt (V.frame): giant (Riese, stark gebeugt, riesige Hände), brute (Hüne, Ork-Gestalt), man (Mensch, aufrecht),
 // robe (Gewand bis zum Boden, schwebt). Kopf (V.head, im eigenen Rahmen gebaut, Größe 1): troll, bull, ape, golem,
 // skull, maw, bandit. Bedeckung (V.cover): fur, stone, crystal, ice, magma, bone. Zubehör: Schulterstücke (V.pad),
-// Helm/Krone (V.helm), Bart (V.beard), Hörner (V.horns), Bauch (V.belly), Schürze, Umhang, Lendentuch, Ketten, Gürtel,
+// Helm/Krone (V.helm), Bart (V.beardForm; V.beard ist die Farbe), Hörner (V.horns), Bauch (V.belly), Schürze, Umhang, Lendentuch, Ketten, Gürtel,
 // Rücken (V.back: boulders, crystals, pipes, shield), glühendes Herz (V.core), Hufe (V.hooves), Fäuste (V.fists).
 // Waffe in der rechten Hand (V.weapon): hammer, maul, axe, saber, club, staff, bell, none.
 // ============================================================================================================
@@ -683,14 +683,14 @@ function bsWard3(b, id, V) {
     AH(cap3(1, Math.PI * 0.62, 0, Math.PI * 2, 18, 8), C.hood, { bone: hb, p: [0, 0.2, -0.05], r: [-0.4, 0, 0], s: [1.2, 1.3, 1.25], top: C.hoodTop, topK: 0.5, shade: 0.3 });
     AH(tubeProfile3([[0, -0.8, -1.1], [0, 0.6, -1.0], [0, 1.25, 0.0]], [0.9, 0.95, 0.7], 8, 10), C.hood, { bone: hb, top: C.hoodTop, shade: 0.3 });
   }
-  if (V.beard === 'stone' || V.beard === 'cloud') {
+  if (V.beardForm === 'stone' || V.beardForm === 'cloud') {
     // Bart aus Steinsträhnen (Wolkenbart: grau, mit Funken)
     for (let k = 0; k < 9; k++) {
       const x = (k - 4) * 0.22;
       const len = 2.6 - Math.abs(k - 4) * 0.25;
       AH(tube3([[x, -0.55, 0.85], [x * 1.3, -1.2, 1.0], [x * 1.1, -0.6 - len, 0.9 + 0.3 * Math.sin(k)]], 0.24, 0.05, 10, 5), k % 2 ? C.beard : C.beard2, { bone: jb, top: C.beard2, topK: 0.5, shade: 0.15 });
     }
-    if (V.beard === 'cloud') for (let k = 0; k < 4; k++) bsGem3(AH, C.vein, [(k - 1.5) * 0.4, -1.6 - (k % 2) * 0.6, 1.15], [0.08, 0.1, 0.06], null, jb);
+    if (V.beardForm === 'cloud') for (let k = 0; k < 4; k++) bsGem3(AH, C.vein, [(k - 1.5) * 0.4, -1.6 - (k % 2) * 0.6, 1.15], [0.08, 0.1, 0.06], null, jb);
   }
 
   // --- Schulterstücke ---
@@ -924,7 +924,7 @@ function bsWardReg3(id, V, D) {
 // Titanenkönig Kroth (Titanenschmiede): Riese aus Fels mit Schmiedeglut in den Fugen, Steinkrone mit Glutsteinen, Bart
 // aus Steinsträhnen, Felsbrocken auf den Schultern, Steinhammer mit Bronzebändern und Glutrunen
 bsWardReg3('titanenkoenig', {
-  frame: 'giant', head: 'golem', crest: 'crown', cover: 'stone', pad: 'rock', beard: 'stone', weapon: 'maul', weaponK: 1.15,
+  frame: 'giant', head: 'golem', crest: 'crown', cover: 'stone', pad: 'rock', beardForm: 'stone', weapon: 'maul', weaponK: 1.15,
   skin: '#4e4a44', skinTop: '#7a746a', stone: '#5a544c', stoneTop: '#8a8478', vein: '#ffb04a', eye: '#ffd27a', crown: '#3a3028', crownTop: '#c8962a',
   beard: '#5a544c', beard2: '#7a7468', metal: '#8a6a3a', wood: '#3a2a1c', belt: '#3a2a1c', cloth: '#5a3a1a', gold: '#c8962a', moss: '#6a5a40', worldH: 5.2
 }, {
@@ -1039,7 +1039,7 @@ bsWardReg3('ugrak', {
 // Sturmrufer Brontes (Sturmhorst): Sturmriese mit grauer Gewitterhaut, Wolkenbart mit Blitzfunken, Bronzepanzer an
 // den Schultern, dunkler Wolkenumhang, Sturmstab mit Blitzkugel; über ihm braut sich eine Wolke
 bsWardReg3('brontes', {
-  frame: 'giant', head: 'giant', beard: 'cloud', pad: 'iron', cape: true, torn: true, weapon: 'staff', weaponK: 1.2,
+  frame: 'giant', head: 'giant', beardForm: 'cloud', pad: 'iron', cape: true, torn: true, weapon: 'staff', weaponK: 1.2,
   skin: '#6a7a92', skinTop: '#9aaac0', eye: '#e8f6ff', beard: '#cfd8e4', beard2: '#8a96a8', hair: '#8a96a8', vein: '#cfe8ff', iron: '#6a5a3a', ironTop: '#c8a060',
   gold: '#c8a060', cape: '#2a3048', capeEdge: '#8a96b8', wood: '#4a4a56', glow: '#e8f6ff', belt: '#3a3020', cloth: '#2a3048', band: '#6a5a3a', bandTop: '#c8a060', worldH: 5.2
 }, {
@@ -1425,7 +1425,7 @@ BOSS3.gruftkoenig = Object.assign({}, BS_KNIGHT_BOSS3, {
 MON3_BUILD.ertrunkener = (b) => bsKnight3(b, 'ertrunkener', {
   plate: '#4a5a54', plateTop: '#7a8a80', plateD: '#2a3430', trim: '#7a6a3a', glow: '#8fe36a', eye: '#8fe36a', cape: '#1a2a24', capeEdge: '#3a5a3a',
   grip: '#2a2018', blade: '#4a524c', bladeTop: '#7a827a', weed: '#2e4a24', weedTop: '#4a6a32', shell: '#c8c0a8', rust: '#6a3a1e',
-  helm: 'bucket', drowned: true, blade: 'broken', torn: true, worldH: 5.8
+  helm: 'bucket', drowned: true, bladeForm: 'broken', torn: true, worldH: 5.8
 });
 BOSS3.ertrunkener = Object.assign({}, BS_KNIGHT_BOSS3, {
   fx: 'wasser', emi: [0.03, 0.07, 0.03],

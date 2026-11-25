@@ -51,6 +51,159 @@ const channelId = (srv, ch) => `${NET_PREFIX}${srv}-k${ch}`;
 const serverName = (srv) => (SERVERS.find((x) => x.id === srv) || { name: srv }).name;
 const netOnline = () => net.mode === 'host' || net.mode === 'client';
 
+// --- Daten aus dem Netz prüfen (seit 15.84) ----------------------------------------------------------------------
+// Jeder Spielerzustand aus dem Netz (hello und st beim Host, snap beim Mitspieler) geht zuerst durch netCleanState:
+// nur bekannte Felder mit gültigen Werten – Name als Text (höchstens 16 Zeichen), Stufe 1..MAX_LEVEL, Klasse aus
+// CLASSES, Listen nur als Liste und gekappt, Zahlen endlich und begrenzt. Nur diese Kopie wird übernommen, gemerkt
+// (rp.last) und vom Host weiterverteilt. Vorher kam der Rohzustand bei allen an: eine Stufe wie „<img …>“ lief in die
+// Fenster, eine falsche Liste (b kein Array) warf bei jedem Mitspieler bei jedem Zustand. Felder anderer Dateien und
+// neuerer Versionen bleiben erhalten, wenn sie einfach sind (netExtra).
+const NET_VER_RE = /^\d{1,3}(\.\d{1,3}){1,3}$/;
+const netVer = (v) => (typeof v === 'string' && NET_VER_RE.test(v) ? v : null);
+const netHas = (o, k) => !!o && typeof k === 'string' && Object.prototype.hasOwnProperty.call(o, k);
+function netNum(v, lo, hi, def = 0) {
+  const n = typeof v === 'number' ? v : NaN;
+  return Number.isFinite(n) ? Math.max(lo, Math.min(hi, n)) : def;
+}
+const netInt = (v, lo, hi, def = 0) => Math.round(netNum(v, lo, hi, def));
+const netStr = (v, max) => (typeof v === 'string' ? v.slice(0, max) : '');
+const NET_STATE_FIELDS = new Set(['n', 'c', 'l', 'x', 'y', 'gs', 'rk', 'fx', 'fy', 'm', 'hp', 'mh', 'mp', 'mm', 'd', 'r', 'rg', 'fh', 'dc', 'fs', 'iv',
+  'eq', 'g', 'lk', 'al', 'b', 'sw', 'sp', 'sn', 'pt', 'v', 'pg', 'ti', 'ag', 'fr']);
+const NET_EQ_FIELDS = new Set(['slot', 'tier', 'plus', 'kind', 'cls', 'legend', 'rarity', 'set', 'fv', 'v80', 'dye', 'ved']);
+// Zusatzfelder anderer Dateien und neuerer Versionen (z. B. Haustier pe, Geste em, Risslauf rl, Aussehen eq[Platz].optik)
+// kommen ohne Anmeldung durch, wenn sie einfach sind: endliche Zahl, Wahrheitswert, Text ohne < > (höchstens max
+// Zeichen), flache Liste (bis 8 solcher Werte) oder flaches Objekt (bis 8 Schlüssel mit solchen Werten). Tiefere
+// Strukturen fallen weg; ihre Werte prüft jede Datei selbst gegen ihre Tabellen.
+function netPrim(v, max) {
+  if (typeof v === 'number') return Number.isFinite(v) ? v : undefined;
+  if (typeof v === 'boolean') return v;
+  if (typeof v === 'string') return v.length <= max && !/[<>]/.test(v) ? v : undefined;
+  return undefined;
+}
+function netExtra(v, max) {
+  const x = netPrim(v, max);
+  if (x !== undefined) return x;
+  if (Array.isArray(v)) {
+    if (v.length > 8) return undefined;
+    const out = v.map((e) => netPrim(e, max));
+    return out.every((e) => e !== undefined) ? out : undefined;
+  }
+  if (!v || typeof v !== 'object' || Object.getPrototypeOf(v) !== Object.prototype) return undefined;
+  const ks = Object.keys(v);
+  if (ks.length > 8) return undefined;
+  const out = {};
+  for (const k of ks) {
+    const e = /^[a-z][a-z0-9_]{0,15}$/i.test(k) && k !== 'constructor' && k !== 'prototype' ? netPrim(v[k], max) : undefined;
+    if (e === undefined) return undefined;
+    out[k] = e;
+  }
+  return out;
+}
+function netCleanEq(eq) {
+  const out = {};
+  if (!eq || typeof eq !== 'object' || Array.isArray(eq)) return out;
+  for (const { id } of EQUIP_SLOTS) {
+    const it = eq[id];
+    if (!it || typeof it !== 'object' || Array.isArray(it) || !ALL_SLOTS.includes(it.slot)) continue;
+    const o = { slot: it.slot, tier: netInt(it.tier, 0, ITEM_TIERS.length - 1), plus: netInt(it.plus, 0, MAX_PLUS) };
+    if (netHas(WEAPON_KINDS, it.kind)) o.kind = it.kind;
+    if (netHas(CLASSES, it.cls)) o.cls = it.cls;
+    if (it.legend) o.legend = 1;
+    if (it.rarity != null) o.rarity = netInt(it.rarity, 0, RARITIES.length - 1);
+    if (typeof ITEM_SETS !== 'undefined' && netHas(ITEM_SETS, it.set)) o.set = it.set;
+    if (Number.isInteger(it.fv) && it.fv >= 0 && it.fv < 1000) o.fv = it.fv;
+    if (typeof E80_FAM !== 'undefined' && netHas(E80_FAM, it.v80)) o.v80 = it.v80;
+    if (typeof E80_DYES !== 'undefined' && netHas(E80_DYES, it.dye)) o.dye = it.dye;
+    if (it.ved != null) o.ved = netInt(it.ved, 0, 99);
+    let extra = 0;
+    for (const k of Object.keys(it)) {
+      if (NET_EQ_FIELDS.has(k) || extra >= 6 || !/^[a-z][a-z0-9]{0,11}$/i.test(k)) continue;
+      const x = netExtra(it[k], 90);
+      if (x !== undefined) { o[k] = x; extra++; }
+    }
+    out[id] = o;
+  }
+  return out;
+}
+function netCleanState(s) {
+  if (!s || typeof s !== 'object' || Array.isArray(s)) return null;
+  const o = {
+    n: netStr(s.n, 16) || '?', c: netHas(CLASSES, s.c) ? s.c : 'krieger', l: netInt(s.l, 1, MAX_LEVEL, 1),
+    x: netNum(s.x, -1e6, 1e6), y: netNum(s.y, -1e6, 1e6), gs: netInt(s.gs, 0, 1000), rk: netInt(s.rk, 0, 1e7),
+    fx: netNum(s.fx, -1, 1), fy: netNum(s.fy, -1, 1, 1), m: s.m ? 1 : 0, hp: netNum(s.hp, 0, 1e9), mh: netNum(s.mh, 1, 1e9, 1),
+    d: s.d ? 1 : 0, r: netInt(s.r, 0, 9), fs: netNum(s.fs, 0, 5000), iv: s.iv ? 1 : 0, eq: netCleanEq(s.eq), g: netStr(s.g, 16),
+    lk: null, sp: s.sp ? 1 : 0,
+    // Buffs: [Kennung, Stufe, Restzeit]
+    b: Array.isArray(s.b) ? s.b.slice(0, 40).filter((e) => Array.isArray(e) && (typeof e[0] === 'string' || typeof e[0] === 'number') && String(e[0]).length <= 40)
+      .map((e) => [e[0], netNum(e[1], 0, 999, 1), netNum(e[2], 0, 86400)]) : []
+  };
+  if (typeof s.mp === 'number' && Number.isFinite(s.mp)) o.mp = netNum(s.mp, 0, 1e9);
+  if (typeof s.mm === 'number' && Number.isFinite(s.mm)) o.mm = netNum(s.mm, 0, 1e9);
+  if (s.rg) o.rg = 1;
+  if (s.fh) o.fh = 1;
+  if (s.sn) o.sn = 1;
+  if (typeof DRAGON_COLORS !== 'undefined' && netHas(DRAGON_COLORS, s.dc)) o.dc = s.dc;
+  if (s.pt != null) o.pt = netInt(s.pt, 0, 9);
+  const v = netVer(s.v);
+  if (v) o.v = v;
+  if (s.lk && typeof s.lk === 'object' && !Array.isArray(s.lk)) {
+    o.lk = {};
+    let n = 0;
+    for (const [k, x] of Object.entries(s.lk)) if (n < 16 && /^[a-z]{1,8}$/i.test(k) && Number.isInteger(x) && x >= 0 && x <= 99) { o.lk[k] = x; n++; }
+  }
+  // Diener: [x, y, Stufe, Bits, Platz, Geist-Art, …]; fehlt der Platz (ältere Versionen), gilt die Reihenfolge. Weitere
+  // Felder (z. B. die Rolle eines Begleiters an Stelle 7) bleiben als einfache Werte; keine Lücken (würden null)
+  if (Array.isArray(s.al)) {
+    o.al = s.al.slice(0, 24).filter(Array.isArray).map((a, n) => {
+      const e = [netNum(a[0], -1e6, 1e6), netNum(a[1], -1e6, 1e6), netInt(a[2], 0, 20), netInt(a[3], 0, 255)];
+      if (a.length > 4) e[4] = netInt(a[4], 0, 999, n);
+      if (a.length > 5) e[5] = typeof MONSTER_TYPES !== 'undefined' && netHas(MONSTER_TYPES, a[5]) ? a[5] : 0;
+      for (let k = 6; k < Math.min(a.length, 10); k++) {
+        const x = netPrim(a[k], 16);
+        e[k] = x === undefined ? 0 : x;
+      }
+      return e;
+    });
+  }
+  // Schlag: [Zähler, Art, Kombo, Dauer]
+  if (Array.isArray(s.sw)) o.sw = [netInt(s.sw[0], 0, 1e12), netStr(s.sw[1], 24) || 'combo', netInt(s.sw[2], 0, 99), netNum(s.sw[3], 0.05, 10, 0.3)];
+  // Felder aus anderen Dateien: Anführer der Gruppe (gruppe.js), Titel (erfolge.js), Arena (herausforderung.js), Seite (seiten.js)
+  if (typeof s.pg === 'string') o.pg = s.pg.slice(0, 20);
+  if (typeof s.ti === 'string') o.ti = s.ti.slice(0, 40);
+  if (s.ag != null) o.ag = netInt(s.ag, 0, 9);
+  if (s.fr === 's') o.fr = 's';
+  let extra = 0;
+  for (const k of Object.keys(s)) {
+    if (NET_STATE_FIELDS.has(k) || extra >= 16 || !/^[a-z][a-z0-9]{0,5}$/i.test(k)) continue;
+    const x = netExtra(s[k], 64);
+    if (x !== undefined) { o[k] = x; extra++; }
+  }
+  return o;
+}
+
+// seit 15.84: Absendername einer Nachricht aus der Verbindung, nicht aus ihrem Inhalt (d.n ließ sich frei wählen).
+// Der Host stempelt weitergereichte Nachrichten mit dem Namen des Absenders (fn); sonst gilt der Zustand der Figur.
+const netRelayNames = new Map();
+function netSenderName(pid) {
+  const rp = net.players.get(pid);
+  if (rp && rp.realName) return rp.realName;
+  if (pid === 'host' && net.hostName) return netStr(net.hostName, 16);
+  return netRelayNames.get(pid) || '';
+}
+// So lange (Spielzeit in s) muss eine Verbindung schweigen, bevor eine neue mit demselben Namen sie ersetzen darf
+const NET_GHOST = 3;
+// Ist der Name im Kanal schon von einer lebenden Verbindung belegt? Schweigende Verbindungen desselben Namens (App war
+// zu, neu eingeloggt) fallen dabei weg. Auch der Name des Hosts selbst gilt als belegt (nicht beim Welt-Wächter).
+function netNameTaken(id, name) {
+  let taken = !WAECHTER && !!game.player && game.player.name === name;
+  for (const [pid, o] of [...net.players]) {
+    if (pid === id || o.gone || (o.realName || o.name) !== name) continue;
+    if (game.time - (o.heardAt ?? -1e9) > NET_GHOST) netDropPlayer(pid, true);
+    else taken = true;
+  }
+  return taken;
+}
+
 // Verbindungsaufbau aus netz-signal.js (window.Peer); PeerJS nur als Notlösung, falls die Datei fehlt
 function netLoadLib() {
   if (window.Peer) return Promise.resolve();
@@ -297,6 +450,11 @@ async function netProbe() {
 // --- Host --------------------------------------------------------------------------------
 
 function netAccept(conn) {
+  // seit 15.84: „host“ steht für den Host selbst (Nachrichten von ihm gelten als Host-Nachrichten) – nie als Mitspieler
+  if (conn.peer === 'host') {
+    try { conn.close(); } catch (e) { /* schon zu */ }
+    return;
+  }
   conn.on('open', () => {
     if (net.conns.size + (WAECHTER ? 0 : 1) >= NET_MAX) {
       conn.send({ t: 'full' });
@@ -336,21 +494,31 @@ function netOnHostData(conn, d) {
     return;
   }
   if (d.t === 'hello') {
-    // Dieselbe Figur kommt neu (App war zu, neu eingeloggt): die alte Verbindung ist tot, ihr Geist muss weg
-    if (d.s) for (const [pid, o] of [...net.players]) if (pid !== id && o.name === d.s.n && o.classId === d.s.c) netDropPlayer(pid, true);
+    // seit 15.84: Zustand geprüft (netCleanState). Dieselbe Figur kommt neu (App war zu, neu eingeloggt): die alte
+    // Verbindung schweigt schon, ihr Geist muss weg. Spricht die alte Verbindung aber noch, ist der Name belegt – dann
+    // wird die neue abgelehnt (vorher warf ein hello mit fremdem Namen den anderen hinaus).
+    const st = netCleanState(d.s);
+    if (!st) return;
+    if (netNameTaken(id, st.n)) {
+      conn.send({ t: 'full', dup: 1 });
+      setTimeout(() => conn.close(), 500);
+      return;
+    }
     const rp = netRemote(id);
     rp.heardAt = game.time;
-    netApplyState(rp, d.s);
+    netApplyState(rp, st);
     // ältere Mitspieler ohne Bereich (a) bekommen weiter die ganze Welt
-    conn.send({ t: 'welcome', host: game.player.name, mons: netWorldList(d.a ?? null), area: d.a ?? null, v: GAME_VERSION, w: WAECHTER ? 1 : 0 });
-    rp.ver = d.v || rp.ver || null;
+    // Bereich (areaKey: Nummer der Map bzw. des Dungeons) nur als ganze Zahl oder kurzer Text
+    const area = Number.isInteger(d.a) || (typeof d.a === 'string' && d.a.length <= 40) ? d.a : null;
+    conn.send({ t: 'welcome', host: game.player.name, mons: netWorldList(area), area, v: GAME_VERSION, w: WAECHTER ? 1 : 0 });
+    rp.ver = netVer(d.v) || rp.ver || null;
     // der Welt-Wächter meldet sich: ihm den Kanal abgeben (er hat jetzt die ganze Welt)
     if (d.w && !WAECHTER) {
       rp.waechter = true;
       setTimeout(netHandOver, 1500);
       return;
     }
-    netVersionCheck(d.v, rp.name, true);
+    netVersionCheck(rp.ver, rp.name, true);
     ui.chat('', `${rp.name} spielt jetzt mit.`);
     netBroadcast({ t: 'chat', n: '', x: `${rp.name} spielt jetzt mit.` }, id);
     ui.renderNet();
@@ -360,29 +528,41 @@ function netOnHostData(conn, d) {
   let rp = known;
   if (!rp) {
     // War nach langer Funkstille entfernt, meldet sich aber wieder: wieder aufnehmen
-    if (d.t !== 'st' || !d.s) return;
+    // seit 15.84 geprüft wie ein hello (sonst ließe sich die Namensprüfung mit st statt hello umgehen)
+    const st = d.t === 'st' ? netCleanState(d.s) : null;
+    if (!st || netNameTaken(id, st.n)) return;
     net.conns.set(id, conn);
     rp = netRemote(id);
     rp.heardAt = game.time;
-    netApplyState(rp, d.s);
+    netApplyState(rp, st);
     ui.renderNet();
     return;
   }
-  if (d.t === 'st') netApplyState(rp, d.s);
-  else if (d.t === 'dmg') netHostDamage(rp, d);
+  if (d.t === 'st') {
+    // seit 15.84: geprüft, und der Name bleibt der aus dem hello (eine Verbindung = eine Figur, kein Namenswechsel)
+    const st = netCleanState(d.s);
+    if (st) {
+      if (rp.realName) st.n = rp.realName;
+      netApplyState(rp, st);
+    }
+  } else if (d.t === 'dmg') netHostDamage(rp, d);
   else if (d.t === 'fx') {
     remoteSkillFx(rp, d);
     netBroadcast({ ...d, from: id }, id);
   } else if (d.t === 'rel') {
     // Nachricht an einen Spieler: an den Host selbst oder weiter an den Empfänger
+    // seit 15.84 mit dem Namen des Absenders aus seiner Verbindung (fn, netSenderName)
     if (d.to === 'host') onSocial(id, d.d);
-    else netSendTo(d.to, { t: 'rel', from: id, d: d.d });
+    else netSendTo(d.to, { t: 'rel', from: id, fn: rp.realName || rp.name, d: d.d });
   } else if (d.t === 'ult') {
     ultRemoteFx(d.u, d.x, d.y);
     netBroadcast({ t: 'ult', u: d.u, x: d.x, y: d.y }, id);
   } else if (d.t === 'chat') {
-    netReceiveChat(rp.name, d, rp);
-    netBroadcast({ t: 'chat', n: rp.name, x: d.x, c: d.c, gn: d.gn, px: d.px, py: d.py, from: id }, id);
+    // seit 15.84: nur geprüft weitergeben (netChatClean)
+    const c = netChatClean(d);
+    if (!c) return;
+    netReceiveChat(rp.name, c, rp);
+    netBroadcast({ t: 'chat', n: rp.name, x: c.x, c: c.c, gn: c.gn, px: c.px, py: c.py, from: id }, id);
   }
 }
 
@@ -413,31 +593,53 @@ function netWorldList(area = null) {
 }
 
 // Treffer eines Mitspielers: Zustände übernehmen, Schaden anrechnen
+// seit 15.84 geprüft: nur Monster in Reichweite des Spielers (NET_HIT.range um seinen gemeldeten Ort), Schaden je Treffer
+// und je Sekunde höchstens netHitCap (aus der Stufe, weit über jedem ehrlichen Treffer: der stärkste Angriff mit bester
+// Ausrüstung auf Stufe 80 liegt bei rund 1.700, die größten Faktoren aus Fertigkeit, Rang, Krit und Boni zusammen unter
+// 500 – die Grenze lässt das Doppelte bis Vierfache), Betäubung und Einfrieren höchstens 4 s (die Ulti betäubt 3,5 s),
+// Rückstoß höchstens 900 (ehrlich bis 600), Verwundbarkeit, Verlangsamung und Schaden über Zeit begrenzt. „Tödlich“ (k)
+// gilt nur, wenn das Monster danach wirklich fast tot wäre (höchstens NET_HIT.killLeft seines Lebens übrig). Vorher
+// übernahm der Host alles ungeprüft: ein präparierter Treffer tötete jeden Boss, fror ihn ewig ein oder ließ ihn mit
+// vielfacher Kraft zuschlagen (fa).
+const NET_HIT = { range: 1600, stun: 4, freeze: 4, knock: 900, dur: 30, vuln: 4, killLeft: 0.25, cap: 2000 };
+const netHitCap = (rp) => NET_HIT.cap * (120 + 27 * Math.max(1, Math.min(MAX_LEVEL, rp.level | 0)));
+const netPair = (v) => (Array.isArray(v) && v.length >= 2 ? v : null);
 function netHostDamage(rp, d) {
   // seit 14.38 über das Verzeichnis (gegner.js) statt einer Suche durch alle Monster bei jedem Treffer eines Mitspielers
   const m = monsterById(d.id);
   if (!m || m.dead) return;
-  const st = d.st || {};
+  const far = (x, y) => !(Number.isFinite(x) && Number.isFinite(y)) || hyp(x - m.x, y - m.y) > NET_HIT.range;
+  if (far(rp.tx, rp.ty) && far(rp.x, rp.y)) return;
+  const cap = netHitCap(rp);
+  const st = d.st && typeof d.st === 'object' ? d.st : {};
+  const dur = (v) => netNum(+v, 0, NET_HIT.dur);
   if (!m.isStone) {
-    if (st.s) m.stun = Math.max(m.stun, st.s);
-    if (st.kx || st.ky) { m.kx = st.kx; m.ky = st.ky; }
-    if (st.v) m.vulnerable = { mul: st.v[0], until: game.time + st.v[1] };
-    if (st.sl) setSlow(m, st.sl[0], st.sl[1]);
-    if (st.fa) m.frostAtk = { mul: Math.max(0.4, +st.fa[0] || 1), until: game.time + Math.min(4, +st.fa[1] || 0) };
+    if (st.s) m.stun = Math.max(m.stun, netNum(+st.s, 0, NET_HIT.stun));
+    if (st.kx || st.ky) { m.kx = netNum(+st.kx, -NET_HIT.knock, NET_HIT.knock); m.ky = netNum(+st.ky, -NET_HIT.knock, NET_HIT.knock); }
+    const v = netPair(st.v);
+    if (v) m.vulnerable = { mul: netNum(+v[0], 1, NET_HIT.vuln, 1), until: game.time + dur(v[1]) };
+    const sl = netPair(st.sl);
+    if (sl) setSlow(m, netNum(+sl[0], 0.05, 1, 1), dur(sl[1]));
+    const fa = netPair(st.fa);
+    if (fa) m.frostAtk = { mul: netNum(+fa[0], 0.4, 1, 1), until: game.time + Math.min(4, dur(fa[1])) };
     // by (seit 14.32): der Mitspieler hat ihn gesetzt (Schadensanzeige)
-    if (st.po) m.poison = { dps: st.po[0], until: game.time + st.po[1], tick: 0, by: rp };
-    if (st.bu) m.burn = { dps: st.bu[0], until: game.time + st.bu[1], tick: 0, by: rp };
-    if (st.bl) m.bleed = { dps: st.bl[0], until: game.time + st.bl[1], tick: 0, by: rp };
+    const po = netPair(st.po);
+    const bu = netPair(st.bu);
+    const bl = netPair(st.bl);
+    if (po) m.poison = { dps: netNum(+po[0], 0, cap), until: game.time + dur(po[1]), tick: 0, by: rp };
+    if (bu) m.burn = { dps: netNum(+bu[0], 0, cap), until: game.time + dur(bu[1]), tick: 0, by: rp };
+    if (bl) m.bleed = { dps: netNum(+bl[0], 0, cap), until: game.time + dur(bl[1]), tick: 0, by: rp };
     // Gift aus der Ausrüstung (seit 14.15): erneuert die Dauer, der höhere Tickwert bleibt
-    if (st.tx) {
+    const tx = netPair(st.tx);
+    if (tx) {
       const old = m.toxin && m.toxin.until > game.time ? m.toxin : null;
-      m.toxin = { dps: Math.max(+st.tx[0] || 1, old ? old.dps : 0), until: game.time + Math.min(TOXIN.dur, +st.tx[1] || 0), tick: old ? old.tick : 0, by: rp };
+      m.toxin = { dps: Math.max(netNum(+tx[0], 1, cap, 1), old ? old.dps : 0), until: game.time + Math.min(TOXIN.dur, dur(tx[1])), tick: old ? old.tick : 0, by: rp };
     }
     // Einfrieren (seit 8.6, Magier): Restdauer im Eis (nie kürzen: der Mitspieler sieht fremdes Eis nur kurz gespiegelt),
     // uf = die Frostlanze hat das Eis zerschlagen
     if (st.fz) {
       if (!(m.frozen > game.time)) m.frozenT = game.time;
-      m.frozen = Math.max(m.frozen || 0, game.time + st.fz);
+      m.frozen = Math.max(m.frozen || 0, game.time + netNum(+st.fz, 0, NET_HIT.freeze));
     }
     if (st.uf) { m.frozen = 0; m.stun = 0; }
   }
@@ -446,13 +648,14 @@ function netHostDamage(rp, d) {
   const src = d.al != null && rp.allies ? rp.allies.find((a) => a.slot === (d.al | 0)) || rp : rp;
   // seit 14.32: Beteiligung merken (jede Treffermeldung, auch ohne Schaden – Betäuben, Verlangsamen, Gift)
   netTag(m, rp.name);
+  const a = netNum(+d.a, 0, cap);
   // Hält der Mitspieler den Treffer für tödlich, stirbt das Monster – auch wenn der Host noch etwas mehr
   // Leben sieht (Zeitversatz, Erholen beim Zurücklaufen). Sonst stünde es beim Mitspieler mit wenig Leben wieder auf.
-  if (d.k && d.a > 0) {
-    damageMonster(m, Math.max(d.a, Math.ceil(m.hp)), !!d.c, src, false);
+  if (d.k && a > 0 && m.hp - a <= Math.max(1, (m.maxHp || 0) * NET_HIT.killLeft)) {
+    damageMonster(m, Math.max(a, Math.ceil(m.hp)), !!d.c, src, false);
     return;
   }
-  if (d.a > 0) damageMonster(m, d.a, !!d.c, src, false);
+  if (a > 0) damageMonster(m, a, !!d.c, src, false);
   else aggro(m, src);
 }
 
@@ -545,20 +748,22 @@ function netOnClientData(d) {
     case 'welcome': {
       net.mode = 'client';
       net.autoJoin = false;
-      net.hostName = d.host;
+      // seit 15.84: Name und Version des Hosts nur geprüft (Text bzw. Versionsform) – beides erscheint in Hinweisen
+      net.hostName = netStr(d.host, 16);
+      net.dupTries = 0;
       // seit 14.72: Version und Art des Hosts merken – beim Welt-Wächter fehlt sein Eintrag in net.players (er hat keine
       // Figur), die Prüfungsarena las den Stand des Hosts aber nur dort und hielt ihn darum für „ältere Version“
-      net.hostVer = d.v || null;
+      net.hostVer = netVer(d.v);
       net.hostWaechter = !!d.w;
-      netRemote('host').ver = d.v || null;
-      netVersionCheck(d.v, d.host, false);
+      netRemote('host').ver = net.hostVer;
+      netVersionCheck(net.hostVer, net.hostName, false);
       // Host ist der Welt-Wächter: keine Figur von ihm anzeigen, bei einem Hostwechsel auf ihn warten
       if (d.w) {
         net.waechterSeen = true;
         net.players.delete('host');
       }
       net.lastSnapAt = performance.now();
-      game.monsters = d.mons.map(netBuildMonster);
+      game.monsters = (Array.isArray(d.mons) ? d.mons : []).filter(Array.isArray).map(netBuildMonster);
       net.mons = new Map(game.monsters.map((m) => [m.id, m]));
       // geladene Bereiche (null: der Host schickt noch die ganze Welt)
       net.areas = new Set([d.area ?? 'all']);
@@ -591,8 +796,18 @@ function netOnClientData(d) {
       break;
     }
     case 'full': {
-      // seit 14.4: beim automatischen Beitreten gleich den nächsten Kanal versuchen
       const srv = net.server;
+      // seit 15.84: dup – dieselbe Figur ist im Kanal noch online (alte Verbindung spricht noch): kurz warten, noch einmal
+      if (d.dup) {
+        const ch = net.channel;
+        const n = (net.dupTries = (net.dupTries || 0) + 1);
+        ui.log(n <= 3 ? 'Diese Figur ist in diesem Kanal noch online. Neuer Versuch in 5 Sekunden …' : 'Diese Figur ist in diesem Kanal schon online.', 'warn');
+        net.hostConn = null;
+        netStop(true);
+        if (n <= 3) setTimeout(() => { if (net.mode === 'off' && game.player) netJoinChannel(srv, ch); }, 5000);
+        break;
+      }
+      // seit 14.4: beim automatischen Beitreten gleich den nächsten Kanal versuchen
       const sv = SERVERS.find((x) => x.id === srv);
       const next = net.autoJoin && sv && net.channel < sv.channels ? net.channel + 1 : 0;
       ui.log(`Kanal ${net.channel} ist voll (höchstens ${NET_MAX} Spieler).${next ? ` Du kommst in Kanal ${next}.` : ' Versuch einen anderen Kanal.'}`, 'warn');
@@ -712,6 +927,11 @@ function netOnClientData(d) {
       remoteSkillFx(net.players.get(d.from), d);
       break;
     case 'rel':
+      // seit 15.84: Name des Absenders, wie ihn der Host aus der Verbindung kennt (netSenderName)
+      if (typeof d.fn === 'string' && d.from != null) {
+        if (netRelayNames.size > 500) netRelayNames.clear();
+        netRelayNames.set(d.from, d.fn.slice(0, 16));
+      }
       onSocial(d.from, d.d);
       break;
     // seit 14.32: vom Host bestätigter eigener Schaden (Schadensanzeige, schadensmeter.js)
@@ -723,10 +943,15 @@ function netOnClientData(d) {
       net.ping = net.ping ? net.ping * 0.6 + rtt * 0.4 : rtt;
       break;
     }
-    case 'chat':
-      if (d.n) netReceiveChat(d.n, d, d.from ? net.players.get(d.from) : (d.n === net.hostName ? net.players.get('host') : null));
-      else ui.chat('', d.x);
+    case 'chat': {
+      // seit 15.84 geprüft (netChatClean)
+      const c = netChatClean(d);
+      if (!c) break;
+      const n = netStr(d.n, 16);
+      if (n) netReceiveChat(n, c, d.from ? net.players.get(d.from) : (n === net.hostName ? net.players.get('host') : null));
+      else ui.chat('', c.x);
       break;
+    }
   }
 }
 
@@ -754,7 +979,9 @@ function netBuildMonster(e) {
 }
 
 function netApplySnapshot(d) {
-  for (const e of d.m) {
+  // seit 15.84: nur Listen (ein Zustand mit falschem Typ warf vorher bei jedem Bild)
+  for (const e of Array.isArray(d.m) ? d.m : []) {
+    if (!Array.isArray(e)) continue;
     let m = net.mons.get(e[0]);
     if (!m) {
       if (e.length < 8) continue;
@@ -824,9 +1051,13 @@ function netApplySnapshot(d) {
     if (wasDead && !m.dead) { m.x = m.tx; m.y = m.ty; }
   }
   const seen = new Set();
-  for (const [pid, s] of d.p) {
-    seen.add(pid);
-    netApplyState(netRemote(pid), s);
+  // seit 15.84: jeder Zustand geprüft (netCleanState); Einträge ohne gültige Kennung fallen weg
+  for (const e of Array.isArray(d.p) ? d.p : []) {
+    if (!Array.isArray(e) || typeof e[0] !== 'string' || e[0].length > 40) continue;
+    const st = netCleanState(e[1]);
+    if (!st) continue;
+    seen.add(e[0]);
+    netApplyState(netRemote(e[0]), st);
   }
   // nur eine vollständige Liste (f ≠ 0; ältere Hosts schicken kein f) entfernt Spieler, die fehlen
   if (d.f !== 0) for (const pid of [...net.players.keys()]) if (!seen.has(pid)) net.players.delete(pid);
@@ -886,7 +1117,9 @@ function netClientDamage(m, amount, crit, isDot, source) {
 // Unterschiedliche Spielversionen im Kanal: Hinweis im Chat und Knopf zum Neuladen für den, der veraltet ist.
 // Der Host rechnet die Monster – mit einer alten Host-Version sind sie für alle zu schwach.
 function netVersionCheck(other, name, iAmHost) {
-  const v = other || '?';
+  // seit 15.84: nur Versionen in der Form 15.84 (sonst „?“) – der Text landet im Hinweis oben (showUpdateBar, spiel.js)
+  const v = netVer(other) || '?';
+  name = netStr(String(name || ''), 16) || '?';
   if (v === GAME_VERSION) return;
   if (v === '?' || versionNewer(GAME_VERSION, v)) {
     ui.chat('', iAmHost
@@ -1060,7 +1293,8 @@ function netApplyState(rp, s) {
   rp.gs = s.gs | 0;
   rp.rk = s.rk | 0;
   rp.classId = CLASSES[s.c] ? s.c : 'krieger';
-  rp.level = s.l;
+  // seit 15.84 immer eine Zahl 1..MAX_LEVEL (der Zustand ist schon geprüft, netCleanState; hier zur Sicherheit noch einmal)
+  rp.level = netInt(s.l, 1, MAX_LEVEL, 1);
   // Weg bzw. Element (seit 8.6): Figur nur bei einem Wechsel neu bauen; ältere Clients senden kein pt (Magier dann Arkan-Blau)
   const np = s.pt ?? null;
   if (np !== rp.path) { rp.path = np; rp.modelDirty = true; }
@@ -1101,7 +1335,7 @@ function netApplyState(rp, s) {
   if (gName !== rp.guild) rp.guildSynced = false;
   rp.guild = gName;
   if (!first) guildSeen(rp.peerId, rp);
-  rp.buffs = (s.b || []).map(([id, lvl, left]) => ({ id, lvl, until: game.time + left, duration: left, effects: {} }));
+  rp.buffs = (Array.isArray(s.b) ? s.b : []).filter(Array.isArray).map(([id, lvl, left]) => ({ id, lvl, until: game.time + left, duration: left, effects: {} }));
   if (s.sw && s.sw[0] !== rp.seq) {
     if (!first) {
       rp.swingKind = typeof s.sw[1] === 'string' ? s.sw[1] : 'combo';
@@ -1121,7 +1355,8 @@ function netApplyState(rp, s) {
     rp.seq = s.sw[0];
   }
   if (s.sp) rp.spin = 0.2;
-  netRemoteAllies(rp, Array.isArray(s.al) ? s.al : NET_NO_ALLIES);
+  // seit 15.84 nur Einträge als Liste (ein anderer Eintrag warf hier bei jedem Zustand)
+  netRemoteAllies(rp, Array.isArray(s.al) ? s.al.filter(Array.isArray) : NET_NO_ALLIES);
 }
 
 const NET_NO_ALLIES = [];
@@ -1275,6 +1510,7 @@ function netUpdate(dt) {
 function netStop(silent, reason, keepWorld) {
   const was = net.mode;
   net.mode = 'off';
+  netRelayNames.clear(); // seit 15.84 (netSenderName)
   for (const c of net.conns.values()) { try { c.close(); } catch (e) { /* schon zu */ } }
   if (net.hostConn) { try { net.hostConn.close(); } catch (e) { /* schon zu */ } }
   if (net.peer) { try { net.peer.destroy(); } catch (e) { /* schon zu */ } }
@@ -1317,6 +1553,17 @@ function netChat(text, c = ui.chatChan || 'g') {
   netShowChat(p.name, text, p, c);
   if (net.mode === 'host') netBroadcast(Object.assign(msg, { n: p.name, from: 'host' }));
   else if (net.mode === 'client') netSend(msg);
+}
+
+// seit 15.84: Chatnachricht aus dem Netz prüfen – Kanal nur g, gi oder o (ein anderer Wert brach die Chatliste, ui.chat),
+// Text höchstens 120 Zeichen wie beim Schreiben (netChat), Gildenname als Text, Ort als Zahl. null = ungültig.
+const NET_CHAT_CHANNELS = ['g', 'gi', 'o'];
+function netChatClean(d) {
+  if (!d || (typeof d.x !== 'string' && typeof d.x !== 'number')) return null;
+  const x = String(d.x).slice(0, 120);
+  if (!x) return null;
+  const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : undefined);
+  return { x, c: NET_CHAT_CHANNELS.includes(d.c) ? d.c : 'g', gn: typeof d.gn === 'string' ? d.gn.slice(0, 16) : undefined, px: num(d.px), py: num(d.py) };
 }
 
 // Empfangene Nachricht nur zeigen, wenn sie für uns ist (gleiche Gilde, in der Nähe)

@@ -115,7 +115,7 @@ setInterval(erfCheck, 3000);
 if (typeof turmFinalLoot === 'function') {
   const _erfTurm = turmFinalLoot;
   turmFinalLoot = function (m) {
-    const D = typeof diffNow === 'function' ? diffNow() : null;
+    const D = typeof diffLoot === 'function' ? diffLoot() : null;
     const r = _erfTurm(m);
     erfZaehl('turm');
     if (D && D.id >= 2) erfZaehl('myth');

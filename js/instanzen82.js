@@ -260,7 +260,7 @@ if (typeof BOSS3 !== 'undefined' && typeof bsWardReg3 === 'function') {
   MON3_BUILD.grimmholt = (b) => bsKnight3(b, 'grimmholt', {
     plate: '#4a5650', plateTop: '#7a8a80', plateD: '#2a3430', trim: '#a8884a', glow: '#ffe8a0', eye: '#ffe8a0', cape: '#1e2a26', capeEdge: '#a8d8b0',
     grip: '#2a2018', blade: '#5a625c', bladeTop: '#9aa29a', weed: '#3a4a2a', weedTop: '#5a6a3a', shell: '#d8d0c0', rust: '#6a4a2a',
-    helm: 'bucket', drowned: true, blade: 'broken', torn: true, worldH: 5.4
+    helm: 'bucket', drowned: true, bladeForm: 'broken', torn: true, worldH: 5.4
   });
   BOSS3.grimmholt = Object.assign({}, BS_KNIGHT_BOSS3, {
     fx: 'nebel', emi: [0.06, 0.06, 0.03],
@@ -297,7 +297,7 @@ if (typeof BOSS3 !== 'undefined' && typeof bsWardReg3 === 'function') {
   // Kapitän Haldor Nebelbart: Geisterkapitän mit breitem Hut, Bart aus Nebel, Mantel, Säbel; Nebel steigt um ihn auf,
   // eine Laterne leuchtet an seinem Gürtel
   bsWardReg3('haldor', {
-    frame: 'man', head: 'bandit', beard: 'cloud', pad: 'cloth', cape: true, torn: true, boots: true, weapon: 'saber', weaponK: 1.35, straps: true, loinL: 0.75, loinCol: '#1e2624',
+    frame: 'man', head: 'bandit', beardForm: 'cloud', pad: 'cloth', cape: true, torn: true, boots: true, weapon: 'saber', weaponK: 1.35, straps: true, loinL: 0.75, loinCol: '#1e2624',
     skin: '#8a9a90', skinTop: '#b4c4ba', torso: '#22302c', armCol: '#22302c', legCol: '#1a2220', handCol: '#2a3430', boots: '#141a18',
     cloth: '#2e3e38', clothTop: '#4a5e56', clothD: '#121a16', cape: '#1a2420', capeEdge: '#a8d8b0', hair: '#c8d4cc', mask: '#1e2a26', maskTop: '#3a4a44',
     hat: '#161c1a', hatTop: '#2e3632', band: '#c8a050', feather: '#d8e8e0', featherTop: '#a8d8b0', gold: '#c8a050', metal: '#a8b8b0', metalTop: '#f0fff8',
@@ -392,7 +392,7 @@ if (typeof BOSS3 !== 'undefined' && typeof bsWardReg3 === 'function') {
   });
   // Hrodmar Wolkenbart: Riese mit weißem Wolkenbart, goldenen Schulterstücken und Sturmstab; über ihm eine helle Wolke
   bsWardReg3('hrodmar', {
-    frame: 'giant', head: 'giant', beard: 'cloud', pad: 'iron', cape: true, weapon: 'staff', weaponK: 1.2,
+    frame: 'giant', head: 'giant', beardForm: 'cloud', pad: 'iron', cape: true, weapon: 'staff', weaponK: 1.2,
     skin: '#c8d4e4', skinTop: '#eef4ff', eye: '#3a8ae8', beard: '#ffffff', beard2: '#d8e4f4', hair: '#e8f0ff', vein: '#bfe4ff', iron: '#c8a050', ironTop: '#ffe8a0',
     gold: '#ffd36a', cape: '#5a7aa8', capeEdge: '#ffffff', wood: '#8a7a6a', glow: '#e8f6ff', belt: '#6a5a3a', cloth: '#4a6a98', band: '#c8a050', bandTop: '#ffe8a0', worldH: 5.2
   }, {

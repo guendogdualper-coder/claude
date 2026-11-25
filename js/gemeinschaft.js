@@ -4,6 +4,37 @@
 // eigenen Spielstand; Mitspieler tauschen Anfragen und Mitgliederlisten über den Host aus.
 
 const GUILD = { level: 40, price: 5000, maxMembers: 30 };
+// seit 15.84: höchstens so viele Freunde; offene Anfragen höchstens so viele
+const FRIENDS_MAX = 200;
+const PENDING_MAX = 30;
+// seit 15.84: eigene offene Anfragen je Mitspieler-Kennung (Freundschaft fr, Gildeneinladung gi). Eine Zusage ('fa', 'ga')
+// gilt nur, wenn man selbst diesen Spieler gefragt hat – vorher trug sich jeder selbst als Freund oder Mitglied ein.
+const SOCIAL_ASKED = { fr: new Map(), gi: new Map() };
+// seit 15.84: Werte aus dem Netz prüfen (Klasse aus CLASSES, Stufe 1..MAX_LEVEL, Namen als einfacher Text)
+const socialCls = (c) => (typeof c === 'string' && Object.prototype.hasOwnProperty.call(CLASSES, c) ? c : 'krieger');
+const socialLvl = (l) => Math.max(1, Math.min(MAX_LEVEL, Math.round(+l || 1)));
+const socialName = (n) => (typeof n === 'string' && /^[^<>&"'\u0000-\u001f]{1,16}$/.test(n) ? n : '');
+function guildMemberClean(m) {
+  const n = m && typeof m === 'object' ? socialName(m.n) : '';
+  return n ? { n, c: socialCls(m.c), l: socialLvl(m.l), r: m.r === 'Anführer' ? 'Anführer' : 'Mitglied' } : null;
+}
+// Mitgliederliste aus dem Netz: nur Einträge mit gültigem Namen, ohne Doppelte, höchstens GUILD.maxMembers
+function guildListClean(list) {
+  const out = [];
+  for (const m of Array.isArray(list) ? list.slice(0, GUILD.maxMembers) : []) {
+    const x = guildMemberClean(m);
+    if (x && !out.some((y) => y.n === x.n)) out.push(x);
+  }
+  return out;
+}
+// Gildeneinladung prüfen: gültiger Gildenname (wie beim Gründen), Anführer ist der Absender selbst
+function guildInviteClean(g, sender) {
+  const name = g && typeof g === 'object' && typeof g.name === 'string' ? g.name.trim() : '';
+  if (name.length < 3 || name.length > 16 || !/^[\p{L}\p{N} '-]+$/u.test(name)) return null;
+  if (typeof nameAnstoessig === 'function' && nameAnstoessig(name)) return null;
+  if (!sender || g.leader !== sender) return null;
+  return { name, leader: sender, members: guildListClean(g.members) };
+}
 
 // Farbe und Zeichen einer Gilde aus ihrem Namen
 function guildColor(name) {
@@ -73,34 +104,53 @@ function onSocial(pid, d) {
     onParty(pid, d);
     return;
   }
-  const rp = net.players.get(pid);
-  const name = d.n || (rp && rp.name) || '?';
+  // seit 15.84: Absender aus der Verbindung (netSenderName, netz.js) – d.n ließ sich frei wählen (Austritt anderer,
+  // Rauswurf im Namen des Anführers). Ohne bekannten Absender gilt keine dieser Nachrichten.
+  if (!/^(fr|fa|gi|ga|gs|gk|gl)$/.test(d.k)) return;
+  const name = typeof netSenderName === 'function' ? netSenderName(pid) : '';
+  if (!name) return;
   if (d.k === 'fr') {
     if (isFriend(name)) {
       netSocial(pid, { k: 'fa', n: p.name, c: p.classId, l: p.level });
       return;
     }
-    social.addPending({ type: 'friend', pid, name, c: d.c, l: d.l });
+    social.addPending({ type: 'friend', pid, name, c: socialCls(d.c), l: socialLvl(d.l) });
     ui.log(`${name} möchte dein Freund sein. Öffne Freunde & Gilde (G).`, 'level');
   } else if (d.k === 'fa') {
-    addFriend({ n: name, c: d.c, l: d.l });
-    ui.log(`${name} ist jetzt dein Freund.`, 'level');
+    // seit 15.84: nur auf eine eigene offene Anfrage an diesen Spieler
+    if (!SOCIAL_ASKED.fr.delete(pid)) return;
+    if (addFriend({ n: name, c: socialCls(d.c), l: socialLvl(d.l) })) ui.log(`${name} ist jetzt dein Freund.`, 'level');
   } else if (d.k === 'gi') {
     if (p.guild) return;
-    social.addPending({ type: 'guild', pid, name, g: d.g });
-    ui.log(`${name} lädt dich in die Gilde „${d.g.name}“ ein. Öffne Freunde & Gilde (G).`, 'level');
+    // seit 15.84: nur vom Anführer selbst, Gilde geprüft (Name, Mitgliederliste gekappt)
+    const g = guildInviteClean(d.g, name);
+    if (!g) return;
+    social.addPending({ type: 'guild', pid, name, g });
+    ui.log(`${name} lädt dich in die Gilde „${g.name}“ ein. Öffne Freunde & Gilde (G).`, 'level');
   } else if (d.k === 'ga') {
     if (!p.guild) return;
-    addGuildMember({ n: name, c: d.c, l: d.l, r: 'Mitglied' });
+    // seit 15.84: nur auf eine eigene Einladung an diesen Spieler; höchstens GUILD.maxMembers
+    if (!SOCIAL_ASKED.gi.delete(pid)) return;
+    if (p.guild.members.length >= GUILD.maxMembers && !p.guild.members.some((m) => m.n === name)) return;
+    addGuildMember({ n: name, c: socialCls(d.c), l: socialLvl(d.l), r: 'Mitglied' });
     ui.log(`${name} ist der Gilde beigetreten.`, 'level');
     netSocial(pid, { k: 'gs', g: p.guild });
+    // seit 15.84: auch die übrigen Mitglieder im Kanal bekommen die neue Liste (Unbekannte trägt guildSeen nicht mehr ein)
+    for (const m of p.guild.members) {
+      if (m.n === p.name || m.n === name) continue;
+      const on = onlinePlayer(m.n);
+      if (on && on.pid !== pid) netSocial(on.pid, { k: 'gs', g: p.guild });
+    }
   } else if (d.k === 'gs') {
     if (!p.guild || !d.g || d.g.name !== p.guild.name) return;
-    for (const m of d.g.members || []) {
+    // seit 15.84: nur von bekannten Mitgliedern; Liste geprüft und gekappt, die Gilde wächst höchstens bis maxMembers
+    const left = p.guild.left || [];
+    if (!p.guild.members.some((m) => m.n === name) || left.includes(name)) return;
+    for (const m of guildListClean(d.g.members)) {
       const old = p.guild.members.find((x) => x.n === m.n);
       // seit 14.65: höhere Stufe aus der Liste des anderen übernehmen (Stufen steigen nur)
       if (old) { if ((m.l || 0) > (old.l || 0)) { old.l = m.l; old.c = m.c || old.c; } }
-      else if (!(p.guild.left || []).includes(m.n)) p.guild.members.push(m);
+      else if (!left.includes(m.n) && p.guild.members.length < GUILD.maxMembers) p.guild.members.push(Object.assign(m, { r: m.n === p.guild.leader ? 'Anführer' : 'Mitglied' }));
     }
     guildSelfSync();
     saveGame();
@@ -114,8 +164,10 @@ function onSocial(pid, d) {
     }
   } else if (d.k === 'gl') {
     if (p.guild) {
+      // seit 15.84: nur der Absender selbst tritt aus; einen neuen Anführer bestimmt nur der bisherige, unter den Mitgliedern
+      const wasLeader = p.guild.leader === name;
       p.guild.members = p.guild.members.filter((m) => m.n !== name);
-      if (d.leader) {
+      if (d.leader && wasLeader && typeof d.leader === 'string' && p.guild.members.some((m) => m.n === d.leader)) {
         p.guild.leader = d.leader;
         const nl = p.guild.members.find((m) => m.n === d.leader);
         if (nl) nl.r = 'Anführer';
@@ -160,7 +212,11 @@ function guildNameCheck() {
 function guildSeen(pid, rp) {
   const p = game.player;
   if (!p || !p.guild || rp.guild !== p.guild.name) return;
-  const me = p.guild.members.find((m) => m.n === rp.name);
+  // seit 15.84: nur bekannte Mitglieder (echter Name aus dem Zustand). Wer bloß den Gildennamen im Zustand trägt, kommt
+  // nicht mehr von selbst in die Liste und bekommt sie auch nicht – neue Mitglieder kommen über die Einladung ('ga') und
+  // über die Listen bekannter Mitglieder ('gs')
+  const me = p.guild.members.find((m) => m.n === (rp.realName || rp.name));
+  if (!me) return;
   // seit 14.65: Stufe und Klasse der Mitglieder bleiben aktuell (vorher nur beim ersten Sehen je Sitzung)
   if (rp.guildSynced) {
     if (me && (me.l !== rp.level || me.c !== rp.classId)) {
@@ -171,12 +227,8 @@ function guildSeen(pid, rp) {
     return;
   }
   rp.guildSynced = true;
-  if (me) {
-    me.l = rp.level;
-    me.c = rp.classId;
-  } else if (!(p.guild.left || []).includes(rp.name)) {
-    p.guild.members.push({ n: rp.name, c: rp.classId, l: rp.level, r: 'Mitglied' });
-  }
+  me.l = rp.level;
+  me.c = rp.classId;
   netSocial(pid, { k: 'gs', g: p.guild });
 }
 
@@ -186,20 +238,26 @@ function isFriend(name) {
   return (game.player.friends || []).some((f) => f.n === name);
 }
 
+// Rückgabe (seit 15.84): false, wenn die Freundesliste schon voll ist (FRIENDS_MAX)
 function addFriend(f) {
   const p = game.player;
   p.friends = p.friends || [];
   const old = p.friends.find((x) => x.n === f.n);
   if (old) Object.assign(old, f);
-  else p.friends.push(f);
+  else if (p.friends.length >= FRIENDS_MAX) {
+    ui.log(`Deine Freundesliste ist voll (höchstens ${FRIENDS_MAX}).`, 'warn');
+    return false;
+  } else p.friends.push(f);
   saveGame();
   social.refresh();
+  return true;
 }
 
 function askFriend(pid) {
   const p = game.player;
   const rp = net.players.get(pid);
   if (!rp) return;
+  SOCIAL_ASKED.fr.set(pid, Date.now()); // seit 15.84: nur dann gilt die Zusage ('fa')
   netSocial(pid, { k: 'fr', n: p.name, c: p.classId, l: p.level });
   social.message(`Anfrage an ${rp.name} geschickt.`, 'success');
 }
@@ -251,6 +309,7 @@ function inviteGuild(pid) {
     social.message(`Eine Gilde hat höchstens ${GUILD.maxMembers} Mitglieder.`, 'warn');
     return;
   }
+  SOCIAL_ASKED.gi.set(pid, Date.now()); // seit 15.84: nur dann gilt der Beitritt ('ga')
   netSocial(pid, { k: 'gi', n: p.name, g: { name: p.guild.name, leader: p.guild.leader, members: p.guild.members } });
   social.message(`Einladung an ${rp.name} geschickt.`, 'success');
 }
@@ -291,6 +350,8 @@ const social = {
 
   addPending(entry) {
     this.pending = this.pending.filter((x) => !(x.type === entry.type && x.name === entry.name));
+    // seit 15.84: höchstens PENDING_MAX offene Anfragen (die älteste fällt weg)
+    if (this.pending.length >= PENDING_MAX) this.pending.shift();
     this.pending.push(entry);
     this.badge();
     this.refresh();
@@ -321,8 +382,11 @@ const social = {
     el.className = 'gear-msg ' + type;
   },
 
+  // seit 15.84: Klasse nur aus CLASSES, Stufe immer als Zahl (die Werte kommen auch aus dem Netz)
   classLine(c, l) {
-    return `${CLASSES[c] ? CLASSES[c].name : '?'} · Stufe ${l || '?'}`;
+    const C = typeof c === 'string' && Object.prototype.hasOwnProperty.call(CLASSES, c) ? CLASSES[c] : null;
+    const lv = Math.round(+l || 0);
+    return `${C ? C.name : '?'} · Stufe ${lv > 0 ? lv : '?'}`;
   },
 
   render() {

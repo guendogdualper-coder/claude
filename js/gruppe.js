@@ -166,7 +166,9 @@ function partyShareRift(x, y, k, life) {
 function onParty(pid, d) {
   const p = game.player;
   const rp = net.players.get(pid);
-  const name = d.n || (rp && rp.name) || '?';
+  // seit 15.84: Absender aus der Verbindung (netSenderName, netz.js) – d.n ließ sich frei wählen (z. B. „Anführer“ für
+  // ps oder ein fremdes Mitglied für pl); nur ohne bekannte Verbindung (Host einer älteren Version) wie bisher
+  const name = (typeof netSenderName === 'function' && netSenderName(pid)) || String(d.n || (rp && rp.name) || '?').slice(0, 16);
   switch (d.k) {
     case 'pi':
       if (game.party && game.party.members.length > 1) {

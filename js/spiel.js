@@ -1,6 +1,6 @@
 // Spielzustand und Hauptschleife. Diese Datei wird als letzte geladen und startet alles.
 
-const GAME_VERSION = '15.83';
+const GAME_VERSION = '15.84';
 
 const game = {
   world: null,
@@ -422,8 +422,16 @@ function showUpdateBar(v, why) {
     bar.className = 'update-bar';
     document.body.append(bar);
   }
-  bar.innerHTML = `<span>${why || `Neue Version ${v} ist da.`}</span><button type="button" class="btn btn-primary">Jetzt neu laden</button>`;
-  bar.querySelector('button').addEventListener('click', () => {
+  // seit 15.84 nur als Text: Version und Name kommen auch von Mitspielern (netVersionCheck, netz.js)
+  bar.textContent = '';
+  const span = document.createElement('span');
+  span.textContent = why || `Neue Version ${v} ist da.`;
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'btn btn-primary';
+  btn.textContent = 'Jetzt neu laden';
+  bar.append(span, btn);
+  btn.addEventListener('click', () => {
     if (game.running) saveGame();
     location.reload();
   });

@@ -222,11 +222,13 @@ function evSaisonCheck(p) {
     ui.banner('Saisonende', `${evSaisonName(alt)} · ${tier.name}`);
     ui.log(`Saisonende · ${evSaisonName(alt)} · ${tier.name} · ${evLohnText(L)}`, 'level');
   }
-  A.pts = Math.round(((A.pts | 0) * EV.saison.rest) / 25) * 25;
+  const vor = A.pts | 0;
+  A.pts = Math.round((vor * EV.saison.rest) / 25) * 25;
   A.sz = cur.n;
   A.sg0 = kaempfe();
   A.sbest = A.pts;
-  if (cur.n) ui.log(`${evSaisonName(cur.n)} hat begonnen · deine Rangpunkte wurden halbiert (${evDe(A.pts)})`, 'info');
+  // seit 15.84 nur, wer auch Punkte hatte (neue Charaktere bekamen die Meldung sonst grundlos)
+  if (cur.n && vor > 0) ui.log(`${evSaisonName(cur.n)} hat begonnen · deine Rangpunkte wurden halbiert (${evDe(A.pts)})`, 'info');
   saveGame();
 }
 function evSaisonHtml(A) {

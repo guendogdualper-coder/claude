@@ -2,6 +2,11 @@
 <html lang="de">
 <head>
   <meta charset="utf-8">
+  <!-- seit 15.84: Inhaltsrichtlinie (CSP, docs/sicherheit-15.84.md): Skripte, Bilder, Klänge und Schriften nur vom eigenen
+       Server, Verbindungen nur zum Konto (Firebase), zu den Vermittlern (MQTT) und zur eigenen Adresse. Inline-Stile bleiben
+       erlaubt (das Spiel setzt viele), Inline-Skripte nicht. Wer das Werbenetz einschaltet (js/werbung.js), muss die Liste
+       erweitern (siehe Doku). -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; media-src 'self' blob:; connect-src 'self' https://*.firebasedatabase.app https://*.firebaseio.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://seelenstein.online wss://server.seelenstein.online wss://broker.hivemq.com:8884 wss://broker.emqx.io:8084; worker-src 'self'; manifest-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
   <title>Seelenstein</title>
   <meta name="description" content="Ein Rollenspiel im Browser: Klasse wählen, Monster farmen, Seelensteine zerstören, aufsteigen.">
@@ -347,6 +352,7 @@
       <li>Einstellungen (Zahnrad oben rechts oder Taste O): Klänge und Lautstärke, Grafikqualität (Hoch, Mittel, Niedrig spart Akku), Kamera (Nah, Normal, Weit), Bildschirmwackeln, Schadenszahlen, Namen der Bewohner und Vibration; dazu Aussehen ändern, Server, Hilfe und zurück zum Startbildschirm.</li>
       <li>Aussehen: Bei der Erstellung wählst du Frisur (Kurz, Dutt, Lang, Stachelig, Pferdeschwanz, Glatze), Haarfarbe, Hautfarbe, Augenform, Augenfarbe und Gesichtszeichen; die Vorschau dreht sich beim Antippen. Später änderst du es im Charakterfenster mit „Aussehen ändern“. Mitspieler sehen dein Aussehen.</li>
       <li>Unter der Karte zeigt das Funkzeichen deinen Ping: im Kanal zum Host, allein zum Spielserver; ohne Internet steht dort „offline“.</li>
+      <li>Version 15.84 – Großes Update: <b>Begleiter</b> füllen deine Gruppe in Dungeons, Endboss-Hallen, Instanzen, Höllenthron und Turm auf, wenn du allein spielst. <b>Rissläufe</b> ab Stufe 80 bei der Rissmeisterin: jeder Lauf neu gewürfelt, mit Zeitlimit, Schlüsselstufen und wöchentlich wechselnden Regeln. <b>Stadt-Angriffe</b> alle 2–3 Stunden: Verteidige das Tor mit den Stadtwachen, Belohnung nach deinem Beitrag. <b>Gilden</b> steigen bis Stufe 10 auf und geben Boni auf Erfahrung und Gold; dazu ein wöchentlicher <b>Gildenboss</b> in der eigenen Gildenhalle und die <b>Grenzschlacht</b> (täglich 19 und 21 Uhr) mit Ehrentausch. Neu im Charakterfenster unter „Sammlung“: <b>Garderobe</b> (Aussehen gesammelter Teile übertragen), <b>10 Haustiere</b> und <b>6 Emotes</b> (auch per /winken, /tanzen …). <b>Erinnerungen</b> an Tagesbelohnung, Weltbosse und Saisonende als Benachrichtigung (auf Wunsch). <b>Sicherheit</b>: Post, Auktionshaus, Handel, Betrachten, Gilden und das Netz prüfen alle Daten von außen genau. <b>Fehler behoben</b>: Die Schwierigkeit lässt sich nur noch vor Instanz oder Turm wechseln, die Turm-Truhe gibt auf Mythisch auch beim Hinausgehen Mythisch-Beute, Sammler und Amethyst wirken auf alle gefundenen Seelensplitter, neue Charaktere bekommen keine falsche Saison-Meldung mehr, und sechs Bosse haben wieder ihre richtige Klinge bzw. ihren Bart.</li>
       <li>Version 15.83 – Prüfungsarena sanfter: Am Anfang etwas weniger Monster (Welle 1: 10 statt 12), danach kommen sie langsamer dazu (Welle 8: 24 statt 27, das Maximum erst ab Welle 14). Die Monster jagen dich nicht mehr ab Welle 8, sondern erst ab Welle 10 – und zuerst sanft: Sie holen langsamer auf, nur ein Teil von ihnen stürmt auf dich zu, und das nur halb so oft. Ab Welle 14 wird es wieder härter. Auch die Stärke steigt bis Welle 8 sanfter.</li>
       <li>Version 15.82 – Schönere Kristalle und mehr Details: Im Kristallabgrund wachsen jetzt facettierte Kristall-Gruppen mit kleinen Begleitern auf Felssockeln statt Kegeln, mit Farbverlauf und Licht von innen – auf der ganzen Karte, auf den Felsen und als Kristallbäume in 2D. Über dem Abgrund schweben Kristalldrusen, über Lichtwacht eine neue Krone mit goldgefassten Kristallen und einem Herzkristall. Alle Kristalle auf allen Karten haben die neue Form. In 2D ist der Bodenschmuck neu gemalt, Totenmoor und Schwarzmoor haben Leuchtpilze. Alle 19 Städte bekommen Blumenkästen unter den Fenstern und Vogelschwärme über den Dächern.</li>
       <li>Version 15.81 – Turnierarena gegen Bots: Beim Turniermeister startet „Gegen Bots“ sofort einen Kampf (1 gegen 1, 2 gegen 2, 3 gegen 3 oder Turmschlacht), auch ohne Server. Findet die Warteschlange 20 Sekunden lang nicht genug Spieler, füllen Bots automatisch auf – als Gegner und als Mitspieler. Bots sehen aus wie Spieler, haben deine Stufe und eine Ausrüstung wie deine, nutzen Fertigkeiten und Tränke und werden mit deinem Rang stärker. Ranglisten-Kämpfe gegen Bots zählen halb (Sieg +25, Niederlage −12), auch für die Saison; ein Sieg zählt nur nach einem echten Kampf, zwischen zwei Bot-Kämpfen liegen 10 Sekunden.</li>
@@ -1059,6 +1065,14 @@
 <script src="js/erfolge.js"></script>
 <script src="js/ereignisse.js"></script>
 <script src="js/arena-bots.js"></script>
+<script src="js/begleiter.js"></script>
+<script src="js/benachrichtigung.js"></script>
+<script src="js/garderobe.js"></script>
+<script src="js/haustiere.js"></script>
+<script src="js/emotes.js"></script>
+<script src="js/risslauf.js"></script>
+<script src="js/stadtangriff.js"></script>
+<script src="js/gilden-inhalte.js"></script>
 <script src="js/nativ.js"></script>
 <script src="js/spiel.js"></script>
 <script src="js/einfuehrung.js"></script>

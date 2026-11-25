@@ -1071,8 +1071,7 @@ function rollLoot(m) {
   // Monster aus einem Seelenstein bringen etwas von dessen Beute mit
   const sd = m.stone ? stoneDrops(m.stone.stoneType) : null;
   if (!m.isStone && Math.random() < (sd ? 0.1 : 0.03)) {
-    p.splinters++;
-    ui.loot('Seelensplitter', 1, lootIconUrl('splinter'), '#c9a8ff');
+    giveSplinters(1);
   }
   const drops = m.isStone ? stoneDrops(m.stoneType) : null;
   if (drops && m.level >= BLESSING.stone && Math.random() < drops.scroll) {
@@ -2250,7 +2249,8 @@ const gear = {
       const own = ownBook(game.player, item.book);
       return `<button type="button" class="item-tile book-tile${own ? ' own' : ''}" ${attrs} data-info="${escTip(itemTipHtml(item))}">` +
         `<img src="${bookIconUrl(item.book)}" alt="Fertigkeitsbuch: ${skillEntry(item.book).sk.name}">` +
-        `<span class="item-count">${item.count}</span>` + (label ? `<span class="slot-label">${label}</span>` : '') + `</button>`;
+        // seit 15.84 Anzahl und Plus immer als Zahl (Gegenstände kommen auch aus Handel und Betrachten)
+        `<span class="item-count">${item.count | 0}</span>` + (label ? `<span class="slot-label">${label}</span>` : '') + `</button>`;
     }
     // Pfeil: besser oder schlechter als das Angelegte (nur für Gegenstände in der Tasche)
     const worn = Object.values(game.player.equipment).includes(item);
@@ -2264,7 +2264,7 @@ const gear = {
       `<img src="${itemIconUrl(item)}" alt="${itemFullName(item)}">` + arrow +
       // seit 14.32: Seltenheit auch ohne Farbe erkennbar – 1 bis 4 Punkte oben links (css/seltenheit.css)
       (rarityOf(item) > 0 ? `<span class="rar-pips" aria-hidden="true"></span>` : '') +
-      `<span class="item-plus" style="color:${plusColor(item)}">+${item.plus}</span>` +
+      `<span class="item-plus" style="color:${plusColor(item)}">+${item.plus | 0}</span>` +
       // Köcher: Pfeilvorrat (seit 13.67 echte Zahl statt ∞, rot bei 0; fernninja.js bowHudTick zählt live mit)
       (isQuiver(item) && typeof bowArrowUsable === 'function' ? (() => {
         const n = bowArrowUsable(game.player);

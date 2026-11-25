@@ -3,8 +3,8 @@
 // Nur dann schaltet diese Datei ein:
 //   - Haptik: navigator.vibrate (gibt es in iOS nicht) wird auf das Taptic Engine umgeleitet, dazu kurze Stöße bei
 //     harten Treffern, beim Tod und beim Stufenaufstieg. Alles hängt an der Einstellung „Vibration“.
-//   - Erinnerung an die Tagesbelohnung als lokale Mitteilung (freiwillig: einmal fragen, im Fenster
-//     „Tagesbelohnung“ jederzeit an- und abschaltbar). Kein Server, keine Push-Nachrichten.
+//   - Benachrichtigungen (lokale Mitteilungen: Tagesbelohnung, Doppel-EP, Saisonende, Weltboss, Pause) plant
+//     js/benachrichtigung.js – dort auch die Einstellung und die frühere Tageserinnerung dieser Datei.
 //   - „Freunde einladen“ auf dem Startbildschirm (iOS-Teilen-Menü) statt „Als App installieren“
 //   - Links in neuen Fenstern (Wiki, Datenschutz, Regeln …) öffnen im In-App-Browser (Safari-Ansicht)
 //   - Im Hintergrund (Homebutton, Anruf) Ton und Musik anhalten und den Spielstand sichern
@@ -23,26 +23,12 @@
   const deutsch = () => typeof i18n === 'undefined' || !i18n.lang || i18n.lang === 'de';
   const tx = (de, en) => (deutsch() ? de : en);
 
-  // Eigene Einstellungen der App (nur dieses Gerät)
-  const KEY = 'seelenstein.nativ';
-  const stand = (() => {
-    try { return { erinnerung: null, ...JSON.parse(localStorage.getItem(KEY) || '{}') }; } catch (e) { return { erinnerung: null }; }
-  })();
-  const sichern = () => { try { localStorage.setItem(KEY, JSON.stringify(stand)); } catch (e) { /* privat */ } };
-
   // ---------- Aussehen: App-Kennzeichen am <html>, Hinweise ausblenden ----------
   document.documentElement.classList.add('nativ-app', 'nativ-' + (typeof cap.getPlatform === 'function' ? cap.getPlatform() : 'app'));
   const css = document.createElement('style');
   css.textContent =
     '.nativ-app #installBox, .nativ-app #umzugHinweis { display: none !important; }' +
-    '.nativ-einladen { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; margin-top: 6px; }' +
-    '.nativ-erinnerung { display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; margin: 10px 0 0; }' +
-    '.nativ-frage { position: fixed; inset: 0; z-index: 100000; display: flex; align-items: center; justify-content: center;' +
-    ' background: rgba(0,0,0,.55); padding: 16px; }' +
-    '.nativ-frage > div { max-width: 440px; background: #1d1810; color: #f3e3b5; border: 1px solid #c9a24a; border-radius: 12px;' +
-    ' padding: 16px 18px; box-shadow: 0 8px 30px rgba(0,0,0,.6); font: 15px/1.45 system-ui, sans-serif; }' +
-    '.nativ-frage h3 { margin: 0 0 6px; font-size: 18px; color: #f1d58a; }' +
-    '.nativ-frage .knoepfe { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; margin-top: 12px; }';
+    '.nativ-einladen { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; margin-top: 6px; }';
   (document.head || document.documentElement).appendChild(css);
 
   // ---------- Haptik ----------
@@ -110,126 +96,13 @@
     };
   }
 
-  // ---------- Erinnerung an die Tagesbelohnung (lokale Mitteilung) ----------
-  const ERINNERUNG_ID = 7001;
-  const LN = () => (hat('LocalNotifications') ? P.LocalNotifications : null);
-
-  // 24 Stunden nach dem Abholen, aber nicht nachts: vor 9 Uhr → 9 Uhr, ab 21 Uhr → 20 Uhr (immer am nächsten Kalendertag,
-  // die Belohnung gibt es ab Mitternacht neu)
-  function erinnerungsZeit(ab = new Date()) {
-    const z = new Date(ab.getTime() + 24 * 3600 * 1000);
-    if (z.getHours() < 9) z.setHours(9, 0, 0, 0);
-    else if (z.getHours() >= 21) z.setHours(20, 0, 0, 0);
-    return z;
-  }
-
-  function erinnerungAbbrechen() {
-    const ln = LN();
-    if (ln) leise(ln.cancel({ notifications: [{ id: ERINNERUNG_ID }] }));
-  }
-
-  function erinnerungPlanen() {
-    const ln = LN();
-    if (!ln || stand.erinnerung !== true) return;
-    leise(ln.cancel({ notifications: [{ id: ERINNERUNG_ID }] }).catch(() => {}).then(() => ln.schedule({
-      notifications: [{
-        id: ERINNERUNG_ID,
-        title: 'Seelenstein',
-        body: tx('Deine Tagesbelohnung wartet! Hol sie dir, bevor deine Reihe abreißt.',
-          'Your daily reward is waiting! Claim it before your streak breaks.'),
-        schedule: { at: erinnerungsZeit(), allowWhileIdle: true }
-      }]
-    })));
-  }
-
-  // Ein- oder ausschalten. Beim Einschalten fragt iOS einmal nach der Erlaubnis für Mitteilungen.
-  function erinnerungSetzen(an) {
-    const ln = LN();
-    if (!ln) return Promise.resolve(false);
-    if (!an) {
-      stand.erinnerung = false;
-      sichern();
-      erinnerungAbbrechen();
-      return Promise.resolve(false);
-    }
-    return ln.requestPermissions().then((r) => {
-      const ok = r && r.display === 'granted';
-      stand.erinnerung = ok;
-      sichern();
-      if (ok) erinnerungPlanen();
-      else if (typeof ui !== 'undefined' && ui.log) {
-        ui.log(tx('Mitteilungen sind aus. Einschalten: iPhone-Einstellungen → Seelenstein → Mitteilungen.',
-          'Notifications are off. Turn them on in Settings → Seelenstein → Notifications.'), 'info');
-      }
-      return ok;
-    }).catch(() => false);
-  }
-
-  // Nach dem ersten Abholen in der App einmal fragen (nicht beim Start – erst wenn man weiß, worum es geht)
-  function frageErinnerung() {
-    if (stand.erinnerung !== null || document.querySelector('.nativ-frage')) return;
-    const box = document.createElement('div');
-    box.className = 'nativ-frage';
-    box.setAttribute('role', 'dialog');
-    box.innerHTML = '<div><h3></h3><p></p><div class="knoepfe">' +
-      '<button type="button" class="btn btn-ghost" data-a="nein"></button>' +
-      '<button type="button" class="btn btn-primary" data-a="ja"></button></div></div>';
-    box.querySelector('h3').textContent = tx('Erinnerung an die Tagesbelohnung?', 'Daily reward reminder?');
-    box.querySelector('p').textContent = tx(
-      'Seelenstein kann dich morgen mit einer Mitteilung erinnern, damit deine Reihe nicht abreißt. Einmal am Tag, ' +
-      'jederzeit im Fenster „Tagesbelohnung“ abschaltbar.',
-      'Seelenstein can remind you tomorrow with a notification so your streak continues. Once a day, ' +
-      'you can turn it off any time in the “Daily reward” window.');
-    box.querySelector('[data-a="nein"]').textContent = tx('Nein, danke', 'No, thanks');
-    box.querySelector('[data-a="ja"]').textContent = tx('Ja, erinnern', 'Yes, remind me');
-    box.addEventListener('click', (e) => {
-      const a = e.target && e.target.getAttribute && e.target.getAttribute('data-a');
-      if (!a) return;
-      box.remove();
-      erinnerungSetzen(a === 'ja').then(() => {
-        const fenster = document.getElementById('panelDaily');
-        if (fenster && !fenster.hidden && typeof window.renderDaily === 'function') window.renderDaily();
-      });
-    });
-    document.body.appendChild(box);
-  }
-
-  if (LN() && typeof window.claimDaily === 'function') {
+  // ---------- Tagesbelohnung abgeholt: kurzer Erfolgs-Stoß ----------
+  // (Die Erinnerung daran samt Frage und Schalter steckt seit den Benachrichtigungen in js/benachrichtigung.js.)
+  if (hat('Haptics') && typeof window.claimDaily === 'function') {
     const original = window.claimDaily;
     window.claimDaily = function () {
       const r = original.apply(this, arguments);
-      try {
-        if (r) {
-          stoss('erfolg');
-          if (stand.erinnerung === true) erinnerungPlanen();
-          else if (stand.erinnerung === null) setTimeout(frageErinnerung, 1200);
-        }
-      } catch (e) { /* egal */ }
-      return r;
-    };
-  }
-
-  // Schalter im Fenster „Tagesbelohnung“
-  if (LN() && typeof window.renderDaily === 'function') {
-    const original = window.renderDaily;
-    window.renderDaily = function () {
-      const r = original.apply(this, arguments);
-      try {
-        const body = document.getElementById('dailyBody');
-        if (body && !body.querySelector('.nativ-erinnerung')) {
-          const zeile = document.createElement('p');
-          zeile.className = 'nativ-erinnerung hint-text';
-          const an = stand.erinnerung === true;
-          zeile.innerHTML = '<span></span><button type="button" class="btn btn-ghost"></button>';
-          zeile.querySelector('span').textContent = tx('🔔 Tägliche Erinnerung (Mitteilung): ', '🔔 Daily reminder (notification): ') +
-            (an ? tx('an', 'on') : tx('aus', 'off'));
-          zeile.querySelector('button').textContent = an ? tx('Ausschalten', 'Turn off') : tx('Einschalten', 'Turn on');
-          zeile.querySelector('button').addEventListener('click', () => {
-            erinnerungSetzen(!an).then(() => window.renderDaily());
-          });
-          body.appendChild(zeile);
-        }
-      } catch (e) { /* egal */ }
+      try { if (r) stoss('erfolg'); } catch (e) { /* egal */ }
       return r;
     };
   }
@@ -297,13 +170,6 @@
     einladenKnopf();
     if (hat('SplashScreen')) leise(P.SplashScreen.hide({ fadeOutDuration: 250 }));
     if (hat('StatusBar')) leise(P.StatusBar.hide());
-    // war die Erinnerung an, aber iOS-Mitteilungen wurden inzwischen in den Einstellungen abgeschaltet: merken
-    const ln = LN();
-    if (ln && stand.erinnerung === true) {
-      leise(ln.checkPermissions().then((r) => {
-        if (r && r.display === 'denied') { stand.erinnerung = false; sichern(); }
-      }));
-    }
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bereit);
   else bereit();

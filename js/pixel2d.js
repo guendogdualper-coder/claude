@@ -95,6 +95,7 @@ function bakePixelSprite(bounds, draw, sideOnly) {
   const h = Math.max(1, Math.ceil(bounds.h * S));
   const c = newCanvas(w, h);
   const b = c.getContext('2d', CPU_CANVAS);
+  b._cpu = 1; // glow() nimmt dann die Fassung im Arbeitsspeicher (zeichnen.js glowSprite)
   b.setTransform(S, 0, 0, S, -bounds.x * S, -bounds.y * S);
   b.lineJoin = 'round';
   b.lineCap = 'round';

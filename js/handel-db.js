@@ -35,6 +35,13 @@ function charKey(name) {
 function handelId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 }
+// seit 15.84: Kennungen (Schlüssel der Datenbank) und Konto-Kennungen nur in der Form, die das Spiel selbst erzeugt
+// (handelId, Auktionsbriefe a<id>k/e/r, Firebase-uid). Sie landen in data-Attributen und Pfaden – alles andere wird
+// beim Einlesen verworfen (vorher konnte ein präparierter Schlüssel Code in die Seite bringen).
+const HANDEL_ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
+const HANDEL_UID_RE = /^[A-Za-z0-9_-]{1,128}$/;
+const handelIdOk = (id) => typeof id === 'string' && HANDEL_ID_RE.test(id);
+const handelUidOk = (uid) => typeof uid === 'string' && HANDEL_UID_RE.test(uid);
 
 const hdb = {
   // Adresse eines Pfads (Teile einzeln kodiert, Namen dürfen Leerzeichen und Umlaute enthalten)
