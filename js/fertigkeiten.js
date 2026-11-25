@@ -1,0 +1,1659 @@
+// Fertigkeiten: gemalte Symbole für die Leiste und eigene Effekte für jede der 60 Fertigkeiten.
+// Die Spielmechanik steht in kampf.js; hier geht es nur ums Aussehen.
+
+// --- Symbole ------------------------------------------------------------------------------
+// Gezeichnet auf einer Fläche von -24 bis 24, Mitte bei 0,0.
+
+const SKILL_ICON_BG = {
+  angriff: ['#e0603e', '#5a1a10'],
+  buff: ['#5a8ad8', '#14204a'],
+  heilung: ['#6abd5a', '#143a14'],
+  'beschwörung': ['#9a6ad8', '#24123e'],
+  fluch: ['#9a6ad8', '#24123e']
+};
+
+// Umrandete Form: erst dunkle Kontur, dann Füllung mit Verlauf
+function iconShape(ctx, path, top, bottom, line = 3) {
+  path();
+  ctx.lineJoin = 'round';
+  ctx.lineWidth = line;
+  ctx.strokeStyle = '#120c08';
+  ctx.stroke();
+  const g = ctx.createLinearGradient(0, -18, 0, 18);
+  g.addColorStop(0, top);
+  g.addColorStop(1, bottom);
+  ctx.fillStyle = g;
+  ctx.fill();
+}
+
+function iconLine(ctx, color, width, pts) {
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.strokeStyle = '#120c08';
+  ctx.lineWidth = width + 2.5;
+  ctx.beginPath();
+  pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+  ctx.stroke();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = width;
+  ctx.stroke();
+}
+
+function crescentPath(ctx, x0, y0, x1, y1, bulge) {
+  return () => {
+    const mx = (x0 + x1) / 2;
+    const my = (y0 + y1) / 2;
+    const nx = -(y1 - y0);
+    const ny = x1 - x0;
+    const len = hyp(nx, ny);
+    ctx.beginPath();
+    ctx.moveTo(x0, y0);
+    ctx.quadraticCurveTo(mx + nx / len * bulge, my + ny / len * bulge, x1, y1);
+    ctx.quadraticCurveTo(mx + nx / len * bulge * 0.35, my + ny / len * bulge * 0.35, x0, y0);
+    ctx.closePath();
+  };
+}
+
+const SKILL_ICONS = {
+  // Krieger
+  // Aderlass: drei schnelle Schnitte und Bluttropfen (das gemalte Symbol steht in symbole-krieger.js)
+  aderlass(ctx) {
+    iconShape(ctx, crescentPath(ctx, 15, -12, -15, -2, 4), '#ffe2e2', '#e0303a', 1.8);
+    iconShape(ctx, crescentPath(ctx, -14, -8, 12, 8, -4), '#ffe2e2', '#e0303a', 1.8);
+    iconShape(ctx, crescentPath(ctx, 12, 2, -14, 14, 4), '#ffe2e2', '#e0303a', 1.8);
+    for (const [x, y] of [[-4, 15], [4, 18]]) iconShape(ctx, () => { ctx.beginPath(); ctx.ellipse(x, y, 2, 2.6, 0, 0, Math.PI * 2); }, '#d02030', '#8a0a14', 1);
+  },
+  schwertwirbel(ctx) {
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = '#120c08';
+    ctx.lineWidth = 8;
+    ctx.beginPath();
+    ctx.arc(0, 0, 14, 0.3, Math.PI * 1.75);
+    ctx.stroke();
+    ctx.strokeStyle = '#ffd38a';
+    ctx.lineWidth = 5;
+    ctx.stroke();
+    iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(14, -10); ctx.lineTo(19, -2); ctx.lineTo(8, -2); ctx.closePath(); }, '#fff3c0', '#ff8a3a', 2);
+    iconLine(ctx, '#e6eef8', 3, [[-6, 6], [6, -6]]);
+  },
+  kampfrausch(ctx) {
+    iconShape(ctx, () => {
+      ctx.beginPath();
+      ctx.moveTo(0, 17);
+      ctx.bezierCurveTo(-15, 15, -15, -2, -6, -8);
+      ctx.bezierCurveTo(-6, -2, -2, 0, -1, -3);
+      ctx.bezierCurveTo(-3, -11, 2, -17, 4, -19);
+      ctx.bezierCurveTo(5, -10, 15, -6, 13, 6);
+      ctx.bezierCurveTo(12, 13, 6, 17, 0, 17);
+      ctx.closePath();
+    }, '#ffe08a', '#e0381a');
+    iconShape(ctx, () => { ctx.beginPath(); ctx.ellipse(1, 8, 5, 7, 0, 0, Math.PI * 2); }, '#fff6d0', '#ffb04a', 1.5);
+  },
+  // Sprungbogen, der in einer Mulde aus zwei Erdhügeln endet
+  sprungschlag(ctx) {
+    ctx.setLineDash([3, 3]);
+    iconLine(ctx, '#ffd38a', 2, [[-17, 6], [-12, -8], [-4, -15], [4, -12], [9, -2]]);
+    ctx.setLineDash([]);
+    iconShape(ctx, () => { ctx.beginPath(); ctx.ellipse(8, 11, 11, 5, 0, 0, Math.PI * 2); }, '#5a4030', '#2a1a10', 2);
+    for (const x of [-3, 19]) iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(x - 5, 13); ctx.quadraticCurveTo(x, 2, x + 5, 13); ctx.closePath(); }, '#c9a878', '#6a4a2a', 1.5);
+    iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(5, -8); ctx.lineTo(11, -8); ctx.lineTo(8, 2); ctx.closePath(); }, '#fff3c0', '#ff9a4a', 1.5);
+  },
+  starkerkoerper(ctx) {
+    iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(-13, -14); ctx.lineTo(13, -14); ctx.lineTo(13, 0); ctx.quadraticCurveTo(12, 12, 0, 18); ctx.quadraticCurveTo(-12, 12, -13, 0); ctx.closePath(); }, '#ffe9a0', '#b88a2a');
+    iconLine(ctx, '#fff6d0', 3, [[0, -8], [0, 9]]);
+    iconLine(ctx, '#fff6d0', 3, [[-7, 0], [7, 0]]);
+  },
+  // Ninja
+  hinterhalt(ctx) {
+    iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(-3, -18); ctx.lineTo(3, -18); ctx.lineTo(3, -6); ctx.lineTo(1, 10); ctx.lineTo(0, 14); ctx.lineTo(-1, 10); ctx.lineTo(-3, -6); ctx.closePath(); }, '#ffffff', '#b8a6ff');
+    iconLine(ctx, '#6a4aa8', 3, [[-8, -6], [8, -6]]);
+    iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(9, 8); ctx.quadraticCurveTo(14, 14, 9, 17); ctx.quadraticCurveTo(4, 14, 9, 8); ctx.closePath(); }, '#ff8a9a', '#a0182a', 2);
+  },
+  // Blitzangriff: Ninja-Schatten links, Blitzspur, Dolch rechts beim Ziel
+  blitzangriff(ctx) {
+    ctx.globalAlpha = 0.5;
+    iconShape(ctx, () => { ctx.beginPath(); ctx.arc(-13, -6, 4.5, 0, Math.PI * 2); ctx.moveTo(-17, 0); ctx.lineTo(-9, 0); ctx.lineTo(-10, 12); ctx.lineTo(-16, 12); ctx.closePath(); }, '#c9b8ff', '#3d3848', 2);
+    ctx.globalAlpha = 1;
+    iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(-6, -10); ctx.lineTo(4, -4); ctx.lineTo(-1, -2); ctx.lineTo(8, 6); ctx.lineTo(-4, 1); ctx.lineTo(1, -1); ctx.closePath(); }, '#ffffff', '#9fd0ff', 2);
+    iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(10, -16); ctx.lineTo(14, -14); ctx.lineTo(14, 4); ctx.lineTo(12, 10); ctx.lineTo(10, 4); ctx.closePath(); }, '#ffffff', '#b8c8e8', 2);
+    iconLine(ctx, '#6a4aa8', 3, [[7, 5], [17, 5]]);
+  },
+  tarnung(ctx) {
+    iconShape(ctx, () => { ctx.beginPath(); ctx.arc(0, 0, 15, 0.6, Math.PI * 2 - 0.6); ctx.arc(9, 0, 11, Math.PI * 2 - 1.2, 1.2, true); ctx.closePath(); }, '#e0d0ff', '#5a3a8a');
+    iconShape(ctx, () => { ctx.beginPath(); ctx.ellipse(-4, -1, 3, 1.6, 0, 0, Math.PI * 2); }, '#ffffff', '#c9b8ff', 1.5);
+  },
+  // seit 13.85 Schattenkette statt Leichtfüßigkeit: drei Schattenfiguren im Zickzack, verbunden durch eine violette Linie
+  schattenkette(ctx) {
+    iconLine(ctx, '#b48cff', 2.2, [[-14, 12], [-2, -10], [6, 10], [15, -12]]);
+    for (const [x, y, a] of [[-14, 12, 0.45], [-2, -10, 0.7], [6, 10, 1]]) {
+      ctx.globalAlpha = a;
+      iconShape(ctx, () => { ctx.beginPath(); ctx.arc(x, y - 6, 3.2, 0, Math.PI * 2); ctx.moveTo(x - 3.5, y - 2); ctx.lineTo(x + 3.5, y - 2); ctx.lineTo(x + 2.5, y + 6); ctx.lineTo(x - 2.5, y + 6); ctx.closePath(); }, '#c9b8ff', '#2a1640', 1.5);
+    }
+    ctx.globalAlpha = 1;
+    iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(10, -6); ctx.lineTo(19, -17); ctx.lineTo(13, -4); ctx.closePath(); }, '#ffffff', '#b8a6ff', 1.5);
+  },
+  // Schamane
+  // Blitzdrache: Drachenkopf mit Hörnern und gezacktem Blitzschweif
+  talisman(ctx) {
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    for (const [w, c] of [[7, '#2a4ac8'], [4.5, '#5aa8ff'], [2, '#ffffff']]) {
+      ctx.strokeStyle = c;
+      ctx.lineWidth = w;
+      ctx.beginPath();
+      ctx.moveTo(-17, 13);
+      ctx.lineTo(-11, 4);
+      ctx.lineTo(-7, 10);
+      ctx.lineTo(-2, 1);
+      ctx.lineTo(2, 4);
+      ctx.stroke();
+    }
+    iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(-1, 4); ctx.quadraticCurveTo(2, -8, 10, -8); ctx.lineTo(18, -3); ctx.lineTo(10, 1); ctx.lineTo(16, 5); ctx.lineTo(6, 7); ctx.closePath(); }, '#dff2ff', '#2a5ac8', 1.3);
+    iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(3, -6); ctx.lineTo(-3, -16); ctx.lineTo(7, -9); ctx.closePath(); }, '#ffffff', '#3a6ad8', 1);
+    ctx.fillStyle = '#0a1a4a';
+    ctx.beginPath();
+    ctx.arc(9, -4, 1.4, 0, Math.PI * 2);
+    ctx.fill();
+  },
+  // Drachenwirbel: Drache im Kreis mit Feuerschweif
+  drachengebruell(ctx) {
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = '#ff7a2a';
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.arc(0, 0, 12, 0.4, Math.PI * 1.85);
+    ctx.stroke();
+    ctx.strokeStyle = '#ffe08a';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(0, 0, 12, 0.6, Math.PI * 1.8);
+    ctx.stroke();
+    iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(10, -2); ctx.lineTo(19, -8); ctx.lineTo(16, 1); ctx.lineTo(19, 6); ctx.lineTo(9, 6); ctx.closePath(); }, '#ffd34d', '#c8402f', 1.2);
+    ctx.fillStyle = '#1a0a04';
+    ctx.beginPath();
+    ctx.arc(14, -2, 1.3, 0, Math.PI * 2);
+    ctx.fill();
+  },
+  segen(ctx) {
+    for (let k = 0; k < 8; k++) {
+      const a = k * Math.PI / 4;
+      iconLine(ctx, '#ffe9a0', 2.5, [[Math.cos(a) * 10, Math.sin(a) * 10], [Math.cos(a) * 17, Math.sin(a) * 17]]);
+    }
+    iconShape(ctx, () => { ctx.beginPath(); ctx.arc(0, 0, 8, 0, Math.PI * 2); }, '#fffbe6', '#e8b83a');
+  },
+  // Blizzard: Schneeflocke im Sturmwirbel mit fallenden Eiszapfen
+  blitzschlag(ctx) {
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = 'rgba(159,216,255,0.7)';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(0, 2, 15, 3.6, 3.6 + Math.PI * 1.4);
+    ctx.stroke();
+    for (let k = 0; k < 6; k++) {
+      const a = k * Math.PI / 3;
+      const [cx, cy] = [Math.cos(a), Math.sin(a)];
+      iconLine(ctx, '#ffffff', 2.6, [[0, 0], [cx * 11, cy * 11]]);
+      iconLine(ctx, '#bfe8ff', 1.6, [[cx * 7, cy * 7], [cx * 7 + Math.cos(a + 0.9) * 4, cy * 7 + Math.sin(a + 0.9) * 4]]);
+      iconLine(ctx, '#bfe8ff', 1.6, [[cx * 7, cy * 7], [cx * 7 + Math.cos(a - 0.9) * 4, cy * 7 + Math.sin(a - 0.9) * 4]]);
+    }
+    for (const [x, y] of [[-14, -14], [12, -16], [15, 10]]) iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(x - 2.5, y - 4); ctx.lineTo(x + 2.5, y - 4); ctx.lineTo(x, y + 5); ctx.closePath(); }, '#dff4ff', '#4a8ad8', 1);
+  },
+  heilung(ctx) {
+    iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(-14, 14); ctx.quadraticCurveTo(-14, -12, 15, -15); ctx.quadraticCurveTo(12, 12, -14, 14); ctx.closePath(); }, '#c6f08a', '#3a8a2a');
+    iconLine(ctx, '#fffbe6', 2.5, [[4, -6], [4, 6]]);
+    iconLine(ctx, '#fffbe6', 2.5, [[-2, 0], [10, 0]]);
+  },
+  // Nekromant
+  // Schädelsalve (seit 8.5): drei Schädel im Fächer nach rechts oben, der mittlere größer mit offenem Kiefer,
+  // grüne Augenhöhlen und grüne Flammenschweife nach links unten
+  schaedelsalve(ctx) {
+    const skull = (a, d, s, open) => {
+      const x = -12 + Math.cos(a) * d;
+      const y = 14 + Math.sin(a) * d;
+      // Flammenschweif zurück nach links unten
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(a);
+      iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(0, -6 * s); ctx.quadraticCurveTo(-10 * s, -6 * s, -19 * s, -1 * s); ctx.quadraticCurveTo(-12 * s, 0, -16 * s, 3 * s); ctx.quadraticCurveTo(-8 * s, 6 * s, 0, 6 * s); ctx.closePath(); }, '#e0ffd0', '#3a8a2a', 1.5);
+      ctx.restore();
+      // Schädel von vorn: Hirnschale, Kiefer mit Zähnen, dunkle Augenhöhlen mit grüner Glut
+      ctx.save();
+      ctx.translate(x, y);
+      const jy = open ? 2.2 * s : 0;
+      iconShape(ctx, () => { ctx.beginPath(); ctx.rect(-4 * s, 3 * s + jy, 8 * s, 3.6 * s); }, '#f4eedc', '#b8b098', 1.5);
+      iconShape(ctx, () => { ctx.beginPath(); ctx.arc(0, -1.5 * s, 7 * s, Math.PI * 0.82, Math.PI * 0.18); ctx.lineTo(4.5 * s, 4 * s); ctx.lineTo(-4.5 * s, 4 * s); ctx.closePath(); }, '#fffbe6', '#c8c0a8', 2);
+      if (open) {
+        ctx.fillStyle = '#123012';
+        ctx.fillRect(-3.5 * s, 4 * s, 7 * s, jy);
+      }
+      ctx.fillStyle = '#123012';
+      ctx.beginPath();
+      ctx.ellipse(-2.6 * s, -1.2 * s, 2.1 * s, 2.3 * s, 0, 0, Math.PI * 2);
+      ctx.ellipse(2.6 * s, -1.2 * s, 2.1 * s, 2.3 * s, 0, 0, Math.PI * 2);
+      ctx.moveTo(0, 1.2 * s);
+      ctx.lineTo(-1 * s, 2.8 * s);
+      ctx.lineTo(1 * s, 2.8 * s);
+      ctx.fill();
+      ctx.fillStyle = '#a7e37f';
+      ctx.beginPath();
+      ctx.arc(-2.5 * s, -1 * s, 1.1 * s, 0, Math.PI * 2);
+      ctx.arc(2.5 * s, -1 * s, 1.1 * s, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    };
+    skull(-1.35, 24, 0.68, false);
+    skull(-0.2, 24, 0.68, false);
+    skull(-0.78, 23, 1, true);
+  },
+  lebensentzug(ctx) {
+    iconShape(ctx, () => {
+      ctx.beginPath();
+      ctx.moveTo(0, 15);
+      ctx.bezierCurveTo(-20, 2, -12, -18, 0, -7);
+      ctx.bezierCurveTo(12, -18, 20, 2, 0, 15);
+      ctx.closePath();
+    }, '#ff8a9a', '#8a1020');
+    iconLine(ctx, '#a7e37f', 2, [[-17, -15], [-6, -6]]);
+  },
+  totenbeschwoerung(ctx) {
+    iconLine(ctx, '#e8e0c8', 3.5, [[-14, 14], [14, -2]]);
+    iconLine(ctx, '#e8e0c8', 3.5, [[14, 14], [-14, -2]]);
+    iconShape(ctx, () => { ctx.beginPath(); ctx.arc(0, -6, 10, 0, Math.PI * 2); ctx.rect(-5, 2, 10, 6); }, '#fffbe6', '#c8c0a8');
+    ctx.fillStyle = '#1a3a12';
+    ctx.beginPath();
+    ctx.ellipse(-4, -6, 2.6, 3, 0, 0, Math.PI * 2);
+    ctx.ellipse(4, -6, 2.6, 3, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#a7e37f';
+    ctx.fillRect(-4.6, -6.6, 1.4, 1.4);
+    ctx.fillRect(3.4, -6.6, 1.4, 1.4);
+  },
+  // Seelenschnitter (seit 8.5): Kapuzengestalt mit Knochengesicht und grünen Augenflammen, Sense quer davor
+  seelenschnitter(ctx) {
+    iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(-13, 20); ctx.quadraticCurveTo(-11, -2, -7, -10); ctx.quadraticCurveTo(-4, -19, 1, -20); ctx.quadraticCurveTo(8, -17, 8, -8); ctx.quadraticCurveTo(12, 4, 13, 20); ctx.lineTo(6, 16); ctx.lineTo(0, 20); ctx.lineTo(-6, 16); ctx.closePath(); }, '#6a4a8a', '#140c1e');
+    iconShape(ctx, () => { ctx.beginPath(); ctx.ellipse(0.5, -8, 5.5, 6.5, 0, 0, Math.PI * 2); }, '#0a0610', '#0a0610', 1.5);
+    iconShape(ctx, () => { ctx.beginPath(); ctx.ellipse(0.5, -6.5, 3.6, 4.4, 0, 0, Math.PI * 2); }, '#f4eedc', '#b8b098', 1);
+    ctx.fillStyle = '#a7e37f';
+    for (const x of [-1, 2]) {
+      ctx.beginPath();
+      ctx.moveTo(x - 1.2, -6.5);
+      ctx.quadraticCurveTo(x, -10, x + 0.4, -11);
+      ctx.quadraticCurveTo(x + 1.4, -8, x + 1.2, -6.5);
+      ctx.fill();
+    }
+    iconLine(ctx, '#5a4430', 2.4, [[-17, 18], [15, -12]]);
+    iconShape(ctx, crescentPath(ctx, 15, -12, -13, -15, 10), '#f0ffe0', '#7ad36a', 2);
+    iconLine(ctx, '#e0ffd0', 1.2, [[13, -14], [4, -19], [-6, -19], [-12, -16]]);
+  },
+  knochenpanzer(ctx) {
+    iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(-13, -14); ctx.lineTo(13, -14); ctx.lineTo(13, 0); ctx.quadraticCurveTo(12, 12, 0, 18); ctx.quadraticCurveTo(-12, 12, -13, 0); ctx.closePath(); }, '#fffbe6', '#c8c0a8');
+    for (const y of [-7, -1, 5]) iconLine(ctx, '#7a7262', 2, [[-8, y], [8, y]]);
+    iconLine(ctx, '#7a7262', 2, [[0, -11], [0, 12]]);
+  }
+};
+
+// Symbole der zweiten Wege (und der Aura des Schwertes)
+Object.assign(SKILL_ICONS, {
+  schwertaura(ctx) {
+    for (let k = 0; k < 3; k++) {
+      ctx.strokeStyle = `rgba(255,214,120,${0.35 + k * 0.2})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(0, 0, 18 - k * 4, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(-2.5, 14); ctx.lineTo(-2.5, -12); ctx.lineTo(0, -18); ctx.lineTo(2.5, -12); ctx.lineTo(2.5, 14); ctx.closePath(); }, '#ffffff', '#ffd38a', 2);
+    iconLine(ctx, '#c9a35a', 3, [[-8, 8], [8, 8]]);
+    iconLine(ctx, '#6a2a24', 3, [[0, 10], [0, 17]]);
+  },
+  // Felsfaust auf einem Pfeiler, der aus einem Zickzackriss steigt
+  felsenfaust(ctx) {
+    iconLine(ctx, '#2a1a10', 2, [[-17, 15], [-10, 12], [-4, 16], [2, 12]]);
+    iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(-1, 17); ctx.lineTo(-3, -2); ctx.lineTo(11, -2); ctx.lineTo(9, 17); ctx.closePath(); }, '#a8957a', '#5a4a36', 2);
+    iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(-6, -2); ctx.lineTo(-7, -12); ctx.lineTo(0, -17); ctx.lineTo(12, -16); ctx.lineTo(15, -8); ctx.lineTo(13, -2); ctx.closePath(); }, '#d8c4a0', '#8a7456', 2);
+    for (const x of [-14, 18]) iconShape(ctx, () => { ctx.beginPath(); ctx.arc(x, -14, 2.5, 0, Math.PI * 2); }, '#fff3c0', '#ffd34d', 1);
+  },
+  erdbeben(ctx) {
+    iconShape(ctx, () => { ctx.beginPath(); ctx.ellipse(0, 8, 19, 8, 0, 0, Math.PI * 2); }, '#c9a878', '#6a4a2a');
+    iconLine(ctx, '#2a1a10', 2, [[-12, 6], [-4, 9], [0, 4], [6, 10], [13, 7]]);
+    iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(-6, -18); ctx.lineTo(6, -18); ctx.lineTo(8, -4); ctx.lineTo(-8, -4); ctx.closePath(); }, '#e9c6a1', '#a87a52', 2);
+    for (const x of [-15, 15]) iconLine(ctx, '#ffd38a', 2, [[x, -6], [x * 1.1, -14]]);
+  },
+  geistesschlag(ctx) {
+    iconShape(ctx, () => { ctx.beginPath(); ctx.arc(0, 0, 13, 0, Math.PI * 2); }, '#e0f2ff', '#3a6ab8');
+    iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(-14, 14); ctx.lineTo(10, -10); ctx.lineTo(14, -14); ctx.lineTo(12, -6); ctx.lineTo(-10, 16); ctx.closePath(); }, '#ffffff', '#9fd0ff', 2);
+    for (let k = 0; k < 6; k++) {
+      const a = k * Math.PI / 3;
+      iconLine(ctx, '#cfe8ff', 1.5, [[Math.cos(a) * 15, Math.sin(a) * 15], [Math.cos(a) * 20, Math.sin(a) * 20]]);
+    }
+  },
+  kriegsschrei(ctx) {
+    iconShape(ctx, () => { ctx.beginPath(); ctx.arc(-6, 0, 10, 0, Math.PI * 2); }, '#e9c6a1', '#a87a52');
+    iconShape(ctx, () => { ctx.beginPath(); ctx.ellipse(-1, 3, 4, 5, 0, 0, Math.PI * 2); }, '#5a1a10', '#2a0a06', 1.5);
+    ctx.strokeStyle = '#120c08';
+    for (let k = 0; k < 3; k++) {
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.arc(2, 2, 10 + k * 5, -0.7, 0.7);
+      ctx.stroke();
+      ctx.strokeStyle = '#ff9a4a';
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+      ctx.strokeStyle = '#120c08';
+    }
+  },
+  wirbelklinge(ctx) {
+    ctx.strokeStyle = '#120c08';
+    ctx.lineWidth = 7;
+    ctx.beginPath();
+    ctx.arc(0, 0, 15, 0, Math.PI * 1.6);
+    ctx.stroke();
+    ctx.strokeStyle = '#c9b8ff';
+    ctx.lineWidth = 4;
+    ctx.stroke();
+    for (const a of [0, Math.PI]) {
+      ctx.save();
+      ctx.rotate(a + 0.5);
+      iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(2, -2); ctx.lineTo(16, -1); ctx.lineTo(13, 2.5); ctx.lineTo(2, 2); ctx.closePath(); }, '#ffffff', '#8a7aa8', 2);
+      ctx.restore();
+    }
+  },
+  schattensprung(ctx) {
+    for (let k = 0; k < 3; k++) {
+      ctx.globalAlpha = 0.35 + k * 0.3;
+      iconShape(ctx, () => { ctx.beginPath(); ctx.ellipse(-12 + k * 9, 2, 5, 9, 0, 0, Math.PI * 2); }, '#c9b8ff', '#3a2a5a', 2);
+    }
+    ctx.globalAlpha = 1;
+    iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(8, -12); ctx.lineTo(19, -2); ctx.lineTo(9, 6); ctx.closePath(); }, '#ffffff', '#8a6ad8', 2);
+  },
+  laehmklinge(ctx) {
+    iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(-15, 15); ctx.lineTo(9, -9); ctx.lineTo(15, -15); ctx.lineTo(11, -7); ctx.lineTo(-13, 17); ctx.closePath(); }, '#ffffff', '#b8c8d8', 2);
+    iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(6, 2); ctx.quadraticCurveTo(12, 10, 6, 14); ctx.quadraticCurveTo(0, 10, 6, 2); ctx.closePath(); }, '#c6f08a', '#3a8a2a', 2);
+    iconLine(ctx, '#ffe9a0', 2, [[-10, -6], [-6, -12], [-2, -6], [2, -12]]);
+  },
+  schattenmantel(ctx) {
+    iconShape(ctx, () => {
+      ctx.beginPath();
+      ctx.moveTo(0, -17);
+      ctx.quadraticCurveTo(14, -12, 15, 16);
+      ctx.lineTo(7, 12); ctx.lineTo(0, 17); ctx.lineTo(-7, 12); ctx.lineTo(-15, 16);
+      ctx.quadraticCurveTo(-14, -12, 0, -17);
+      ctx.closePath();
+    }, '#8a7aa8', '#1a1426');
+    iconShape(ctx, () => { ctx.beginPath(); ctx.ellipse(-4, -4, 3, 1.6, 0, 0, Math.PI * 2); ctx.ellipse(4, -4, 3, 1.6, 0, 0, Math.PI * 2); }, '#ffffff', '#c9b8ff', 1.2);
+  },
+  drachenkraft(ctx) {
+    iconShape(ctx, () => {
+      ctx.beginPath();
+      ctx.moveTo(-14, 10);
+      ctx.quadraticCurveTo(-16, -8, -2, -14);
+      ctx.lineTo(4, -19); ctx.lineTo(5, -12);
+      ctx.quadraticCurveTo(16, -8, 14, 4);
+      ctx.lineTo(8, 2); ctx.lineTo(4, 10);
+      ctx.quadraticCurveTo(-4, 6, -14, 10);
+      ctx.closePath();
+    }, '#ffe08a', '#c8402f');
+    iconShape(ctx, () => { ctx.beginPath(); ctx.ellipse(2, -6, 3, 2, 0, 0, Math.PI * 2); }, '#ffffff', '#ffd34d', 1.2);
+    iconLine(ctx, '#ffd34d', 2, [[-6, 14], [0, 18], [6, 14]]);
+  },
+  donnersturm(ctx) {
+    iconShape(ctx, () => { ctx.beginPath(); ctx.ellipse(-6, -9, 10, 7, 0, 0, Math.PI * 2); ctx.ellipse(6, -10, 11, 8, 0, 0, Math.PI * 2); }, '#d8e0ee', '#5a6478', 2.5);
+    for (const x of [-9, 1, 10]) iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(x, -2); ctx.lineTo(x - 4, 7); ctx.lineTo(x, 7); ctx.lineTo(x - 3, 17); ctx.lineTo(x + 5, 4); ctx.lineTo(x + 1, 4); ctx.lineTo(x + 3, -2); ctx.closePath(); }, '#ffffff', '#9fd0ff', 1.8);
+  },
+  geisterfaust(ctx) {
+    iconShape(ctx, () => { ctx.beginPath(); ctx.ellipse(3, 0, 12, 10, 0, 0, Math.PI * 2); }, '#e8fffb', '#4aa8a0');
+    for (const y of [-5, 0, 5]) iconLine(ctx, '#2a6a64', 1.6, [[8, y], [14, y]]);
+    for (const y of [-9, 0, 9]) iconLine(ctx, '#8fe3d8', 2.5, [[-19, y], [-11, y * 0.8]]);
+  },
+  windfessel(ctx) {
+    ctx.strokeStyle = '#120c08';
+    for (let k = 0; k < 3; k++) {
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.ellipse(0, -8 + k * 8, 16 - k * 3, 4, 0, 0.2, Math.PI * 1.8);
+      ctx.stroke();
+      ctx.strokeStyle = '#d8fff8';
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+      ctx.strokeStyle = '#120c08';
+    }
+    iconShape(ctx, () => { ctx.beginPath(); ctx.arc(0, 0, 4, 0, Math.PI * 2); }, '#ffffff', '#4aa8a0', 1.5);
+  },
+  schutzgeist(ctx) {
+    // Falkengeist (seit 13.26)
+    iconShape(ctx, () => {
+      ctx.beginPath();
+      ctx.moveTo(-17, -8); ctx.quadraticCurveTo(-7, -9, 0, -2); ctx.quadraticCurveTo(7, -9, 17, -8);
+      ctx.lineTo(9, 0); ctx.lineTo(3, 2); ctx.lineTo(4, 12); ctx.lineTo(0, 9); ctx.lineTo(-4, 12); ctx.lineTo(-3, 2); ctx.lineTo(-9, 0);
+      ctx.closePath();
+    }, '#fff2a0', '#c8862a');
+    iconShape(ctx, () => { ctx.beginPath(); ctx.arc(0, -4, 3.2, 0, Math.PI * 2); }, '#ffffff', '#c8862a', 1.2);
+  },
+
+  // Seelenkäfig (seit 8.5): aufrechter Käfig aus sechs Rippen auf rissigem Boden, darin ein schreiender Geist
+  seelenkaefig(ctx) {
+    ctx.strokeStyle = '#7ad36a';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.ellipse(0, 15, 18, 5.5, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    iconShape(ctx, () => { ctx.beginPath(); ctx.ellipse(0, 15, 14, 4, 0, 0, Math.PI * 2); }, '#3a2a1a', '#140c08', 1.5);
+    iconLine(ctx, '#7ad36a', 1, [[-9, 15], [-4, 13], [0, 16], [5, 14], [9, 16]]);
+    const rib = (x0) => iconLine(ctx, '#f4eedc', 2.6, [[x0, 15], [x0 * 1.18, 4], [x0 * 0.95, -6], [x0 * 0.45, -14], [0, -17]]);
+    rib(-4.5);
+    rib(4.5);
+    iconShape(ctx, () => { ctx.beginPath(); ctx.arc(0, -3, 6, Math.PI, 0); ctx.lineTo(6, 9); ctx.lineTo(3, 6.5); ctx.lineTo(0, 9.5); ctx.lineTo(-3, 6.5); ctx.lineTo(-6, 9); ctx.closePath(); }, '#e8fff0', '#7fe3a0', 1.5);
+    ctx.fillStyle = '#123012';
+    ctx.beginPath();
+    ctx.ellipse(-2.3, -3.5, 1.3, 1.6, 0, 0, Math.PI * 2);
+    ctx.ellipse(2.3, -3.5, 1.3, 1.6, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, 1.5, 1.6, 2.4, 0, 0, Math.PI * 2);
+    ctx.fill();
+    for (const x0 of [-15, -10, 10, 15]) rib(x0);
+    ctx.strokeStyle = '#120c08';
+    ctx.lineWidth = 3.5;
+    ctx.beginPath();
+    ctx.arc(0, -17.5, 3, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.strokeStyle = '#f4eedc';
+    ctx.lineWidth = 1.8;
+    ctx.stroke();
+  },
+  dunklemacht(ctx) {
+    // Tempostriche links (seit 8.5: Dunkle Macht gibt etwas Lauftempo)
+    iconLine(ctx, '#b48cff', 2, [[-21, -6], [-14, -6]]);
+    iconLine(ctx, '#b48cff', 2, [[-22, 5], [-15, 5]]);
+    iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(0, -18); ctx.lineTo(5, -5); ctx.lineTo(18, 0); ctx.lineTo(5, 5); ctx.lineTo(0, 18); ctx.lineTo(-5, 5); ctx.lineTo(-18, 0); ctx.lineTo(-5, -5); ctx.closePath(); }, '#d6a8ff', '#3a1250');
+    iconShape(ctx, () => { ctx.beginPath(); ctx.arc(0, 0, 6, 0, Math.PI * 2); }, '#a7e37f', '#1a3a12', 1.5);
+  },
+  knochenspeer(ctx) {
+    ctx.save();
+    ctx.rotate(-Math.PI / 4);
+    iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(20, 0); ctx.lineTo(9, -4); ctx.lineTo(-14, -2); ctx.lineTo(-14, 2); ctx.lineTo(9, 4); ctx.closePath(); }, '#fffbe6', '#c8c0a8', 2);
+    iconShape(ctx, () => { ctx.beginPath(); ctx.arc(-16, -3, 3.2, 0, Math.PI * 2); ctx.arc(-16, 3, 3.2, 0, Math.PI * 2); }, '#fffbe6', '#c8c0a8', 1.5);
+    ctx.restore();
+  },
+  laehmung(ctx) {
+    ctx.strokeStyle = '#120c08';
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.arc(0, 0, 15, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.strokeStyle = '#7ad36a';
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+    for (let k = 0; k < 4; k++) {
+      ctx.save();
+      ctx.rotate(k * Math.PI / 2 + Math.PI / 4);
+      iconLine(ctx, '#c6f08a', 2.5, [[4, 0], [10, 0], [12, -3], [14, 3]]);
+      ctx.restore();
+    }
+    iconShape(ctx, () => { ctx.beginPath(); ctx.arc(0, 0, 4, 0, Math.PI * 2); }, '#e0ffd0', '#3a8a2a', 1.5);
+  },
+  blutopfer(ctx) {
+    iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(0, -17); ctx.quadraticCurveTo(15, 2, 0, 16); ctx.quadraticCurveTo(-15, 2, 0, -17); ctx.closePath(); }, '#ff8a9a', '#7a0a1a');
+    iconLine(ctx, '#ffe0e4', 2, [[-4, 2], [0, 8], [6, -4]]);
+    iconShape(ctx, () => { ctx.beginPath(); ctx.ellipse(-4, -2, 2, 3, -0.4, 0, Math.PI * 2); }, '#ffffff', '#ffd0d6', 1);
+  }
+});
+
+const skillIconCache = new Map();
+
+// Symbol einer Fertigkeit, seit 12.4 je Rang (r: -1 normal, 0 Erwacht, 1 Heroisch, 2 Legendär, 3 Vollendet):
+// unter dem Bild ein Schein in der Rangfarbe, darüber ein Rahmen, der mit jedem Rang prächtiger wird –
+// Erwacht silberblau mit vier Steinen, Heroisch violett mit acht Nieten, Legendär gold mit Lorbeer,
+// Vollendet glühend mit Flammenspitzen und Krone
+function skillIconUrl(sk, r = -1) {
+  const key = sk.id + ':' + r;
+  if (skillIconCache.has(key)) return skillIconCache.get(key);
+  const size = 96;
+  const c = newCanvas(size, size);
+  // seit 14.38 im Arbeitsspeicher (CPU_CANVAS, figuren.js): toDataURL ohne Zurücklesen von der Grafikkarte
+  const ctx = c.getContext('2d', typeof CPU_CANVAS !== 'undefined' ? CPU_CANVAS : undefined);
+  ctx.setTransform(size / 48, 0, 0, size / 48, size / 2, size / 2);
+  const [light, dark] = SKILL_ICON_BG[sk.kind] || SKILL_ICON_BG.angriff;
+  const g = ctx.createRadialGradient(-6, -8, 2, 0, 0, 24);
+  g.addColorStop(0, light);
+  g.addColorStop(1, dark);
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(0, 0, 23.5, 0, Math.PI * 2);
+  ctx.fill();
+  const RC = ['#9fd0ff', '#c58cff', '#ffd34d', '#ff6a4a'];
+  if (r >= 0) {
+    // Schein unter dem Bild
+    const gl = ctx.createRadialGradient(0, 0, 2, 0, 0, 22);
+    gl.addColorStop(0, RC[r] + (r >= 2 ? 'cc' : '99'));
+    gl.addColorStop(1, RC[r] + '00');
+    ctx.fillStyle = gl;
+    ctx.beginPath();
+    ctx.arc(0, 0, 22, 0, Math.PI * 2);
+    ctx.fill();
+  } else {
+    ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.arc(0, 0, 21, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  (SKILL_ICONS[sk.id] || (() => {}))(ctx);
+  if (r >= 0) skillRankFrame(ctx, r, RC[r]);
+  const url = c.toDataURL();
+  skillIconCache.set(key, url);
+  return url;
+}
+
+function skillRankFrame(ctx, r, col) {
+  ctx.save();
+  const ring = (rad, w, a, b) => {
+    const gr = ctx.createLinearGradient(-rad, -rad, rad, rad);
+    gr.addColorStop(0, a);
+    gr.addColorStop(0.5, b);
+    gr.addColorStop(1, a);
+    ctx.strokeStyle = gr;
+    ctx.lineWidth = w;
+    ctx.beginPath();
+    ctx.arc(0, 0, rad, 0, Math.PI * 2);
+    ctx.stroke();
+  };
+  const gem = (x, y, s, fill) => {
+    ctx.fillStyle = fill;
+    ctx.strokeStyle = '#120c08';
+    ctx.lineWidth = 0.7;
+    ctx.beginPath();
+    ctx.moveTo(x, y - s);
+    ctx.lineTo(x + s * 0.75, y);
+    ctx.lineTo(x, y + s);
+    ctx.lineTo(x - s * 0.75, y);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  };
+  ctx.shadowColor = col;
+  ctx.shadowBlur = 3 + r * 2;
+  if (r === 0) {
+    ring(22.2, 2.4, '#e8f4ff', '#6a9ac8');
+    ring(19.6, 0.8, 'rgba(232,244,255,0.7)', 'rgba(106,154,200,0.7)');
+    ctx.shadowBlur = 0;
+    for (let k = 0; k < 4; k++) {
+      const a = (k / 4) * Math.PI * 2 - Math.PI / 2;
+      gem(Math.cos(a) * 22.2, Math.sin(a) * 22.2, 2.6, '#bfe4ff');
+    }
+  } else if (r === 1) {
+    ring(22, 3.2, '#f0e0ff', '#7a3ac0');
+    ring(19.2, 1, 'rgba(240,224,255,0.8)', 'rgba(122,58,192,0.8)');
+    ctx.shadowBlur = 0;
+    for (let k = 0; k < 8; k++) {
+      const a = (k / 8) * Math.PI * 2 - Math.PI / 2;
+      ctx.fillStyle = k % 2 ? '#e0c8ff' : '#ffffff';
+      ctx.beginPath();
+      ctx.arc(Math.cos(a) * 22, Math.sin(a) * 22, k % 2 ? 1.2 : 1.8, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    gem(0, -22, 3, '#d8a0ff');
+  } else if (r === 2) {
+    ring(21.8, 3.6, '#fff4c0', '#c88a1a');
+    ring(18.8, 1.1, 'rgba(255,244,192,0.85)', 'rgba(200,138,26,0.85)');
+    ctx.shadowBlur = 0;
+    // Lorbeer links und rechts unten
+    for (const sx of [-1, 1]) for (let k = 0; k < 5; k++) {
+      const a = Math.PI / 2 + sx * (0.35 + k * 0.28);
+      ctx.save();
+      ctx.translate(Math.cos(a) * 19.4, Math.sin(a) * 19.4);
+      ctx.rotate(a + sx * 0.9);
+      ctx.fillStyle = k % 2 ? '#ffe680' : '#e8b440';
+      ctx.strokeStyle = '#5a3a0a';
+      ctx.lineWidth = 0.5;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 2.6, 1.2, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    }
+    gem(0, -21.8, 3.2, '#ffe680');
+    for (const [x, y] of [[-12, -15], [14, -12], [16, 9]]) {
+      ctx.fillStyle = '#fffbe0';
+      ctx.beginPath();
+      ctx.moveTo(x, y - 2.4); ctx.lineTo(x + 0.6, y - 0.6); ctx.lineTo(x + 2.4, y); ctx.lineTo(x + 0.6, y + 0.6);
+      ctx.lineTo(x, y + 2.4); ctx.lineTo(x - 0.6, y + 0.6); ctx.lineTo(x - 2.4, y); ctx.lineTo(x - 0.6, y - 0.6);
+      ctx.closePath();
+      ctx.fill();
+    }
+  } else {
+    // Vollendet: Flammenspitzen nach innen, glühender Doppelring, Krone oben
+    ctx.shadowBlur = 0;
+    for (let k = 0; k < 14; k++) {
+      const a = (k / 14) * Math.PI * 2;
+      const fl = ctx.createLinearGradient(Math.cos(a) * 22, Math.sin(a) * 22, Math.cos(a) * 15, Math.sin(a) * 15);
+      fl.addColorStop(0, '#ffd070');
+      fl.addColorStop(1, 'rgba(255,90,40,0)');
+      ctx.fillStyle = fl;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(a - 0.16) * 22, Math.sin(a - 0.16) * 22);
+      ctx.quadraticCurveTo(Math.cos(a) * 18, Math.sin(a) * 18, Math.cos(a + 0.05) * (k % 2 ? 16 : 14.5), Math.sin(a + 0.05) * (k % 2 ? 16 : 14.5));
+      ctx.lineTo(Math.cos(a + 0.16) * 22, Math.sin(a + 0.16) * 22);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.shadowColor = '#ff5a1a';
+    ctx.shadowBlur = 8;
+    ring(22, 3.8, '#ffe0a0', '#c8302a');
+    ring(18.6, 1.2, 'rgba(255,224,160,0.9)', 'rgba(200,48,42,0.9)');
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#ffd34d';
+    ctx.strokeStyle = '#5a1a0a';
+    ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    ctx.moveTo(-6.5, -16.5); ctx.lineTo(-6.5, -22.5); ctx.lineTo(-3.2, -19.5); ctx.lineTo(0, -23.6); ctx.lineTo(3.2, -19.5); ctx.lineTo(6.5, -22.5); ctx.lineTo(6.5, -16.5);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    gem(0, -18.6, 1.7, '#ff4a3a');
+  }
+  ctx.restore();
+}
+
+// --- Effekte je Fertigkeit -------------------------------------------------------------------
+// color: Grundfarbe der Schwungspuren; cast: beim Auslösen; hit: bei jedem Treffer.
+
+const SKILL_FX = {
+  // Aderlass (statt des Klingenkreuzes, Ablauf in aderlass.js): je Hieb ein kurzer roter Schnitt am Gegner, der letzte
+  // breiter; Bluttropfen und Funken kommen aus adlblut3
+  aderlass: {
+    color: '#ff8a8a',
+    // leiser Rang-Auftritt (nur die Funkenspirale): alle 3 s Flammenflügel und Lichtsäule würden die schnellen Hiebe
+    // verdecken; den Rang zeigen die Hiebe selbst (Hülle, Nachschnitt, Blutnebel, Fächer – aderlass.js)
+    rankSoft: true,
+    hit(m, crit, heavy) {
+      const c = bodyCenter(m);
+      addEffect({ type: 'slash', x: c.x, y: c.y, ang: (Math.random() - 0.5) * 2.4, len: heavy ? 46 : 34, w: heavy ? 6 : 4, dur: 0.2, color: heavy ? '#ffd0d0' : '#ff8a8a' });
+    }
+  },
+  schwertwirbel: {
+    color: '#ffb05a',
+    bladeSpin: { turns: 2, count: 1 },
+    cast(p, sk) {
+      addEffect({ type: 'tornado', follow: p, r: sk.radius * 0.75, dur: 0.6, color: '#ffc87a' });
+      addEffect({ type: 'decal', kind: 'ring', x: p.x, y: feetY(p), r: sk.radius * 0.85, dur: 1.4, color: '#5a3a1a' });
+      for (let k = 0; k < 28; k++) {
+        const a = (k / 28) * Math.PI * 2;
+        particles(p.x + Math.cos(a) * 40, feetY(p) - 10 + Math.sin(a) * 18, { count: 1, color: ['#ffe0a0', '#ffffff'], angle: a + Math.PI / 2, spread: 0.1, speed: [220, 320], life: [0.25, 0.4], size: [1.5, 2.5], shape: 'spark', drag: 4 });
+      }
+    },
+    hit(m) {
+      const c = bodyCenter(m);
+      particles(c.x, c.y, { count: 6, color: ['#ffd34d', '#ffffff'], speed: [80, 200], life: [0.2, 0.4], size: [1.5, 2.5], shape: 'spark', drag: 5 });
+    }
+  },
+  kampfrausch: {
+    cast(p) {
+      vfxPillar(p, '#ff5a3a', 0.9);
+      addEffect({ type: 'ring', follow: p, ox: 0, oy: 0, r: 70, dur: 0.6, color: '#ff7a3a', width: 8, grow: true });
+      flashScreen('#ff5a3a', 0.25);
+    },
+    aura: { every: 0.06, color: ['#ff7a2a', '#ffd34d', '#c8302a'], shape: 'ember', up: true }
+  },
+  // Sprungschlag (seit 8.3): Erdbrocken springen an jedem Getroffenen hoch
+  sprungschlag: {
+    color: '#c8a878',
+    hit(m) {
+      particles(m.x, feetY(m) - 4, { count: 6, color: ['#8a6a44', '#c9a878'], angle: -Math.PI / 2, spread: 0.8, speed: [60, 140], life: [0.3, 0.5], size: [2, 3.5], shape: 'square', glow: false, gravity: 500 });
+    }
+  },
+  starkerkoerper: {
+    cast(p) {
+      vfxPillar(p, '#ffd34d', 1);
+      addEffect({ type: 'ring', follow: p, ox: 0, oy: -20, r: 34, dur: 0.7, color: '#ffe9a0', width: 10, grow: true });
+      particles(p.x, feetY(p) - 10, { count: 18, color: ['#9a9488', '#c8c0a8'], speed: [80, 180], life: [0.4, 0.7], size: [2.5, 4.5], shape: 'square', glow: false, gravity: 300 });
+    },
+    aura: { every: 0.12, color: ['#ffd34d', '#fff2c0'], shape: 'dot', up: true },
+    ring: '#ffd34d'
+  },
+  hinterhalt: {
+    color: '#b48cff',
+    cast(p) {
+      const t = game.target;
+      if (!t) return;
+      const c = bodyCenter(t);
+      particles(c.x, c.y, { count: 22, color: ['#3d3848', '#5a5466', '#8a7aa8'], speed: [30, 100], life: [0.5, 0.9], size: [5, 9], drag: 2.5, glow: false });
+      flashScreen('#6a4aa8', 0.2);
+    },
+    hit(m) {
+      const c = bodyCenter(m);
+      particles(c.x, c.y, { count: 14, color: ['#b48cff', '#ffffff', '#ff6a8a'], speed: [100, 260], life: [0.2, 0.45], size: [1.5, 3], shape: 'spark', drag: 5 });
+    }
+  },
+  blitzangriff: {
+    color: '#9fd0ff',
+    hit(m) {
+      const c = bodyCenter(m);
+      addEffect({ type: 'bolt', x: m.x, y: m.y, dur: 0.3, color: '#cfe8ff' });
+      particles(c.x, c.y, { count: 10, color: ['#cfe8ff', '#ffffff', '#8a6ad8'], speed: [100, 240], life: [0.15, 0.35], size: [1.5, 2.5], shape: 'spark', drag: 5 });
+    }
+  },
+  tarnung: {
+    cast(p) {
+      addEffect({ type: 'ring', follow: p, ox: 0, oy: -14, r: 40, dur: 0.6, color: '#8a7aa8', width: 6, grow: true });
+    },
+    // seit 13.3 statt großer grauer Blasen ein feiner violetter Schimmer
+    aura: { every: 0.22, color: ['#c9b8ff', '#9a86d8', '#ffffff'], shape: 'spark', up: true, size: [1.2, 2.2] }
+  },
+  // seit 13.85 Schattenkette statt Leichtfüßigkeit: Treffer-Funken kommen aus chainHopFx (ninja-fx.js)
+  schattenkette: {
+    color: '#b48cff'
+  },
+  talisman: {
+    color: '#8fd0ff',
+    hit(m) {
+      const c = bodyCenter(m);
+      particles(c.x, c.y, { count: 10, color: ['#cfe8ff', '#5aa8ff', '#ffffff'], speed: [80, 220], life: [0.15, 0.35], size: [1.5, 2.5], shape: 'spark', drag: 5 });
+      addEffect({ type: 'chain', x: c.x - 14, y: c.y - 10, x2: c.x + 12, y2: c.y + 8, dur: 0.18, color: '#cfe8ff' });
+    }
+  },
+  drachengebruell: {
+    color: '#ff7a2a',
+    cast() {
+      flashScreen('#ff7a2a', 0.15);
+    },
+    hit(m) {
+      addEffect({ type: 'decal', kind: 'scorch', x: m.x, y: feetY(m), r: 18, dur: 2, color: '#1a1008' });
+    }
+  },
+  segen: {
+    cast(p) {
+      vfxPillar(p, '#ffe9a0', 1);
+      addEffect({ type: 'halo', follow: p, dur: 1.2, color: '#ffe9a0' });
+      particles(p.x, feetY(p) - 60, { count: 12, color: ['#ffffff', '#fff2c0'], angle: Math.PI / 2, spread: 0.8, speed: [10, 40], life: [0.8, 1.4], size: [2, 3.5], shape: 'square', drag: 1, gravity: 30 });
+    },
+    aura: { every: 0.18, color: ['#ffe9a0', '#ffffff'], shape: 'dot', up: true },
+    ring: '#ffe9a0'
+  },
+  blitzschlag: {
+    color: '#bfe8ff',
+    cast() {
+      flashScreen('#bfe8ff', 0.15);
+    },
+    hit(m) {
+      const c = bodyCenter(m);
+      particles(c.x, c.y, { count: 6, color: ['#ffffff', '#bfe8ff', '#6ab8ff'], speed: [50, 140], life: [0.3, 0.6], size: [1.5, 3], shape: 'square', drag: 4, glow: false });
+    }
+  },
+  heilung: {
+    cast(p) {
+      addEffect({ type: 'decal', kind: 'rune', x: p.x, y: feetY(p), r: 44, dur: 1.4, color: '#7ad36a' });
+      for (let k = 0; k < 16; k++) {
+        const a = (k / 16) * Math.PI * 2;
+        particles(p.x + Math.cos(a) * 26, feetY(p) + Math.sin(a) * 10, { count: 1, color: ['#9be59b', '#d8ffb0'], angle: -Math.PI / 2, spread: 0.2, speed: [60, 120], life: [0.7, 1.1], size: [2.5, 4], shape: 'square', drag: 1.5 });
+      }
+    }
+  },
+  // Schädelsalve (seit 8.5): kleiner Ring am Stabkopf; am Ziel schnappt ein grüner Kiefer zu, Seelenfunken steigen auf
+  schaedelsalve: {
+    color: '#a7e37f',
+    cast(p) {
+      addEffect({ type: 'ring', follow: p, ox: p.facing.x * 16, oy: -24, r: 24, dur: 0.3, color: '#a7e37f', width: 3 });
+      addEffect({ type: 'sparks3', x: p.x + p.facing.x * 16, y: feetY(p) + p.facing.y * 8, h: 1.1, count: 6, color: '#a7e37f', speed: 1.6, up: 1, dur: 0.35 });
+    },
+    hit(m) {
+      const c = bodyCenter(m);
+      addEffect({ type: 'bite3', x: c.x, y: c.y, dur: 0.3, color: '#a7e37f', size: 1 });
+      addEffect({ type: 'sparks3', x: m.x, y: feetY(m), h: 0.6, count: 8, color: '#a7e37f', speed: 2, up: 1.2, dur: 0.5 });
+      particles(c.x, c.y, { count: 6, color: ['#a7e37f', '#e0ffd0'], speed: [40, 140], life: [0.3, 0.6], size: [2, 4], drag: 3, gravity: -60 });
+    }
+  },
+  // lebensentzug: seit 11.7 eigene Optik in nekro-neu.js (Blutband und Blutkugel)
+  totenbeschwoerung: {
+    cast(p) {
+      addEffect({ type: 'decal', kind: 'rune', x: p.x, y: feetY(p), r: 70, dur: 2, color: '#7ad36a' });
+      particles(p.x, feetY(p), { count: 30, color: ['#a7e37f', '#5aa83a', '#e0ffd0'], angle: -Math.PI / 2, spread: 0.9, speed: [60, 180], life: [0.5, 1], size: [2.5, 5], shape: 'ember', drag: 1.5, jitter: 30 });
+      flashScreen('#5aa83a', 0.18);
+    }
+  },
+  // Seelenschnitter (seit 8.5): jedem Getroffenen wird die Seele halb herausgerissen, violetter Schnitt
+  seelenschnitter: {
+    color: '#a774e0',
+    hit(m) {
+      const c = bodyCenter(m);
+      addEffect({ type: 'orbs3', follow: m, ox: 0, oy: 0, count: 2, color: '#e0ffd0', dur: 0.6 });
+      addEffect({ type: 'slash', x: c.x, y: c.y, ang: 2.4, len: 46, w: 7, dur: 0.24, color: '#a774e0' });
+    }
+  },
+  knochenpanzer: {
+    cast(p) {
+      particles(p.x, feetY(p) - 20, { count: 20, color: ['#ddd5bb', '#ffffff'], speed: [80, 160], life: [0.4, 0.7], size: [2.5, 4], shape: 'square', glow: false });
+    },
+    orbit: true
+  }
+};
+
+// Effekte der zweiten Wege
+Object.assign(SKILL_FX, {
+  schwertaura: {
+    // seit 14.61 eigene Wirk-Animation statt Lichtsäule, Lichtkranz und Bildschirmschein: Waffen hochrecken
+    // (SKILL_POSE3.schwertaura), Klingen blitzen in der Rangfarbe auf, Lichtteich am Boden und aufsteigende Aura
+    // (schwertauraCast, ninja-fx.js). Mitspieler sehen dasselbe über remoteCast (interaktion.js remoteSkillFx).
+    cast(p) {
+      if (typeof schwertauraCast === 'function') schwertauraCast(p, fxRank);
+      else vfxPillar(p, '#ffb84a', 0.55);
+    },
+    remoteCast(rp, rk) {
+      if (typeof schwertauraCast === 'function') schwertauraCast(rp, rk);
+    },
+    // Rang-Effekte beim Wirken nur leise (rankCastFx soft): keine Flammenflügel, kein Sonnenrad, kein Himmelsstrahl
+    rankSoft: true,
+    aura: { every: 0.08, color: ['#fff2c0', '#ffd38a', '#ffffff'], shape: 'spark', up: true },
+    ring: '#ffd38a',
+    weaponGlow: '#ffe28a'
+  },
+  // Felsenfaust (seit 8.3): Fußring beim Ausholen, Staubstern beim Treffer
+  felsenfaust: {
+    color: '#c8a878',
+    cast(p) {
+      addEffect({ type: 'ring', follow: p, ox: 0, oy: 0, r: 30, dur: 0.3, color: '#c8a878', width: 4 });
+    },
+    hit(m) {
+      const c = bodyCenter(m);
+      addEffect({ type: 'impact', x: c.x, y: c.y, dur: 0.3, color: '#e8d8b0', big: true });
+    }
+  },
+  erdbeben: {
+    color: '#c9a878',
+    cast(p, sk) {
+      addEffect({ type: 'decal', kind: 'crack', x: p.x, y: feetY(p), r: sk.radius * 0.8, dur: 2.4, color: '#2a1a10' });
+      addEffect({ type: 'ring', x: p.x, y: feetY(p), r: sk.radius, dur: 0.5, color: '#c9a878', width: 12, grow: true });
+      particles(p.x, feetY(p), { count: 40, color: ['#8a6a44', '#c9a878', '#5a4030'], speed: [80, 260], life: [0.4, 0.8], size: [2.5, 5], shape: 'square', drag: 3, glow: false, gravity: 400 });
+      shakeScreen(9);
+    },
+    hit(m) {
+      particles(m.x, feetY(m), { count: 8, color: ['#8a6a44', '#c9a878'], angle: -Math.PI / 2, spread: 0.5, speed: [80, 160], life: [0.3, 0.5], size: [2, 4], shape: 'square', glow: false, gravity: 500 });
+    }
+  },
+  geistesschlag: {
+    color: '#9fd0ff',
+    cast() { flashScreen('#9fd0ff', 0.22); },
+    hit(m) {
+      const c = bodyCenter(m);
+      addEffect({ type: 'pillar', x: m.x, y: feetY(m), dur: 0.45, color: '#9fd0ff' });
+      particles(c.x, c.y, { count: 20, color: ['#cfe8ff', '#ffffff', '#5a8ad8'], speed: [100, 280], life: [0.2, 0.5], size: [1.5, 3], shape: 'spark', drag: 5 });
+    }
+  },
+  kriegsschrei: {
+    // getroffene Gegner bekommen die Fluchrune in Orange (Zustand „verwundbar“)
+    curseHit(m) {
+      const bc = bodyCenter(m);
+      addEffect({ type: 'sparks3', x: m.x, y: feetY(m), h: 1, count: 6, color: '#ff9a4a', speed: 1.6, up: 1, dur: 0.5 });
+      particles(bc.x, bc.y - 10, { count: 4, color: ['#ff9a4a', '#ffd34d'], speed: [40, 90], life: [0.3, 0.5], size: [1.5, 2.5], shape: 'spark', drag: 4 });
+    },
+    cast(p, sk) {
+      for (let k = 0; k < 3; k++) later(k * 0.12, () => addEffect({ type: 'ring', follow: p, ox: 0, oy: -20, r: sk.radius * (0.5 + k * 0.25), dur: 0.5, color: '#ff9a4a', width: 6, grow: true }));
+      flashScreen('#ff7a3a', 0.2);
+      shakeScreen(5);
+    }
+  },
+  wirbelklinge: {
+    color: '#c9b8ff',
+    bladeSpin: { turns: 2.5, count: 2 },
+    cast(p, sk) {
+      addEffect({ type: 'tornado', follow: p, r: sk.radius * 0.7, dur: 0.5, color: '#c9b8ff' });
+    },
+    hit(m) {
+      const c = bodyCenter(m);
+      addEffect({ type: 'slash', x: c.x, y: c.y, ang: Math.random() * Math.PI, len: 32, w: 4, dur: 0.18, color: '#d8c4ff' });
+    }
+  },
+  schattensprung: {
+    color: '#8a6ad8',
+    cast(p) {
+      particles(p.x, feetY(p) - 14, { count: 24, color: ['#3d3848', '#5a5466', '#8a7aa8'], speed: [30, 100], life: [0.5, 0.9], size: [5, 9], drag: 2.5, glow: false });
+    },
+    trail(p) {
+      particles(p.x, feetY(p) - 14, { count: 2, color: ['#5a5466', '#8a7aa8'], speed: [10, 40], life: [0.3, 0.6], size: [4, 7], drag: 2, glow: false });
+    },
+    end(p) {
+      const c = bodyCenter(p);
+      addEffect({ type: 'slash', x: c.x, y: c.y, ang: 0.8, len: 50, w: 7, dur: 0.25, color: '#c9b8ff' });
+      addEffect({ type: 'slash', x: c.x, y: c.y, ang: -0.8, len: 50, w: 7, dur: 0.25, color: '#c9b8ff' });
+    }
+  },
+  laehmklinge: {
+    color: '#8fd16a',
+    hit(m) {
+      const c = bodyCenter(m);
+      particles(c.x, c.y - 18, { count: 10, color: ['#ffe9a0', '#ffffff'], speed: [30, 70], life: [0.5, 0.8], size: [1.5, 2.5], shape: 'spark', drag: 2 });
+    }
+  },
+  schattenmantel: {
+    cast(p) {
+      particles(p.x, feetY(p) - 14, { count: 30, color: ['#3d3848', '#5a5466', '#8a7aa8'], speed: [20, 70], life: [0.6, 1], size: [5, 9], jitter: 12, drag: 2, glow: false });
+      addEffect({ type: 'ring', follow: p, ox: 0, oy: -14, r: 40, dur: 0.6, color: '#8a7aa8', width: 6, grow: true });
+    },
+    aura: { every: 0.14, color: ['#3d3848', '#5a5466'], shape: 'dot', up: true, glow: false, size: [4, 7] },
+    ring: '#8a7aa8'
+  },
+  drachenkraft: {
+    cast(p) {
+      vfxPillar(p, '#ff9a4a', 1);
+      addEffect({ type: 'ring', follow: p, ox: 0, oy: 0, r: 70, dur: 0.6, color: '#ffd34d', width: 8, grow: true });
+      flashScreen('#ff9a4a', 0.2);
+    },
+    aura: { every: 0.07, color: ['#ffd34d', '#ff9a4a', '#ffe08a'], shape: 'ember', up: true },
+    ring: '#ff9a4a'
+  },
+  donnersturm: {
+    cast() {
+      flashScreen('#cfe8ff', 0.4);
+      const t = game.target;
+      if (!t) return;
+      // dunkle Gewitterwolke über dem Ziel, aus der die Blitze fahren
+      addEffect({ type: 'cloud3', x: t.x, y: feetY(t), dur: 1.3 });
+      later(0.15, () => addEffect({ type: 'decal', kind: 'scorch', x: t.x, y: feetY(t), r: 60, dur: 2.6, color: '#141820' }));
+    },
+    hit(m) {
+      const c = bodyCenter(m);
+      particles(c.x, c.y, { count: 8, color: ['#cfe8ff', '#ffffff'], speed: [100, 260], life: [0.15, 0.3], size: [1.5, 2.5], shape: 'spark', drag: 6 });
+    }
+  },
+  geisterfaust: {
+    hit(m) {
+      const c = bodyCenter(m);
+      addEffect({ type: 'impact', x: c.x, y: c.y, dur: 0.3, color: '#8fe3d8', big: true });
+    }
+  },
+  windfessel: {
+    cast(p, sk) {
+      addEffect({ type: 'tornado', follow: p, r: sk.radius * 0.6, dur: 0.7, color: '#d8fff8' });
+    },
+    // Windbänder schlingen sich um jeden Gegner
+    curseHit(m) {
+      addEffect({ type: 'tornado', follow: m, ox: 0, oy: 0, r: 20, dur: 0.9, color: '#d8fff8' });
+    }
+  },
+  schutzgeist: {
+    cast(p) {
+      vfxPillar(p, '#8fe3d8', 1);
+      addEffect({ type: 'halo', follow: p, dur: 1.2, color: '#d8fff8' });
+    },
+    aura: { every: 0.16, color: ['#d8fff8', '#8fe3d8'], shape: 'dot', up: true },
+    ring: '#8fe3d8'
+  },
+  // Seelenkäfig (seit 8.5): Aufstieg, Schreie und Zerfall zeigt cageFx, hier nur der Treffer
+  seelenkaefig: {
+    color: '#7fe3a0',
+    hit(m) {
+      const c = bodyCenter(m);
+      particles(c.x, c.y, { count: 6, color: ['#7fe3a0', '#e0ffd0'], speed: [40, 120], life: [0.3, 0.5], size: [2, 3.5], drag: 3, gravity: -60 });
+    }
+  },
+  dunklemacht: {
+    cast(p) {
+      vfxPillar(p, '#b48cff', 1);
+      addEffect({ type: 'decal', kind: 'rune', x: p.x, y: feetY(p), r: 50, dur: 1.6, color: '#a774e0' });
+      flashScreen('#6a3aa8', 0.2);
+    },
+    aura: { every: 0.09, color: ['#b48cff', '#a7e37f', '#5a2a8a'], shape: 'ember', up: true },
+    ring: '#a774e0',
+    // Seelenkrone (seit 8.5): der Stabkopf brennt grün, die Krone aus fünf Flammen zeichnet fx3Crown (drei-fx.js)
+    weaponGlow: '#a7e37f'
+  },
+  knochenspeer: {
+    hit(m) {
+      const c = bodyCenter(m);
+      // der Speer zersplittert: Knochensplitter stecken kurz im Boden
+      addEffect({ type: 'shards3', x: m.x, y: feetY(m), r: 26, count: 5, color: '#e8e0c8', glow: false, size: 0.6, dur: 0.8 });
+      particles(c.x, c.y, { count: 12, color: ['#ddd5bb', '#ffffff'], speed: [80, 200], life: [0.3, 0.5], size: [2, 3.5], shape: 'square', glow: false, gravity: 300 });
+    }
+  },
+  laehmung: {
+    cast(p, sk) {
+      addEffect({ type: 'decal', kind: 'rune', x: p.x, y: feetY(p), r: sk.radius * 0.9, dur: 1.8, color: '#7ad36a' });
+      flashScreen('#3a8a2a', 0.2);
+    },
+    // Knochenhände greifen aus dem Boden nach jedem Gegner
+    curseHit(m) {
+      addEffect({ type: 'hands3', follow: m, ox: 0, oy: 0, r: m.r || 14, dur: 1.5, color: '#7ad36a' });
+    }
+  },
+  blutopfer: {
+    cast(p) {
+      vfxPillar(p, '#c43a5a', 1);
+      particles(p.x, feetY(p) - 20, { count: 24, color: ['#ff6a7a', '#c43a5a', '#7a0a1a'], speed: [60, 160], life: [0.4, 0.8], size: [2, 4], drag: 2, gravity: 200 });
+      flashScreen('#c43a5a', 0.2);
+    },
+    aura: { every: 0.12, color: ['#ff6a7a', '#c43a5a'], shape: 'dot', up: true },
+    ring: '#c43a5a'
+  }
+});
+
+// --- Schamane (seit 6.9/7.1, 7.7): Drache, Drachenwirbel und Blizzard, auch für Mitspieler sichtbar -------------------
+
+// Farben des Drachen je Element (Glutdrache aus Feuer, seit 7.7 Blitzdrache)
+const DRAGON_PAL = {
+  feuer: { rune: '#ffb04a', ring: '#ff9a4a', column: '#ff6a2a', core: '#ffe08a', shard: '#ff8a2a', spark: '#ffb04a', bits: ['#ffd34d', '#ff9a4a', '#ff5a2a'] },
+  blitz: { rune: '#8fd0ff', ring: '#9fd0ff', column: '#4a8aff', core: '#ffffff', shard: '#9fd8ff', spark: '#cfe8ff', bits: ['#ffffff', '#cfe8ff', '#5aa8ff'] }
+};
+
+// Drache: Runen an der Hand, der Drache fliegt im Bogen zum Ziel, dort Explosion (Feuer) oder Entladung (Blitz);
+// onHit trifft (nur beim eigenen Wirken). Gibt die Flugzeit zurück.
+function dragonFx(p, tx, ty, sk, onHit) {
+  const el = sk.element || 'feuer';
+  const P = DRAGON_PAL[el];
+  const fly = Math.max(0.3, Math.min(0.7, hyp(tx - p.x, ty - p.y) / (sk.speed || 620)));
+  const c = bodyCenter(p);
+  addEffect({ type: 'runes', x: c.x + p.facing.x * 14, y: c.y + 6, r: 24, dur: 0.5, color: P.rune });
+  addEffect({ type: 'sparks3', x: p.x, y: feetY(p), h: 1, count: 12, color: P.rune, speed: 2, up: 1.4, dur: 0.6 });
+  addEffect({ type: 'dragon3', x: p.x, y: feetY(p), tx, ty, fly, dur: fly + 0.2, size: 1, pal: el });
+  later(fly, () => {
+    addEffect({ type: 'ring', x: tx, y: ty, r: sk.radius, dur: 0.45, color: P.ring, width: 9, grow: true });
+    addEffect({ type: 'column3', x: tx, y: ty, r: 32, hgt: 2.4, color: P.column, core: P.core, dur: 0.6 });
+    addEffect({ type: 'shards3', x: tx, y: ty, r: sk.radius * 0.6, count: 8, color: P.shard, glow: true, size: 1.1, dur: 0.6 });
+    addEffect({ type: 'sparks3', x: tx, y: ty, h: 0.5, count: 26, color: P.spark, speed: 3.4, up: 2, dur: 0.9 });
+    if (el === 'blitz') {
+      // Entladung: mehrere Blitze rund um den Einschlag, zuckende Bögen am Boden
+      for (let k = 0; k < 4; k++) {
+        const a = k * Math.PI / 2 + Math.random() * 0.8;
+        const d = k ? sk.radius * (0.35 + Math.random() * 0.45) : 0;
+        later(k * 0.05, () => addEffect({ type: 'bolt', x: tx + Math.cos(a) * d, y: ty + Math.sin(a) * d * 0.8, dur: 0.35, color: '#cfe8ff' }));
+      }
+      for (let k = 0; k < 5; k++) {
+        const a = Math.random() * Math.PI * 2;
+        addEffect({ type: 'chain', x: tx, y: ty - 6, x2: tx + Math.cos(a) * sk.radius * 0.8, y2: ty + Math.sin(a) * sk.radius * 0.6, dur: 0.25, color: '#9fd0ff' });
+      }
+      addEffect({ type: 'decal', kind: 'crack', x: tx, y: ty, r: sk.radius * 0.5, dur: 2.5, color: '#2a3a6a' });
+      flashScreen('#cfe8ff', 0.12);
+    } else {
+      addEffect({ type: 'smoke3', x: tx, y: ty, count: 7, color: '#2a1a12', size: 0.8, dur: 1.1 });
+      addEffect({ type: 'decal', kind: 'scorch', x: tx, y: ty, r: sk.radius * 0.6, dur: 3, color: '#1a1008' });
+    }
+    particles(tx, ty - 10, { count: 34, color: P.bits, speed: [80, 240], life: [0.3, 0.7], size: [2.5, 5], shape: el === 'blitz' ? 'spark' : 'ember', drag: 3 });
+    if (onHit) onHit();
+  });
+  return fly;
+}
+
+// Blizzard (seit 7.7): Über dem gewählten Ort tobt ein Schneesturm – Frostkreis am Boden, wirbelnder Schnee,
+// Eiszapfen und Hagel fallen schräg herab. onTick(letzter) trifft alle im Kreis (nur beim eigenen Wirken).
+function blizzardFx(x, y, sk, onTick) {
+  const dur = sk.duration || 4;
+  const R = sk.radius;
+  addEffect({ type: 'ring', x, y, r: R, dur: 0.6, color: '#dff4ff', width: 10, grow: true });
+  addEffect({ type: 'runes', x, y, r: R * 0.95, dur, color: '#3a7ac8' });
+  addEffect({ type: 'decal', kind: 'splash', x, y, r: R * 0.85, dur: dur + 1.5, color: '#d8f0ff' });
+  // Eiszapfen und Hagel
+  const n = sk.shards || 26;
+  const fall = 0.45;
+  for (let k = 0; k < n; k++) {
+    const a = Math.random() * Math.PI * 2;
+    const d = Math.sqrt(Math.random()) * R * 0.92;
+    const cx = x + Math.cos(a) * d;
+    const cy = y + Math.sin(a) * d * 0.8;
+    const delay = 0.1 + (k / n) * (dur - 0.5);
+    later(delay, () => addEffect({ type: 'meteor3', x: cx, y: cy, fall, dur: fall + 0.1, size: 1 + Math.random() * 0.5, pal: 'eis' }));
+    later(delay + fall, () => {
+      addEffect({ type: 'sparks3', x: cx, y: cy, h: 0.2, count: 8, color: '#dff4ff', speed: 2.2, up: 1.2, dur: 0.5 });
+      // seit 9.7: spitze Eiszacken bleiben kurz im Boden stecken und zerspringen dann
+      const list = Array.from({ length: 3 + Math.floor(Math.random() * 3) }, (_, i) => [rand(-7, 7), rand(-5, 5), (i ? rand(0.25, 0.5) : rand(0.5, 0.75)), (i ? rand(0.04, 0.06) : rand(0.07, 0.09)), rand(-0.45, 0.45), rand(-0.45, 0.45)]);
+      addEffect({ type: 'mcrys3', x: cx, y: cy, list, color: '#bfe8ff', core: '#6ab8ff', rise: 0.07, hold: 0.7, dur: 0.95 });
+      particles(cx, cy - 4, { count: 7, color: ['#ffffff', '#bfe8ff', '#6ab8ff'], speed: [50, 140], life: [0.3, 0.55], size: [2, 3.5], shape: 'shard', drag: 4, glow: false });
+    });
+  }
+  // Schneegestöber: Flocken treiben schräg durch den Kreis
+  for (let t = 0; t < dur; t += 0.12) {
+    later(t, () => particles(x + rand(-R, R), y - 70 + rand(-20, 20), { count: 3, color: ['#ffffff', '#e8f6ff', '#bfe8ff'], angle: Math.PI * 0.6, spread: 0.3, speed: [80, 150], life: [0.5, 0.9], size: [1.5, 3], drag: 0.5, gravity: 60, glow: false, jitter: R * 0.4 }));
+  }
+  const ticks = sk.ticks || 8;
+  for (let t = 0; t < ticks; t++) {
+    later(0.3 + t * ((dur - 0.3) / ticks), () => {
+      addEffect({ type: 'ring', x, y, r: R, dur: 0.35, color: '#6ab8ff', width: 3 });
+      if (onTick) onTick(t === ticks - 1);
+    });
+  }
+}
+
+// Geisterdrache kreist um die Figur: je Runde ein Feuerbogen mit Schweif, am Ende eine Feuerwelle
+function vortexFx(p, sk, onPulse) {
+  const hits = sk.hits || 3;
+  const col = sk.color || '#ff7a2a';
+  addEffect({ type: 'runes', follow: p, ox: 0, oy: 0, r: sk.radius * 0.9, dur: hits * 0.3 + 0.4, color: col });
+  addEffect({ type: 'tornado', follow: p, ox: 0, oy: 0, r: sk.radius * 0.35, dur: hits * 0.3 + 0.2, color: '#ffb04a' });
+  for (let h = 0; h < hits; h++) {
+    later(h * 0.3, () => {
+      const last = h === hits - 1;
+      const a = h * 2.1;
+      vfxSweep(p, sk.radius * 0.88, a, a + Math.PI * 2.1, col, 0.34, 30);
+      vfxSweep(p, sk.radius * 0.7, a + 0.4, a + 0.4 + Math.PI * 1.8, '#ffe08a', 0.3, 12);
+      addEffect({ type: 'sparks3', follow: p, x: p.x, y: feetY(p), h: 0.9, count: 10, color: '#ffb04a', speed: 3.4, up: 0.8, dur: 0.6 });
+      if (last) {
+        addEffect({ type: 'ring', follow: p, ox: 0, oy: 0, r: sk.radius, dur: 0.5, color: '#ff9a4a', width: 10, grow: true });
+        addEffect({ type: 'column3', follow: p, ox: 0, oy: 0, r: 34, hgt: 2.2, color: '#ff6a2a', core: '#ffe08a', dur: 0.6 });
+      }
+      if (onPulse) onPulse(h, last);
+    });
+  }
+}
+
+// --- Nekromant, Weg der Seelen (seit 8.5): Seelenkäfig und Seelenschnitter, auch für Mitspieler sichtbar ----------
+
+// Augen und Kern in der Rangfarbe, sonst Seelengrün
+function soulEyeColor() {
+  return fxRank >= 0 ? SKILL_RANKS[fxRank].color : '#a7e37f';
+}
+
+// Seelenkäfig: Stabstoß, die Erde reißt auf, ein Käfig aus sechs Rippen bricht hervor (cage3), der Geist darin schreit
+// sk.pulses-mal. onPulse(k, letzter) trifft (nur beim eigenen Wirken); gibt es false zurück, endet der Käfig sofort.
+function cageFx(owner, x, y, sk, onPulse) {
+  const fy = y + 9;
+  const dur = sk.rise + sk.pulses * sk.every + 0.5;
+  later(0.2, () => {
+    const sx = owner.x + owner.facing.x * 18;
+    const sy = feetY(owner) + owner.facing.y * 10;
+    addEffect({ type: 'ring', x: sx, y: sy, r: 22, dur: 0.3, color: '#7fe3a0', width: 3 });
+    particles(sx, sy, { count: 8, color: ['#6a5038', '#8a6a44'], angle: -Math.PI / 2, spread: 0.9, speed: [40, 110], life: [0.3, 0.5], size: [2, 3.5], shape: 'square', glow: false, gravity: 500 });
+  });
+  const e = addEffect({ type: 'cage3', x, y: fy, r: sk.radius, rise: sk.rise, pulses: sk.pulses, every: sk.every, dur, color: sk.color || '#7fe3a0', eye: soulEyeColor() });
+  addEffect({ type: 'decal', kind: 'crack', x, y: fy, r: 24, dur: dur + 1, color: '#1a2a14' });
+  addEffect({ type: 'shards3', x, y: fy, r: 34, count: 8, color: '#5a4a38', glow: false, size: 0.7, dur: 0.9 });
+  addEffect({ type: 'smoke3', x, y: fy, count: 5, color: '#14281a', size: 0.7, dur: 1 });
+  particles(x, fy - 4, { count: 14, color: ['#6a5038', '#8a6a44', '#e8e0c8'], angle: -Math.PI / 2, spread: 1, speed: [60, 160], life: [0.4, 0.7], size: [2, 4], shape: 'square', glow: false, gravity: 500 });
+  for (let k = 0; k < sk.pulses; k++) {
+    const last = k === sk.pulses - 1;
+    later(sk.rise + k * sk.every, () => {
+      if (e.stop) return;
+      if (onPulse && onPulse(k, last) === false) {
+        e.stop = true;
+        e.dur = 0;
+        return;
+      }
+      addEffect({ type: 'ring', x, y: fy, r: sk.radius, dur: 0.5, color: '#7fe3a0', width: 6, grow: true });
+      for (const m of enemiesInCircle(x, y, sk.radius)) addEffect({ type: 'sparks3', x: m.x, y: feetY(m), h: 0.7, count: 4, color: '#a7e37f', speed: 1.8, up: 1, dur: 0.45 });
+      particles(x, fy - 30, { count: 8, color: ['#e0ffd0', '#7fe3a0'], speed: [60, 140], life: [0.3, 0.5], size: [2, 3.5], drag: 3 });
+      if (last) {
+        // die Rippen platzen weg, der Geist fährt als Lichtsäule auf
+        addEffect({ type: 'shards3', x, y: fy, r: 46, count: 8, color: '#e8e0c8', glow: false, size: 0.8, dur: 0.8 });
+        addEffect({ type: 'column3', x, y: fy, r: 24, hgt: 2.2, color: '#7fe3a0', core: '#e0ffd0', dur: 0.7 });
+        particles(x, fy - 20, { count: 16, color: ['#e8e0c8', '#ffffff'], speed: [90, 200], life: [0.3, 0.6], size: [2, 3.5], shape: 'square', glow: false, gravity: 400 });
+      }
+    });
+  }
+  return e;
+}
+
+// Seelenschnitter: ein violetter Schnitter erhebt sich neben der Figur (reaper3), mäht mit der Sense einmal durch den
+// Bogen vor ihr (Sichelspur, Narbe am Boden) und zerfällt zu Asche. Nur Optik, den Treffer setzt SKILL_TYPES.reaper.
+function reaperFx(owner, ang, sk) {
+  const half = (sk.angle || 200) * Math.PI / 360;
+  // ground: ohne 3D steht die Gestalt hinter der Figur (wird vor den Figuren gezeichnet)
+  addEffect({ type: 'reaper3', follow: owner, ang, half, R: sk.radius, dur: 0.95, color: sk.color || '#a774e0', eye: soulEyeColor(), ground: true });
+  // ohne 3D: Sichelspur als Schwung um die Figur
+  if (!V3.on) later(0.35, () => vfxSweep(owner, sk.radius * 0.85, ang + half, ang - half, '#a7e37f', 0.3, 40));
+  later(0.38, () => {
+    // gebogene Narbe im Boden entlang des Bogens (dunkle Flecken; Risse sähen von oben wie Spinnen aus)
+    for (let i = 0; i < 7; i++) {
+      const a = ang + half - (i + 0.5) / 7 * half * 2;
+      addEffect({ type: 'decal', kind: 'splash', x: owner.x + Math.cos(a) * sk.radius * 0.85, y: feetY(owner) + Math.sin(a) * sk.radius * 0.85, r: 18, dur: 1.5, color: '#2a1a34' });
+    }
+  });
+  later(0.5, () => {
+    addEffect({ type: 'smoke3', x: owner.x, y: feetY(owner) - 29, count: 5, color: '#1a1224', size: 0.8, dur: 0.6 });
+    addEffect({ type: 'sparks3', x: owner.x, y: feetY(owner) - 29, h: 1.4, count: 10, color: '#8a7a9a', speed: 1.2, up: 0.6, dur: 0.6 });
+  });
+}
+
+function skillColor(sk, fallback) {
+  const fx = SKILL_FX[sk.id];
+  return (fx && fx.color) || fallback;
+}
+
+function skillCastFx(sk) {
+  const fx = SKILL_FX[sk.id];
+  if (fx && fx.cast) fx.cast(game.player, sk);
+  skillSignature3(sk, game.player);
+  // Ninja-Attacken in 3D (seit 13.2, ninja-fx.js)
+  if (typeof ninjaFx3 === 'function') ninjaFx3(game.player, sk, game.target, false);
+  // Heiler-Schamane in 3D (seit 13.26, heiler-fx.js)
+  if (typeof heilerFx3 === 'function') heilerFx3(game.player, sk, game.target, false);
+}
+
+function skillHitFx(id, m, crit, heavy) {
+  const fx = SKILL_FX[id];
+  if (fx && fx.hit) fx.hit(m, crit, heavy);
+  // kritischer Treffer: weißer Kreuzblitz am Ziel
+  if (crit) {
+    const c = bodyCenter(m);
+    addEffect({ type: 'slash', x: c.x, y: c.y, ang: 0.78, len: 34, w: 4, dur: 0.2, color: '#ffffff' });
+    addEffect({ type: 'slash', x: c.x, y: c.y, ang: -0.78, len: 34, w: 4, dur: 0.2, color: '#ffffff' });
+  }
+  const el = SKILL_ELEMENT[id];
+  if (el) addEffect({ type: 'sparks3', x: m.x, y: feetY(m), h: 0.6, count: heavy ? 12 : 7, color: ELEMENT3[el].spark, speed: 2.2, up: 1, size: crit ? 1.4 : 1, dur: 0.6 });
+}
+
+// --- Eigener 3D-Auftritt je Element (seit 6.6) ------------------------------------------------------
+// Jede Fertigkeit gehört zu einem Element und bekommt beim Wirken räumliche Teile dazu:
+// Klinge: Stahlfunken · Erde: Felsen brechen aus dem Boden · Feuer/Wut: Flammensäule und Glut ·
+// Schatten: Rauch und dunkle Kugeln · Blitz: blaue Funken · Wind: Wirbelsäule · Licht/Geist: goldene Säule
+// und Kugeln · Seele: grüne Kugeln und Rauch · Blut: rote Säule · Knochen: Knochenzacken
+const ELEMENT3 = {
+  klinge: { spark: '#e6eeff' },
+  erde: { spark: '#c8a878', shard: '#7a6a54' },
+  feuer: { spark: '#ffb04a', column: '#ff6a2a' },
+  schatten: { spark: '#c9b8ff', smoke: '#1a1224', orb: '#8a5aff' },
+  blitz: { spark: '#cfe8ff', column: '#7fb8ff' },
+  eis: { spark: '#dff4ff', shard: '#9fd8ff' },
+  wind: { spark: '#e8fff0', column: '#9fe8c8' },
+  licht: { spark: '#fff2c0', column: '#ffd34d', orb: '#fff2a0' },
+  seele: { spark: '#9ff0b0', smoke: '#14281a', orb: '#7fe3a0' },
+  blut: { spark: '#ff6a6a', column: '#c8202a' },
+  knochen: { spark: '#f0e8d4', shard: '#e8e0c8' }
+};
+const SKILL_ELEMENT = {
+  aderlass: 'klinge', schwertwirbel: 'klinge', wirbelklinge: 'klinge', hinterhalt: 'schatten', schwertaura: 'klinge',
+  sprungschlag: 'erde', felsenfaust: 'erde', erdbeben: 'erde', starkerkoerper: 'erde',
+  kampfrausch: 'feuer', drachengebruell: 'feuer', drachenkraft: 'feuer', kriegsschrei: 'feuer',
+  tarnung: 'schatten', schattensprung: 'schatten', schattenmantel: 'schatten', laehmklinge: 'seele',
+  blitzangriff: 'blitz', blitzschlag: 'eis', donnersturm: 'blitz',
+  windfessel: 'wind',
+  geisterfaust: 'licht', segen: 'licht', heilung: 'licht', schutzgeist: 'licht', talisman: 'blitz', geistesschlag: 'licht',
+  schaedelsalve: 'seele', seelenkaefig: 'seele', seelenschnitter: 'schatten', totenruf: 'seele', dunklemacht: 'schatten', laehmung: 'seele',
+  blutopfer: 'blut', knochenspeer: 'knochen', knochenpanzer: 'knochen'
+};
+
+function skillSignature3(sk, p) {
+  // Magier (seit 8.6): eigene Auftritte und Wirk-Effekte über SKILL_FX (magier.js)
+  if (sk.el) return;
+  const el = SKILL_ELEMENT[sk.id];
+  // Blitzdrache, Blizzard, Aderlass, Felsenfaust und Sprungschlag haben ihren eigenen Auftritt,
+  // ebenso seit 8.5 Schädelsalve, Seelenkäfig, Seelenschnitter und Totenbeschwörung
+  if (!el || sk.type === 'dragon' || sk.type === 'blizzard' || sk.type === 'flurry' || sk.type === 'erupt' || sk.type === 'leap') return;
+  if (sk.type === 'skulls' || sk.type === 'cage' || sk.type === 'reaper' || sk.type === 'summon') return;
+  const c = ELEMENT3[el];
+  const t = game.target && !game.target.dead && dist(game.target, p) < 400 ? game.target : null;
+  // seit 13.85: mit Zielkreis (Donnersturm) am gewählten Ort
+  const ap = sk.aim && game.aim && game.aim.sk === sk && sk.type === 'blast' ? { x: game.aim.pt.x, y: game.aim.pt.y, r: 0 } : null;
+  // Angriffe auf ein Ziel wirken dort, Flächen und Buffs an der Figur
+  const at = ap || (t && (sk.type === 'blast' || sk.type === 'strike' || sk.type === 'curse' || sk.type === 'drain' || sk.type === 'blink') ? t : p);
+  const fy = feetY(at);
+  const big = sk.radius ? sk.radius : 60;
+  addEffect({ type: 'sparks3', x: at.x, y: fy, h: 0.8, count: 18, color: c.spark, speed: 3, up: 1.4, dur: 0.8 });
+  if (c.shard) addEffect({ type: 'shards3', x: at.x, y: fy, r: Math.max(50, big * 0.8), count: el === 'knochen' ? 7 : 10, color: c.shard, glow: false, size: el === 'erde' ? 1.3 : 1, dur: 1.1 });
+  if (c.column) addEffect({ type: 'column3', follow: at, ox: 0, oy: 0, r: 26, hgt: sk.kind === 'buff' ? 3 : 2.2, color: c.column, dur: 0.8 });
+  if (c.smoke) addEffect({ type: 'smoke3', follow: at, ox: 0, oy: 0, count: 9, color: c.smoke, dur: 1 });
+  if (c.orb && (sk.kind === 'buff' || sk.kind === 'heilung' || sk.kind === 'fluch' || el === 'seele')) addEffect({ type: 'orbs3', follow: p, ox: 0, oy: 0, count: 6, color: c.orb, dur: 1 });
+  if (el === 'wind') addEffect({ type: 'tornado', follow: at, ox: 0, oy: 0, r: 40, dur: 0.8, color: c.column });
+  if (el === 'blitz' && at !== p) addEffect({ type: 'bolt', x: at.x, y: fy, dur: 0.3, color: '#cfe8ff' });
+}
+
+function skillPhaseFx(id, phase) {
+  const fx = SKILL_FX[id];
+  if (fx && fx[phase]) fx[phase](game.player);
+}
+
+// Dauerhafte Auren aktiver Buffs: Funken, Rauch oder Wind um die Figur
+function updateBuffAuras(dt) {
+  const p = game.player;
+  if (!p || p.dead) return;
+  p.auraTimers = p.auraTimers || {};
+  for (const b of p.buffs) {
+    const fx = SKILL_FX[b.id];
+    if (!fx || !fx.aura) continue;
+    const a = fx.aura;
+    if (a.onlyMoving && !p.moving) continue;
+    // seit 13.83 steigen Funken und Rauch aus der Körperaura (koerperaura.js); nur der Fahrtwind bleibt
+    if (!a.wind && typeof bodyAura2 === 'function') continue;
+    p.auraTimers[b.id] = (p.auraTimers[b.id] || 0) + dt;
+    while (p.auraTimers[b.id] >= a.every) {
+      p.auraTimers[b.id] -= a.every;
+      const fy = feetY(p);
+      if (a.wind) {
+        particles(p.x - p.facing.x * 10 + rand(-8, 8), fy - rand(6, 40), { count: 1, color: a.color, angle: Math.atan2(-p.facing.y, -p.facing.x), spread: 0.1, speed: [120, 200], life: [0.15, 0.3], size: [1.2, 2], shape: 'spark', drag: 3 });
+      } else {
+        particles(p.x + rand(-12, 12), fy - rand(0, 30), { count: 1, color: a.color, angle: -Math.PI / 2, spread: 0.4, speed: [20, 60], life: [0.5, 0.9], size: a.size || [1.5, 3], shape: a.shape, drag: 1.5, glow: a.glow !== false });
+      }
+    }
+  }
+}
+
+// --- Ränge: je höher der Rang, desto wuchtiger sieht eine Fertigkeit aus -------------------------
+
+// Ränge sichtbar machen: jede Stufe legt etwas drauf.
+// Erwacht: Runenkreis und Ring in der Rangfarbe · Heroisch: dazu aufsteigende Wirbelringe ·
+// Legendär: dazu Lichtsäule, Blitz und Aufleuchten · Vollendet: dazu Himmelsstrahl, Glutwelle und Beben
+// soft (seit 14.61, Fertigkeiten mit eigener Wirk-Animation wie die Schwertaura): nur die Funkenspirale in der
+// Rangfarbe, kein Bildschirmschein, kein Beben, in 2D keine Ringe, Runen und Säulen
+// remote (seit 15.71): Fertigkeit eines Mitspielers – gleiches Bild, aber kein Bildschirmblitz und kein Beben bei dir
+function rankCastFx(p, rank, color, soft = false, remote = false) {
+  const fy = feetY(p);
+  // seit 12.6 in 3D: Funkenspirale, Kränze, Lichtsäule, Flammenflügel je Rang (rang-fx.js) – ohne Runenkreise
+  // und Sterne am Boden; die alten Ringe und Runen gibt es nur noch in 2D
+  if (typeof rankCast3 === 'function' && typeof V3 !== 'undefined' && V3.on) {
+    rankCast3(p, rank, soft);
+    if (soft || remote) return;
+    if (rank >= 2) flashScreen(color, 0.14);
+    if (rank >= 3) shakeScreen(5);
+    return;
+  }
+  // seit 15.71 in 2D wie in 3D: Funkenspirale, Kränze, Goldsäule, bei V Flammenflügel und Feuerkrone (rang2d.js)
+  if (EXTRA_EFFECTS.rankcast2) addEffect({ type: 'rankcast2', owner: p, x: p.x, y: fy, rank, soft, dur: soft ? 1.2 : 0.95 + rank * 0.25 });
+  if (soft) {
+    particles(p.x, fy - 14, { count: 10 + rank * 6, color: [color, '#ffffff'], angle: -Math.PI / 2, spread: 0.8, speed: [60, 140 + rank * 30], life: [0.4, 0.7], size: [1.5, 3], shape: 'spark', drag: 2 });
+    return;
+  }
+  // seit 14.89 für alle Klassen wie in 3D: nichts am Boden (vorher Ringe, Runenkreise, Pentagramm, Lichtsäule, Blitz
+  // vom Himmel und ein weißer Strahl bei jeder Attacke ab Heroisch – in der 2D-Durchsicht überdeckte das die Attacke selbst).
+  // Stattdessen steigen Funken in der Rangfarbe auf, je Rang mehr; ab Legendär ein kurzes Leuchten um die Figur.
+  addEffect({ type: 'sparks3', x: p.x, y: fy, h: 0.4, count: 8 + rank * 4, color, speed: 1.6, up: 2.2, dur: 0.6 });
+  particles(p.x, fy - 14, { count: 12 + rank * 8, color: [color, '#ffffff'], angle: -Math.PI / 2, spread: 0.9, speed: [70, 170 + rank * 30], life: [0.35, 0.7], size: [1.5, 3], shape: 'spark', drag: 3 });
+  if (rank >= 2) {
+    addEffect({ type: 'halo', follow: p, dur: 0.5 + rank * 0.1, color });
+    if (!remote) flashScreen(color, 0.12);
+  }
+  if (rank >= 3) {
+    particles(p.x, fy, { count: 24, color: ['#ff6a4a', '#ffd34d', '#ffffff'], angle: -Math.PI / 2, spread: 1.2, speed: [120, 240], life: [0.5, 0.9], size: [2, 4], shape: 'ember', drag: 2 });
+    if (!remote) shakeScreen(4);
+  }
+}
+
+// Treffer einer Fertigkeit mit Rang: Lichtfleck in der Rangfarbe, ab Heroisch ein Kreuzschnitt,
+// ab Legendär kleine Blitze, Vollendet mit Glutwelle
+// seit 14.38: Gedränge. Jeder Treffer einer Fertigkeit mit Rang legt bis zu sieben Effekte an (Einschlag, zwei
+// Schnitte, drei Blitze, Rang-Treffer in 3D) und über 30 Funken. Trifft ein Pfeilregen oder ein Feuerfeld 80 Monster
+// mehrmals je Sekunde, standen über 1.000 solcher Effekte gleichzeitig im Bild (gemessen: 378 Blitze, 346 Schnitte,
+// 254 Einschläge, 196 Rang-Treffer) – der größte einzelne Posten der Rechenzeit je Bild. Darum zählt das Spiel die
+// Treffer-Effekte der letzten Viertelsekunde: bis RANK_FX_CROWD.merge bleibt alles wie bisher (Kämpfe gegen einzelne
+// Gegner und kleine Gruppen sehen unverändert aus). Darüber bekommt derselbe Gegner höchstens alle 0,15 s einen neuen
+// Satz (wie der Rang-Treffer in 3D schon immer; die Effekte dauern länger als 0,15 s, überdecken sich also ohnehin),
+// und über RANK_FX_CROWD.thin entfallen der zweite Schnitt, die Blitze und die Glutfunken. Schaden, Trefferzahl und
+// Schadenszahlen sind davon unberührt.
+const RANK_FX_CROWD = { t: -9, n: 0, merge: 24, thin: 48, win: 0.25 };
+function rankFxLoad() {
+  const C = RANK_FX_CROWD;
+  if (game.time - C.t > C.win || game.time < C.t) {
+    C.t = game.time;
+    C.n = 0;
+  }
+  return ++C.n;
+}
+function rankHitFx(m, rank) {
+  const color = SKILL_RANKS[rank].color;
+  const load = rankFxLoad();
+  if (load > RANK_FX_CROWD.merge && m.rkFxAt > game.time - 0.15) return;
+  m.rkFxAt = game.time;
+  const thin = load > RANK_FX_CROWD.thin;
+  // 3D-Treffer je Rang (rang-fx.js), höchstens alle 0,15 s je Gegner (Kanal- und Mehrfachtreffer)
+  if (typeof rankHit3 === 'function' && !(m.rk3At > game.time - 0.15)) {
+    m.rk3At = game.time;
+    rankHit3(m, rank);
+  }
+  const c = bodyCenter(m);
+  particles(c.x, c.y, { count: thin ? 2 + rank * 2 : 4 + rank * 4, color: [color, '#ffffff'], speed: [100, 220], life: [0.2, 0.4], size: [1.5, 2.8], shape: 'spark', drag: 5 });
+  addEffect({ type: 'impact', x: c.x, y: c.y, dur: 0.26 + rank * 0.04, color, big: rank >= 2 });
+  if (rank >= 1) {
+    const a = Math.random() * Math.PI;
+    addEffect({ type: 'slash', x: c.x, y: c.y, ang: a, len: 40 + rank * 8, w: 5, dur: 0.24, color });
+    if (!thin) addEffect({ type: 'slash', x: c.x, y: c.y, ang: a + Math.PI / 2, len: 40 + rank * 8, w: 5, dur: 0.24, color });
+  }
+  if (thin) return;
+  if (rank >= 2) {
+    for (let k = 0; k < rank; k++) {
+      const an = Math.random() * Math.PI * 2;
+      addEffect({ type: 'chain', x: c.x, y: c.y, x2: c.x + Math.cos(an) * 40, y2: c.y + Math.sin(an) * 26, dur: 0.18, color });
+    }
+  }
+  if (rank >= 2 && EXTRA_EFFECTS.rankhit2 && !(typeof V3 !== 'undefined' && V3.on)) {
+    addEffect({ type: 'rankhit2', target: m, x: c.x, y: c.y, rank, seed: Math.random() * 10, dur: 0.45 + rank * 0.1 });
+  }
+  if (rank >= 3) {
+    // seit 14.3 nur noch in 2D: in 3D legte jeder Treffer einen Ring (mit Rang-Runen) auf den Boden – bei Feuertornados
+    // und Glutfeld dutzende große rote Bodenringe; rankHit3 zeigt dort Glutwelle und Meteor in der Luft
+    // seit 14.89 auch in 2D kein Ring mehr am Boden (vorher große rote Kreise um jeden getroffenen Gegner)
+    // seit 15.79 kräftiger: der Rang zeigt sich jetzt am Treffer statt an der Figur
+    particles(c.x, c.y, { count: 26, color: ['#ff6a4a', '#ffd34d', '#ffffff'], speed: [100, 260], life: [0.35, 0.75], size: [2.2, 4.2], shape: 'ember', drag: 3 });
+  }
+}
+
+// --- Sichtbare Buffs: jeder Buff hat ein eigenes Erscheinungsbild an der Figur ---------------------
+// back wird vor der Figur gezeichnet (liegt dahinter), front danach. t = Spielzeit, fy = Fußlinie.
+
+// Gezackter Blitz zwischen zwei Punkten, wechselt alle paar Hundertstel die Form
+function zigzag(ctx, x0, y0, x1, y1, seed, jag = 5) {
+  ctx.beginPath();
+  ctx.moveTo(x0, y0);
+  for (let k = 1; k < 5; k++) {
+    const f = k / 5;
+    const r = Math.sin(seed * 12.9898 + k * 78.233) * 43758.5453;
+    const off = ((r - Math.floor(r)) - 0.5) * 2 * jag;
+    ctx.lineTo(x0 + (x1 - x0) * f + off, y0 + (y1 - y0) * f + off * 0.6);
+  }
+  ctx.lineTo(x1, y1);
+  ctx.stroke();
+}
+
+function orbit(t, speed, r, k, n, ry = 0.4) {
+  const a = t * speed + (k / n) * Math.PI * 2;
+  return { x: Math.cos(a) * r, y: Math.sin(a) * r * ry, front: Math.sin(a) > 0 };
+}
+
+const BUFF_LOOKS = {
+  // Kampfrausch: rote Blitze zucken um die Figur. Bis zum Erwecken nur ein einzelner, kurzer Blitz,
+  // mit jedem Rang mehr und längere Blitze, ab Legendär knistert die ganze Figur.
+  kampfrausch(ctx, p, fy, t, layer, b) {
+    const r = skillRank(b.lvl || 1);
+    if (layer === 'back') {
+      glow(ctx, p.x, fy - 20, 24 + r * 4, '#ff3a1a', (0.18 + 0.06 * r) + 0.08 * Math.sin(t * 12));
+      return;
+    }
+    const count = [1, 2, 3, 4, 6][r + 1];
+    const len = 22 + 6 * (r + 1);
+    const seed = Math.floor(t * (r < 0 ? 9 : 14));
+    // ohne Rang flackert der Blitz nur ab und zu auf
+    if (r < 0 && seed % 3 !== 0) return;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.lineCap = 'round';
+    const wide = r >= 2 ? 1.4 : 1;
+    for (let k = 0; k < count; k++) {
+      const a = seed * 1.7 + k * (Math.PI * 2 / count);
+      const x0 = p.x + Math.cos(a) * 10;
+      const y0 = fy - 24 + Math.sin(a) * 12;
+      const x1 = p.x + Math.cos(a) * len;
+      const y1 = fy - 24 + Math.sin(a * 1.3) * (len - 6);
+      ctx.strokeStyle = 'rgba(255,70,30,0.5)';
+      ctx.lineWidth = (r < 0 ? 3 : 5) * wide;
+      zigzag(ctx, x0, y0, x1, y1, seed + k, 7);
+      ctx.strokeStyle = 'rgba(255,150,80,0.95)';
+      ctx.lineWidth = (r < 0 ? 1.4 : 2.4) * wide;
+      zigzag(ctx, x0, y0, x1, y1, seed + k, 7);
+      ctx.strokeStyle = 'rgba(255,245,215,1)';
+      ctx.lineWidth = 1;
+      zigzag(ctx, x0, y0, x1, y1, seed + k, 7);
+      glow(ctx, x1, y1, 4 + r * 1.5 + 2, '#ff7a3a', 0.4 + 0.1 * r);
+    }
+    // Legendär und Vollendet: Blitze schlagen bis in den Boden
+    if (r >= 2) {
+      for (let k = 0; k < r - 1; k++) {
+        const x = p.x + Math.sin(seed * 2.3 + k * 3) * 22;
+        ctx.strokeStyle = 'rgba(255,200,140,0.9)';
+        ctx.lineWidth = 1.6;
+        zigzag(ctx, x, fy - 52, x + Math.sin(seed + k) * 8, fy, seed + k * 7, 6);
+        glow(ctx, x, fy, 9, '#ff5a2a', 0.6);
+      }
+    }
+    ctx.restore();
+  },
+  // Aura des Schwertes: goldener Schein und aufsteigende Lichtfunken (seit 13.83 ohne Kreis am Boden)
+  schwertaura(ctx, p, fy, t, layer) {
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    if (layer === 'back') {
+      glow(ctx, p.x, fy - 6, 28, '#ffd38a', 0.25);
+    } else {
+      for (let k = 0; k < 4; k++) {
+        const u = (t * 0.7 + k / 4) % 1;
+        glow(ctx, p.x + Math.sin(t * 2 + k * 1.6) * 14, fy - 4 - u * 46, 5, '#ffe9a0', 0.8 * (1 - u));
+      }
+    }
+    ctx.restore();
+  },
+  // Starker Körper: goldene Schuppenschale um den Körper
+  starkerkoerper(ctx, p, fy, t, layer) {
+    if (layer !== 'front') return;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    const a = 0.25 + 0.12 * Math.sin(t * 4);
+    ctx.strokeStyle = `rgba(255,211,77,${a + 0.2})`;
+    ctx.fillStyle = `rgba(255,211,77,${a * 0.35})`;
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.ellipse(p.x, fy - 21, 19, 26, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.lineWidth = 0.8;
+    for (let y = -40; y <= -4; y += 9) {
+      ctx.beginPath();
+      for (let x = -15; x <= 15; x += 6) {
+        const yy = fy + y + ((x / 6) % 2 ? 3 : 0);
+        if (x === -15) ctx.moveTo(p.x + x, yy);
+        else ctx.lineTo(p.x + x, yy);
+      }
+      ctx.stroke();
+    }
+    ctx.restore();
+  },
+  // Schattenmantel: dunkler Schleier und violette Glut
+  schattenmantel(ctx, p, fy, t, layer) {
+    if (layer === 'back') {
+      ctx.save();
+      ctx.globalAlpha *= 0.45;
+      ctx.fillStyle = '#1a1426';
+      for (let k = 0; k < 3; k++) ellipse(ctx, p.x + Math.sin(t * 2 + k * 2) * 6, fy - 16 - k * 6, 18 - k * 3, 20 - k * 4);
+      ctx.restore();
+    } else {
+      glow(ctx, p.x, fy - 24, 22, '#8a5ad0', 0.25 + 0.1 * Math.sin(t * 5));
+    }
+  },
+  // Drachenkraft: ein Feuerband kreist wie ein Drache um die Figur
+  drachenkraft(ctx, p, fy, t, layer) {
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    for (let k = 0; k < 14; k++) {
+      const o = orbit(t, 3, 24, -k * 0.09, 1, 0.45);
+      if ((layer === 'front') !== o.front) continue;
+      const y = fy - 20 + o.y + Math.sin(t * 3 - k * 0.4) * 9;
+      glow(ctx, p.x + o.x, y, 12 - k * 0.6, k < 2 ? '#fff2b0' : k < 6 ? '#ffb04a' : '#ff5a1a', 0.95 - k * 0.05);
+    }
+    if (layer === 'back') glow(ctx, p.x, fy - 18, 30, '#ff7a2a', 0.22);
+    ctx.restore();
+  },
+  // Segen: goldener Heiligenschein über dem Kopf
+  segen(ctx, p, fy, t, layer) {
+    if (layer !== 'front') return;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.strokeStyle = 'rgba(255,233,160,0.95)';
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    ctx.ellipse(p.x, fy - 54 + Math.sin(t * 3) * 1.5, 10, 3.4, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    glow(ctx, p.x, fy - 54, 16, '#ffe9a0', 0.35);
+    ctx.restore();
+  },
+  // Falkengeist (seit 13.26): ein kleiner goldener Geisterfalke kreist über dem Kopf; in 3D fliegt er als
+  // Modell (falke3, heiler-fx.js)
+  schutzgeist(ctx, p, fy, t, layer) {
+    if (V3.on) return;
+    const o = orbit(t, 1.6, 22, 0, 1, 0.35);
+    if ((layer === 'front') !== o.front) return;
+    const x = p.x + o.x;
+    const y = fy - 62 + o.y + Math.sin(t * 3) * 2;
+    const flap = Math.sin(t * 14) * 3;
+    const dir = Math.cos(t * 1.6) >= 0 ? -1 : 1;
+    ctx.save();
+    glow(ctx, x, y, 12, '#ffd66a', 0.5);
+    ctx.fillStyle = 'rgba(255,226,140,0.95)';
+    ctx.strokeStyle = 'rgba(90,50,8,0.9)';
+    ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    ctx.moveTo(x - 9, y - 2 - flap);
+    ctx.quadraticCurveTo(x - 3, y - 4, x, y);
+    ctx.quadraticCurveTo(x + 3, y - 4, x + 9, y - 2 - flap);
+    ctx.quadraticCurveTo(x + 3, y + 1, x, y + 3);
+    ctx.quadraticCurveTo(x - 3, y + 1, x - 9, y - 2 - flap);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = '#fff6d8';
+    ctx.beginPath();
+    ctx.arc(x + dir * 2, y - 1, 1.8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  },
+  // Dunkle Macht: violett-grüne Flammen am Boden; ohne 3D dazu fünf grüne Seelenflammen über dem Kopf
+  // (in 3D kreist dort die Seelenkrone, fx3Crown)
+  dunklemacht(ctx, p, fy, t, layer) {
+    // in 3D zeichnet die Aura aus Runenkreis und Seelenlichtern (aura3, nekro-totenruf.js); die flachen Flammen
+    // lägen dort über der Figur und verdeckten sie (seit 10.0)
+    if (V3.on) return;
+    if (layer === 'front') {
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      for (let k = 0; k < 5; k++) {
+        const o = orbit(t, 1.2, 9, k, 5, 0.35);
+        glow(ctx, p.x + o.x, fy - 52 + o.y, 5, '#a7e37f', 0.8);
+        ctx.fillStyle = '#e0ffd0';
+        circle(ctx, p.x + o.x, fy - 52 + o.y, 1.5);
+      }
+      ctx.restore();
+    }
+    if (layer !== 'back') return;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    for (let k = 0; k < 8; k++) {
+      const x = p.x - 21 + k * 6;
+      const h = 18 + Math.abs(Math.sin(t * 6 + k * 1.3)) * 22;
+      const g = ctx.createLinearGradient(0, fy, 0, fy - h);
+      g.addColorStop(0, k % 2 ? 'rgba(200,140,255,0.95)' : 'rgba(170,240,120,0.9)');
+      g.addColorStop(0.6, 'rgba(140,70,220,0.5)');
+      g.addColorStop(1, 'rgba(90,40,160,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.moveTo(x - 5, fy + 3);
+      ctx.quadraticCurveTo(x - 3, fy - h * 0.6, x + Math.sin(t * 5 + k) * 2, fy - h);
+      ctx.quadraticCurveTo(x + 3, fy - h * 0.6, x + 5, fy + 3);
+      ctx.fill();
+    }
+    glow(ctx, p.x, fy - 8, 28, '#a774e0', 0.3);
+    ctx.restore();
+  },
+  // Blutopfer: Blutstropfen kreisen, roter Schein
+  blutopfer(ctx, p, fy, t, layer) {
+    ctx.save();
+    for (let k = 0; k < 5; k++) {
+      const o = orbit(t, 2.4, 20, k, 5, 0.45);
+      if ((layer === 'front') !== o.front) continue;
+      const x = p.x + o.x;
+      const y = fy - 22 + o.y;
+      ctx.fillStyle = '#c8202a';
+      ctx.beginPath();
+      ctx.moveTo(x, y - 4);
+      ctx.quadraticCurveTo(x + 3, y, x, y + 2.5);
+      ctx.quadraticCurveTo(x - 3, y, x, y - 4);
+      ctx.fill();
+    }
+    if (layer === 'back') glow(ctx, p.x, fy - 20, 26, '#c43a5a', 0.3);
+    ctx.restore();
+  },
+  // Heilung (Angriffsbuff danach): grüne Blätter kreisen
+  heilung(ctx, p, fy, t, layer) {
+    for (let k = 0; k < 3; k++) {
+      const o = orbit(t, 1.6, 20, k, 3, 0.45);
+      if ((layer === 'front') !== o.front) continue;
+      ctx.fillStyle = '#7ad36a';
+      ellipse(ctx, p.x + o.x, fy - 16 + o.y, 3.2, 1.8);
+    }
+  }
+};
+
+function drawBuffLooks(ctx, p, fy, layer) {
+  if (!p.buffs || !p.buffs.length) return;
+  for (const b of p.buffs) {
+    const look = BUFF_LOOKS[b.id];
+    if (look) look(ctx, p, fy, game.time, layer, b);
+  }
+}

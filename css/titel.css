@@ -1,0 +1,206 @@
+/* Titelbildschirm (seit 15.46): Schlüsselbild mit allen fünf Klassen, Spieltitel und drei Knöpfen (Spielen,
+   Einstellungen, Sprache · Language). Liegt über allem (auch über dem Ladebild der Welt dahinter), bis „Spielen“
+   gedrückt wird; danach kommt der bisherige Startbildschirm (#startScreen). Logik: js/titel.js.
+   Das Bild (bilder/titel*.webp) blendet weich ein; bis es da ist, steht ein dunkler Verlauf in denselben Farben. */
+#titelScreen {
+  position: fixed;
+  inset: 0;
+  z-index: 2100;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse 70% 55% at 50% 42%, rgba(176, 108, 255, 0.16), rgba(0, 0, 0, 0) 70%),
+    radial-gradient(ellipse 120% 70% at 50% 100%, rgba(120, 52, 24, 0.5), rgba(0, 0, 0, 0) 70%),
+    linear-gradient(180deg, #1a1430 0%, #2a1a2a 38%, #1c120c 72%, #0b0806 100%);
+  color: #f6ead0;
+  font-family: var(--font-body);
+  user-select: none;
+  -webkit-user-select: none;
+  opacity: 1;
+  transition: opacity 0.45s ease, visibility 0s linear 0s;
+}
+#titelScreen.zu { opacity: 0; visibility: hidden; pointer-events: none; transition: opacity 0.45s ease, visibility 0s linear 0.45s; }
+.titel-bild, .titel-bild img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.titel-bild img {
+  object-fit: cover;
+  object-position: 50% 45%;
+  opacity: 0;
+  transform: scale(1.045);
+  transition: opacity 1.1s ease, transform 9s cubic-bezier(0.15, 0.6, 0.25, 1);
+}
+#titelScreen.bild-da .titel-bild img { opacity: 1; transform: scale(1); }
+/* Schleier: oben für den Schriftzug, unten für die Knöpfe; am Rand etwas dunkler */
+.titel-schleier {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(10, 7, 14, 0.62) 0%, rgba(10, 7, 14, 0.18) 24%, rgba(10, 7, 14, 0) 42%, rgba(10, 7, 6, 0) 60%, rgba(10, 7, 6, 0.55) 80%, rgba(8, 6, 4, 0.88) 100%),
+    radial-gradient(ellipse 85% 85% at 50% 48%, rgba(0, 0, 0, 0) 60%, rgba(0, 0, 0, 0.42) 100%);
+}
+.titel-inhalt {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: max(3.2vh, env(safe-area-inset-top, 0px) + 10px) max(20px, env(safe-area-inset-right, 0px) + 12px) max(4.2vh, env(safe-area-inset-bottom, 0px) + 12px) max(20px, env(safe-area-inset-left, 0px) + 12px);
+  opacity: 0;
+  animation: titel-auf 0.9s ease 0.15s forwards;
+}
+@keyframes titel-auf { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.titel-kopf { display: flex; flex-direction: column; align-items: center; text-align: center; }
+.titel-logo {
+  margin: 0;
+  font-family: "Marcellus SC", "Palatino Linotype", Georgia, serif;
+  font-weight: 400;
+  font-size: clamp(42px, min(8.4vw, 15vh), 150px);
+  line-height: 1;
+  letter-spacing: 0.07em;
+  padding-left: 0.07em;
+  color: #f3d389;
+  background: linear-gradient(180deg, #fff6d8 0%, #f6d98e 38%, #d6a24a 62%, #f7e2a8 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 3px 0 rgba(58, 30, 8, 0.9)) drop-shadow(0 0 22px rgba(255, 196, 110, 0.35)) drop-shadow(0 8px 18px rgba(0, 0, 0, 0.75));
+}
+/* Zierlinie unter dem Titel: zwei Linien, in der Mitte eine Raute */
+.titel-zier { display: flex; align-items: center; gap: 12px; width: min(560px, 70vw); margin: clamp(6px, 1.2vh, 14px) 0 clamp(4px, 0.8vh, 10px); }
+.titel-zier::before, .titel-zier::after { content: ""; flex: 1; height: 1px; background: linear-gradient(90deg, rgba(243, 211, 137, 0), rgba(243, 211, 137, 0.85)); }
+.titel-zier::after { background: linear-gradient(90deg, rgba(243, 211, 137, 0.85), rgba(243, 211, 137, 0)); }
+.titel-zier i { width: 9px; height: 9px; transform: rotate(45deg); background: #f3d389; box-shadow: 0 0 10px rgba(255, 210, 130, 0.8); }
+.titel-zeile {
+  margin: 0;
+  max-width: 46ch;
+  font-size: clamp(14px, min(1.6vw, 2.6vh), 21px);
+  color: #f1e3c2;
+  text-shadow: 0 1px 2px #000, 0 0 6px #000, 0 0 16px rgba(0, 0, 0, 0.9);
+  text-wrap: balance;
+  /* weicher dunkler Grund: der Untertitel bleibt auch vor hellen Stellen des Bildes lesbar */
+  padding: 6px 28px;
+  border-radius: 40px;
+  background: radial-gradient(ellipse at center, rgba(12, 7, 14, 0.55) 0%, rgba(12, 7, 14, 0.32) 55%, rgba(12, 7, 14, 0) 78%);
+}
+.titel-fuss { display: flex; flex-direction: column; align-items: center; gap: clamp(8px, 1.6vh, 16px); width: 100%; }
+.titel-menue { display: flex; flex-wrap: wrap; justify-content: center; gap: clamp(10px, 1.4vw, 18px); }
+.titel-knopf {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-width: clamp(190px, 17vw, 280px);
+  min-height: clamp(48px, min(6.4vh, 5vw), 70px);
+  padding: 8px 26px;
+  border: 1px solid rgba(232, 196, 120, 0.7);
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(44, 32, 20, 0.86), rgba(16, 11, 7, 0.92));
+  box-shadow: inset 0 1px 0 rgba(255, 236, 190, 0.18), inset 0 0 0 1px rgba(0, 0, 0, 0.5), 0 6px 18px rgba(0, 0, 0, 0.55);
+  color: #f6ead0;
+  font-family: "Marcellus SC", "Palatino Linotype", Georgia, serif;
+  font-size: clamp(17px, min(1.6vw, 3vh), 25px);
+  letter-spacing: 0.05em;
+  cursor: var(--zeiger-hand, pointer);
+  transition: transform 0.15s ease, box-shadow 0.2s ease, border-color 0.2s ease, filter 0.2s ease;
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+}
+.titel-knopf svg { width: 1.05em; height: 1.05em; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; opacity: 0.9; }
+.titel-knopf:hover, .titel-knopf:focus-visible {
+  border-color: #ffe2a0;
+  box-shadow: inset 0 1px 0 rgba(255, 236, 190, 0.25), inset 0 0 0 1px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 214, 140, 0.35), 0 0 26px rgba(255, 190, 90, 0.35), 0 8px 22px rgba(0, 0, 0, 0.6);
+  transform: translateY(-1px);
+  outline: none;
+}
+.titel-knopf:active { transform: translateY(1px) scale(0.99); }
+.titel-knopf.haupt {
+  border-color: #ffe7ad;
+  background: linear-gradient(180deg, #f9dc8e 0%, #e2ad4e 52%, #b97f2c 100%);
+  color: #2a1906;
+  text-shadow: 0 1px 0 rgba(255, 240, 200, 0.6);
+  box-shadow: inset 0 1px 0 rgba(255, 250, 225, 0.75), inset 0 -2px 0 rgba(120, 70, 20, 0.5), 0 0 24px rgba(255, 190, 90, 0.35), 0 8px 20px rgba(0, 0, 0, 0.6);
+}
+.titel-knopf.haupt:hover, .titel-knopf.haupt:focus-visible { filter: brightness(1.07); box-shadow: inset 0 1px 0 rgba(255, 250, 225, 0.75), inset 0 -2px 0 rgba(120, 70, 20, 0.5), 0 0 34px rgba(255, 200, 100, 0.6), 0 8px 22px rgba(0, 0, 0, 0.6); }
+.titel-knopf.warte { cursor: progress; }
+.titel-knopf.warte::after { content: ""; position: absolute; right: 12px; top: 50%; width: 12px; height: 12px; margin-top: -6px; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent; animation: titel-dreh 0.8s linear infinite; }
+@keyframes titel-dreh { to { transform: rotate(360deg); } }
+.titel-knopf .t-en { opacity: 0.78; }
+.titel-version { margin: 0; font-size: 12px; color: rgba(241, 227, 194, 0.62); text-shadow: 0 1px 2px #000; }
+
+/* Sprachwahl */
+.titel-sprachen {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(16px, env(safe-area-inset-top, 0px)) 16px max(16px, env(safe-area-inset-bottom, 0px));
+  background: rgba(6, 4, 3, 0.55);
+  animation: titel-auf 0.25s ease;
+}
+.titel-sprachen[hidden] { display: none !important; }
+.titel-sprachen-karte {
+  position: relative;
+  width: min(560px, 100%);
+  max-height: 100%;
+  overflow-y: auto;
+  padding: 18px 18px 20px;
+  border: 1px solid rgba(232, 196, 120, 0.65);
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(36, 26, 17, 0.97), rgba(18, 13, 9, 0.98));
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.7);
+}
+.titel-sprachen-karte h2 { margin: 0 44px 14px 2px; font-family: "Marcellus SC", Georgia, serif; font-weight: 400; font-size: 22px; color: #f3d389; }
+.titel-sprachen-zu { position: absolute; top: 8px; right: 8px; width: 44px; height: 44px; border: 0; border-radius: 10px; background: none; color: #f6ead0; font-size: 26px; line-height: 1; cursor: var(--zeiger-hand, pointer); }
+.titel-sprachen-zu:hover, .titel-sprachen-zu:focus-visible { background: rgba(255, 255, 255, 0.08); outline: none; }
+.titel-sprachliste { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.titel-sprachliste button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 48px;
+  padding: 8px 14px;
+  border: 1px solid rgba(232, 196, 120, 0.35);
+  border-radius: 10px;
+  background: rgba(255, 240, 210, 0.04);
+  color: #f6ead0;
+  font: inherit;
+  font-size: 16px;
+  text-align: left;
+  cursor: var(--zeiger-hand, pointer);
+}
+.titel-sprachliste button:hover, .titel-sprachliste button:focus-visible { border-color: #ffe2a0; background: rgba(255, 220, 150, 0.1); outline: none; }
+.titel-sprachliste button.on { border-color: #f3d389; background: rgba(243, 211, 137, 0.16); color: #ffe7ad; }
+.titel-sprachliste button.on::after { content: "✓"; color: #f3d389; }
+
+/* Hochformat (Handy): Knöpfe untereinander, Schriftzug oben */
+@media (orientation: portrait) {
+  .titel-logo { font-size: clamp(40px, 13.5vw, 110px); }
+  .titel-zeile { font-size: clamp(14px, 3.9vw, 20px); max-width: 30ch; }
+  .titel-menue { flex-direction: column; align-items: stretch; width: min(360px, 84vw); gap: 12px; }
+  .titel-knopf { min-height: 56px; font-size: clamp(18px, 5vw, 24px); }
+  .titel-sprachliste { grid-template-columns: 1fr 1fr; }
+}
+/* Querformat mit wenig Höhe (Handy quer): alles kompakter */
+@media (orientation: landscape) and (max-height: 520px) {
+  .titel-inhalt { padding-top: max(10px, env(safe-area-inset-top, 0px) + 6px); padding-bottom: max(12px, env(safe-area-inset-bottom, 0px) + 8px); }
+  .titel-zier { margin: 4px 0 2px; }
+  .titel-knopf { min-width: 168px; min-height: 46px; padding: 6px 18px; font-size: 17px; }
+  .titel-version { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .titel-bild img, .titel-inhalt, #titelScreen { transition: none; animation: none; transform: none; }
+  .titel-inhalt { opacity: 1; }
+}
+
+/* Solange der Titel offen ist: Einstellungen, Nachfragen und der Hinweis auf eine neue Version liegen darüber */
+body.titel-offen #panelOpts { z-index: 2600; }
+body.titel-offen .ss-dlg, body.titel-offen .update-bar { z-index: 2700; }

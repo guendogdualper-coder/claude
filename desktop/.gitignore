@@ -1,0 +1,8 @@
+# Abhängigkeiten und Build-Ausgaben nie einchecken
+node_modules/
+dist/
+*.log
+# Zertifikate/Schlüssel gehören nur in GitHub Secrets
+*.pfx
+*.p12
+*.cer

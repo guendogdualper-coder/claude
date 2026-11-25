@@ -1,0 +1,4642 @@
+// Figuren: Spielfiguren, Händler, Skelette und Monster als Sprites.
+//
+// Jede Figur wird einmal pro Blickrichtung und Laufbild in ein eigenes Canvas gemalt
+// (mit dunkler Umrisslinie) und danach nur noch kopiert. Das ist schnell und
+// erlaubt viele Details. Koordinaten: (0, 0) ist der Punkt zwischen den Füßen,
+// nach oben geht es ins Negative. Eine Spielfigur ist etwa 47 Einheiten groß.
+
+const SPRITE_SCALE = 3;      // Auflösung der Sprites (3 Pixel pro Einheit)
+const OUTLINE = '#1a1210';
+const OUTLINE_W = 1.1;
+const spriteCache = new Map();
+
+// Laufzyklus: Beinstellung, Auf und Ab, Armschwung
+const WALK = [
+  { l: 0, r: 0, bob: 0, arm: 0 },
+  { l: 1, r: -1, bob: -0.7, arm: 1 },
+  { l: 0, r: 0, bob: 0, arm: 0 },
+  { l: -1, r: 1, bob: -0.7, arm: -1 },
+  // Bild 4: Kraftpose beim Buffen, beide Arme hochgerissen
+  { l: 0, r: 0, bob: -1.2, arm: 0, raise: true }
+];
+const POSE_FRAME = 4;
+
+// --- Farben -------------------------------------------------------------------
+
+function mixColor(a, b, t) {
+  const pa = parseInt(a.slice(1), 16);
+  const pb = parseInt(b.slice(1), 16);
+  const ch = (shift) => Math.round(((pa >> shift) & 255) * (1 - t) + ((pb >> shift) & 255) * t);
+  return '#' + ((1 << 24) | (ch(16) << 16) | (ch(8) << 8) | ch(0)).toString(16).slice(1);
+}
+const darker = (c, t = 0.3) => mixColor(c, '#000000', t);
+const lighter = (c, t = 0.25) => mixColor(c, '#ffffff', t);
+
+// --- Sprites backen und zeichnen ------------------------------------------------
+
+function newCanvas(w, h) {
+  const c = document.createElement('canvas');
+  c.width = w;
+  c.height = h;
+  return c;
+}
+
+// seit 14.38 – cpu: Zeichenflächen im Arbeitsspeicher statt auf der Grafikkarte (für Symbole, die gleich danach mit
+// toDataURL als Bild-Adresse gebraucht werden: Beute, Tränke, Material, Bücher, Gegenstände). Von der Grafikkarte
+// zurückzulesen hält das Spiel an, bis sie alles Anstehende gezeichnet hat – mitten im Kampf beim ersten Fund jeder
+// Sorte ein Ruckler (gemessen mit Software-Grafik 20–50 ms je Symbol, unter Last bis über 2 s; im Arbeitsspeicher ~1 ms).
+const CPU_CANVAS = { willReadFrequently: true };
+function bakeSprite(bounds, draw, S = SPRITE_SCALE, cpu = false) {
+  const w = Math.ceil(bounds.w * S);
+  const h = Math.ceil(bounds.h * S);
+  const base = newCanvas(w, h);
+  const b = base.getContext('2d', cpu ? CPU_CANVAS : undefined);
+  b.setTransform(S, 0, 0, S, -bounds.x * S, -bounds.y * S);
+  b.lineJoin = 'round';
+  b.lineCap = 'round';
+  draw(b);
+  shadeSprite(base, b, w, h, S, cpu);
+  // Umriss: Silhouette in alle Richtungen versetzt hinter die Figur legen
+  const sil = newCanvas(w, h);
+  const s = sil.getContext('2d', cpu ? CPU_CANVAS : undefined);
+  s.drawImage(base, 0, 0);
+  s.globalCompositeOperation = 'source-in';
+  s.fillStyle = OUTLINE;
+  s.fillRect(0, 0, w, h);
+  const out = newCanvas(w, h);
+  const o = out.getContext('2d', cpu ? CPU_CANVAS : undefined);
+  const d = OUTLINE_W * S;
+  for (let a = 0; a < 8; a++) o.drawImage(sil, Math.cos(a * Math.PI / 4) * d, Math.sin(a * Math.PI / 4) * d);
+  o.drawImage(base, 0, 0);
+  return { img: out, bounds, flash: null };
+}
+
+// Licht von oben links: ein Verlauf über die ganze Figur (oben warm, unten kühl und dunkler)
+// und ein heller Saum an den Kanten oben links. Wird nur einmal beim Backen gerechnet.
+function shadeSprite(base, b, w, h, S = SPRITE_SCALE, cpu = false) {
+  b.save();
+  b.setTransform(1, 0, 0, 1, 0, 0);
+  b.globalCompositeOperation = 'source-atop';
+  const g = b.createLinearGradient(0, 0, w * 0.3, h);
+  g.addColorStop(0, 'rgba(255,244,220,0.12)');
+  g.addColorStop(0.5, 'rgba(0,0,0,0)');
+  g.addColorStop(1, 'rgba(18,10,30,0.24)');
+  b.fillStyle = g;
+  b.fillRect(0, 0, w, h);
+  const rim = newCanvas(w, h);
+  const r = rim.getContext('2d', cpu ? CPU_CANVAS : undefined);
+  r.drawImage(base, 0, 0);
+  r.globalCompositeOperation = 'source-in';
+  r.fillStyle = '#fff6e0';
+  r.fillRect(0, 0, w, h);
+  r.globalCompositeOperation = 'destination-out';
+  const d = S * 0.9;
+  r.drawImage(base, d, d);
+  b.globalAlpha = 0.3;
+  b.drawImage(rim, 0, 0);
+  b.restore();
+}
+
+function getSprite(key, bounds, draw, scale, cpu) {
+  // seit 15.56: beim Malen der Welt im Pixel-Stil echte Pixel-Bilder mit harter Kante und 1-Punkt-Umriss (pixel2d.js)
+  if (!cpu && scale == null && typeof PIX !== 'undefined' && PIX.inWorld) {
+    const k = key + '|px';
+    let sp = spriteCache.get(k);
+    if (!sp) {
+      // senkrechte Mauerstücke ohne Umriss oben/unten: aneinandergereiht ein durchgehendes Band statt Klötze (15.58)
+      sp = bakePixelSprite(bounds, draw, key.startsWith('wall:v'));
+      spriteCache.set(k, sp);
+    }
+    return sp;
+  }
+  let sp = spriteCache.get(key);
+  if (!sp) {
+    sp = bakeSprite(bounds, draw, scale, cpu);
+    spriteCache.set(key, sp);
+  }
+  return sp;
+}
+
+// Weiße Silhouette für das Aufblitzen bei Treffern
+function flashOf(sp) {
+  if (!sp.flash) {
+    const c = newCanvas(sp.img.width, sp.img.height);
+    const x = c.getContext('2d');
+    x.drawImage(sp.img, 0, 0);
+    x.globalCompositeOperation = 'source-in';
+    x.fillStyle = '#ffffff';
+    x.fillRect(0, 0, c.width, c.height);
+    sp.flash = c;
+  }
+  return sp.flash;
+}
+
+// Einfarbige Silhouette eines Sprites, z. B. für leuchtende Auren
+function tintOf(sp, color) {
+  sp.tints = sp.tints || {};
+  if (!sp.tints[color]) {
+    const c = newCanvas(sp.img.width, sp.img.height);
+    const x = c.getContext('2d');
+    x.drawImage(sp.img, 0, 0);
+    x.globalCompositeOperation = 'source-in';
+    x.fillStyle = color;
+    x.fillRect(0, 0, c.width, c.height);
+    sp.tints[color] = c;
+  }
+  return sp.tints[color];
+}
+
+function blitSprite(ctx, sp, x, y, flip, flash = 0) {
+  const b = sp.bounds;
+  ctx.save();
+  ctx.translate(x, y);
+  if (flip) ctx.scale(-1, 1);
+  ctx.drawImage(sp.img, b.x, b.y, b.w, b.h);
+  if (flash > 0) {
+    ctx.globalAlpha *= Math.min(0.8, flash * 6);
+    ctx.drawImage(flashOf(sp), b.x, b.y, b.w, b.h);
+  }
+  ctx.restore();
+}
+
+// --- Malwerkzeuge (Cel-Shading: Licht von oben links) --------------------------------
+
+function paintShape(ctx, path, color, bx, by, bw, bh) {
+  ctx.save();
+  path();
+  ctx.fillStyle = color;
+  ctx.fill();
+  ctx.clip();
+  // Schatten als Sichel unten rechts: dunkle Fläche, darüber die Grundfarbe leicht nach oben links versetzt
+  ctx.fillStyle = darker(color, 0.22);
+  ctx.fillRect(bx - 2, by - 2, bw + 4, bh + 4);
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.ellipse(bx + bw * 0.42, by + bh * 0.4, bw * 0.6, bh * 0.62, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = lighter(color, 0.17);
+  ctx.beginPath();
+  ctx.ellipse(bx + bw * 0.3, by + bh * 0.24, bw * 0.22, bh * 0.16, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+  path();
+  ctx.strokeStyle = darker(color, 0.5);
+  ctx.lineWidth = 0.7;
+  ctx.stroke();
+}
+
+function box(ctx, x, y, w, h, r, color) {
+  const rr = Math.max(0, Math.min(r, w / 2, h / 2));
+  paintShape(ctx, () => { ctx.beginPath(); ctx.roundRect(x, y, w, h, rr); }, color, x, y, w, h);
+}
+
+function oval(ctx, cx, cy, rx, ry, color) {
+  paintShape(ctx, () => { ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); }, color, cx - rx, cy - ry, rx * 2, ry * 2);
+}
+
+function poly(ctx, pts, color) {
+  const xs = pts.map((p) => p[0]);
+  const ys = pts.map((p) => p[1]);
+  const minX = Math.min(...xs);
+  const minY = Math.min(...ys);
+  paintShape(ctx, () => {
+    ctx.beginPath();
+    pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+    ctx.closePath();
+  }, color, minX, minY, Math.max(...xs) - minX, Math.max(...ys) - minY);
+}
+
+// Fläche mit Löchern (seit 13.30): Löcher laufen gegen den Umriss, damit „nonzero“ sie ausspart
+function areaOf(pts) {
+  let a = 0;
+  for (let i = 0; i < pts.length; i++) {
+    const [x0, y0] = pts[i];
+    const [x1, y1] = pts[(i + 1) % pts.length];
+    a += x0 * y1 - x1 * y0;
+  }
+  return a;
+}
+function polyHoles(ctx, pts, holes, color) {
+  const sg = Math.sign(areaOf(pts));
+  const hs = (holes || []).map((h) => (Math.sign(areaOf(h)) === sg ? h.slice().reverse() : h));
+  const xs = pts.map((q) => q[0]);
+  const ys = pts.map((q) => q[1]);
+  const minX = Math.min(...xs);
+  const minY = Math.min(...ys);
+  paintShape(ctx, () => {
+    ctx.beginPath();
+    for (const ring of [pts, ...hs]) {
+      ring.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+      ctx.closePath();
+    }
+  }, color, minX, minY, Math.max(...xs) - minX, Math.max(...ys) - minY);
+}
+// Klinge als Symbol (seit 13.30), passend zur 3D-Klinge: helle Schneide, dunklere Mitte, ab Stufe 4 Leuchtader.
+// pts/holes in Metern wie die 3D-Umrisse, map rechnet in Symbolkoordinaten um
+const BLADE_VEIN = [null, null, null, null, '#d6a8ff', '#ff7a2a', '#bff4ff', '#fff2b0', '#5ee8ff', '#ffb8e0'];
+function bladeIcon(ctx, pts, holes, map, col, tier, inset = 0.026) {
+  polyHoles(ctx, pts.map(map), (holes || []).map((h) => h.map(map)), col);
+  const fillRings = (outer, hs, color) => {
+    const sg = Math.sign(areaOf(outer));
+    ctx.beginPath();
+    for (const ring of [outer, ...hs.map((h) => (Math.sign(areaOf(h)) === sg ? h.slice().reverse() : h))]) {
+      ring.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+      ctx.closePath();
+    }
+    ctx.fillStyle = color;
+    ctx.fill();
+  };
+  fillRings(insetPts(pts, inset).map(map), (holes || []).map((h) => insetPts(h, -inset * 0.6).map(map)), tier === 5 ? '#4a3036' : darker(col, 0.26));
+  if (BLADE_VEIN[tier]) fillRings(insetPts(pts, inset * 2.4).map(map), (holes || []).map((h) => insetPts(h, -inset * 1.4).map(map)), BLADE_VEIN[tier]);
+}
+
+function dot(ctx, x, y, rx, ry, color) {
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function stroke(ctx, color, width, pts) {
+  ctx.strokeStyle = color;
+  ctx.lineWidth = width;
+  ctx.beginPath();
+  pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+  ctx.stroke();
+}
+
+// --- Bausteine für Menschengestalten ----------------------------------------------------
+// dir: 'down' (zum Betrachter), 'up' (vom Betrachter weg), 'side' (nach rechts)
+
+function hLegs(ctx, dir, w, o) {
+  if (o.robe) {
+    if (dir === 'side') {
+      box(ctx, -2 + w.l * 2, -3.2, 6.5, 3.4, 1.6, o.boots);
+    } else {
+      box(ctx, -6.5, -3.2 - (w.l > 0 ? 0.8 : 0), 5.5, 3.4, 1.6, o.boots);
+      box(ctx, 1, -3.2 - (w.r > 0 ? 0.8 : 0), 5.5, 3.4, 1.6, o.boots);
+    }
+    return;
+  }
+  // Bein mit Naht und Kniefalte, Stiefel mit Sohle und Schnürung
+  const leg = (x, y, pants, boots, bx, bw) => {
+    box(ctx, x, y - 10, 5, 7.5, 2, pants);
+    stroke(ctx, darker(pants, 0.25), 0.5, [[x + 2.5, y - 9.5], [x + 2.5, y - 3.5]]);
+    stroke(ctx, lighter(pants, 0.18), 0.6, [[x + 1, y - 6.6], [x + 3.8, y - 6.2]]);
+    box(ctx, bx, y - 4.6, bw, 4.6, 2, boots);
+    box(ctx, bx + 0.3, y - 1.1, bw - 0.6, 1.1, 0.5, darker(boots, 0.45));
+    stroke(ctx, lighter(boots, 0.25), 0.45, [[bx + 1.4, y - 3.8], [bx + bw - 1.6, y - 3.1]]);
+    stroke(ctx, lighter(boots, 0.25), 0.45, [[bx + 1.4, y - 3.1], [bx + bw - 1.6, y - 3.8]]);
+  };
+  if (dir === 'side') {
+    const s = w.l * 2.6;
+    leg(-2.5 - s, 0, darker(o.pants, 0.18), darker(o.boots, 0.18), -3.2 - s, 7);
+    leg(-2.5 + s, 0, o.pants, o.boots, -3 + s, 7.5);
+  } else {
+    const ly = w.l > 0 ? -1.2 : 0;
+    const ry = w.r > 0 ? -1.2 : 0;
+    leg(-6, ly, o.pants, o.boots, -6.6, 6.2);
+    leg(1, ry, o.pants, o.boots, 0.4, 6.2);
+  }
+}
+
+function torsoWidth(dir) {
+  return dir === 'side' ? 13 : 18;
+}
+
+function hBody(ctx, dir, w, o) {
+  const y = -24 + w.bob;
+  if (o.robe) {
+    const wt = dir === 'side' ? 6.5 : 9;
+    // hem: Saumbreite (Magier seit 8.6: gerade beim Mann, A-Linie bei der Frau)
+    const wb = (dir === 'side' ? 9.5 : 12.5) * (o.hem || 1);
+    const pts = [[-wt, y + 4], [-wt + 3, y], [wt - 3, y], [wt, y + 4], [wb, -2.5]];
+    if (o.tattered) {
+      for (let k = 1; k < 7; k++) pts.push([wb - (2 * wb) * k / 7, k % 2 ? -0.3 : -3.4]);
+    }
+    pts.push([-wb, -2.5]);
+    poly(ctx, pts, o.robe);
+    // Falten im Stoff
+    const fold = darker(o.robe, 0.28);
+    for (const fx of dir === 'side' ? [-2, 3] : [-6, -1.5, 3, 7]) stroke(ctx, fold, 0.6, [[fx * 0.55, y + 7], [fx, -3.5]]);
+    dot(ctx, 0, y + 1.2, dir === 'side' ? 3.5 : 4.5, 1.4, 'rgba(0,0,0,0.22)');
+    return wb;
+  }
+  const tw = torsoWidth(dir) * (o.wide || 1);
+  // seit 14.53: Spielerinnen mit Taille, Hüfte und Brust, Spieler mit breiten Schultern und schmaler Hüfte
+  if (FIG_SEX2D === 1 || FIG_SEX2D === 0) return hBodySex2D(ctx, dir, y, tw, o, FIG_SEX2D === 1);
+  box(ctx, -tw / 2, y, tw, 16, 5, o.torso);
+  // Schatten unter dem Kinn und Mittelnaht
+  dot(ctx, 0, y + 1.3, dir === 'side' ? 3.6 : 4.6, 1.5, 'rgba(0,0,0,0.22)');
+  if (dir !== 'side') stroke(ctx, darker(o.torso, 0.3), 0.5, [[0, y + 3], [0, y + 10.5]]);
+  return tw / 2;
+}
+
+// seit 14.53: gerade gezeichnetes Geschlecht der Spielfigur (characterSprite), -1 für alle anderen Figuren
+let FIG_SEX2D = -1;
+function hBodySex2D(ctx, dir, y, tw, o, fem) {
+  const h = tw / 2;
+  const side = dir === 'side';
+  const shade = darker(o.torso, 0.3);
+  if (fem) {
+    // Schultern schmal, Taille eingezogen, Hüfte breiter (Sanduhr), weich gerundet
+    const s = side ? h * 0.92 : h * 0.86, wa = side ? h * 0.8 : h * 0.72, hp = side ? h * 1.0 : h * 1.06;
+    paintShape(ctx, () => {
+      ctx.beginPath();
+      ctx.moveTo(-s + 2.5, y);
+      ctx.lineTo(s - 2.5, y);
+      ctx.quadraticCurveTo(s + 0.4, y + 0.4, s, y + 4.5);
+      ctx.quadraticCurveTo(wa - 0.2, y + 8, wa, y + 9.5);
+      ctx.quadraticCurveTo(hp + 0.6, y + 13, hp, y + 16);
+      ctx.lineTo(-hp, y + 16);
+      ctx.quadraticCurveTo(-hp - 0.6, y + 13, -wa, y + 9.5);
+      ctx.quadraticCurveTo(-wa + 0.2, y + 8, -s, y + 4.5);
+      ctx.quadraticCurveTo(-s - 0.4, y + 0.4, -s + 2.5, y);
+      ctx.closePath();
+    }, o.torso, -hp, y, hp * 2, 16);
+    dot(ctx, 0, y + 1.3, side ? 3.2 : 4, 1.4, 'rgba(0,0,0,0.22)');
+    if (dir === 'down') {
+      // Brust: zwei weiche Rundungen mit leichtem Schatten darunter
+      for (const sx of [-1, 1]) {
+        oval(ctx, sx * 2.9, y + 5.6, 2.9, 2.3, lighter(o.torso, 0.07));
+        stroke(ctx, darker(o.torso, 0.28), 0.5, [[sx * 1.0, y + 7.7], [sx * 2.9, y + 8.1], [sx * 4.6, y + 7.4]]);
+      }
+    } else if (side) oval(ctx, s - 1.2, y + 5.8, 2.2, 2.4, o.torso);
+    return wa + 1.2;
+  }
+  // Mann: breite Schultern und Brust, nach unten schmaler (V-Form), kräftiger Brustmuskel angedeutet
+  const s = side ? h * 1.04 : h * 1.14, hp = side ? h * 0.94 : h * 0.9;
+  paintShape(ctx, () => {
+    ctx.beginPath();
+    ctx.moveTo(-s + 3, y);
+    ctx.lineTo(s - 3, y);
+    ctx.quadraticCurveTo(s + 0.3, y + 0.3, s, y + 4);
+    ctx.lineTo(hp, y + 16);
+    ctx.lineTo(-hp, y + 16);
+    ctx.lineTo(-s, y + 4);
+    ctx.quadraticCurveTo(-s - 0.3, y + 0.3, -s + 3, y);
+    ctx.closePath();
+  }, o.torso, -s, y, s * 2, 16);
+  dot(ctx, 0, y + 1.3, side ? 3.8 : 5, 1.6, 'rgba(0,0,0,0.24)');
+  if (dir !== 'side') {
+    stroke(ctx, shade, 0.5, [[0, y + 3], [0, y + 10.5]]);
+    if (dir === 'down') for (const sx of [-1, 1]) stroke(ctx, shade, 0.45, [[sx * 1.2, y + 6.6], [sx * 4.2, y + 6.9], [sx * 6, y + 5.8]]);
+  }
+  return h;
+}
+
+function hArms(ctx, dir, w, o) {
+  const y = -22.5 + w.bob;
+  const arm = (x, dy) => {
+    if (o.wideSleeves) {
+      poly(ctx, [[x + 1, y + dy], [x + 4, y + dy], [x + 6.5, y + dy + 10], [x - 1.5, y + dy + 10]], o.sleeve);
+      if (o.cuff) box(ctx, x - 1.5, y + dy + 8.6, 8, 2, 1, o.cuff);
+    } else {
+      box(ctx, x, y + dy, 5, 10.5, 2.5, o.sleeve);
+      // Glockenstulpe (Magier): unten ausgestellt, mit Saum in der Stulpenfarbe
+      if (o.cuff && o.bell) {
+        poly(ctx, [[x + 0.3, y + dy + 7.2], [x + 4.7, y + dy + 7.2], [x + 6.4, y + dy + 10.8], [x - 1.4, y + dy + 10.8]], o.sleeve);
+        stroke(ctx, o.cuff, 1.1, [[x - 1.2, y + dy + 10.4], [x + 6.2, y + dy + 10.4]]);
+      } else if (o.cuff) box(ctx, x, y + dy + 7.8, 5, 2, 1, o.cuff);
+    }
+    if (!o.wideSleeves) stroke(ctx, darker(o.sleeve, 0.3), 0.5, [[x + 1, y + dy + 5.2], [x + 4, y + dy + 5.6]]);
+    const hand = o.gloves || o.skin;
+    oval(ctx, x + 2.5, y + dy + 11.5, 2.4, 2.3, hand);
+    oval(ctx, x + 4.4, y + dy + 10.6, 1, 1.2, hand);
+    stroke(ctx, darker(hand, 0.3), 0.4, [[x + 1.2, y + dy + 12.4], [x + 3.6, y + dy + 12.4]]);
+  };
+  // Kraftpose: Arme von der Schulter aus schräg nach oben gedreht
+  if (w.raise) {
+    const lift = (sx, ang) => {
+      ctx.save();
+      ctx.translate(sx + 2.5, y + 1);
+      ctx.rotate(ang);
+      arm(-2.5, -y - 1);
+      ctx.restore();
+    };
+    if (dir === 'side') lift(-2.5, -2.25);
+    else {
+      lift(-13.5, 2.45);
+      lift(8.5, -2.45);
+    }
+    return;
+  }
+  if (dir === 'side') arm(-2.5 + w.arm * 2.2, 0);
+  else {
+    // seit 14.53: Arme bei Männern weiter außen, bei Frauen etwas näher am schmaleren Oberkörper
+    const spread = (o.wide ? 2 : 0) + (FIG_SEX2D === 0 ? 1 : FIG_SEX2D === 1 ? -0.8 : 0);
+    arm(-13.5 - spread, -w.arm * 0.8);
+    arm(8.5 + spread, w.arm * 0.8);
+  }
+}
+
+function hHead(ctx, dir, w, o) {
+  const cx = dir === 'side' ? 1.5 : 0;
+  const cy = -34.5 + w.bob;
+  const skin = o.skin;
+  // Hals und Ohren liegen hinter dem Kopf
+  box(ctx, cx - 3, cy + 7, 6, 4.5, 1.5, darker(skin, 0.12));
+  const ear = (x) => {
+    oval(ctx, x, cy + 1.2, 2.3, 3, skin);
+    dot(ctx, x, cy + 1.4, 1, 1.6, darker(skin, 0.22));
+  };
+  if (dir === 'down') { ear(cx - 10.6); ear(cx + 10.6); } else if (dir === 'side') ear(cx - 2.5);
+  else { ear(cx - 10.4); ear(cx + 10.4); }
+  oval(ctx, cx, cy, 11, 10.5, skin);
+  // kleine Nase
+  if (dir === 'down') dot(ctx, cx, cy + 3.7, 0.9, 0.6, darker(skin, 0.2));
+  else if (dir === 'side') poly(ctx, [[cx + 10.4, cy + 2], [cx + 12, cy + 3.6], [cx + 10.3, cy + 4.4]], skin);
+  return { cx, cy };
+}
+
+function eyes(ctx, dir, cx, cy, o = {}) {
+  const xs = dir === 'side' ? [cx + 6] : [cx - 4.2, cx + 4.2];
+  if (o.style === 2 && !o.glow) {
+    // fröhlich: geschlossene Bögen
+    ctx.strokeStyle = o.color || '#21160f';
+    ctx.lineWidth = 1.1;
+    for (const x of xs) {
+      ctx.beginPath();
+      ctx.arc(x, cy + 2.4, 1.8, Math.PI * 1.1, Math.PI * 1.9);
+      ctx.stroke();
+    }
+  }
+  if (o.style === 1) o = { ...o, narrow: true };
+  for (const x of (o.style === 2 && !o.glow ? [] : xs)) {
+    if (o.glow) {
+      ctx.globalAlpha = 0.4;
+      dot(ctx, x, cy + 1.5, 3, 3, o.glow);
+      ctx.globalAlpha = 1;
+      dot(ctx, x, cy + 1.5, 1.7, o.narrow ? 1.3 : 2.4, o.color || '#21160f');
+      dot(ctx, x - 0.5, cy + (o.narrow ? 1.1 : 0.6), 0.65, 0.65, '#ffffff');
+      continue;
+    }
+    // Auge: Weiß, farbige Iris, Pupille, zwei Glanzpunkte und ein Lidstrich
+    const side = dir === 'side' ? 0.55 : 0;
+    const ew = dir === 'side' ? 1.6 : 2.1;
+    const eh = o.narrow ? 1.35 : 2.6;
+    const iris = o.color && o.color !== '#21160f' ? o.color : '#5a3a22';
+    dot(ctx, x, cy + 1.5, ew, eh, '#fbf6ee');
+    dot(ctx, x + side, cy + 1.75, ew * 0.78, eh * 0.84, iris);
+    dot(ctx, x + side, cy + 1.9, ew * 0.4, eh * 0.45, '#120a06');
+    dot(ctx, x + side - 0.6, cy + (o.narrow ? 1.2 : 0.75), 0.62, 0.62, '#ffffff');
+    dot(ctx, x + side + 0.55, cy + (o.narrow ? 2 : 2.7), 0.3, 0.3, 'rgba(255,255,255,0.85)');
+    ctx.strokeStyle = '#2a1810';
+    ctx.lineWidth = 0.95;
+    ctx.beginPath();
+    ctx.ellipse(x, cy + 1.5, ew + 0.15, eh + 0.1, 0, Math.PI * 1.08, Math.PI * 1.92);
+    ctx.stroke();
+    if (o.female) {
+      // Wimpern: zwei Schwünge am äußeren Lidrand
+      const out = dir === 'side' ? 1 : x < cx ? -1 : 1;
+      ctx.lineWidth = 0.75;
+      ctx.beginPath();
+      ctx.moveTo(x + out * ew * 0.85, cy + 1.5 - eh * 0.55);
+      ctx.lineTo(x + out * (ew + 1.3), cy + 1.5 - eh * 0.95);
+      ctx.moveTo(x + out * ew * 0.5, cy + 1.5 - eh * 0.85);
+      ctx.lineTo(x + out * (ew + 0.6), cy + 1.5 - eh * 1.3);
+      ctx.stroke();
+    }
+  }
+  // Mund und Augenbrauen bei offenen Gesichtern
+  if (o.blush) {
+    ctx.strokeStyle = o.female ? '#b8404e' : '#6a3a2a';
+    ctx.lineWidth = o.female ? 1.05 : 0.8;
+    ctx.beginPath();
+    if (dir === 'down') ctx.arc(cx, cy + 4.6, 1.5, 0.25 * Math.PI, 0.75 * Math.PI);
+    else ctx.arc(cx + 7.6, cy + 4.6, 1.2, 0.3 * Math.PI, 0.8 * Math.PI);
+    ctx.stroke();
+    // Brauen: bei Männern kräftiger, bei Frauen feiner
+    ctx.strokeStyle = 'rgba(58,36,24,0.7)';
+    ctx.lineWidth = o.male ? 1.25 : o.female ? 0.7 : 0.9;
+    for (const x of xs) {
+      ctx.beginPath();
+      if (o.style === 3) {
+        // entschlossen: schräge Brauen zur Mitte hin
+        const inward = x < cx || dir === 'side' ? 1 : -1;
+        ctx.moveTo(x - 1.8, cy - 3.2 + inward * 0.6);
+        ctx.lineTo(x + 1.8, cy - 3.2 - inward * 0.6);
+      } else {
+        ctx.moveTo(x - 1.6, cy - 2.4);
+        ctx.quadraticCurveTo(x, cy - 3.3, x + 1.6, cy - 2.4);
+      }
+      ctx.stroke();
+    }
+  }
+  if (o.blush && dir === 'down' && !o.male) {
+    ctx.globalAlpha = 0.35;
+    dot(ctx, cx - 6.5, cy + 4.6, 1.9, 1, '#e0786e');
+    dot(ctx, cx + 6.5, cy + 4.6, 1.9, 1, '#e0786e');
+    ctx.globalAlpha = 1;
+  }
+}
+
+// --- Waffen (werden als eigenes Sprite gedreht gezeichnet; Griff liegt bei 0,0) --------------
+
+// Farben je Gegenstandsstufe: Stahl, Bronze, Mondsilber, Drachengold, Seelenviolett, Asche, Himmel, Gold,
+// seit 13.53 Leerenviolett (Abgründig, Lv 70) und Platin (Ewig, Lv 80)
+const TIER_METAL = ['#c7ccd3', '#d9a86a', '#e6eef8', '#e8c46a', '#b48cff', '#ff9a5a', '#9fe8ff', '#fff2b0', '#6e5cc0', '#e0dcec'];
+const TIER_ACCENT = ['#6a2a24', '#5a4030', '#2f4f7a', '#9a2f2a', '#3a2350', '#3a1a10', '#1a3a5a', '#7a5a10', '#160f26', '#a8606a'];
+const FAN_LEAF = ['#2f7f78', '#b0587a', '#3a6fa8', '#c8402f', '#5a3a8a', '#e0602a', '#5ab0e0', '#e8c46a', '#1e1636', '#f6eef4'];
+const STAFF_ORB = ['#a7e37f', '#e8e0a0', '#9be2ff', '#ff9a4a', '#d6a8ff', '#ff6a2a', '#bff4ff', '#fff2b0', '#5ee8ff', '#ffb8e0'];
+
+// Formen je Stufe: Leder/Eisen, Bronze, Mond, Drache, Seele, Asche, Himmel, Götter, Abgrund, Ewigkeit
+const BLADE_SHAPES = [
+  { len: 21, w: 2.3, curve: 0, guard: 'bar' },
+  { len: 22, w: 3.1, curve: 0, guard: 'bar' },
+  { len: 22, w: 2.6, curve: 0.45, guard: 'round' },
+  { len: 24, w: 3, curve: 0, guard: 'wings', serrated: true, gem: '#c8302a' },
+  { len: 25, w: 2.8, curve: 0.15, guard: 'spikes', gem: '#d6a8ff', runes: true },
+  { len: 25, w: 3.2, curve: 0, guard: 'spikes', serrated: true, gem: '#ff7a2a', edge: '#ff9a4a' },
+  { len: 26, w: 2.9, curve: 0.1, guard: 'wings', gem: '#9fe8ff', edge: '#e8f8ff' },
+  { len: 27, w: 3.4, curve: 0, guard: 'wings', gem: '#ffffff', edge: '#fff2b0', runes: true },
+  { len: 27, w: 3.2, curve: 0.22, guard: 'tendril', serrated: true, gem: '#5ee8ff', edge: '#5ee8ff', runes: true },
+  { len: 28, w: 3, curve: 0, guard: 'star', gem: '#ffb8e0', edge: '#ffd6f0', runes: true }
+];
+
+// Klinge von x0 bis zur Spitze; curve biegt sie wie einen Säbel, serrated gibt Zacken am Rücken.
+// Die obere Schliffseite ist hell, die untere dunkler, in der Mitte läuft eine Blutrinne.
+function bladeArt(ctx, x0, len, w, curve, serrated, color, edge) {
+  const bend = (x) => -curve * 6 * Math.sin(((x - x0) / len) * Math.PI);
+  const top = [];
+  const bottom = [];
+  const mid = [];
+  for (let k = 0; k <= 8; k++) {
+    const x = x0 + (len * k) / 8;
+    const taper = 1 - (k / 8) * 0.3;
+    const zig = serrated && k > 1 && k < 8 && k % 2 ? -1.5 : 0;
+    top.push([x, bend(x) - w * taper + zig]);
+    bottom.push([x, bend(x) + w * taper]);
+    mid.push([x, bend(x)]);
+  }
+  const tip = [x0 + len + w * 2.2, bend(x0 + len) - curve * 3];
+  poly(ctx, [...top, tip, ...bottom.slice().reverse()], darker(color, 0.18));
+  poly(ctx, [...top, tip, ...mid.slice().reverse()], lighter(color, 0.22));
+  // Blutrinne
+  stroke(ctx, darker(color, 0.4), Math.max(0.7, w * 0.32), mid.slice(0, 6).map(([x, y]) => [x + 1.5, y + w * 0.12]));
+  // Glanz an der Schneide und an der Spitze
+  stroke(ctx, edge || '#ffffff', 0.7, top.slice(1, 8).map(([x, y]) => [x, y + 0.5]));
+  dot(ctx, tip[0] - w * 1.4, tip[1] - w * 0.3, 0.8, 0.5, '#ffffff');
+}
+
+// Parierstange: Bügel, deren Enden sich zur Klinge biegen; Flügel und Dornen für höhere Stufen
+function guardArt(ctx, x, style, metal) {
+  const dark = darker(metal, 0.3);
+  if (style === 'round') {
+    oval(ctx, x, 0, 2.8, 5, metal);
+    oval(ctx, x + 0.3, 0, 1.4, 2.6, dark);
+  } else if (style === 'wings') {
+    poly(ctx, [[x - 1.2, -2.5], [x - 4, -9], [x + 1, -7], [x + 3, -9.5], [x + 2.4, -3], [x + 2.4, 3], [x + 3, 9.5], [x + 1, 7], [x - 4, 9], [x - 1.2, 2.5]], metal);
+    stroke(ctx, dark, 0.6, [[x - 2.5, -7], [x + 1, -3.5]]);
+    stroke(ctx, dark, 0.6, [[x - 2.5, 7], [x + 1, 3.5]]);
+  } else if (style === 'tendril') {
+    // Abgrund (seit 13.53): zwei eingerollte Tentakelhaken, in der Mitte ein Leerenauge
+    for (const sg of [-1, 1]) {
+      stroke(ctx, OUTLINE, 3, [[x, sg * 2], [x - 1.5, sg * 6], [x + 1.5, sg * 9.5], [x + 4, sg * 8]]);
+      stroke(ctx, metal, 1.7, [[x, sg * 2], [x - 1.5, sg * 6], [x + 1.5, sg * 9.5], [x + 4, sg * 8]]);
+    }
+    oval(ctx, x + 0.4, 0, 2.8, 3.4, '#120c20');
+    oval(ctx, x + 0.4, 0, 1.6, 2.4, '#5ee8ff');
+    oval(ctx, x + 0.4, 0, 0.45, 1.8, '#120c20');
+    return;
+  } else if (style === 'star') {
+    // Ewigkeit (seit 13.53): achtstrahliger Stern als Parierstange
+    for (let k = 0; k < 8; k++) {
+      const a = (k / 8) * Math.PI * 2;
+      const r = k % 2 ? 4.2 : 8.5;
+      poly(ctx, [[x + Math.cos(a - 0.35) * 1.6, Math.sin(a - 0.35) * 1.6], [x + Math.cos(a) * r, Math.sin(a) * r], [x + Math.cos(a + 0.35) * 1.6, Math.sin(a + 0.35) * 1.6]], k % 2 ? '#e2957c' : metal);
+    }
+    oval(ctx, x, 0, 2, 2, '#ffb8e0');
+    return;
+  } else if (style === 'spikes') {
+    poly(ctx, [[x - 1.5, -4.5], [x + 4.5, -8], [x + 1.8, -3], [x + 1.8, 3], [x + 4.5, 8], [x - 1.5, 4.5]], metal);
+    poly(ctx, [[x - 1.5, -2], [x - 4, -5], [x - 1.5, -4.5]], dark);
+    poly(ctx, [[x - 1.5, 2], [x - 4, 5], [x - 1.5, 4.5]], dark);
+  } else {
+    poly(ctx, [[x - 1.3, -2], [x - 1.3, -5.2], [x + 2.6, -6.4], [x + 1.4, -4.2], [x + 1.4, 4.2], [x + 2.6, 6.4], [x - 1.3, 5.2], [x - 1.3, 2]], metal);
+  }
+  // Mittelstück
+  poly(ctx, [[x - 1.6, 0], [x + 0.6, -2.4], [x + 2.6, 0], [x + 0.6, 2.4]], lighter(metal, 0.25));
+}
+
+// Motive der Stufen 8 und 9 (seit 13.53) für Symbole und 2D-Figuren:
+// Leerenauge (dunkle Mandel, cyanfarbene Iris, senkrechte Schlitzpupille) und achtstrahliger Stern (Platin und Roségold)
+function voidEye2D(ctx, x, y, s = 1) {
+  oval(ctx, x, y, 3.4 * s, 2.1 * s, '#0c0816');
+  oval(ctx, x, y, 2.5 * s, 1.6 * s, '#5ee8ff');
+  oval(ctx, x, y, 0.55 * s, 1.45 * s, '#0c0816');
+  dot(ctx, x - 0.9 * s, y - 0.6 * s, 0.45 * s, 0.35 * s, '#ffffff');
+}
+function star2D(ctx, x, y, r, c1 = '#ffffff', c2 = '#e2957c', core = '#ffb8e0') {
+  for (let k = 0; k < 8; k++) {
+    const a = (k / 8) * Math.PI * 2 - Math.PI / 2;
+    const rr = k % 2 ? r * 0.5 : r;
+    poly(ctx, [[x + Math.cos(a - 0.38) * r * 0.24, y + Math.sin(a - 0.38) * r * 0.24], [x + Math.cos(a) * rr, y + Math.sin(a) * rr], [x + Math.cos(a + 0.38) * r * 0.24, y + Math.sin(a + 0.38) * r * 0.24]], k % 2 ? c2 : c1);
+  }
+  if (core) oval(ctx, x, y, r * 0.2, r * 0.2, core);
+}
+
+// --- Detailreiche Ausrüstungssymbole (seit 14.59) ----------------------------------------------------------------
+// Stiefel, Brustpanzer, Umhang und Gürtel mit Verläufen, Kanten, Nähten und Beschlägen; je Stufe ein eigenes Merkmal,
+// in der Farbe des Teils (gearCol). Gezeichnet in Symbol-Einheiten (40 × 40, Mitte 0,0), scharf auch bei ICON_HI.
+const GEAR_GLOW2D = ['#d6a8ff', '#d6a8ff', '#9be2ff', '#ff4a3a', '#c08aff', '#ff7a2a', '#bff4ff', '#fff2b0', '#5ee8ff', '#ffb8e0'];
+// glatter Umriss: Punkte abwechselnd Stütz- und Endpunkt (quadratische Kurven), erster Punkt ist der Start
+function qpath2D(ctx, pts) {
+  ctx.beginPath();
+  ctx.moveTo(pts[0][0], pts[0][1]);
+  for (let i = 1; i + 1 < pts.length; i += 2) ctx.quadraticCurveTo(pts[i][0], pts[i][1], pts[i + 1][0], pts[i + 1][1]);
+  ctx.closePath();
+}
+function vGrad2D(ctx, x0, y0, x1, y1, col, hi = 0.32, lo = 0.36) {
+  const g = ctx.createLinearGradient(x0, y0, x1, y1);
+  g.addColorStop(0, lighter(col, hi));
+  g.addColorStop(0.45, col);
+  g.addColorStop(1, darker(col, lo));
+  return g;
+}
+// Fläche füllen, dunkel umranden und innen (geclippt) weiterzeichnen
+function shape2D(ctx, path, fill, line, inner) {
+  path();
+  ctx.fillStyle = fill;
+  ctx.fill();
+  if (inner) {
+    ctx.save();
+    path();
+    ctx.clip();
+    inner();
+    ctx.restore();
+  }
+  path();
+  ctx.strokeStyle = line;
+  ctx.lineWidth = 0.9;
+  ctx.stroke();
+}
+function rivet2D(ctx, x, y, r, metal) {
+  dot(ctx, x, y, r, r, darker(metal, 0.45));
+  dot(ctx, x - r * 0.2, y - r * 0.2, r * 0.72, r * 0.72, metal);
+  dot(ctx, x - r * 0.4, y - r * 0.4, r * 0.3, r * 0.3, lighter(metal, 0.6));
+}
+function stitch2D(ctx, col, pts, w = 0.5) {
+  ctx.save();
+  ctx.setLineDash([1.2, 1.1]);
+  stroke(ctx, col, w, pts);
+  ctx.restore();
+}
+// Bodenschatten unter dem Symbol
+function iconShadow2D(ctx, x, y, rx, ry = 2.4) {
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.beginPath();
+  ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+// Stiefel: zwei Stiefel schräg von der Seite (hinterer dunkler), Schaft, Stulpe, Sohle mit Absatz, Riemen mit
+// Schnalle; ab Gut Schnürung, Zehenkappe und Metallrand, ab Drache Schienbeinplatte; Stufenmerkmale wie im 3D-Modell
+function bootIcon2D(ctx, tier, leather, metal) {
+  const glow = GEAR_GLOW2D[tier];
+  iconShadow2D(ctx, 1, 16.2, 17);
+  ctx.save();
+  ctx.translate(0.5, -0.4);
+  ctx.scale(1.12, 1.12);
+  const one = (ox, oy, s, back) => {
+    const L = back ? darker(leather, 0.2) : leather;
+    const M = back ? darker(metal, 0.15) : metal;
+    const line = darker(L, 0.6);
+    ctx.save();
+    ctx.translate(ox, oy);
+    ctx.scale(s, s);
+    // Flügel hinten am Schaft (Himmel) liegen hinter dem Stiefel
+    if (tier === 6) for (let k = 0; k < 3; k++) {
+      ctx.save();
+      ctx.translate(-7, -6 + k * 2.5);
+      ctx.rotate(-2.3 + k * 0.32);
+      qpath2D(ctx, [[0, 0], [2.4, -5], [0.4, -10 + k], [-1.8, -5], [0, 0]]);
+      ctx.fillStyle = k % 2 ? '#e8f6ff' : '#ffffff';
+      ctx.fill();
+      ctx.strokeStyle = '#8aa8c0';
+      ctx.lineWidth = 0.5;
+      ctx.stroke();
+      ctx.restore();
+    }
+    const body = () => qpath2D(ctx, [[-6, -14], [-1, -14.8], [4, -14], [3.6, -5], [3.8, 1.5], [6.5, 2.8], [10.5, 5], [12.4, 7.2], [12, 9.6], [2, 10.2], [-7, 9.6], [-7.6, 3], [-6.6, -2], [-6, -8], [-6, -14]]);
+    shape2D(ctx, body, vGrad2D(ctx, -7, 0, 12, 0, L, 0.3, 0.42), line, () => {
+      // Glanz vorn am Schaft, Schatten in der Ferse
+      ctx.fillStyle = 'rgba(255,255,255,0.12)';
+      ctx.fillRect(-5.5, -14, 2.2, 22);
+      ctx.fillStyle = 'rgba(0,0,0,0.18)';
+      ctx.fillRect(-8, 3, 4, 8);
+      // Falten am Knöchel
+      stroke(ctx, darker(L, 0.3), 0.6, [[-5, -1], [-1, 0.2], [2.8, -0.6]]);
+      stroke(ctx, darker(L, 0.3), 0.5, [[-4.6, 1.6], [-0.6, 2.6]]);
+      if (tier <= 1) stitch2D(ctx, lighter(L, 0.35), [[3.2, -12], [3.3, 0.5], [6.4, 3.4], [11, 6.6]]);
+      // Schnürung vorn (ab Gut)
+      if (tier >= 2 && tier !== 7 && tier !== 9) for (let k = 0; k < 4; k++) {
+        const y = -11 + k * 3;
+        stroke(ctx, lighter(L, 0.5), 0.6, [[0.4, y], [3.6, y + 2.2]]);
+        stroke(ctx, lighter(L, 0.5), 0.6, [[3.6, y], [0.4, y + 2.2]]);
+      }
+    });
+    // Sohle mit Absatz und Rahmennaht
+    shape2D(ctx, () => qpath2D(ctx, [[-7.4, 9.2], [2, 9.8], [12.4, 9.2], [13.6, 10.6], [12.4, 12.2], [2, 12.4], [-2.6, 12.2], [-2.8, 13.6], [-7.6, 13.6], [-7.8, 11], [-7.4, 9.2]]), darker(L, 0.62), '#120c08', () => {
+      stitch2D(ctx, lighter(L, 0.1), [[-6.8, 10.4], [12, 10.4]], 0.45);
+    });
+    // Stulpe oben
+    const cuffCol = tier >= 2 ? M : lighter(L, 0.22);
+    shape2D(ctx, () => qpath2D(ctx, [[-6.8, -15.4], [-1, -16.6], [4.8, -15.4], [5, -13.4], [4.6, -11.6], [-1, -12.4], [-6.6, -11.6], [-7.2, -13.4], [-6.8, -15.4]]), vGrad2D(ctx, 0, -16.6, 0, -11.6, cuffCol, 0.35, 0.3), darker(cuffCol, 0.55), () => {
+      if (tier <= 1) stitch2D(ctx, darker(L, 0.35), [[-6.4, -12.6], [-1, -13.4], [4.4, -12.6]], 0.45);
+    });
+    if (tier >= 2) for (const x of [-4.6, -1, 2.6]) rivet2D(ctx, x, -13.9, 0.55, lighter(M, 0.1));
+    // Riemen mit Schnalle über dem Rist
+    if (tier >= 1) {
+      shape2D(ctx, () => qpath2D(ctx, [[-6.6, -5.4], [-1, -4.4], [3.8, -5.6], [3.9, -4], [3.8, -3], [-1, -2.2], [-6.6, -3.4], [-6.7, -4.4], [-6.6, -5.4]]), darker(L, 0.38), '#120c08');
+      ctx.strokeStyle = M;
+      ctx.lineWidth = 0.8;
+      ctx.strokeRect(-2.4, -5.3, 2.6, 2.6);
+      stroke(ctx, M, 0.6, [[-1.1, -5.1], [-1.1, -2.9]]);
+    }
+    // Zehenkappe aus Metall (ab Gut)
+    if (tier >= 2 && tier !== 6) shape2D(ctx, () => qpath2D(ctx, [[7, 3.6], [10.4, 4.6], [12.6, 7.2], [12.8, 9], [11.6, 9.4], [8.6, 9.6], [7.4, 9.2], [6.6, 6], [7, 3.6]]), vGrad2D(ctx, 6, 3.6, 13, 9.6, M, 0.45, 0.3), darker(M, 0.55));
+    // Schienbeinplatte vorn (Drache, Seele, Asche, Götter, Abgrund, Ewigkeit)
+    if (tier >= 3 && tier !== 6) {
+      const pc = tier === 7 ? '#d8a93e' : tier === 9 ? '#bcb8d0' : tier === 8 ? '#2a2048' : tier === 5 ? '#2a2224' : M;
+      shape2D(ctx, () => qpath2D(ctx, [[0.6, -11.4], [3, -12.2], [5.4, -11.2], [5.4, -6], [4.6, -1.4], [3, -0.2], [1.4, -1.4], [0.6, -6], [0.6, -11.4]]), vGrad2D(ctx, 0, -12, 6, 0, pc, 0.45, 0.35), darker(pc, 0.6), () => {
+        stroke(ctx, lighter(pc, 0.5), 0.6, [[3, -11.6], [3, -1]]);
+      });
+      if (tier === 3) for (let k = 0; k < 3; k++) poly(ctx, [[5.2, -10 + k * 3], [7.6, -9 + k * 3], [5.2, -8 + k * 3]], '#e8dcc0');
+      if (tier === 4) dot(ctx, 3, -6.5, 1.3, 1.6, glow);
+      if (tier === 5) {
+        poly(ctx, [[4.6, -9], [9, -12.5], [5.2, -6.4]], '#2a2224');
+        stroke(ctx, '#ff7a2a', 0.7, [[2.4, -9], [3.4, -6], [2.6, -3]]);
+      }
+      if (tier === 7) {
+        oval(ctx, 3, -6.4, 2.2, 2.2, '#fff2b0');
+        oval(ctx, 3, -6.4, 1.2, 1.2, '#ffcf4a');
+      }
+      if (tier === 8) {
+        poly(ctx, [[4.8, -9.6], [9.4, -14], [5.6, -6.6]], '#3a2e66');
+        voidEye2D(ctx, 3, -6, 0.55);
+      }
+      if (tier === 9) star2D(ctx, 3, -6.2, 3.2);
+    }
+    // Krallenzehen (Drache), glühende Sohle (Asche, Abgrund, Ewigkeit)
+    if (tier === 3) for (let k = 0; k < 3; k++) poly(ctx, [[11 + k * 0.5, 6 + k * 1.4], [15 + k * 0.4, 6.6 + k * 1.6], [11.6 + k * 0.5, 7.6 + k * 1.4]], '#e8dcc0');
+    if (tier === 5 || tier === 8 || tier === 9) stroke(ctx, tier === 5 ? '#ff7a2a' : tier === 8 ? '#5ee8ff' : '#ffb8e0', 0.9, [[-7, 12.6], [12.6, 11.6]]);
+    if (tier === 0) for (let k = 0; k < 3; k++) stroke(ctx, '#d8ccb0', 0.9, [[-6.6, -1 + k * 2.2], [3.6, 0.2 + k * 2.2]]);
+    ctx.restore();
+  };
+  one(4, -1.5, 0.9, true);
+  one(-4.5, 1, 1, false);
+  ctx.restore();
+}
+
+// Brustpanzer (Krieger): Harnisch mit Halsausschnitt und Armöffnungen, Mittelgrat, Brustwölbung, Metallrand mit Nieten,
+// Gürtel und drei Beintaschen; Leder (Schnürung), Kettenhemd (Ringe), ab Gut Platte; Wappen je Stufe
+function chestIcon2D(ctx, tier, plate, cloth, metal) {
+  const glow = GEAR_GLOW2D[tier];
+  iconShadow2D(ctx, 0, 17, 13);
+  const line = darker(plate, 0.62);
+  // Waffenrock unter den Beintaschen
+  shape2D(ctx, () => qpath2D(ctx, [[-9.5, 5], [0, 5.6], [9.5, 5], [11, 10.5], [11.8, 16], [0, 16.8], [-11.8, 16], [-11, 10.5], [-9.5, 5]]), vGrad2D(ctx, 0, 5, 0, 17, cloth, 0.2, 0.4), darker(cloth, 0.6));
+  // Beintaschen
+  const tass = tier === 0 ? darker(plate, 0.08) : plate;
+  for (const [x, r] of [[-6.6, 0.18], [6.6, -0.18], [0, 0]]) {
+    ctx.save();
+    ctx.translate(x, 7.4);
+    ctx.rotate(r);
+    shape2D(ctx, () => qpath2D(ctx, [[-3.6, 0], [0, -0.4], [3.6, 0], [3.9, 4], [3.4, 7.6], [0, 8.2], [-3.4, 7.6], [-3.9, 4], [-3.6, 0]]), vGrad2D(ctx, -4, 0, 4, 8, tass, 0.3, 0.4), darker(tass, 0.6), () => {
+      if (tier >= 1) stroke(ctx, metal, 1.2, [[-3.6, 7.2], [0, 7.9], [3.6, 7.2]]);
+      else stitch2D(ctx, lighter(tass, 0.35), [[-2.8, 6.6], [2.8, 6.6]]);
+      stroke(ctx, darker(tass, 0.3), 0.5, [[-3.4, 3.6], [3.4, 3.6]]);
+    });
+    if (tier >= 1) rivet2D(ctx, 0, 1.6, 0.6, metal);
+    ctx.restore();
+  }
+  // Schulterstacheln (ab Seele) hinter dem Harnisch
+  if (tier >= 4) for (const sx of [-1, 1]) {
+    const sc = tier === 8 ? '#3a2e66' : tier === 9 ? '#efeaf6' : tier === 5 ? '#2a2224' : metal;
+    poly(ctx, [[sx * 8.6, -12], [sx * 11.6, -19.5], [sx * 12.4, -11.4]], sc);
+    stroke(ctx, darker(sc, 0.5), 0.6, [[sx * 8.6, -12], [sx * 11.6, -19.5], [sx * 12.4, -11.4]]);
+  }
+  // Harnisch
+  const body = () => qpath2D(ctx, [[-4.6, -13.6], [-8.6, -14], [-12.6, -12.6], [-12.4, -10.4], [-10.6, -8.6], [-9.2, -6.4], [-9, -3.6], [-10, 1], [-9.6, 5.6], [0, 6.8], [9.6, 5.6], [10, 1], [9, -3.6], [9.2, -6.4], [10.6, -8.6], [12.4, -10.4], [12.6, -12.6], [8.6, -14], [4.6, -13.6], [0, -8.4], [-4.6, -13.6]]);
+  const g = ctx.createRadialGradient(-4, -8, 1, 0, -3, 15);
+  g.addColorStop(0, lighter(plate, 0.5));
+  g.addColorStop(0.35, lighter(plate, 0.12));
+  g.addColorStop(0.8, plate);
+  g.addColorStop(1, darker(plate, 0.4));
+  shape2D(ctx, body, g, line, () => {
+    // rechte Hälfte im Schatten, Mittelgrat als Kante
+    ctx.fillStyle = 'rgba(0,0,0,0.16)';
+    ctx.fillRect(0, -15, 14, 23);
+    if (tier === 1) {
+      // Kettenhemd: Ringreihen
+      ctx.strokeStyle = darker(plate, 0.35);
+      ctx.lineWidth = 0.45;
+      for (let y = -12; y < 7; y += 1.8) for (let x = -11 + ((y / 1.8) % 2 ? 0.9 : 0); x < 11; x += 1.8) {
+        ctx.beginPath();
+        ctx.arc(x, y, 0.75, 0, Math.PI);
+        ctx.stroke();
+      }
+    } else if (tier === 0) {
+      // Lederweste: Schnürung vorn, Flicken mit Stichen
+      for (let k = 0; k < 4; k++) {
+        const y = -7 + k * 3;
+        stroke(ctx, '#e0cfa8', 0.6, [[-1.6, y], [1.6, y + 2]]);
+        stroke(ctx, '#e0cfa8', 0.6, [[1.6, y], [-1.6, y + 2]]);
+      }
+      stroke(ctx, darker(plate, 0.4), 0.7, [[0, -8], [0, 6]]);
+      ctx.fillStyle = darker(plate, 0.14);
+      ctx.fillRect(4, -2, 4, 3.6);
+      stitch2D(ctx, lighter(plate, 0.4), [[4, -2], [8, -2], [8, 1.6], [4, 1.6], [4, -2]], 0.4);
+    } else {
+      // Platte: Brustwölbung, Mittelgrat
+      stroke(ctx, darker(plate, 0.25), 0.8, [[-8.4, -3.2], [-4, -1], [0, -2.2]]);
+      stroke(ctx, darker(plate, 0.32), 0.8, [[8.4, -3.2], [4, -1], [0, -2.2]]);
+      stroke(ctx, lighter(plate, 0.55), 0.7, [[-0.4, -8], [-0.4, 6]]);
+      stroke(ctx, darker(plate, 0.4), 0.7, [[0.5, -8], [0.5, 6]]);
+      // Bauchreifen
+      for (const y of [1.6, 4]) stroke(ctx, darker(plate, 0.35), 0.6, [[-9.4, y], [0, y + 1], [9.4, y]]);
+    }
+    // Metallrand an Hals, Armöffnungen und unten
+    if (tier >= 1) {
+      body();
+      ctx.strokeStyle = metal;
+      ctx.lineWidth = 2.6;
+      ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+      ctx.lineWidth = 0.6;
+      ctx.stroke();
+    }
+  });
+  if (tier >= 1) for (const [x, y] of [[-7.6, -12.6], [7.6, -12.6], [-8.6, 4.8], [8.6, 4.8], [-3, 5.9], [3, 5.9]]) rivet2D(ctx, x, y, 0.6, metal);
+  // Gürtel über der Taille
+  box(ctx, -10.2, 4.6, 20.4, 2.6, 0.8, tier >= 7 ? '#5a2a1a' : '#4a3020');
+  ctx.strokeStyle = metal;
+  ctx.lineWidth = 0.8;
+  ctx.strokeRect(-1.6, 4.4, 3.2, 3);
+  // Wappen
+  const cy = -2.6;
+  if (tier === 1) rivet2D(ctx, 0, cy, 1.6, metal);
+  else if (tier === 2) {
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = lighter(metal, 0.2);
+    ctx.lineWidth = 1.1;
+    ctx.beginPath();
+    ctx.arc(0, cy - 0.6, 2.6, 0.4, Math.PI * 1.6);
+    ctx.stroke();
+    ctx.restore();
+    dot(ctx, 0.8, cy - 0.6, 0.8, 0.8, glow);
+  } else if (tier === 3) {
+    poly(ctx, [[0, cy - 3.6], [2.8, cy], [0, cy + 3.6], [-2.8, cy]], '#7a1a14');
+    poly(ctx, [[0, cy - 2.4], [1.7, cy], [0, cy + 2.4], [-1.7, cy]], glow);
+    for (const sx of [-1, 1]) poly(ctx, [[sx * 2, cy - 2], [sx * 4.6, cy - 5.6], [sx * 3, cy - 1.2]], '#e8dcc0');
+  } else if (tier === 4) {
+    oval(ctx, 0, cy, 2.6, 3.2, darker(glow, 0.45));
+    oval(ctx, 0, cy, 1.7, 2.3, glow);
+    dot(ctx, -0.6, cy - 0.9, 0.5, 0.7, '#ffffff');
+  } else if (tier === 5) {
+    stroke(ctx, '#ff7a2a', 0.9, [[-4, -9], [-2, -5], [-3, -1], [-0.6, 2]]);
+    stroke(ctx, '#ffd34d', 0.5, [[-4, -9], [-2, -5], [-3, -1], [-0.6, 2]]);
+    stroke(ctx, '#ff7a2a', 0.8, [[5, -8], [3, -4], [4.6, 0]]);
+  } else if (tier === 6) {
+    for (const sx of [-1, 1]) for (let k = 0; k < 3; k++) {
+      ctx.save();
+      ctx.translate(sx * 1.6, cy);
+      ctx.rotate(sx * (1.1 + k * 0.35));
+      qpath2D(ctx, [[0, 0], [1, -2.6], [0, -5.4 + k * 0.6], [-1, -2.6], [0, 0]]);
+      ctx.fillStyle = '#ffffff';
+      ctx.fill();
+      ctx.restore();
+    }
+    dot(ctx, 0, cy, 1.2, 1.2, '#bff4ff');
+  } else if (tier === 7) {
+    for (let k = 0; k < 10; k++) {
+      const a = (k / 10) * Math.PI * 2;
+      poly(ctx, [[Math.cos(a - 0.2) * 2.4, cy + Math.sin(a - 0.2) * 2.4], [Math.cos(a) * (k % 2 ? 4 : 5), cy + Math.sin(a) * (k % 2 ? 4 : 5)], [Math.cos(a + 0.2) * 2.4, cy + Math.sin(a + 0.2) * 2.4]], '#fff2b0');
+    }
+    oval(ctx, 0, cy, 2.6, 2.6, '#ffcf4a');
+    oval(ctx, -0.6, cy - 0.6, 1, 1, '#fff6d0');
+  } else if (tier === 8) {
+    for (const [x, y] of [[-7, -9], [6.5, -8], [-6, 3], [6, 3]]) stroke(ctx, '#5ee8ff', 0.6, [[x * 0.35, cy + (y - cy) * 0.35], [x, y]]);
+    voidEye2D(ctx, 0, cy, 1.05);
+  } else if (tier === 9) star2D(ctx, 0, cy, 5);
+}
+
+// Umhang: fallendes Tuch von hinten, Kragen mit Spangen, Falten (helle und dunkle Bahnen), umgeschlagene Kante mit
+// Futter, Saum mit Borte; Stufenmerkmale: Kapuze, Fellkragen, Dornenkamm, Leuchtsaum, Brandlöcher, Federn, Hermelin
+// und Sonnenwappen, Leerenauge, Sternbild
+function capeIcon2D(ctx, tier, cl, lining, metal) {
+  const glow = GEAR_GLOW2D[tier];
+  iconShadow2D(ctx, 0, 16.6, 14);
+  const line = darker(cl, 0.62);
+  // Saumform je Stufe: glatt, Zacken, Fetzen, Wellen
+  const hem = tier === 3 || tier === 8 ? 'fang' : tier === 0 || tier === 5 ? 'rag' : 'wave';
+  const pts = [[-6.4, -13], [0, -13.6], [6.4, -13], [9.4, 0], [12.6, 12]];
+  const hx = [12.6, 8.4, 4.2, 0, -4.2, -8.4, -12.6];
+  const H = [];
+  hx.forEach((x, i) => {
+    if (i === 0) return;
+    const px = hx[i - 1];
+    const mx = (px + x) / 2;
+    const y0 = 12 + Math.abs(x) * 0.08;
+    if (hem === 'fang') H.push([mx, 17.2], [x, y0]);
+    else if (hem === 'rag') H.push([mx, i % 2 ? 15.6 : 13.4], [x, y0 + (i % 2 ? 0.6 : 1.8)]);
+    else H.push([mx, 15.8], [x, y0]);
+  });
+  const outline = () => qpath2D(ctx, [...pts, ...H, [-9.4, 0], [-6.4, -13]]);
+  const g = ctx.createLinearGradient(-13, 0, 13, 0);
+  g.addColorStop(0, darker(cl, 0.32));
+  g.addColorStop(0.3, lighter(cl, 0.16));
+  g.addColorStop(0.55, cl);
+  g.addColorStop(1, darker(cl, 0.42));
+  shape2D(ctx, outline, g, line, () => {
+    // Falten: dunkle Bahnen fächern nach unten auf, dazwischen helle Grate
+    for (const [x0, x1] of [[-3.2, -7.6], [0.6, 0.8], [3.8, 8]]) {
+      ctx.beginPath();
+      ctx.moveTo(x0 - 0.4, -12);
+      ctx.quadraticCurveTo(x0 + (x1 - x0) * 0.3, 2, x1 - 1.6, 17);
+      ctx.lineTo(x1 + 1.6, 17);
+      ctx.quadraticCurveTo(x0 + (x1 - x0) * 0.35 + 0.9, 2, x0 + 0.5, -12);
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(0,0,0,0.2)';
+      ctx.fill();
+    }
+    for (const [x0, x1] of [[-1.4, -3.6], [2.2, 4.4], [-5, -11]]) stroke(ctx, lighter(cl, 0.3), 0.7, [[x0, -11], [x0 + (x1 - x0) * 0.4, 2], [x1, 15]]);
+    // Saumborte
+    ctx.save();
+    ctx.translate(0, -1.6);
+    qpath2D(ctx, [[12.6, 12], ...H, [-12.6, 30], [12.6, 30]]);
+    ctx.restore();
+    ctx.fillStyle = tier === 4 ? glow : tier === 7 ? '#d8a93e' : tier >= 6 && tier !== 8 ? metal : darker(cl, 0.3);
+    ctx.fill();
+    if (tier === 0) for (const [x, y] of [[-6, 14], [3, 14.6], [8, 13.4]]) stroke(ctx, darker(cl, 0.45), 0.6, [[x, y - 2], [x + 0.6, y]]);
+    // Brandlöcher (Asche), Sternbild (Ewigkeit)
+    if (tier === 5) for (const [x, y] of [[-6, 6], [4, 9], [7, 2], [-2, 11]]) {
+      dot(ctx, x, y, 1.3, 1, '#1a0e0a');
+      ctx.strokeStyle = '#ff7a2a';
+      ctx.lineWidth = 0.6;
+      ctx.beginPath();
+      ctx.ellipse(x, y, 1.4, 1.1, 0, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    if (tier === 9) {
+      const st = [[-6, 3], [-3.4, 7.6], [1.6, 9], [5.4, 5], [7.2, 10]];
+      stroke(ctx, '#ffd6f0', 0.4, st);
+      for (const [x, y] of st) dot(ctx, x, y, 0.8, 0.8, '#fff4fa');
+    }
+    if (tier === 8) for (const [x0, y0, x1, y1] of [[0, 0, -4, 8], [0, 0, 4.6, 7], [0, 0, 0.6, 11]]) stroke(ctx, '#5ee8ff', 0.6, [[x0, y0], [(x0 + x1) / 2 + 1, (y0 + y1) / 2], [x1, y1]]);
+  });
+  // umgeschlagene linke Kante mit Futter
+  shape2D(ctx, () => qpath2D(ctx, [[-6.4, -12.6], [-8.2, -1], [-12.4, 11.6], [-11, 12.6], [-9.6, 11.8], [-6.6, 0], [-5.2, -11.4], [-5.8, -12.4], [-6.4, -12.6]]), vGrad2D(ctx, -12, 0, -5, 0, lining, 0.25, 0.3), darker(lining, 0.55));
+  // Fangspitzen (Drache, Abgrund)
+  if (tier === 3) for (let k = 0; k < 4; k++) poly(ctx, [[-1.2, -8 + k * 5], [0, -11 + k * 5], [1.2, -8 + k * 5]], '#1a1212');
+  if (tier === 8) for (const x of [-10.4, -2.1, 6.3]) poly(ctx, [[x - 1, 15.6], [x + 0.2, 19.6], [x + 1.2, 15.6]], '#3a2e66');
+  if (tier === 6) for (let k = 0; k < 6; k++) {
+    const x = -10 + k * 4;
+    ctx.save();
+    ctx.translate(x, 13.6);
+    ctx.rotate(Math.PI + (x / 12) * 0.5);
+    qpath2D(ctx, [[0, 0], [1.4, -2.4], [0, -6.4], [-1.4, -2.4], [0, 0]]);
+    ctx.fillStyle = k % 2 ? '#ffffff' : '#e6f2ff';
+    ctx.fill();
+    ctx.strokeStyle = '#8aa8c0';
+    ctx.lineWidth = 0.4;
+    ctx.stroke();
+    ctx.restore();
+  }
+  if (tier === 4) for (const [x, y] of [[-4, 15.4], [3, 16], [8, 14.4]]) dot(ctx, x, y, 0.9, 0.9, '#f4e8ff');
+  // Rückenwappen
+  if (tier === 7) {
+    for (let k = 0; k < 10; k++) {
+      const a = (k / 10) * Math.PI * 2;
+      poly(ctx, [[1 + Math.cos(a - 0.2) * 2.4, 2 + Math.sin(a - 0.2) * 2.4], [1 + Math.cos(a) * (k % 2 ? 4.2 : 5.4), 2 + Math.sin(a) * (k % 2 ? 4.2 : 5.4)], [1 + Math.cos(a + 0.2) * 2.4, 2 + Math.sin(a + 0.2) * 2.4]], '#fff2b0');
+    }
+    oval(ctx, 1, 2, 2.6, 2.6, '#ffcf4a');
+  } else if (tier === 8) voidEye2D(ctx, 1, 0, 1);
+  else if (tier === 9) star2D(ctx, 1, -2, 4.4);
+  else if (tier === 3) poly(ctx, [[1, -2], [3.4, 2], [1, 6], [-1.4, 2]], glow);
+  // Kragen je Stufe
+  if (tier === 1) shape2D(ctx, () => qpath2D(ctx, [[-8, -13.4], [0, -9], [8, -13.4], [8.6, -11.2], [6, -9.4], [0, -6.8], [-6, -9.4], [-8.6, -11.2], [-8, -13.4]]), vGrad2D(ctx, 0, -14, 0, -7, darker(cl, 0.12), 0.25, 0.35), line);
+  else if (tier === 2 || tier === 7) for (let k = 0; k < 7; k++) {
+    const x = -7.2 + k * 2.4;
+    const fur = tier === 7 ? (k % 2 ? '#ece6dc' : '#f8f4ec') : k % 2 ? '#8a6a4a' : '#a8885a';
+    oval(ctx, x, -12.6 + Math.abs(x) * 0.06, 2, 1.8, fur);
+    if (tier === 7 && k % 2 === 0) dot(ctx, x, -12, 0.45, 0.6, '#1a1210');
+  }
+  else if (tier === 8) for (let k = 0; k < 5; k++) poly(ctx, [[-6 + k * 3, -12.6], [-6.4 + k * 3 + (k - 2) * 0.6, -17 - (k % 2) * 1.6], [-5 + k * 3, -12.6]], '#3a2e66');
+  else if (tier === 9) for (let k = 0; k < 5; k++) poly(ctx, [[-6 + k * 3, -12.6], [-5.5 + k * 3 + (k - 2) * 0.8, -17.4 - (k % 2) * 1.6], [-5 + k * 3, -12.6]], k % 2 ? '#e2957c' : '#efeaf6');
+  else box(ctx, -7.4, -14.6, 14.8, 2.8, 1.2, darker(cl, 0.15));
+  // Spangen an den Schultern mit Kordel
+  stroke(ctx, tier >= 3 ? metal : darker(cl, 0.4), 0.7, [[-6.2, -12], [0, -10.4], [6.2, -12]]);
+  for (const x of [-6.6, 6.6]) {
+    dot(ctx, x, -12.6, 1.9, 1.9, darker(tier >= 1 ? metal : '#5a4632', 0.45));
+    dot(ctx, x - 0.2, -12.8, 1.5, 1.5, tier >= 1 ? metal : '#7a6040');
+    dot(ctx, x - 0.6, -13.2, 0.5, 0.5, '#ffffff');
+  }
+}
+
+// Helm (Krieger): Glocke mit Verlauf und Glanzlicht, Mittelgrat, Stirnreif mit Nieten, Nasal, Wangenklappen, Kamm
+function helmIcon2D(ctx, tier, hm, band, crest) {
+  iconShadow2D(ctx, 0, 16.4, 13);
+  // Kamm hinter der Glocke
+  if (crest) {
+    shape2D(ctx, () => qpath2D(ctx, [[-2.4, -8], [-3.4, -14], [0.4, -17.6], [3.6, -14.6], [2.4, -8], [0, -7.4], [-2.4, -8]]), vGrad2D(ctx, -3, -18, 3, -8, crest, 0.3, 0.35), darker(crest, 0.6), () => {
+      for (let k = 0; k < 4; k++) stroke(ctx, darker(crest, 0.3), 0.5, [[-2 + k * 1.3, -8.4], [-1.6 + k * 1.3, -15.6]]);
+    });
+  }
+  // Wangenklappen
+  for (const sx of [-1, 1]) shape2D(ctx, () => qpath2D(ctx, [[sx * 13.4, 4], [sx * 13.8, 9], [sx * 12.6, 13.6], [sx * 10.6, 14.4], [sx * 9.4, 12.4], [sx * 9.4, 8], [sx * 9.8, 4], [sx * 11.6, 3.6], [sx * 13.4, 4]]), vGrad2D(ctx, sx * 9, 4, sx * 14, 14, hm, 0.25, 0.4), darker(hm, 0.6), () => {
+    stroke(ctx, darker(hm, 0.3), 0.5, [[sx * 10.2, 9], [sx * 13.2, 9]]);
+  });
+  // Glocke
+  const dome = () => qpath2D(ctx, [[-13.6, 4.4], [-14.4, -9.6], [0, -10.6], [14.4, -9.6], [13.6, 4.4], [0, 5.4], [-13.6, 4.4]]);
+  const g = ctx.createRadialGradient(-5, -5, 1, 0, 0, 16);
+  g.addColorStop(0, lighter(hm, 0.55));
+  g.addColorStop(0.3, lighter(hm, 0.15));
+  g.addColorStop(0.75, hm);
+  g.addColorStop(1, darker(hm, 0.42));
+  shape2D(ctx, dome, g, darker(hm, 0.62), () => {
+    ctx.fillStyle = 'rgba(0,0,0,0.15)';
+    ctx.fillRect(1, -12, 14, 18);
+    stroke(ctx, lighter(hm, 0.45), 0.7, [[-0.5, -10], [-0.5, 3]]);
+    stroke(ctx, darker(hm, 0.35), 0.6, [[0.6, -10], [0.6, 3]]);
+    if (tier === 0) for (const x of [-7, 7]) stitch2D(ctx, lighter(hm, 0.35), [[x, -7], [x * 1.05, 2.6]], 0.45);
+  });
+  // Stirnreif mit Nieten
+  shape2D(ctx, () => qpath2D(ctx, [[-14.6, 1.6], [0, 2.8], [14.6, 1.6], [14.8, 4], [14.6, 6.2], [0, 7.4], [-14.6, 6.2], [-14.8, 4], [-14.6, 1.6]]), vGrad2D(ctx, 0, 1.6, 0, 7.4, band, 0.4, 0.35), darker(band, 0.6));
+  if (tier >= 1) for (const x of [-11, -5.6, 5.6, 11]) rivet2D(ctx, x, 4.4 + Math.abs(x) * -0.05, 0.75, lighter(band, 0.1));
+  // Nasal
+  shape2D(ctx, () => qpath2D(ctx, [[-1.6, 2.4], [0, 2.2], [1.6, 2.4], [1.4, 8], [1.1, 12.4], [0, 13.2], [-1.1, 12.4], [-1.4, 8], [-1.6, 2.4]]), vGrad2D(ctx, -2, 2, 2, 13, tier === 0 ? hm : band, 0.4, 0.3), darker(band, 0.6));
+}
+
+// Gürtel: Ledergurt mit Kantennaht, Schnalle mit Dorn, Gürtelschlaufe und Nieten; Stufenmerkmale an der Schnalle
+function beltIcon2D(ctx, tier, leather, metal) {
+  const glow = GEAR_GLOW2D[tier];
+  iconShadow2D(ctx, 0, 13, 15);
+  const strap = () => qpath2D(ctx, [[-16, -3.4], [0, -5.2], [16, -3.4], [16.6, 0], [16, 3.4], [0, 1.8], [-16, 3.4], [-16.6, 0], [-16, -3.4]]);
+  shape2D(ctx, strap, vGrad2D(ctx, 0, -5, 0, 3.4, leather, 0.3, 0.4), darker(leather, 0.62), () => {
+    stitch2D(ctx, lighter(leather, 0.4), [[-15, -2.2], [0, -3.9], [15, -2.2]], 0.45);
+    stitch2D(ctx, lighter(leather, 0.4), [[-15, 2.2], [0, 0.6], [15, 2.2]], 0.45);
+  });
+  // Lochreihe und Schlaufe
+  for (const x of [8.4, 10.6, 12.8]) dot(ctx, x, -0.8 + Math.abs(x) * 0.0, 0.55, 0.55, darker(leather, 0.65));
+  box(ctx, -12, -4.6, 2.4, 8.4, 0.8, darker(leather, 0.25));
+  if (tier >= 2) for (const x of [-14.2, 5.4]) rivet2D(ctx, x, -0.7, 0.75, metal);
+  // Gürteltasche (ab Solide) links
+  if (tier >= 1 && tier !== 7 && tier !== 9) {
+    shape2D(ctx, () => qpath2D(ctx, [[-9.6, 1.6], [-6.6, 1.2], [-3.6, 1.6], [-3.4, 6], [-4, 9.6], [-6.6, 10.4], [-9.2, 9.6], [-9.8, 6], [-9.6, 1.6]]), vGrad2D(ctx, -10, 2, -3, 10, darker(leather, 0.1), 0.25, 0.4), darker(leather, 0.62));
+    shape2D(ctx, () => qpath2D(ctx, [[-9.8, 1.4], [-6.6, 0.8], [-3.4, 1.4], [-3.6, 4.4], [-6.6, 5.6], [-9.6, 4.4], [-9.8, 1.4]]), darker(leather, 0.25), darker(leather, 0.62));
+    dot(ctx, -6.6, 4.6, 0.7, 0.7, metal);
+  }
+  // Schnalle
+  const bk = tier === 7 ? '#d8a93e' : tier === 9 ? '#bcb8d0' : tier === 8 ? '#2a2048' : metal;
+  shape2D(ctx, () => qpath2D(ctx, [[-5.4, -6.6], [0.6, -7.4], [6.6, -6.6], [7.2, -1], [6.6, 4.6], [0.6, 5.4], [-5.4, 4.6], [-6, -1], [-5.4, -6.6]]), vGrad2D(ctx, -6, -7, 7, 5, bk, 0.5, 0.35), darker(bk, 0.6), () => {
+    ctx.fillStyle = darker(leather, 0.15);
+    ctx.fillRect(-3, -4.4, 7.2, 6.6);
+    stroke(ctx, lighter(bk, 0.5), 0.5, [[-5, -6], [6, -6]]);
+  });
+  stroke(ctx, lighter(bk, 0.25), 1.1, [[-1.6, -1.2], [5.6, -1.2]]);
+  if (tier === 3) {
+    oval(ctx, 0.6, -1, 3, 2.6, '#7a1a14');
+    for (const sx of [-1, 1]) dot(ctx, 0.6 + sx * 1.3, -1.6, 0.6, 0.5, glow);
+    for (const sx of [-1, 1]) poly(ctx, [[0.6 + sx * 1.8, -3], [0.6 + sx * 3.6, -7], [0.6 + sx * 0.8, -3.4]], '#e8dcc0');
+  } else if (tier === 4) {
+    oval(ctx, 0.6, -1, 2.2, 2.8, darker(glow, 0.4));
+    oval(ctx, 0.6, -1, 1.5, 2, glow);
+  } else if (tier === 5) {
+    oval(ctx, 0.6, -1.4, 2.6, 2.4, '#e8e0cc');
+    for (const sx of [-1, 1]) dot(ctx, 0.6 + sx * 1, -1.6, 0.6, 0.6, '#ff7a2a');
+  } else if (tier === 6) {
+    for (const sx of [-1, 1]) {
+      ctx.save();
+      ctx.translate(0.6 + sx * 7.6, 2);
+      ctx.rotate(sx * 0.3);
+      qpath2D(ctx, [[0, 0], [1.4, 3], [0, 8], [-1.4, 3], [0, 0]]);
+      ctx.fillStyle = '#ffffff';
+      ctx.fill();
+      ctx.restore();
+    }
+    dot(ctx, 0.6, -1, 1.4, 1.4, '#bff4ff');
+  } else if (tier === 7) {
+    for (let k = 0; k < 8; k++) {
+      const a = (k / 8) * Math.PI * 2;
+      poly(ctx, [[0.6 + Math.cos(a - 0.25) * 1.8, -1 + Math.sin(a - 0.25) * 1.8], [0.6 + Math.cos(a) * 3.6, -1 + Math.sin(a) * 3.6], [0.6 + Math.cos(a + 0.25) * 1.8, -1 + Math.sin(a + 0.25) * 1.8]], '#fff2b0');
+    }
+    oval(ctx, 0.6, -1, 1.8, 1.8, '#ffcf4a');
+    for (const x of [-3.6, 0.6, 4.8]) box(ctx, x - 1.2, 5.6, 2.4, 3.6, 0.6, '#d8a93e');
+  } else if (tier === 8) voidEye2D(ctx, 0.6, -1, 0.8);
+  else if (tier === 9) star2D(ctx, 0.6, -1, 4);
+  if (tier >= 3 && tier !== 7) poly(ctx, [[-1.6, 5.4], [2.8, 5.4], [0.6, 10.4]], tier === 8 ? '#5ee8ff' : tier === 9 ? '#ffb8e0' : tier >= 4 ? glow : '#c8402f');
+}
+
+// Klingenfarbe im Symbol: Obsidian (Asche), helles Gold (Götter), seit 13.53 Leerenviolett (Abgrund), sonst Stufenmetall
+const bladeMetal2D = (tier) => (tier === 5 ? '#2a2224' : tier === 7 ? '#ffe9a0' : tier === 8 ? '#3a2e66' : TIER_METAL[tier]);
+
+function swordArt(ctx, tier, big) {
+  const sh = BLADE_SHAPES[tier] || BLADE_SHAPES[0];
+  const k = big ? 1.42 : 1.08;
+  const grip = big ? 10 : 6;
+  const wrap = TIER_ACCENT[tier];
+  // Griff mit Lederwicklung und Knauf
+  box(ctx, 1 - grip, -1.6, grip, 3.2, 1, wrap);
+  for (let x = 2 - grip; x < 0.5; x += 2) stroke(ctx, lighter(wrap, 0.3), 0.6, [[x, -1.6], [x + 1.2, 1.6]]);
+  oval(ctx, -grip, 0, 2.3, 2.3, '#c9a35a');
+  oval(ctx, -grip, 0, 1.1, 1.1, sh.gem || '#8a6a3a');
+  guardArt(ctx, 2.6, sh.guard, tier >= 3 ? TIER_METAL[tier] : '#c9a35a');
+  bladeArt(ctx, 4.4, sh.len * k - 4.4, sh.w * (big ? 1.4 : 1.12), sh.curve, sh.serrated, tier === 8 ? '#3a2e66' : TIER_METAL[tier], sh.edge);
+  // Ewigkeit: kleiner Stern auf der Klinge
+  if (tier === 9) {
+    const sx = 4.4 + (sh.len * k - 4.4) * 0.55;
+    for (let j = 0; j < 4; j++) { const a = j * Math.PI / 2; poly(ctx, [[sx, 0], [sx + Math.cos(a) * 2.6, Math.sin(a) * 2.6], [sx + Math.cos(a + 0.6) * 0.8, Math.sin(a + 0.6) * 0.8]], '#ffffff'); }
+  }
+  if (sh.gem) oval(ctx, 2.9, 0, 1.3, 1.3, sh.gem);
+  if (sh.runes) for (let x = 9; x < sh.len * k - 5; x += 5) stroke(ctx, sh.gem, 0.8, [[x, -0.7], [x + 2, 0.5]]);
+}
+
+// Zepter des Magiers (seit 8.6): kurzer Schaft, Käfig je Stufe, darin schwebt ein Oktaeder-Kristall
+// in der Elementfarbe (accent; ohne Weg Arkan-Blau)
+const ROD_METAL = ['#8a6a44', '#d8e0f0', '#e6eef8', '#cfe6ff', '#b48cff', '#4a4044', '#e8f0ff', '#e8c46a', '#6e5cc0', '#e2957c'];
+const ROD_SHAFT = ['#6b4a2e', '#2e3350', '#252a5e', '#2a3f74', '#3b2c72', '#2a2024', '#121a3c', '#f4f0e6', '#140e24', '#f8f4fa'];
+// Oktaeder-Kristall im Profil: Raute, links oben heller; vert: aufrecht statt längs zum Schaft
+function rodCrystal(ctx, x, y, s, accent, vert = false) {
+  const a = 5 * s;
+  const b = 3.2 * s;
+  if (vert) {
+    poly(ctx, [[x, y - a], [x + b, y], [x, y + a], [x - b, y]], accent);
+    poly(ctx, [[x, y - a], [x - b, y], [x, y + 1.2 * s]], lighter(accent, 0.45));
+    dot(ctx, x - 1 * s, y - 1.4 * s, 0.6 * s, 0.8 * s, '#ffffff');
+    return;
+  }
+  poly(ctx, [[x - a, y], [x, y - b], [x + a, y], [x, y + b]], accent);
+  poly(ctx, [[x - a, y], [x, y - b], [x + 1.2 * s, y]], lighter(accent, 0.45));
+  dot(ctx, x - 1.4 * s, y - 1 * s, 0.8 * s, 0.6 * s, '#ffffff');
+}
+function rodArt(ctx, tier, accent = '#b8c4ff') {
+  const m = ROD_METAL[tier] || ROD_METAL[0];
+  const shaft = ROD_SHAFT[tier] || ROD_SHAFT[0];
+  const cx = 22.5;
+  box(ctx, -7, -1.1, 23, 2.2, 1, shaft);
+  box(ctx, -1.5, -1.6, 3.4, 3.2, 0.8, tier ? m : '#c7ccd3');
+  box(ctx, 14, -1.9, 3, 3.8, 0.8, tier ? m : '#5a4030');
+  if (tier >= 1) oval(ctx, -7.4, 0, 1.6, 1.6, m);
+  // Hinter dem Kristall: Käfig, Ringe oder Platte
+  if (tier === 0) {
+    // Holzgabel
+    stroke(ctx, shaft, 1.6, [[16.5, 0], [19, -3.6], [25, -4.4]]);
+    stroke(ctx, shaft, 1.6, [[16.5, 0], [19, 3.6], [25, 4.4]]);
+  } else if (tier === 1) {
+    // Silberband: zwei Bügel um den Kristall
+    for (const sg of [-1, 1]) stroke(ctx, m, 1.1, [[17, sg * 1.5], [19.5, sg * 5], [25.5, sg * 5], [28, sg * 1.5]]);
+  } else if (tier === 2) {
+    // Mondsichel-Käfig, nach vorn offen
+    paintShape(ctx, () => { ctx.beginPath(); ctx.arc(cx, 0, 6.6, 0.9, Math.PI * 2 - 0.9, false); ctx.arc(cx - 1.4, 0, 5, Math.PI * 2 - 1.1, 1.1, true); ctx.closePath(); }, m, cx - 7, -7, 12, 14);
+  } else if (tier === 3) {
+    // Kristallbündel: drei kleine Kristalle als Fassung
+    for (const [dx, dy, a] of [[-3, -4.5, -0.5], [-3, 4.5, 0.5], [3.8, 0, 0]]) {
+      ctx.save();
+      ctx.translate(cx + dx, dy);
+      ctx.rotate(a);
+      poly(ctx, [[-2.6, 0], [0, -1.4], [2.6, 0], [0, 1.4]], lighter(accent, 0.25));
+      ctx.restore();
+    }
+  } else if (tier === 4) {
+    // zwei gekreuzte Ringe
+    ctx.lineWidth = 1;
+    for (const a of [-0.7, 0.7]) {
+      ctx.strokeStyle = OUTLINE;
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      ctx.ellipse(cx, 0, 7, 2.6, a, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.strokeStyle = m;
+      ctx.lineWidth = 1.1;
+      ctx.stroke();
+    }
+  } else if (tier === 5) {
+    // Sechseck-Siegelplatte mit Glutkern
+    const hex = [];
+    for (let k = 0; k < 6; k++) hex.push([cx + Math.cos(k * Math.PI / 3) * 6.5, Math.sin(k * Math.PI / 3) * 6.5]);
+    poly(ctx, hex, m);
+    stroke(ctx, '#ff7a2a', 0.7, [...hex, hex[0]].map(([x, y]) => [cx + (x - cx) * 0.75, y * 0.75]));
+    dot(ctx, cx, 0, 3.2, 3.2, '#ff7a2a');
+  } else if (tier === 6) {
+    // Astrolabium mit Sternspitzen
+    ctx.strokeStyle = OUTLINE;
+    ctx.lineWidth = 2.4;
+    ctx.beginPath();
+    ctx.arc(cx, 0, 6.4, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.strokeStyle = m;
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+    ctx.lineWidth = 0.6;
+    ctx.beginPath();
+    ctx.ellipse(cx, 0, 6.4, 2.2, 0.5, 0, Math.PI * 2);
+    ctx.stroke();
+    for (let k = 0; k < 4; k++) {
+      const a = k * Math.PI / 2 + Math.PI / 4;
+      poly(ctx, [[cx + Math.cos(a - 0.2) * 6.4, Math.sin(a - 0.2) * 6.4], [cx + Math.cos(a) * 9.5, Math.sin(a) * 9.5], [cx + Math.cos(a + 0.2) * 6.4, Math.sin(a + 0.2) * 6.4]], m);
+    }
+  } else if (tier === 8) {
+    // Abgrund (seit 13.53): Leerenauge als Ring, zwei Tentakel greifen um den Kristall
+    for (const sg of [-1, 1]) {
+      stroke(ctx, OUTLINE, 3, [[16.5, sg * 1], [19, sg * 6.5], [24, sg * 7.5], [27.5, sg * 4.5], [26, sg * 2.5]]);
+      stroke(ctx, m, 1.6, [[16.5, sg * 1], [19, sg * 6.5], [24, sg * 7.5], [27.5, sg * 4.5], [26, sg * 2.5]]);
+    }
+    ctx.strokeStyle = '#5ee8ff';
+    ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    ctx.ellipse(cx, 0, 7.6, 4.4, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    for (const [x, y] of [[cx - 7, -6], [cx + 6, 6.5], [cx + 8.5, -4]]) poly(ctx, [[x, y - 1.6], [x + 0.9, y], [x, y + 1.6], [x - 0.9, y]], '#2a2048');
+  } else if (tier === 9) {
+    // Ewigkeit (seit 13.53): achtstrahliger Stern aus Platin und Roségold hinter dem Kristall, Prismenpunkte
+    for (let k = 0; k < 8; k++) {
+      const a = (k / 8) * Math.PI * 2;
+      const r = k % 2 ? 6 : 10;
+      poly(ctx, [[cx + Math.cos(a - 0.3) * 2.4, Math.sin(a - 0.3) * 2.4], [cx + Math.cos(a) * r, Math.sin(a) * r], [cx + Math.cos(a + 0.3) * 2.4, Math.sin(a + 0.3) * 2.4]], k % 2 ? m : '#efeaf6');
+    }
+    ['#ff9ad5', '#9ad8ff', '#c8a8ff', '#ffe59a'].forEach((col, k) => dot(ctx, cx + Math.cos(k * Math.PI / 2 + Math.PI / 4) * 5.4, Math.sin(k * Math.PI / 2 + Math.PI / 4) * 5.4, 0.8, 0.8, col));
+  } else {
+    // Goldhalo mit drei Kristallen
+    ctx.strokeStyle = OUTLINE;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(cx, 0, 7.2, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.strokeStyle = m;
+    ctx.lineWidth = 1.6;
+    ctx.stroke();
+    for (let k = 0; k < 3; k++) {
+      const a = k * Math.PI * 2 / 3 + Math.PI / 6;
+      rodCrystal(ctx, cx + Math.cos(a) * 7.2, Math.sin(a) * 7.2, 0.42, accent);
+    }
+  }
+  rodCrystal(ctx, cx, 0, tier >= 3 ? 1.05 : 0.9, accent);
+}
+
+function weaponArt(ctx, kind, tier = 0, accent) {
+  // Dolche (seit 13.19) mit derselben Klingenform je Stufe wie Symbol und 3D-Waffe
+  if (kind === 'dagger' && typeof daggerIconArt === 'function') {
+    ctx.save();
+    ctx.scale(0.62, 0.62);
+    daggerIconArt(ctx, tier);
+    ctx.restore();
+    return;
+  }
+  switch (kind) {
+    case 'rod':
+      rodArt(ctx, tier, accent);
+      break;
+    case 'sword':
+      swordArt(ctx, tier, false);
+      break;
+    case 'greatsword':
+      swordArt(ctx, tier, true);
+      break;
+    case 'dagger': {
+      const sh = BLADE_SHAPES[tier] || BLADE_SHAPES[0];
+      box(ctx, -2.8, -1.3, 4.2, 2.6, 1, '#2a2420');
+      box(ctx, 1.2, -2.8 - (tier >= 3 ? 1 : 0), 1.6, 5.6 + (tier >= 3 ? 2 : 0), 0.8, tier >= 3 ? TIER_METAL[tier] : '#8a8f96');
+      bladeArt(ctx, 2.8, 9 + tier * 0.6, 1.6 + (tier % 2) * 0.3, Math.min(0.35, sh.curve * 0.8), sh.serrated, TIER_METAL[tier], sh.edge);
+      if (sh.gem) oval(ctx, -1, 0, 1, 1, sh.gem);
+      break;
+    }
+    case 'fan': {
+      // seit 13.29: Blattumriss je Stufe wie in 3D (FAN_SHAPES): glatt, Bögen, Federn, Flammen, Flügel, Zacken, Wolken, Sonne
+      const FS = FAN_SHAPES[tier];
+      const leafPts = fanLeafPts(tier, tier === 7 ? 10.5 : 14, 2, 0);
+      if (tier === 2) {
+        // Kranich: einzelne Federn statt Blatt
+        for (let k = 0; k < 9; k++) {
+          const a = -FS.span / 2 + (k / 8) * FS.span;
+          const c = Math.cos(a);
+          const sn = Math.sin(a);
+          poly(ctx, [[c * 2, sn * 2], [c * 9 - sn * 2.2, sn * 9 + c * 2.2], [c * 15.5, sn * 15.5], [c * 9 + sn * 2.2, sn * 9 - c * 2.2]], k % 2 ? '#e8eef4' : '#c8d2dc');
+          stroke(ctx, '#2a2a30', 0.6, [[c * 12, sn * 12], [c * 15.5, sn * 15.5]]);
+        }
+      } else {
+        poly(ctx, leafPts, FAN_LEAF[tier]);
+        if (FS.edge === 'smooth' || FS.edge === 'scallop') {
+          ctx.strokeStyle = '#e0c36a';
+          ctx.lineWidth = 1.2;
+          ctx.beginPath();
+          ctx.arc(0, 0, 12.6, -FS.span * 0.48, FS.span * 0.48);
+          ctx.stroke();
+        }
+      }
+      // Rippen über die ganze Spannweite
+      ctx.strokeStyle = tier === 7 ? '#a07a1a' : tier === 9 ? '#e2957c' : tier >= 4 ? TIER_METAL[tier] : '#3a2a1c';
+      ctx.lineWidth = 0.7;
+      const nr = tier === 7 ? 14 : Math.max(5, Math.min(9, Math.round(FS.span / 0.3)));
+      for (let k = 0; k < nr; k++) {
+        const a = tier === 7 ? (k / nr) * FS.span - FS.span / 2 : -FS.span * 0.45 + (k / (nr - 1)) * FS.span * 0.9;
+        ctx.beginPath();
+        ctx.moveTo(Math.cos(a) * 2, Math.sin(a) * 2);
+        ctx.lineTo(Math.cos(a) * 12.5, Math.sin(a) * 12.5);
+        ctx.stroke();
+      }
+      // Muster auf dem Blatt
+      if (tier === 3) for (const a of [-0.6, 0, 0.6]) poly(ctx, [[Math.cos(a) * 6, Math.sin(a) * 6 - 1], [Math.cos(a) * 10, Math.sin(a) * 10], [Math.cos(a) * 6, Math.sin(a) * 6 + 1]], '#ffd34d');
+      if (tier === 4) oval(ctx, 7, 0, 2.2, 2.2, '#f4e8ff');
+      if (tier === 5) for (const a of [-0.5, 0.1, 0.6]) oval(ctx, Math.cos(a) * 8, Math.sin(a) * 8, 0.9, 0.9, '#ffd34d');
+      if (tier === 6) for (const a of [-0.7, 0, 0.7]) oval(ctx, Math.cos(a) * 8.5, Math.sin(a) * 8.5, 1.6, 1.1, '#ffffff');
+      if (tier === 7) {
+        for (let k = 0; k < 10; k++) { const a = (k / 10) * Math.PI * 2; poly(ctx, [[Math.cos(a) * 3, Math.sin(a) * 3], [Math.cos(a + 0.2) * 6, Math.sin(a + 0.2) * 6], [Math.cos(a + 0.4) * 3, Math.sin(a + 0.4) * 3]], '#ffd34d'); }
+        oval(ctx, 0, 0, 3, 3, '#fff2b0');
+      }
+      // seit 13.53: Abgrund mit Leerenauge und cyanfarbenen Fangspitzen, Ewigkeit mit Sternen auf Perlweiß
+      if (tier === 8) {
+        oval(ctx, 8.5, 0, 3, 2, '#5ee8ff');
+        oval(ctx, 8.5, 0, 0.6, 1.7, '#0c0816');
+        for (const a of [-1.1, -0.4, 0.4, 1.1]) dot(ctx, Math.cos(a) * 13, Math.sin(a) * 13, 0.8, 0.8, '#5ee8ff');
+      }
+      if (tier === 9) for (const [a, r, z] of [[-0.9, 9, 1.8], [0, 10, 2.6], [0.9, 9, 1.8], [-0.45, 6, 1.2], [0.45, 6, 1.2]]) {
+        const x = Math.cos(a) * r;
+        const y = Math.sin(a) * r;
+        for (let j = 0; j < 4; j++) { const b = j * Math.PI / 2; poly(ctx, [[x, y], [x + Math.cos(b) * z, y + Math.sin(b) * z], [x + Math.cos(b + 0.7) * z * 0.35, y + Math.sin(b + 0.7) * z * 0.35]], j % 2 ? '#e2957c' : '#ffb8e0'); }
+      }
+      box(ctx, -2.5, -1.3, 4, 2.6, 1, '#e0c36a');
+      if (tier >= 4) stroke(ctx, '#c8402f', 1, [[-2, 1], [-5, 5], [-4, 8]]);
+      break;
+    }
+    case 'bell': {
+      // seit 13.29: Glockenform je Stufe wie in 3D (BELL_PROFILES); Stiel links, Krone bei x = 13, Öffnung rechts
+      const BP = BELL_PROFILES[tier];
+      const K = 60;
+      const h = BP[BP.length - 1][1];
+      const mouth = 13 + h * K;
+      const metal = tier === 5 ? '#4a3a34' : tier === 7 ? '#ffe9a0' : tier === 8 ? '#3a2e66' : tier >= 3 ? TIER_METAL[tier] : '#d9a86a';
+      box(ctx, -7, -1.2, 20, 2.4, 1, '#6b4a2e');
+      // Bänder
+      stroke(ctx, tier === 2 ? '#f4f4f0' : '#c8402f', 1.1, [[13, 1.5], [13 + h * K * 0.6, 4.5]]);
+      const pts = BP.map(([r, y]) => [mouth - y * K, -r * K]).concat(BP.slice().reverse().map(([r, y]) => [mouth - y * K, r * K]));
+      poly(ctx, pts, metal);
+      // Rippen bzw. Ringe
+      if (tier === 1 || tier === 5) for (const f of [0.15, 0.4]) stroke(ctx, darker(metal, 0.35), 0.8, [[mouth - h * K * f, -5], [mouth - h * K * f, 5]]);
+      else stroke(ctx, lighter(metal, 0.4), 0.8, [[mouth - h * K * 0.65, -2], [mouth - h * K * 0.2, -4.5]]);
+      oval(ctx, mouth + 1, 0, 1.5, 1.5, STAFF_ORB[tier]);
+      box(ctx, 11, -1.8, 3, 3.6, 1, '#e0c36a');
+      if (tier === 3) for (const y of [-1, 1]) poly(ctx, [[13, y * 2], [9, y * 6], [12, y * 3]], '#ff7a2a');
+      if (tier === 4) for (const y of [-1, 1]) poly(ctx, [[mouth - h * K * 0.8, y * 2], [mouth - h * K * 1.1, y * 7], [mouth - h * K * 0.6, y * 3.5]], '#e8dcc0');
+      if (tier === 6) for (const y of [-1, 1]) poly(ctx, [[13, y * 1.5], [10, y * 7], [15, y * 3]], '#f4f8ff');
+      if (tier === 7) { for (let k = 0; k < 8; k++) { const a = (k / 8) * Math.PI * 2; stroke(ctx, '#ffd34d', 0.9, [[12 + Math.cos(a) * 2.5, Math.sin(a) * 2.5], [12 + Math.cos(a) * 4.5, Math.sin(a) * 4.5]]); } oval(ctx, 12, 0, 2.2, 2.2, '#fff2b0'); }
+      // seit 13.53: Abgrund mit Leerenauge auf der Flanke und Tentakeln an der Krone, Ewigkeit mit Stern und Roségoldringen
+      if (tier === 8) {
+        oval(ctx, mouth - h * K * 0.45, 0, 2.6, 1.8, '#5ee8ff');
+        oval(ctx, mouth - h * K * 0.45, 0, 0.5, 1.5, '#0c0816');
+        for (const y of [-1, 1]) stroke(ctx, '#2a2048', 1.2, [[13, y * 1.5], [10.5, y * 5], [12.5, y * 7.5]]);
+      }
+      if (tier === 9) {
+        for (const f of [0.25, 0.55]) stroke(ctx, '#e2957c', 0.9, [[mouth - h * K * f, -4.6], [mouth - h * K * f, 4.6]]);
+        for (let k = 0; k < 8; k++) { const a = (k / 8) * Math.PI * 2; stroke(ctx, k % 2 ? '#e2957c' : '#ffb8e0', 0.8, [[12 + Math.cos(a) * 2, Math.sin(a) * 2], [12 + Math.cos(a) * (k % 2 ? 3.5 : 5.5), Math.sin(a) * (k % 2 ? 3.5 : 5.5)]]); }
+      }
+      break;
+    }
+    case 'staff': {
+      // seit 13.29: Kopfstück je Stufe wie in 3D: Knochenhörner, Krummholz, Schädel, Krallen mit Kugel, Knochenkrone,
+      // Obsidiandornen, Mondsichel mit Stern, Sonne
+      const wood = tier === 7 ? '#8a6a2a' : tier === 8 ? '#1a1228' : tier === 9 ? '#e8e0ea' : tier === 2 ? '#4a3527' : '#5a3f2a';
+      box(ctx, -14, -1.4, 34, 2.8, 1.2, wood);
+      for (const x of [-8, 6]) box(ctx, x, -1.9, 1.6, 3.8, 0.6, tier === 7 ? '#ffd34d' : tier === 8 ? '#5ee8ff' : tier === 9 ? '#e2957c' : '#c9a35a');
+      const orb = STAFF_ORB[tier];
+      const H = 22;
+      switch (tier) {
+        case 0:
+          oval(ctx, H, 0, 2.6, 2.2, '#e8dcc0');
+          for (const y of [-1, 1]) poly(ctx, [[H, y * 1.5], [H + 6, y * 6.5], [H + 2.5, y * 1]], '#e8dcc0');
+          oval(ctx, H + 3, 0, 1.6, 1.6, orb);
+          break;
+        case 1:
+          ctx.strokeStyle = '#6a4a2e';
+          ctx.lineWidth = 2.2;
+          ctx.beginPath();
+          ctx.arc(H + 2, -3.2, 3.6, Math.PI * 0.6, Math.PI * 2.1);
+          ctx.stroke();
+          oval(ctx, H + 2.2, -3.2, 1.8, 1.8, orb);
+          break;
+        case 2:
+          oval(ctx, H + 2, 0, 4.4, 4, '#ddd5bb');
+          box(ctx, H - 2.5, -2.5, 3, 5, 1, '#ddd5bb');
+          dot(ctx, H + 3, -1.6, 1.1, 1.1, '#1a1210');
+          dot(ctx, H + 3, 1.6, 1.1, 1.1, '#1a1210');
+          dot(ctx, H + 3, -1.6, 0.5, 0.5, '#9be2ff');
+          dot(ctx, H + 3, 1.6, 0.5, 0.5, '#9be2ff');
+          break;
+        case 3:
+          for (const y of [-1, 0, 1]) poly(ctx, [[H - 1, y * 1.2], [H + 4, y * 5.5], [H + 1.5, y * 1.5]], TIER_METAL[3]);
+          oval(ctx, H + 3.5, 0, 3.4, 3.4, orb);
+          break;
+        case 4:
+          for (let k = -2; k <= 2; k++) poly(ctx, [[H, k * 1.4 - 0.7], [H + 5 + (k % 2 ? 0 : 1.5), k * 2.6], [H, k * 1.4 + 0.7]], '#ddd5bb');
+          oval(ctx, H + 8.5, 0, 1.8, 2.4, orb);
+          break;
+        case 5:
+          for (const [y, l] of [[-1, 7], [-0.35, 5], [0.35, 5], [1, 7]]) poly(ctx, [[H, y * 1.6], [H + l, y * 6], [H + 1.5, y * 0.6]], '#2a2224');
+          oval(ctx, H + 2.5, 0, 2.2, 2.2, '#ff7a2a');
+          break;
+        case 6:
+          ctx.strokeStyle = '#e6eef8';
+          ctx.lineWidth = 1.6;
+          ctx.beginPath();
+          ctx.arc(H + 3.5, 0, 4, Math.PI * 0.75, Math.PI * 2.25);
+          ctx.stroke();
+          for (let k = 0; k < 4; k++) { const a = k * Math.PI / 2; poly(ctx, [[H + 3.5, 0], [H + 3.5 + Math.cos(a) * 3.2, Math.sin(a) * 3.2], [H + 3.5 + Math.cos(a + 0.6) * 1, Math.sin(a + 0.6) * 1]], '#e6f6ff'); }
+          break;
+        case 8:
+          // Abgrund (seit 13.53): Tentakelklauen halten ein Leerenauge
+          for (const y of [-1, 1]) {
+            stroke(ctx, OUTLINE, 2.8, [[H - 1, y * 1], [H + 1, y * 6], [H + 6, y * 7], [H + 8.5, y * 4]]);
+            stroke(ctx, '#2a2048', 1.5, [[H - 1, y * 1], [H + 1, y * 6], [H + 6, y * 7], [H + 8.5, y * 4]]);
+          }
+          oval(ctx, H + 4, 0, 3.6, 2.8, '#0c0816');
+          oval(ctx, H + 4, 0, 2.6, 2, orb);
+          oval(ctx, H + 4, 0, 0.6, 1.8, '#0c0816');
+          break;
+        case 9:
+          // Ewigkeit (seit 13.53): achtstrahliger Stern mit Roségoldring
+          for (let k = 0; k < 8; k++) { const a = (k / 8) * Math.PI * 2; const r = k % 2 ? 4.5 : 7.5; poly(ctx, [[H + 4 + Math.cos(a - 0.35) * 1.8, Math.sin(a - 0.35) * 1.8], [H + 4 + Math.cos(a) * r, Math.sin(a) * r], [H + 4 + Math.cos(a + 0.35) * 1.8, Math.sin(a + 0.35) * 1.8]], k % 2 ? '#e2957c' : '#efeaf6'); }
+          ctx.strokeStyle = '#e2957c';
+          ctx.lineWidth = 0.8;
+          ctx.beginPath();
+          ctx.arc(H + 4, 0, 3.6, 0, Math.PI * 2);
+          ctx.stroke();
+          oval(ctx, H + 4, 0, 1.8, 1.8, orb);
+          break;
+        default:
+          for (let k = 0; k < 12; k++) { const a = (k / 12) * Math.PI * 2; poly(ctx, [[H + 3.5 + Math.cos(a) * 3, Math.sin(a) * 3], [H + 3.5 + Math.cos(a + 0.26) * 6.5, Math.sin(a + 0.26) * 6.5], [H + 3.5 + Math.cos(a + 0.52) * 3, Math.sin(a + 0.52) * 3]], '#ffd34d'); }
+          oval(ctx, H + 3.5, 0, 3.4, 3.4, '#fff2b0');
+      }
+      break;
+    }
+    case 'scythe': {
+      // seit 13.29: Klingenform je Stufe wie in 3D (SCYTHE_BLADES): Schaft nach rechts, Klinge am Kopf nach oben
+      const K = 26;
+      const HX = 21;
+      const blade = tier === 0 ? '#9a6a4a' : tier === 2 ? '#e8dcc0' : tier === 5 ? '#2a2224' : tier === 7 ? '#ffe9a0' : tier === 8 ? '#3a2e66' : TIER_METAL[tier];
+      box(ctx, -13, -1.3, 36, 2.6, 1.2, tier === 7 ? '#6a4a1a' : tier === 9 ? '#e8e0ea' : tier === 8 ? '#140e22' : tier >= 5 ? '#2a2024' : '#4a3527');
+      const toIcon = ([x, y]) => [HX + y * K, x * K];
+      bladeIcon(ctx, scythePts(tier, -1, 1), null, toIcon, blade, tier, 0.022);
+      const SB = SCYTHE_BLADES[tier];
+      if (SB.twin) bladeIcon(ctx, scythePts(tier, 1, SB.twin), null, toIcon, blade, tier, 0.018);
+      // Obsidian: Glutkante, damit die dunkle Klinge auf dunklem Grund sichtbar bleibt
+      if (tier === 5) stroke(ctx, '#ff7a2a', 0.8, scythePts(tier, -1, 1).slice(19).map(toIcon));
+      if (tier === 8) stroke(ctx, '#5ee8ff', 0.8, scythePts(tier, -1, 1).slice(19).map(toIcon));
+      box(ctx, HX - 1.5, -2.4, 3.4, 4.8, 1, TIER_ACCENT[tier]);
+      if (tier === 4) { oval(ctx, HX + 1, 0, 2.2, 2, '#ddd5bb'); dot(ctx, HX + 1.6, -0.8, 0.5, 0.5, '#1a1210'); dot(ctx, HX + 1.6, 0.8, 0.5, 0.5, '#1a1210'); }
+      else if (tier >= 3) oval(ctx, HX + 0.2, 0, 1.4, 1.4, STAFF_ORB[tier]);
+      break;
+    }
+    case 'bow': {
+      // seit 13.20 je Stufe eine eigene Form (BOW_LIMBS, wie in 3D): Wurfarme, Spitzen, Sehne, Griff;
+      // seit 14.20 wie der neue 3D-Bogen: Armdicke aus den Daten, Hornbauch, Leuchtader, Ringe, Klingen an den Enden
+      const L = BOW_LIMBS[tier];
+      const K = 23;
+      const gx = 8;
+      const P = (x, y) => [gx + x * K, y * K];
+      const n = L.pts.length;
+      const tip = P(...L.pts[n - 1]);
+      const wd = L.r[0] * K * 2;
+      // Sehne zuerst (liegt hinter den Armen)
+      stroke(ctx, L.str, L.glow ? 0.8 : 0.6, [[tip[0], -tip[1]], [tip[0], tip[1]]]);
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      for (const sgn of [-1, 1]) {
+        const pts = L.pts.map(([x, y]) => P(x, y * sgn));
+        const path = (q) => {
+          ctx.beginPath();
+          ctx.moveTo(q[0][0], q[0][1]);
+          for (let k = 1; k < q.length - 1; k++) ctx.quadraticCurveTo(q[k][0], q[k][1], (q[k][0] + q[k + 1][0]) / 2, (q[k][1] + q[k + 1][1]) / 2);
+          ctx.lineTo(q[q.length - 1][0], q[q.length - 1][1]);
+        };
+        if (L.rail) {
+          const rq = pts.slice(1).map(([x, y], k) => [x + 1.5 * (1 - ((k + 1) / (n - 1)) * 0.6), y * 0.9]);
+          path(rq);
+          ctx.strokeStyle = OUTLINE;
+          ctx.lineWidth = 2.2;
+          ctx.stroke();
+          path(rq);
+          ctx.strokeStyle = lighter(L.wood, 0.15);
+          ctx.lineWidth = 1;
+          ctx.stroke();
+        }
+        path(pts);
+        ctx.strokeStyle = OUTLINE;
+        ctx.lineWidth = wd + 1.4;
+        ctx.stroke();
+        path(pts);
+        ctx.strokeStyle = L.wood;
+        ctx.lineWidth = wd;
+        ctx.stroke();
+        if (L.belly) stroke(ctx, L.belly, wd * 0.35, pts.slice(0, n - 1).map(([x, y]) => [x - wd * 0.3, y]));
+        if (L.vein) stroke(ctx, L.vein, 0.7, pts.slice(0, n - 1).map(([x, y]) => [x + 0.15, y]));
+        if (L.band && tier !== 1 && tier !== 4) for (let k = 1; k < n - 1; k++) if (tier !== 7 || k === 2) stroke(ctx, L.band, 1, [[pts[k][0] - wd * 0.55, pts[k][1]], [pts[k][0] + wd * 0.55, pts[k][1]]]);
+        const [tx, ty] = pts[n - 1];
+        const [px, py] = pts[n - 2];
+        const ang = Math.atan2(-(tx - px), (ty - py) * 1);
+        // Klingen an den Enden (BOW_TIP_BLADES wie in 3D), unten gespiegelt
+        const TB = BOW_TIP_BLADES[tier];
+        if (TB) {
+          const ca = Math.cos(ang);
+          const sa = Math.sin(ang);
+          const bl = tier === 7 ? '#e8c46a' : tier === 9 ? '#bcb8d0' : tier === 8 ? '#3a2e66' : tier === 5 ? '#2a2224' : L.tip;
+          poly(ctx, TB.map(([bx, by]) => {
+            const x = (sgn < 0 ? -bx : bx) * K;
+            const y = by * K;
+            return [tx + x * ca - y * sa, ty + x * sa + y * ca];
+          }), bl);
+        }
+        if (tier === 0) oval(ctx, tx, ty, 1, 1, L.tip);
+        else if (tier === 1) poly(ctx, [[tx - 1.1, ty], [tx + 1.6, ty + sgn * 2.6], [tx + 1, ty - sgn * 0.6]], L.tip);
+        else if (tier === 2) { ctx.beginPath(); ctx.arc(tx + 0.6, ty + sgn * 1.2, 2.2, 0, Math.PI * 2); ctx.strokeStyle = L.tip; ctx.lineWidth = 1; ctx.stroke(); }
+        else if (tier === 3) { oval(ctx, tx - 0.2, ty + sgn * 0.6, 2.2, 1.7, '#4e8a3e'); oval(ctx, tx - 0.4, ty + sgn * 1.1, 0.5, 0.5, L.vein); }
+        else if (tier === 6) for (const a of [0.5, 1.1]) poly(ctx, [[tx, ty], [tx + Math.cos(a) * 5, ty + sgn * Math.sin(a) * 5], [tx + Math.cos(a + 0.3) * 2, ty + sgn * Math.sin(a + 0.3) * 2]], '#f4f8ff');
+        else if (tier === 8) poly(ctx, [[tx - 1.4, ty], [tx - 2.4, ty + sgn * 4.2], [tx + 1.2, ty + sgn * 1.2]], '#5ee8ff');
+        if (tier === 8) for (let k = 1; k < n - 1; k++) poly(ctx, [[pts[k][0], pts[k][1] - 0.9], [pts[k][0] + 3.2, pts[k][1] + sgn * 1.8], [pts[k][0], pts[k][1] + 0.9]], '#2a2048');
+        if (tier === 5) for (let k = 1; k < n - 1; k++) poly(ctx, [[pts[k][0], pts[k][1] - 1], [pts[k][0] + 3, pts[k][1] + sgn * 1.4], [pts[k][0], pts[k][1] + 1]], '#2a2224');
+        if (tier === 6) for (let k = 1; k < n - 1; k++) poly(ctx, [[pts[k][0], pts[k][1]], [pts[k][0] + 4.5, pts[k][1] + sgn * 1.6], [pts[k][0] + 1, pts[k][1] + sgn * 2.6]], '#dfefff');
+        if (tier === 9) for (let k = 1; k < n - 1; k += 2) oval(ctx, pts[k][0] + 0.2, pts[k][1], 0.9, 1.3, ['#ff9ad5', '#ffe59a', '#9affd8', '#9ad8ff', '#c8a8ff'][(k + (sgn > 0 ? 0 : 2)) % 5]);
+      }
+      // Griff mit Wicklung, Schmuck in der Mitte
+      box(ctx, gx - 1.9, -2.4, 3.8, 4.8, 1, tier === 7 ? '#7a4a1a' : tier === 6 ? '#8a9ab8' : tier === 8 ? '#120c1e' : tier === 9 ? '#a8706a' : tier === 4 ? '#22283a' : '#4a2e1c');
+      const wrap = tier === 0 ? '#2a1a10' : tier === 8 ? '#5ee8ff' : tier === 9 ? '#e2957c' : tier >= 6 ? '#e8c46a' : tier === 5 ? '#ff7a2a' : TIER_METAL[tier];
+      for (const y of [-2, 2]) stroke(ctx, wrap, 0.8, [[gx - 1.9, y], [gx + 1.9, y]]);
+      if (tier === 4) { oval(ctx, gx + 3.4, 0, 1.2, 1.8, '#7ac8ff'); }
+      if (tier === 5) oval(ctx, gx + 1.6, 0, 1.2, 1.6, '#ff7a2a');
+      if (tier === 3) oval(ctx, gx + 1.6, 0, 1, 1.4, L.vein);
+      if (tier === 6) oval(ctx, gx + 1.4, 0, 0.9, 1.5, L.tip);
+      if (tier === 7) {
+        for (let k = 0; k < 8; k++) poly(ctx, [[gx + 2, 0], [gx + 2 + Math.cos(k * Math.PI / 4) * (k % 2 ? 3 : 4.2), Math.sin(k * Math.PI / 4) * (k % 2 ? 3 : 4.2)], [gx + 2 + Math.cos(k * Math.PI / 4 + 0.35) * 1.6, Math.sin(k * Math.PI / 4 + 0.35) * 1.6]], '#ffd34d');
+        oval(ctx, gx + 2, 0, 1.8, 1.8, '#fff2b0');
+      }
+      if (tier === 8) { oval(ctx, gx + 2.2, 0, 2, 1.4, '#5ee8ff'); oval(ctx, gx + 2.2, 0, 0.45, 1.2, '#0c0816'); }
+      if (tier === 9) oval(ctx, gx + 2.6, 0, 1.2, 2, '#ffb8e0');
+      break;
+    }
+    case 'axe': {
+      // seit 13.29/13.30: Klinge je Stufe wie in 3D (AXE_HEADS mit Löchern und Rücken); Schaft nach rechts, Klinge nach oben
+      const HD = AXE_HEADS[tier];
+      const metal = bladeMetal2D(tier);
+      const K = 33;
+      const HX = 14;
+      box(ctx, -6, -1.3, 25, 2.6, 1, tier >= 3 ? TIER_ACCENT[tier] : '#5a4030');
+      for (let x = -5; x < 5; x += 2) stroke(ctx, '#2a1c14', 0.7, [[x, -1.3], [x + 1.2, 1.3]]);
+      const map = ([x, y]) => [HX + y * K, -x * K - 1.2];
+      bladeIcon(ctx, HD.pts, HD.holes, map, metal, tier);
+      if (HD.back === 'poll') box(ctx, HX - 2.4, 1.5, 4.8, 3.6, 0.8, darker(metal, 0.15));
+      else if (HD.back === 'spike') poly(ctx, [[HX - 1.4, 1], [HX, 6], [HX + 1.4, 1]], metal);
+      else if (HD.back === 'hook') poly(ctx, [[HX - 1.6, 1], [HX - 0.5, 5], [HX - 3, 7.5], [HX + 1.2, 5.5], [HX + 1.6, 1]], metal);
+      else if (HD.back === 'spikes') for (const dx of [-2, 0, 2]) poly(ctx, [[HX + dx - 0.9, 1], [HX + dx * 1.4, dx ? 4.5 : 6], [HX + dx + 0.9, 1]], metal);
+      else if (HD.back === 'blade') bladeIcon(ctx, HD.pts, HD.holes, ([x, y]) => [HX + y * K * 0.5, x * K * 0.5 + 1.2], metal, tier, 0.05);
+      else if (HD.back === 'tendril') {
+        // Abgrund (seit 13.53): eingerollter Tentakelhaken
+        stroke(ctx, OUTLINE, 3, [[HX, 1], [HX - 1, 5], [HX + 2.5, 7.5], [HX + 3.5, 5.5]]);
+        stroke(ctx, metal, 1.6, [[HX, 1], [HX - 1, 5], [HX + 2.5, 7.5], [HX + 3.5, 5.5]]);
+      } else if (HD.back === 'star') for (let j = 0; j < 4; j++) { const b = j * Math.PI / 2; poly(ctx, [[HX, 4.5], [HX + Math.cos(b) * 3.2, 4.5 + Math.sin(b) * 3.2], [HX + Math.cos(b + 0.7) * 1, 4.5 + Math.sin(b + 0.7) * 1]], j % 2 ? '#e2957c' : metal); }
+      // Fenster: leuchtende Kugel
+      if (HD.holes && (tier === 3 || tier === 4 || tier >= 7)) {
+        const c = HD.holes[0].reduce((a, q) => [a[0] + q[0] / HD.holes[0].length, a[1] + q[1] / HD.holes[0].length], [0, 0]);
+        const [cx, cy] = map(c);
+        oval(ctx, cx, cy, tier === 3 ? 0.9 : 1.4, tier === 3 ? 1.4 : 1.4, STAFF_ORB[tier]);
+      }
+      box(ctx, HX - 2.2, -2.8, 4.4, 5.6, 0.8, darker(metal, 0.3));
+      for (const dx of [-1, 1]) dot(ctx, HX + dx * 1.1, 0, 0.55, 0.55, lighter(metal, 0.3));
+      break;
+    }
+    case 'greataxe': {
+      // seit 13.29/13.30: Kopf je Stufe wie in 3D (GREATAXE_HEADS): Keil, Schmetterling, Halbmond, Flügel, Mondsicheln,
+      // Henkersbeil, Federklingen, Götterhammer; mit Löchern, Schneide, Mitte und Ader
+      const HD = GREATAXE_HEADS[tier];
+      const metal = bladeMetal2D(tier);
+      const K = 30;
+      const HX = 21;
+      box(ctx, -13, -1.4, 37, 2.8, 1.2, tier === 9 ? '#e8e0ea' : tier >= 5 ? '#2a2024' : tier >= 3 ? TIER_ACCENT[tier] : '#5a4030');
+      for (let x = -12; x < -3; x += 2) stroke(ctx, '#2a1c14', 0.6, [[x, -1.4], [x + 1, 1.4]]);
+      const sides = HD.single ? [1] : [1, -1];
+      for (const sg of sides) {
+        const k = K * (sg < 0 ? HD.back || 1 : 1);
+        const map = ([x, y]) => [HX + y * k, -sg * (x * k + 1.5)];
+        if (HD.hammer) poly(ctx, HD.pts.map(map), metal);
+        else bladeIcon(ctx, HD.pts, HD.holes, map, metal, tier);
+      }
+      if (HD.single) box(ctx, HX - 2.5, 2, 5, 3.5, 0.8, darker(metal, 0.15));
+      box(ctx, HX - 3, -3, 6, 6, 1, darker(metal, 0.25));
+      for (const dy of [-1, 1]) dot(ctx, HX, dy * 1.4, 0.6, 0.6, lighter(metal, 0.3));
+      if (HD.hammer) for (const sg of [-1, 1]) box(ctx, HX - 5, sg * 9 - 1.2, 10, 2.4, 0.6, '#fff2b0');
+      if (tier >= 1 && tier !== 7) poly(ctx, [[HX + 2.5, -1.5], [HX + 8, 0], [HX + 2.5, 1.5]], metal);
+      if (tier >= 4 && !HD.hammer) oval(ctx, HX, 0, 1.4, 1.4, STAFF_ORB[tier]);
+      // Fenster in den Klingen (seit 13.53): Leerenauge bzw. Prismenstein
+      if (tier >= 8 && HD.holes) for (const sg of sides) {
+        const k = K * (sg < 0 ? HD.back || 1 : 1);
+        const c = HD.holes[0].reduce((a, q) => [a[0] + q[0] / HD.holes[0].length, a[1] + q[1] / HD.holes[0].length], [0, 0]);
+        oval(ctx, HX + c[1] * k, -sg * (c[0] * k + 1.5), 1.2, 1.2, STAFF_ORB[tier]);
+      }
+      break;
+    }
+    case 'club':
+      poly(ctx, [[-3, -1.6], [14, -3.6], [20, -4.6], [22.5, 0], [20, 4.6], [14, 3.6], [-3, 1.6]], '#6b4f34');
+      dot(ctx, 15, -1.5, 0.9, 0.9, '#3e2c1f');
+      dot(ctx, 18, 1.8, 0.9, 0.9, '#3e2c1f');
+      break;
+    case 'skullstaff':
+      box(ctx, -12, -1.3, 30, 2.6, 1.2, '#4a3a2a');
+      oval(ctx, 20, 0, 3.8, 3.4, '#ddd5bb');
+      dot(ctx, 21, -1.2, 0.8, 0.8, '#1a1210');
+      dot(ctx, 21, 1.2, 0.8, 0.8, '#1a1210');
+      oval(ctx, 25.5, 0, 2.8, 2.8, '#9be2ff');
+      break;
+  }
+}
+
+const WEAPON_BOUNDS = { x: -14, y: -22, w: 58, h: 44 };
+
+// accent: Kristallfarbe des Zepters (nur 'rod')
+function weaponSprite(kind, tier = 0, accent) {
+  return getSprite(`w:${kind}:${tier}${accent ? ':' + accent : ''}`, WEAPON_BOUNDS, (ctx) => weaponArt(ctx, kind, tier, accent));
+}
+
+function heldWeapon(ctx, kind, x, y, angle, tier = 0) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(angle);
+  weaponArt(ctx, kind, tier);
+  ctx.restore();
+}
+
+// --- Die vier Klassen -------------------------------------------------------------------
+// Aussehen je Rüstungs- und Helmstufe. Index -1 (keine Ausrüstung, z. B. Vorschau) = Grundfarben,
+// -2 beim Helm = kein Helm. Stufen: Leder, Bronze, Eisen, Drache, Seele, Asche, Himmel, Götter, Abgrund, Ewigkeit
+const ARMOR_LOOK = {
+  krieger: {
+    torso: ['#7a5a3c', '#8a6a3a', '#6a7480', '#9c3b33', '#4a2f6a', '#3a2a26', '#2a4a7a', '#c8a03a', '#1c1430', '#9a4a62'],
+    trim: ['#a88a5a', '#d9a86a', '#e6eef8', '#e8c46a', '#b48cff', '#ff9a5a', '#9fe8ff', '#fff2b0', '#5ee8ff', '#e2957c'],
+    helm: ['#8a6a44', '#c08a4a', '#8f98a3', '#a8343f', '#6a4a9a', '#3a3436', '#c8dcf0', '#e8c46a', '#2a2048', '#b4b0c8'],
+    crest: ['#c8402f', '#c8402f', '#c8402f', '#2a1416', '#d6a8ff', '#ff7a2a', '#ffffff', '#c8402f', '#5ee8ff', '#ff8ac8']
+  },
+  ninja: {
+    torso: ['#5a5040', '#4a3a2a', '#312c3d', '#203a24', '#2a1a3a', '#3a1a14', '#1a2a4a', '#3a3010', '#120e1e', '#cfc4d8'],
+    scarf: ['#8a6a4a', '#9a3a2a', '#6b4f9a', '#3a8a4a', '#9a2a4a', '#e0602a', '#4a9ae0', '#e8c46a', '#6a2ad0', '#d8708e'],
+    hood: ['#4a4038', '#5a4030', '#2a2633', '#1e3a24', '#2a1440', '#2a1410', '#14203a', '#3a3010', '#0e0a18', '#b4a6c8']
+  },
+  schamane: {
+    robe: ['#7a7a6a', '#8a5a7a', '#2c6f6a', '#9a3a2a', '#3a3a8a', '#8a3a1a', '#2a6aa8', '#f0e0b0', '#1e1838', '#e6dcea'],
+    gold: ['#c8b890', '#e0c36a', '#e0c36a', '#ffd34d', '#d6a8ff', '#ffb04a', '#bfe8ff', '#ffe9a0', '#5ee8ff', '#e2957c'],
+    band: ['#8a6a44', '#c8402f', '#e0c36a', '#ffd34d', '#b48cff', '#ff7a2a', '#9fe8ff', '#ffffff', '#7a5ad8', '#fff4fa']
+  },
+  nekromant: {
+    robe: ['#4a4438', '#3a3a30', '#334a31', '#4a2a2a', '#2a1a3a', '#1e1a1a', '#2a3a4a', '#3a2a10', '#140e22', '#d8d2e2'],
+    hood: ['#3a3428', '#2e2a24', '#2a3b28', '#3a1e1e', '#24143a', '#141010', '#1e2a3a', '#2e2410', '#0c0816', '#cfc8da'],
+    glow: ['#a7e37f', '#a7e37f', '#a7e37f', '#ff6a5a', '#d6a8ff', '#ff9a4a', '#9fe8ff', '#ffe9a0', '#5ee8ff', '#ffb8e0']
+  },
+  // Magier (seit 8.6): Indigo und Silber; die Elementfarbe kommt aus MAGE_EL (Hutband, Kristall, Runen)
+  magier: {
+    robe: ['#5a6272', '#2e3a7a', '#252a5e', '#2a3f74', '#3b2c72', '#2a2428', '#121a3c', '#e6eaf2', '#1a1232', '#e8e0ee'],
+    trim: ['#a8b0bc', '#c8d2e4', '#d8e0f0', '#cfe6ff', '#e0d4ff', '#ff8a5a', '#e8f0ff', '#f4f6fb', '#5ee8ff', '#e2957c'],
+    hat: ['#5a6272', '#2e3a7a', '#252a5e', '#2a3f74', '#3b2c72', '#1e1a1c', '#121a3c', '#e6eaf2', '#140e28', '#e8e0ee']
+  }
+};
+
+// Welche Stufen die Figur gerade trägt: Rüstung, Helm, Schuhe, Gürtel, Schultern (der Umhang wird
+// erst beim Zeichnen dazugemalt, weil er im Wind flattert)
+function playerLook(p) {
+  const eq = p.equipment;
+  if (!eq) return { a: -1, h: -1, ap: p.look || null, pt: p.path ?? null };
+  const t = (it) => (it ? it.tier : -1);
+  // Helm versteckt (seit 9.2): gezeichnet wie ohne Helm
+  const hide = p.look && p.look.helm === 0;
+  return { a: t(eq.ruestung), h: eq.helm && !hide ? eq.helm.tier : -2, b: t(eq.schuhe), g: t(eq.guertel), s: t(eq.schultern), ap: p.look || null, pt: p.path ?? null, hideHead: hide };
+}
+
+// --- Sichtbare Ausrüstung: Schuhe, Gürtel, Schultern, Umhang ------------------------------------
+// Je Stufe eigene Farben; ab Drache Dornen und Edelsteine, ab Himmel leuchtende Federn,
+// seit 13.53 Abgrund (Leerenschwarz mit Cyan) und Ewigkeit (Platin mit Roségold und Sternen).
+const GEAR_LOOK = {
+  boots: ['#5a3e2a', '#6e4a2a', '#4a4c52', '#7a2a24', '#3a2a4a', '#2a2020', '#30507a', '#b88a2a', '#1a1428', '#dcd6e6'],
+  belt: ['#6a4a30', '#7a5030', '#3e3a36', '#6a1e1a', '#2e2040', '#2a1a14', '#1e3050', '#8a6a1a', '#140e22', '#a85a6a'],
+  plate: ['#7a5a3c', '#b07a40', '#8f98a3', '#a8343f', '#6a4a9a', '#3a3436', '#c8dcf0', '#e8c46a', '#2a2048', '#aca8c2'],
+  cape: ['#6a5a48', '#7a3a2a', '#2f5a3a', '#8a1f1f', '#3a2a6a', '#2a2220', '#2a4a8a', '#d0a63a', '#140e26', '#9a4a6a'],
+  lining: ['#4a3e30', '#a88a5a', '#c9b48a', '#2a1214', '#b48cff', '#ff7a2a', '#e6f2ff', '#fff2b0', '#5ee8ff', '#f2d0dc']
+};
+const gearTier = (t) => (t == null ? -1 : t);
+
+// --- Farbvarianten je Teil (seit 14.59) ---------------------------------------------------------
+// Vorher hatte auf einer Stufe jedes Teil dieselbe Farbe (alles Lederbraun, alles Drachenrot). Jetzt bekommt auf den
+// niedrigen Stufen (bis Veteran, Stufe 0–4) jedes Teil eine eigene, feste Farbe aus Stoff/Leder (c) und Metall (m):
+// ein zusammengewürfelter Abenteurer. Die Variante hängt nur vom Gegenstand ab (uid, Platz, Stufe; Mitspieler
+// bekommen sie als eq.fv), nie vom Zufall beim Zeichnen. Meister und Himmlisch (5–6) nähern sich der Stufenfarbe an,
+// ab Göttlich, bei epischen/legendären Teilen und bei Set-Teilen (item.set) passt alles zusammen.
+const GEAR_HUES = [
+  { c: '#7a5232', m: '#a8acb2' }, // Leder braun, Eisen
+  { c: '#4e3626', m: '#b98a52' }, // dunkles Leder, Bronze
+  { c: '#5e7048', m: '#9ea3a8' }, // verblichenes Moosgrün, Eisen
+  { c: '#8a4436', m: '#c9a35a' }, // verblichenes Krapprot, Messing
+  { c: '#4a5e80', m: '#7e848a' }, // verblichenes Waidblau, dunkles Eisen
+  { c: '#a0803e', m: '#c27a4c' }, // Ocker, Kupfer
+  { c: '#8c8474', m: '#b4b8be' }, // Wollgrau, Eisen
+  { c: '#6a4660', m: '#b08850' }, // Pflaume, Bronze
+  { c: '#9a5a2e', m: '#5e5a58' }, // Rostbraun, Schwarzeisen
+  { c: '#36583e', m: '#c4a256' } // Tannengrün, Messing
+];
+// Sets (item.set): eine Leitfarbe, ein Akzent und ein Metallton für alle Teile desselben Sets
+const SET_HUES = [
+  { c: '#8a2a2a', m: '#e0b860', a: '#ffcf6a' }, // Blutrot und Gold
+  { c: '#24486e', m: '#d8e2ee', a: '#8fd8ff' }, // Nachtblau und Silber
+  { c: '#2e5a36', m: '#d0a050', a: '#b8f070' }, // Waldgrün und Bronze
+  { c: '#4a2a6a', m: '#c8c0e0', a: '#d6a8ff' }, // Violett und Platin
+  { c: '#2a2a30', m: '#c84a3a', a: '#ff7a4a' }, // Schwarz und Kupferrot
+  { c: '#e8e0d0', m: '#c9a35a', a: '#fff2b0' } // Elfenbein und Gold
+];
+function gearHash(s) {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
+  return h >>> 0;
+}
+// Nummer der Farbvariante eines Teils (0 … GEAR_HUES.length − 1); fv kommt vom Mitspieler mit
+function gearVariant(it) {
+  if (!it) return 0;
+  if (Number.isInteger(it.fv) && it.fv >= 0) return it.fv % GEAR_HUES.length;
+  return gearHash(`${it.uid || ''}|${it.slot}|${it.tier}|${it.kind || ''}`) % GEAR_HUES.length;
+}
+// Farbe eines Teils: { c, m, f (Anteil Stoff), fm (Anteil Metall), k (Schlüssel für gebackene Modelle/Symbole) } oder null
+function gearHue(it) {
+  if (!it || it.tier == null) return null;
+  if (typeof it.set === 'string' && it.set) {
+    // Leitfarbe der Instanz (ITEM_SETS[id].color, daten/gegenstaende.js), sonst eine feste Setfarbe aus dem Namen
+    const def = typeof ITEM_SETS !== 'undefined' && ITEM_SETS ? ITEM_SETS[it.set] : null;
+    const col = def && typeof def.color === 'string' && /^#[0-9a-f]{6}$/i.test(def.color) ? def.color : null;
+    // die Instanzfarben sind helle Leuchttöne: Stoff in einem satten, dunkleren Ton davon, Metall hell getönt
+    if (col) return { c: mixColor(col, '#1e2430', 0.42), m: mixColor(col, '#e8dcc0', 0.55), a: col, f: 0.72, fm: 0.6, k: 's' + col.slice(1) };
+    const s = gearHash(it.set) % SET_HUES.length;
+    return Object.assign({ f: 0.72, fm: 0.6, k: 's' + s }, SET_HUES[s]);
+  }
+  if (it.legend || (it.rarity || 0) >= 3 || it.tier >= 7) return null;
+  const v = gearVariant(it);
+  const f = it.tier <= 4 ? 0.62 : 0.28;
+  return Object.assign({ f, fm: f * 0.85, k: 'v' + v + (it.tier <= 4 ? '' : 'm') }, GEAR_HUES[v]);
+}
+const gearHueKey = (it) => {
+  const h = gearHue(it);
+  return h ? h.k : '';
+};
+// Grundfarbe eines Teils in seine Variante umfärben (metal: Beschläge, Platten, Nieten)
+function gearCol(it, base, metal = false) {
+  if (!base || base[0] !== '#' || base.length !== 7) return base;
+  const h = gearHue(it);
+  if (!h) return base;
+  return mixColor(base, metal ? h.m : h.c, metal ? h.fm : h.f);
+}
+
+// Stiefel über den Beinen aus hLegs: Schaft, Stulpe und Kappe
+function gearBoots(ctx, dir, w, tier, robe) {
+  tier = gearTier(tier);
+  if (tier < 0) return;
+  const c = GEAR_LOOK.boots[tier];
+  const m = TIER_METAL[tier];
+  const boot = (x, lift, wide) => {
+    if (robe) {
+      box(ctx, x, -3.6 - lift, wide, 3.8, 1.6, c);
+      stroke(ctx, m, 0.8, [[x + 0.6, -2.6 - lift], [x + wide - 0.6, -2.6 - lift]]);
+      return;
+    }
+    box(ctx, x + 0.4, -8.2 - lift, wide - 0.8, 5, 1.4, darker(c, 0.08));
+    box(ctx, x, -4.8 - lift, wide, 4.8, 1.8, c);
+    box(ctx, x + 0.3, -1.2 - lift, wide - 0.6, 1.2, 0.5, darker(c, 0.45));
+    box(ctx, x - 0.2, -8.8 - lift, wide + 0.4, 1.8, 0.8, tier >= 2 ? m : lighter(c, 0.2));
+    if (tier >= 1) stroke(ctx, m, 0.7, [[x + 1, -5.6 - lift], [x + wide - 1, -5.6 - lift]]);
+    if (tier >= 3) poly(ctx, [[x + wide * 0.3, -9 - lift], [x + wide * 0.5, -12 - lift], [x + wide * 0.7, -9 - lift]], m);
+    if (tier === 6 || tier === 7) poly(ctx, [[x + wide - 0.5, -8 - lift], [x + wide + 3.5, -11 - lift], [x + wide + 1.5, -6.5 - lift]], '#ffffff');
+    // seit 13.53: Abgrund mit Leerensplitter und Cyan-Sohle, Ewigkeit mit Stern am Schaft
+    if (tier === 8) {
+      stroke(ctx, '#5ee8ff', 0.7, [[x + 0.4, -0.5 - lift], [x + wide - 0.4, -0.5 - lift]]);
+      poly(ctx, [[x + wide - 1, -7 - lift], [x + wide + 2.6, -11.5 - lift], [x + wide + 0.6, -5.5 - lift]], '#2a2048');
+    }
+    if (tier === 9) for (let j = 0; j < 4; j++) { const b = j * Math.PI / 2; poly(ctx, [[x + wide / 2, -6.6 - lift], [x + wide / 2 + Math.cos(b) * 2.4, -6.6 - lift + Math.sin(b) * 2.4], [x + wide / 2 + Math.cos(b + 0.7) * 0.8, -6.6 - lift + Math.sin(b + 0.7) * 0.8]], j % 2 ? '#e2957c' : '#ffffff'); }
+  };
+  if (dir === 'side') {
+    const s = w.l * (robe ? 2 : 2.6);
+    if (robe) {
+      boot(-2 + s, 0, 6.5);
+      return;
+    }
+    boot(-3.2 - s, 0, 7);
+    boot(-3 + s, 0, 7.5);
+  } else {
+    boot(-6.6, w.l > 0 ? (robe ? 0.8 : 1.2) : 0, robe ? 5.6 : 6.2);
+    boot(robe ? 1 : 0.4, w.r > 0 ? (robe ? 0.8 : 1.2) : 0, robe ? 5.6 : 6.2);
+  }
+}
+
+// Gürtel über der Hüfte, von vorn mit Schnalle, von der Seite mit Tasche
+function gearBelt(ctx, dir, y, half, tier) {
+  tier = gearTier(tier);
+  if (tier < 0) return;
+  const c = GEAR_LOOK.belt[tier];
+  const m = TIER_METAL[tier];
+  box(ctx, -half - 0.3, y, half * 2 + 0.6, 3.4, 1, c);
+  stroke(ctx, darker(c, 0.35), 0.5, [[-half + 0.5, y + 1.7], [half - 0.5, y + 1.7]]);
+  if (dir === 'down') {
+    box(ctx, -2.6, y - 0.6, 5.2, 4.6, 1, m);
+    box(ctx, -1.3, y + 0.5, 2.6, 2.4, 0.6, darker(c, 0.2));
+    if (tier >= 3) oval(ctx, 0, y + 1.7, 1.1, 1.1, tier === 8 ? '#5ee8ff' : tier === 9 ? '#ffb8e0' : tier >= 4 ? '#d6a8ff' : '#c8402f');
+    if (tier >= 2) for (const x of [-half + 2.5, half - 2.5]) oval(ctx, x, y + 1.7, 0.9, 0.9, m);
+  } else if (dir === 'side') {
+    box(ctx, -half + 0.5, y + 1.5, 4, 4.2, 1.2, darker(c, 0.1));
+    stroke(ctx, m, 0.6, [[-half + 0.8, y + 2.6], [-half + 4.2, y + 2.6]]);
+  }
+}
+
+// Schulterpanzer: gestufte Platten, ab Drache Dornen, ab Seele ein Juwel, ab Himmel Federn
+function gearShoulders(ctx, dir, w, tier, y, spread = 11.5) {
+  tier = gearTier(tier);
+  if (tier < 0) return false;
+  const c = GEAR_LOOK.plate[tier];
+  const m = TIER_METAL[tier];
+  // seit 13.12: Hauptplatte (innen hoch, außen über die Schulter gewölbt) und zwei Schienen darunter statt zweier Ovale
+  // seit 13.17 größer (S), damit man angelegte Schultern an der Figur gut erkennt
+  const S = 1.35;
+  const pad = (x, mirror) => {
+    const P = (u, v) => [x + u * mirror * S, y - 1.5 + v * S];
+    const path = (pts) => {
+      ctx.beginPath();
+      ctx.moveTo(...P(pts[0][0], pts[0][1]));
+      for (let i = 1; i < pts.length; i += 2) ctx.quadraticCurveTo(...P(pts[i][0], pts[i][1]), ...P(pts[i + 1][0], pts[i + 1][1]));
+      ctx.closePath();
+    };
+    if (tier === 6 || tier === 7) {
+      for (let k = 0; k < 3; k++) poly(ctx, [P(-2, -1), P(6 + k * 2.5, -7 - k * 2), P(4 + k * 2, 1)], k === 2 ? '#e6f2ff' : '#ffffff');
+    }
+    // seit 13.53: Abgrund mit aufragenden Leerensplittern, Ewigkeit mit Sternstrahlen
+    if (tier === 8) for (let k = 0; k < 3; k++) poly(ctx, [P(-1 + k * 2.5, -3), P(-0.5 + k * 3.2, -10 - (k % 2) * 3), P(1.4 + k * 2.5, -3)], k % 2 ? '#2a2048' : '#3a2e66');
+    if (tier === 9) for (let k = 0; k < 5; k++) poly(ctx, [P(0.5, -1), P(1 + Math.cos(-2.4 + k * 0.45) * 9, -1 + Math.sin(-2.4 + k * 0.45) * 9), P(2.5, 0)], k % 2 ? '#e2957c' : '#ffffff');
+    for (let k = 1; k >= 0; k--) {
+      const v = 3.6 + k * 2.4;
+      path([[-4 + k, v - 1], [1.5, v + 0.3], [6.8 - k * 0.5, v + 0.6], [6.6 - k * 0.5, v + 1.8], [6.4 - k * 0.5, v + 2.5], [1.5, v + 2.4], [-3.6 + k, v + 1.2], [-3.8 + k, v], [-4 + k, v - 1]]);
+      ctx.fillStyle = darker(c, 0.12 + k * 0.1);
+      ctx.fill();
+      ctx.strokeStyle = m;
+      ctx.lineWidth = 0.6;
+      ctx.stroke();
+    }
+    path([[-5, 3.4], [-5, 0], [-4.6, -2.8], [-1, -5.6], [4, -4.2], [7.6, -2.2], [7.6, 2.8], [1, 4.8], [-5, 3.4]]);
+    ctx.fillStyle = c;
+    ctx.fill();
+    ctx.strokeStyle = m;
+    ctx.lineWidth = 0.9;
+    ctx.stroke();
+    // Glanz und Grat
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.beginPath();
+    ctx.ellipse(...P(0, -2.6), 2.6 * S, 1 * S, -0.3 * mirror, 0, Math.PI * 2);
+    ctx.fill();
+    stroke(ctx, lighter(m, 0.3), 0.7, [P(-3.4, -3), P(1.5, -4), P(5.8, -0.5)]);
+    if (tier >= 2) for (const u of [-3.2, 5.6]) oval(ctx, ...P(u, 2.4), 0.9, 0.9, lighter(m, 0.2));
+    if (tier >= 3 && tier < 6) {
+      poly(ctx, [P(-2.4, -3.4), P(-1 + 0.5, -9.5 - (tier >= 5 ? 2 : 0)), P(0.4, -4)], m);
+      poly(ctx, [P(1.6, -4), P(3.6 + 0.5, -8.5 - (tier >= 5 ? 2 : 0)), P(4.6, -3.2)], m);
+    }
+    if (tier >= 4) oval(ctx, ...P(1.4, -0.6), 1.9, 1.9, tier === 5 ? '#ff7a2a' : tier === 8 ? '#5ee8ff' : tier === 9 ? '#ffb8e0' : tier >= 6 ? '#9fe8ff' : '#d6a8ff');
+  };
+  if (dir === 'side') pad(w.arm, 1);
+  else {
+    pad(-spread - 1, -1);
+    pad(spread + 1, 1);
+  }
+  return true;
+}
+
+// Umhang: wird jedes Bild neu gezeichnet und weht beim Laufen. layer 'back' (hinter der Figur)
+// oder 'front' (von hinten gesehen liegt er über dem Rücken). Koordinaten wie im Sprite.
+function drawCape(ctx, tier, dir, w, moving, t, layer) {
+  if (tier < 0) return;
+  if ((dir === 'up') !== (layer === 'front')) return;
+  const cloth = GEAR_LOOK.cape[tier];
+  const lining = GEAR_LOOK.lining[tier];
+  const m = TIER_METAL[tier];
+  const y0 = -24.5 + w.bob;
+  const y1 = -1.5;
+  const flap = moving ? 1 : 0.35;
+  const wave = (k) => Math.sin(t * (moving ? 9 : 2.6) + k * 1.7) * (moving ? 2.2 : 1.1);
+  ctx.save();
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  if (dir === 'side') {
+    // weht nach hinten (links), je schneller, desto weiter
+    const back = 4 + flap * 7;
+    ctx.moveTo(-1.5, y0);
+    ctx.lineTo(3, y0 + 0.5);
+    ctx.quadraticCurveTo(1 - back * 0.3, (y0 + y1) / 2, -back * 0.6 + wave(0), y1 + 1);
+    ctx.lineTo(-back - 4 + wave(1), y1 - 2 + wave(2) * 0.6);
+    ctx.quadraticCurveTo(-back * 0.5 - 3, (y0 + y1) / 2 - 2, -5, y0 + 1.5);
+    ctx.closePath();
+  } else {
+    const top = 7.5;
+    const bot = 12 + flap * 1.5;
+    ctx.moveTo(-top, y0);
+    ctx.lineTo(top, y0);
+    ctx.quadraticCurveTo(top + 3, (y0 + y1) / 2, bot + wave(0) * 0.5, y1);
+    const n = 4;
+    for (let k = n; k >= 0; k--) {
+      const x = -bot + (2 * bot) * k / n;
+      ctx.lineTo(x + wave(k) * 0.3, y1 + (k % 2 ? 1.2 : -0.3) + wave(k + 2) * 0.4);
+    }
+    ctx.quadraticCurveTo(-top - 3, (y0 + y1) / 2, -top, y0);
+    ctx.closePath();
+  }
+  const g = ctx.createLinearGradient(0, y0, 0, y1);
+  g.addColorStop(0, lighter(cloth, 0.12));
+  g.addColorStop(0.55, cloth);
+  g.addColorStop(1, darker(cloth, 0.35));
+  ctx.fillStyle = g;
+  ctx.fill();
+  ctx.strokeStyle = OUTLINE;
+  ctx.lineWidth = OUTLINE_W;
+  ctx.stroke();
+  ctx.clip();
+  // Falten
+  ctx.strokeStyle = darker(cloth, 0.3);
+  ctx.lineWidth = 0.9;
+  for (const fx of dir === 'side' ? [-3, -7] : [-6, -1.5, 3, 7.5]) {
+    ctx.beginPath();
+    ctx.moveTo(fx * 0.5, y0 + 3);
+    ctx.quadraticCurveTo(fx + wave(fx) * 0.4, (y0 + y1) / 2, fx * 1.2 + wave(fx + 1) * 0.6, y1 + 2);
+    ctx.stroke();
+  }
+  // Innenfutter blitzt an der Kante auf, ab Eisen ein Saum
+  ctx.strokeStyle = lining;
+  ctx.lineWidth = 1.4;
+  ctx.beginPath();
+  if (dir === 'side') {
+    ctx.moveTo(-1.5, y0 + 1);
+    ctx.quadraticCurveTo(-2, (y0 + y1) / 2, -4 + wave(0), y1);
+  } else {
+    ctx.moveTo(-14, y1 - 0.5);
+    ctx.lineTo(14, y1 - 0.5);
+  }
+  ctx.stroke();
+  if (tier >= 2) {
+    ctx.strokeStyle = m;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(-16, y1 - 2.2);
+    ctx.lineTo(16, y1 - 2.2);
+    ctx.stroke();
+  }
+  ctx.restore();
+  // Wappen auf dem Rücken, Spange an den Schultern
+  if (dir === 'up' && tier >= 3) {
+    const ey = (y0 + y1) / 2 - 1;
+    if (tier === 8) {
+      // Abgrund (seit 13.53): Leerenauge auf dem Rücken
+      oval(ctx, 0, ey, 5, 3, '#0c0816');
+      oval(ctx, 0, ey, 3.6, 2.2, '#5ee8ff');
+      oval(ctx, 0, ey, 0.7, 2, '#0c0816');
+    } else if (tier === 9) {
+      // Ewigkeit (seit 13.53): achtstrahliger Stern
+      for (let k = 0; k < 8; k++) { const a = (k / 8) * Math.PI * 2; const r = k % 2 ? 3.2 : 6; poly(ctx, [[Math.cos(a - 0.4) * 1.2, ey + Math.sin(a - 0.4) * 1.2], [Math.cos(a) * r, ey + Math.sin(a) * r], [Math.cos(a + 0.4) * 1.2, ey + Math.sin(a + 0.4) * 1.2]], k % 2 ? '#e2957c' : '#ffffff'); }
+      oval(ctx, 0, ey, 1.4, 1.4, '#ffb8e0');
+    } else {
+      poly(ctx, [[0, ey - 5], [4, ey], [0, ey + 5], [-4, ey]], m);
+      oval(ctx, 0, ey, 1.6, 1.6, tier >= 6 ? '#ffffff' : lining);
+    }
+  }
+  if (dir !== 'side') {
+    oval(ctx, -7, y0 + 0.8, 1.6, 1.6, m);
+    oval(ctx, 7, y0 + 0.8, 1.6, 1.6, m);
+  }
+}
+
+// --- Aussehen (bei der Erstellung gewählt) ------------------------------------------------------
+const LOOKS = {
+  sex: ['Männlich', 'Weiblich'],
+  hair: ['Kurz', 'Dutt', 'Lang', 'Stachelig', 'Pferdeschwanz', 'Glatze', 'Zerzaust', 'Zurückgekämmt', 'Irokese', 'Haarknoten', 'Mähne'],
+  // seit 9.2: Bart (nur Männer) und ob der Helm bzw. die Kapuze zu sehen ist
+  beard: ['Keiner', 'Kurz', 'Vollbart', 'Zopfbart', 'Schnurrbart'],
+  helm: ['Versteckt', 'Sichtbar'],
+  hairColor: ['#3a2418', '#1e1818', '#7a4a24', '#d0a040', '#ece0b8', '#b0382a', '#4a5aa8', '#dcdce6'],
+  skin: ['#f6dcc0', '#e9c6a1', '#d8a576', '#b27a50', '#7c4e30', '#c9c4b0', '#a8c4a0'],
+  eyes: ['Rund', 'Schmal', 'Fröhlich', 'Entschlossen'],
+  eyeColor: ['#21160f', '#2f63b0', '#2a7a3a', '#8a5a24', '#8a3ab0', '#b82a2a'],
+  mark: ['Keine', 'Sommersprossen', 'Narbe', 'Kriegsbemalung']
+};
+const DEFAULT_LOOKS = {
+  krieger: { sex: 0, hair: 0, hc: 0, skin: 1, eyes: 0, ec: 0, mark: 0, bart: 1, helm: 1 },
+  ninja: { sex: 1, hair: 4, hc: 1, skin: 1, eyes: 1, ec: 0, mark: 0, bart: 1, helm: 1 },
+  schamane: { sex: 1, hair: 1, hc: 1, skin: 0, eyes: 0, ec: 0, mark: 0, bart: 1, helm: 1 },
+  nekromant: { sex: 0, hair: 2, hc: 7, skin: 5, eyes: 0, ec: 0, mark: 0, bart: 1, helm: 1 },
+  // Magier: kurzes grau-silbernes Haar, blaue Augen, Vollbart
+  magier: { sex: 0, hair: 0, hc: 7, skin: 0, eyes: 0, ec: 1, mark: 0, bart: 2, helm: 1 }
+};
+function lookOf(L, classId) {
+  return { ...DEFAULT_LOOKS[classId], ...((L && L.ap) || {}) };
+}
+function lookKey(ap) {
+  return ap ? [ap.sex, ap.hair, ap.hc, ap.skin, ap.eyes, ap.ec, ap.mark, ap.bart, ap.helm].join('.') : '';
+}
+// seit 14.53: Körpergröße in Prozent (look.gr, 90–110). Alte Spielstände ohne Wert: 100 %. Auch Werte von
+// Mitspielern (Netzfeld lk) laufen hier durch und werden begrenzt. Nur das Aussehen – Kollision und Treffer bleiben gleich.
+const LOOK_SIZE = { min: 90, max: 110, def: 100 };
+function lookSizePct(look) {
+  const v = Number(look && look.gr);
+  if (!isFinite(v) || !v) return LOOK_SIZE.def;
+  return Math.max(LOOK_SIZE.min, Math.min(LOOK_SIZE.max, Math.round(v)));
+}
+const lookSize = (look) => lookSizePct(look) / 100;
+const skinOf = (ap) => LOOKS.skin[ap.skin] || LOOKS.skin[1];
+const hairOf = (ap) => LOOKS.hairColor[ap.hc] || LOOKS.hairColor[0];
+function eyeOpts(ap) {
+  return { color: LOOKS.eyeColor[ap.ec] || '#21160f', style: ap.eyes, female: ap.sex === 1, male: ap.sex === 0 };
+}
+
+// Frisur. layer 'back': hinter dem Kopf (lange Haare, Zopf, Dutt von der Seite), 'front': Kappe und Rest
+// 2D kennt die Frisuren 0–5; die neueren (seit 9.2 für Spieler) nehmen die ähnlichste
+const HAIR2D = [0, 1, 2, 3, 4, 5, 3, 0, 3, 1, 2];
+function drawHair(ctx, dir, cx, cy, ap, layer) {
+  const style = HAIR2D[ap.hair] ?? 0;
+  const c = hairOf(ap);
+  const dark = darker(c, 0.25);
+  if (layer === 'back') {
+    if (style === 2) {
+      if (dir === 'down') poly(ctx, [[cx - 11, cy - 5], [cx - 13.5, cy + 6], [cx - 12, cy + 14], [cx - 6, cy + 12], [cx + 6, cy + 12], [cx + 12, cy + 14], [cx + 13.5, cy + 6], [cx + 11, cy - 5]], dark);
+      else if (dir === 'side') poly(ctx, [[cx - 6, cy - 9], [cx - 12, cy - 4], [cx - 13.5, cy + 13], [cx - 3, cy + 12], [cx - 2, cy + 2]], dark);
+    } else if (style === 4 && dir === 'side') {
+      poly(ctx, [[cx - 9, cy - 7], [cx - 15, cy - 2], [cx - 17, cy + 11], [cx - 13, cy + 10], [cx - 11.5, cy - 1], [cx - 7, cy - 3]], c);
+    } else if (style === 1 && dir === 'side') {
+      oval(ctx, cx - 10, cy - 8, 4.6, 4.2, c);
+    }
+    return;
+  }
+  if (style === 5) {
+    // Glatze: nur ein Glanzpunkt
+    if (dir !== 'up') {
+      ctx.globalAlpha = 0.35;
+      dot(ctx, cx - 3.5, cy - 7, 3, 1.8, '#ffffff');
+      ctx.globalAlpha = 1;
+    }
+    return;
+  }
+  if (dir === 'up') {
+    oval(ctx, cx, cy - 0.5, 11.4, 11, c);
+    stroke(ctx, dark, 0.7, [[cx - 4, cy - 9], [cx - 6, cy + 6]]);
+    stroke(ctx, dark, 0.7, [[cx + 3, cy - 9], [cx + 5, cy + 6]]);
+    if (style === 2) box(ctx, cx - 11, cy + 2, 22, 13, 4, c);
+    if (style === 4) {
+      box(ctx, cx - 2.2, cy + 4, 4.4, 13, 2, c);
+      box(ctx, cx - 2.6, cy + 4, 5.2, 2, 1, '#c8402f');
+    }
+  } else if (dir === 'down') {
+    paintShape(ctx, () => {
+      ctx.beginPath();
+      ctx.arc(cx, cy - 0.5, 11.4, Math.PI * 1.02, Math.PI * 1.98);
+      if (style === 3) ctx.quadraticCurveTo(cx + 4, cy - 4, cx, cy - 6);
+      else ctx.quadraticCurveTo(cx + 3, cy - 6.5, cx, cy - 4.5);
+      ctx.quadraticCurveTo(cx - 3, cy - 6.5, cx - 11.3, cy - 1.5);
+      ctx.closePath();
+    }, c, cx - 11.4, cy - 12, 22.8, 10);
+    stroke(ctx, dark, 0.6, [[cx - 5, cy - 10], [cx - 3, cy - 5.5]]);
+    stroke(ctx, dark, 0.6, [[cx + 4, cy - 10], [cx + 3, cy - 5.5]]);
+    if (style === 2) {
+      box(ctx, cx - 11.8, cy - 4, 3.4, 13, 1.5, c);
+      box(ctx, cx + 8.4, cy - 4, 3.4, 13, 1.5, c);
+    }
+  } else {
+    paintShape(ctx, () => {
+      ctx.beginPath();
+      ctx.arc(cx, cy - 0.5, 11.4, Math.PI * 0.75, Math.PI * 1.9);
+      ctx.quadraticCurveTo(cx + 2, cy - 5, cx - 3, cy - 1);
+      ctx.lineTo(cx - 5, cy + (style === 0 || style === 3 ? 3 : 7));
+      ctx.closePath();
+    }, c, cx - 11.4, cy - 12, 20, 19);
+    stroke(ctx, dark, 0.6, [[cx - 6, cy - 8], [cx - 8, cy + 2]]);
+  }
+  if (style === 0) oval(ctx, cx + (dir === 'side' ? -2 : 0), cy - 11.5, 3.6, 3, c);
+  if (style === 1) oval(ctx, cx + (dir === 'side' ? -3.5 : 0), cy - 12, 4.6, 4, c);
+  if (style === 3) {
+    const xs = dir === 'side' ? [-8, -4, 0, 4] : [-8, -4, 0, 4, 8];
+    for (const x of xs) poly(ctx, [[cx + x - 3, cy - 8], [cx + x + (dir === 'side' ? -2.5 : 0), cy - 17 + Math.abs(x) * 0.3], [cx + x + 3, cy - 8]], c);
+  }
+  if (style === 4 && dir !== 'up') box(ctx, cx + (dir === 'side' ? -11 : -2), cy - 11.5, dir === 'side' ? 3 : 4, 2.2, 1, '#c8402f');
+}
+
+// Zeichen im Gesicht: Sommersprossen, Narbe, Kriegsbemalung
+function faceMarks(ctx, dir, cx, cy, ap) {
+  // Bart der Männer (seit 9.2): Kinnbart, Vollbart, Zopfbart oder Schnurrbart
+  if (ap.sex === 0 && ap.bart > 0 && dir !== 'up') {
+    const c = darker(hairOf(ap), 0.05);
+    const sx = dir === 'side' ? cx + 4 : cx;
+    if (ap.bart === 4) {
+      stroke(ctx, c, 1.6, [[sx - 3.5, cy + 4.6], [sx, cy + 3.8], [sx + 3.5, cy + 4.6]]);
+    } else {
+      const len = ap.bart === 2 ? 9 : ap.bart === 3 ? 7 : 5;
+      poly(ctx, [[sx - 6.5, cy + 2.5], [sx - 5, cy + 2.5 + len * 0.7], [sx, cy + 2.5 + len], [sx + 5, cy + 2.5 + len * 0.7], [sx + 6.5, cy + 2.5], [sx + 3, cy + 5.5], [sx - 3, cy + 5.5]], c);
+      stroke(ctx, c, 1.4, [[sx - 3.5, cy + 4.4], [sx, cy + 3.8], [sx + 3.5, cy + 4.4]]);
+      if (ap.bart === 3) for (const x of [-2, 2]) box(ctx, sx + x - 1, cy + 2.5 + len, 2, 4, 1, c);
+    }
+  }
+  if (!ap.mark || dir === 'up') return;
+  const xs = dir === 'side' ? [cx + 6] : [cx - 4.2, cx + 4.2];
+  if (ap.mark === 1) {
+    ctx.fillStyle = 'rgba(150,80,40,0.55)';
+    for (const x of xs) for (const [dx, dy] of [[-1.5, 4.2], [0.5, 4.8], [2, 4], [-0.2, 3.6]]) dot(ctx, x + dx, cy + dy, 0.45, 0.45, 'rgba(150,80,40,0.6)');
+  } else if (ap.mark === 2) {
+    stroke(ctx, '#9a4a3a', 0.9, [[xs[xs.length - 1] - 2, cy - 3.5], [xs[xs.length - 1] + 1.5, cy + 5]]);
+  } else if (ap.mark === 3) {
+    for (const x of xs) {
+      stroke(ctx, '#c83a2a', 1, [[x - 2, cy + 3.6], [x + 2, cy + 3.6]]);
+      stroke(ctx, '#c83a2a', 1, [[x - 1.6, cy + 5], [x + 1.6, cy + 5]]);
+    }
+  }
+}
+
+// Farbe aus der Tabelle, sonst die Grundfarbe
+const lookColor = (list, i, fallback) => (i >= 0 ? list[i] : fallback);
+
+// Element-Dreieck des Magiers: △ Feuer, ▽ Frost, △ mit Balken Blitz, ▽ mit Balken Erde (glyph aus MAGE_EL)
+function mageGlyph2D(ctx, x, y, r, glyph, color, width = 1) {
+  const s = glyph === 'down' || glyph === 'downbar' ? -1 : 1;
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = width;
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(x, y - r * s);
+  ctx.lineTo(x + r * 0.866, y + r * 0.5 * s);
+  ctx.lineTo(x - r * 0.866, y + r * 0.5 * s);
+  ctx.closePath();
+  if (glyph === 'upbar' || glyph === 'downbar') {
+    ctx.moveTo(x - r * 0.85, y - r * 0.15 * s);
+    ctx.lineTo(x + r * 0.85, y - r * 0.15 * s);
+  }
+  ctx.stroke();
+  ctx.restore();
+}
+
+// Spitzer Krempenhut des Magiers je Helmstufe (−1: Grundhut der Vorschau). Spitze bei Novize und Sternenhut
+// nach hinten geknickt; Band in der Elementfarbe (Gelehrtenhut: Silberband mit Elementstein).
+function mageHat2D(ctx, dir, cx, cy, ht, hat, silver, E, female) {
+  const side = dir === 'side';
+  const by = cy - 7.5;
+  const h = ht === 2 || ht === 8 ? 25 : ht === 9 ? 26 : ht === 0 ? 20 : 22;
+  // Knick: von vorn zur Seite, von der Seite nach hinten (links)
+  const bend = ht === 0 || ht === 6 ? (side ? -9 : -7) : ht === 8 ? (side ? -6 : 5) : side ? -3 : -1.5;
+  const droop = ht === 0 || ht === 6 ? 5 : 0;
+  ctx.save();
+  if (female && !side) {
+    ctx.translate(cx, by);
+    ctx.rotate(dir === 'up' ? -0.08 : 0.08);
+    ctx.translate(-cx, -by);
+  }
+  // Krempe
+  const bx = side ? cx - 0.5 : cx;
+  oval(ctx, bx, cy - 6.6, side ? 12.5 : 13.2, 3.2, darker(hat, 0.08));
+  if (ht === 4) {
+    ctx.save();
+    ctx.strokeStyle = E.main;
+    ctx.globalAlpha = 0.9;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.ellipse(bx, cy - 6.6, side ? 12.5 : 13.2, 3.2, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+  // Kegel
+  const tx = cx + bend;
+  const tyy = by - h + droop;
+  paintShape(ctx, () => {
+    ctx.beginPath();
+    ctx.moveTo(cx - 9.2, by);
+    ctx.quadraticCurveTo(cx - 6 + bend * 0.15, by - h * 0.6, tx, tyy);
+    ctx.quadraticCurveTo(cx + 4 + bend * 0.35, by - h * 0.55, cx + 9.2, by);
+    ctx.quadraticCurveTo(cx, by + 1.6, cx - 9.2, by);
+    ctx.closePath();
+  }, hat, cx - 9.2, tyy, 18.4, by - tyy);
+  // Falte im Kegel
+  stroke(ctx, darker(hat, 0.3), 0.6, [[cx + 2, by - 1], [cx + 1 + bend * 0.4, by - h * 0.55]]);
+  // Band über der Krempe
+  const band = ht === 1 ? silver : E.main;
+  poly(ctx, [[cx - 9.2, by + 0.4], [cx + 9.2, by + 0.4], [cx + 8.2, by - 3], [cx - 8.2, by - 3]], band);
+  if (ht === 1 && dir !== 'up') oval(ctx, side ? cx + 5 : cx, by - 1.3, 1.6, 1.6, E.main);
+  if (ht === 2) for (const x of side ? [cx - 3, cx + 3] : [cx - 5.5, cx, cx + 5.5]) mageGlyph2D(ctx, x, by - 1.2, 1.1, 'up', lighter(E.main, 0.6), 0.6);
+  // Merkmal je Stufe
+  if (ht === 3) {
+    // die Spitze endet in einem schwebenden Kristall
+    rodCrystal(ctx, tx + (side ? -1 : 0), tyy - 4.5, 0.7, E.main, true);
+  } else if (ht === 4) {
+    mageGlyph2D(ctx, tx, tyy - 5, 2.6, E.glyph, E.main, 1);
+  } else if (ht === 5) {
+    for (const [dx, dy] of [[-4, 6], [3, 9], [-1, 14]]) dot(ctx, cx + dx + bend * 0.2, by - dy, 0.9, 0.7, '#ff7a2a');
+    // Rauchfaden über der verkohlten Spitze
+    oval(ctx, tx + 1, tyy - 3, 1.7, 1.3, '#8a8490');
+    oval(ctx, tx - 0.6, tyy - 6.6, 1.2, 1, '#a8a2ae');
+  } else if (ht === 6) {
+    for (const [dx, dy] of [[-4, 5], [3, 8], [-1, 12], [4, 14]]) dot(ctx, cx + dx + bend * 0.25, by - dy, 0.7, 0.7, '#ffffff');
+    // gerollte Spitze und ein kreisender Stern
+    ctx.strokeStyle = darker(hat, 0.4);
+    ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    ctx.arc(tx - 0.5, tyy + 1, 1.6, 0, Math.PI * 1.6);
+    ctx.stroke();
+    const sx = cx + (side ? 7 : 12);
+    const sy = by - 13;
+    poly(ctx, [[sx, sy - 2.4], [sx + 0.7, sy - 0.7], [sx + 2.4, sy], [sx + 0.7, sy + 0.7], [sx, sy + 2.4], [sx - 0.7, sy + 0.7], [sx - 2.4, sy], [sx - 0.7, sy - 0.7]], '#fff2b0');
+  } else if (ht === 8) {
+    // Abgrundhut (seit 13.53): Leerenauge über dem Band, Splitter schweben um die Spitze
+    oval(ctx, cx, by - 6.5, 2.4, 1.5, '#5ee8ff');
+    oval(ctx, cx, by - 6.5, 0.5, 1.3, '#0c0816');
+    for (const [dx, dy] of [[-6, 4], [5, 7], [-2, 10]]) poly(ctx, [[tx + dx, tyy + dy - 2], [tx + dx + 1, tyy + dy], [tx + dx, tyy + dy + 2], [tx + dx - 1, tyy + dy]], '#5ee8ff');
+  } else if (ht === 9) {
+    // Ewigkeitshut (seit 13.53): Sternpunkte und ein achtstrahliger Stern auf der Spitze
+    for (const [dx, dy] of [[-4, 5], [3, 8], [-1, 13]]) dot(ctx, cx + dx + bend * 0.25, by - dy, 0.7, 0.7, '#ffb8e0');
+    for (let k = 0; k < 8; k++) { const a = (k / 8) * Math.PI * 2; const r = k % 2 ? 1.8 : 3.4; poly(ctx, [[tx + Math.cos(a - 0.4) * 0.7, tyy - 2 + Math.sin(a - 0.4) * 0.7], [tx + Math.cos(a) * r, tyy - 2 + Math.sin(a) * r], [tx + Math.cos(a + 0.4) * 0.7, tyy - 2 + Math.sin(a + 0.4) * 0.7]], k % 2 ? '#e2957c' : '#ffffff'); }
+  }
+  ctx.restore();
+}
+
+const CHARACTER_ART = {
+  krieger(ctx, dir, w, f, L = { a: -1, h: -1 }) {
+    const A = ARMOR_LOOK.krieger;
+    const crimson = lookColor(A.torso, L.a, '#9c3b33');
+    const brass = lookColor(A.trim, L.a, '#c9a35a');
+    const ap = lookOf(L, 'krieger');
+    const o = { skin: skinOf(ap), pants: '#3b2d25', boots: '#4d3527', torso: crimson, sleeve: darker(crimson, 0.18), gloves: '#5a4030' };
+    const ty = -24 + w.bob;
+    hLegs(ctx, dir, w, o);
+    gearBoots(ctx, dir, w, L.b);
+    // Panzerrock
+    const sw = dir === 'side' ? 8 : 11.5;
+    poly(ctx, [[-sw + 1.5, ty + 12], [sw - 1.5, ty + 12], [sw, ty + 18.5], [-sw, ty + 18.5]], darker(crimson, 0.1));
+    stroke(ctx, brass, 0.6, [[-sw + 1, ty + 15.5], [sw - 1, ty + 15.5]]);
+    // Schlitze im Panzerrock
+    for (const x of dir === 'side' ? [-3, 2.5] : [-5.5, 0, 5.5]) stroke(ctx, darker(crimson, 0.4), 0.6, [[x, ty + 13], [x * 1.08, ty + 18.3]]);
+    const half = hBody(ctx, dir, w, o);
+    for (let k = 0; k < 3; k++) stroke(ctx, brass, 0.7, [[-half + 1.5, ty + 3.5 + k * 3], [half - 1.5, ty + 3.5 + k * 3]]);
+    box(ctx, -half, ty + 11.5, half * 2, 3, 1, brass);
+    for (const x of [-half + 2, half - 2]) dot(ctx, x, ty + 13, 0.7, 0.7, lighter(brass, 0.4));
+    if (dir === 'down') oval(ctx, 0, ty + 13, 2.3, 2, L.a >= 4 ? lookColor(A.crest, L.a, '#e0c36a') : '#e0c36a');
+    gearBelt(ctx, dir, ty + 11.3, half, L.g);
+    // Brustplatte ab Stufe Eisen, Schuppen ab Stufe Drache
+    if (dir === 'down' && L.a >= 2) {
+      box(ctx, -5, ty + 2, 10, 8, 2.5, lighter(crimson, 0.12));
+      if (L.a >= 3) for (let k = 0; k < 3; k++) stroke(ctx, brass, 0.6, [[-3.5 + k * 3.5, ty + 4], [-2 + k * 3.5, ty + 8]]);
+    }
+    hArms(ctx, dir, w, o);
+    // Schulterpanzer, ab Stufe Seele mit Dornen
+    const pad = (x) => {
+      oval(ctx, x, ty + 2, 6.2, 4.6, crimson);
+      stroke(ctx, brass, 0.9, [[x - 5, ty + 4.5], [x + 5, ty + 4.5]]);
+      if (L.a >= 4) {
+        poly(ctx, [[x - 3, ty - 1], [x - 2, ty - 6], [x - 0.5, ty - 1.5]], brass);
+        poly(ctx, [[x + 0.5, ty - 1.5], [x + 2, ty - 6], [x + 3, ty - 1]], brass);
+      }
+    };
+    if (!gearShoulders(ctx, dir, w, L.s, ty)) {
+      if (dir === 'side') pad(w.arm);
+      else { pad(-11.5); pad(11.5); }
+    }
+    drawHair(ctx, dir, dir === 'side' ? 1.5 : 0, -34.5 + w.bob, ap, 'back');
+    const { cx, cy } = hHead(ctx, dir, w, o);
+    if (dir !== 'up') {
+      eyes(ctx, dir, cx, cy, { blush: true, ...eyeOpts(ap) });
+      faceMarks(ctx, dir, cx, cy, ap);
+    }
+    // Ohne Helm sieht man die Haare
+    if (L.h === -2) {
+      drawHair(ctx, dir, cx, cy, ap, 'front');
+      return;
+    }
+    // Helm
+    const steel = lookColor(A.helm, L.h, '#8f98a3');
+    const plume = lookColor(A.crest, L.h, '#c8402f');
+    if (dir === 'up') {
+      oval(ctx, cx, cy - 1, 11.8, 11.2, steel);
+      box(ctx, cx - 10.5, cy + 3, 21, 6.5, 2, darker(steel, 0.12));
+      stroke(ctx, brass, 1, [[cx - 11, cy - 2], [cx + 11, cy - 2]]);
+    } else {
+      paintShape(ctx, () => { ctx.beginPath(); ctx.arc(cx, cy - 1, 11.8, Math.PI, 0); ctx.closePath(); }, steel, cx - 11.8, cy - 12.8, 23.6, 11.8);
+      box(ctx, cx - 12.5, cy - 2.6, 25, 3.2, 1.5, brass);
+      if (dir === 'down') {
+        box(ctx, cx - 12, cy - 0.5, 3.2, 7.5, 1.2, steel);
+        box(ctx, cx + 8.8, cy - 0.5, 3.2, 7.5, 1.2, steel);
+      } else {
+        box(ctx, cx - 11.5, cy - 0.5, 6, 8.5, 1.5, steel);
+      }
+    }
+    // Helmbusch, ab Stufe Drache Hörner, ab Stufe Himmel Flügel
+    if (dir === 'side') poly(ctx, [[cx - 2, cy - 11.8], [cx + 2.5, cy - 12.4], [cx - 2, cy - 18.5], [cx - 9.5, cy - 15.5]], plume);
+    else poly(ctx, [[cx - 2.2, cy - 12], [cx + 2.2, cy - 12], [cx + 1.4, cy - 19], [cx - 1.4, cy - 19]], plume);
+    if (L.h >= 3 && L.h < 6 && dir !== 'up') {
+      poly(ctx, [[cx - 8, cy - 8], [cx - 13, cy - 16], [cx - 6, cy - 10]], '#e0d6bc');
+      if (dir === 'down') poly(ctx, [[cx + 8, cy - 8], [cx + 13, cy - 16], [cx + 6, cy - 10]], '#e0d6bc');
+    }
+    if (L.h === 6 || L.h === 7) {
+      poly(ctx, [[cx - 9, cy - 6], [cx - 17, cy - 13], [cx - 15, cy - 7], [cx - 18, cy - 6], [cx - 10, cy - 3]], '#ffffff');
+      if (dir !== 'side') poly(ctx, [[cx + 9, cy - 6], [cx + 17, cy - 13], [cx + 15, cy - 7], [cx + 18, cy - 6], [cx + 10, cy - 3]], '#ffffff');
+    }
+    // seit 13.53: Abgrundhelm mit eingerollten Tentakelhörnern und Leerenauge, Ewigkeitshelm mit Sternenkranz
+    if (L.h === 8) {
+      for (const sg of dir === 'side' ? [-1] : [-1, 1]) {
+        stroke(ctx, OUTLINE, 3.4, [[cx + sg * 8, cy - 8], [cx + sg * 14, cy - 13], [cx + sg * 13, cy - 19], [cx + sg * 9, cy - 18]]);
+        stroke(ctx, '#3a2e66', 2, [[cx + sg * 8, cy - 8], [cx + sg * 14, cy - 13], [cx + sg * 13, cy - 19], [cx + sg * 9, cy - 18]]);
+      }
+      if (dir === 'down') { oval(ctx, cx, cy - 6, 2.6, 1.6, '#5ee8ff'); oval(ctx, cx, cy - 6, 0.5, 1.4, '#0c0816'); }
+    }
+    if (L.h === 9 && dir !== 'up') {
+      for (let k = 0; k < 5; k++) {
+        const a = -Math.PI / 2 + (k - 2) * 0.42;
+        poly(ctx, [[cx + Math.cos(a - 0.12) * 11, cy - 4 + Math.sin(a - 0.12) * 11], [cx + Math.cos(a) * (k % 2 ? 16 : 19), cy - 4 + Math.sin(a) * (k % 2 ? 16 : 19)], [cx + Math.cos(a + 0.12) * 11, cy - 4 + Math.sin(a + 0.12) * 11]], k % 2 ? '#e2957c' : '#ffffff');
+      }
+      if (dir === 'down') oval(ctx, cx, cy - 6, 1.4, 1.4, '#ffb8e0');
+    }
+  },
+
+  ninja(ctx, dir, w, f, L = { a: -1, h: -1 }) {
+    const A = ARMOR_LOOK.ninja;
+    const torso = lookColor(A.torso, L.a, '#312c3d');
+    const ap = lookOf(L, 'ninja');
+    const o = { skin: skinOf(ap), pants: darker(torso, 0.1), boots: '#3d3848', torso, sleeve: darker(torso, 0.1), gloves: '#3d3848' };
+    const scarf = lookColor(A.scarf, L.a, '#6b4f9a');
+    const hood = lookColor(A.hood, L.h, '#2a2633');
+    const ty = -24 + w.bob;
+    const sway = [0, 1.6, 0, -1.6, 0][f];
+    // Schalenden hinter dem Körper
+    if (dir === 'side') poly(ctx, [[-3, ty - 1], [-1, ty + 2.5], [-12, ty + 8 + sway], [-16, ty + 4.5 + sway]], scarf);
+    if (dir === 'up') {
+      poly(ctx, [[-2.5, ty - 1], [1, ty - 1], [3 + sway, ty + 15], [-1.5 + sway, ty + 15]], scarf);
+      poly(ctx, [[1, ty - 1], [4, ty - 1], [8.5 + sway, ty + 11], [5.5 + sway, ty + 12.5]], darker(scarf, 0.12));
+    }
+    hLegs(ctx, dir, w, o);
+    // Beinwickel, mit Stiefeln verdeckt
+    const wrap = 'rgba(205,200,220,0.55)';
+    if (dir === 'side') {
+      stroke(ctx, wrap, 0.7, [[-2 + w.l * 2.6, -7.5], [2.2 + w.l * 2.6, -6.5]]);
+    } else {
+      stroke(ctx, wrap, 0.7, [[-5.6, -7.5], [-1.4, -6.6]]);
+      stroke(ctx, wrap, 0.7, [[1.4, -7.5], [5.6, -6.6]]);
+    }
+    gearBoots(ctx, dir, w, L.b);
+    // Tabi: geteilte Zehen
+    if (dir === 'down' && gearTier(L.b) < 0) {
+      stroke(ctx, '#1a1620', 0.6, [[-4.4, -2.6 + (w.l > 0 ? -1.2 : 0)], [-4.4, -0.3 + (w.l > 0 ? -1.2 : 0)]]);
+      stroke(ctx, '#1a1620', 0.6, [[2.6, -2.6 + (w.r > 0 ? -1.2 : 0)], [2.6, -0.3 + (w.r > 0 ? -1.2 : 0)]]);
+    }
+    const half = hBody(ctx, dir, w, o);
+    // Kreuzgurte
+    if (dir === 'side') stroke(ctx, '#5a4030', 1.4, [[-4.5, ty + 1], [4.5, ty + 10.5]]);
+    else {
+      stroke(ctx, '#5a4030', 1.4, [[-half + 2, ty + 1], [half - 2, ty + 10.5]]);
+      stroke(ctx, '#5a4030', 1.4, [[half - 2, ty + 1], [-half + 2, ty + 10.5]]);
+    }
+    box(ctx, -half, ty + 11, half * 2, 3.2, 1, scarf);
+    if (dir === 'down') poly(ctx, [[3, ty + 13], [5, ty + 13], [6.5 + sway * 0.4, ty + 18.5], [4, ty + 18.5]], scarf);
+    gearBelt(ctx, dir, ty + 10.8, half, L.g);
+    hArms(ctx, dir, w, o);
+    gearShoulders(ctx, dir, w, L.s, ty, 11);
+    // Schal am Hals
+    if (dir === 'side') box(ctx, -6, ty - 2.5, 12, 4.8, 2, scarf);
+    else box(ctx, -8.5, ty - 2.5, 17, 4.8, 2, scarf);
+    // lange Haare und Zopf schauen hinten aus der Kapuze
+    if (ap.hair === 2 || ap.hair === 4) drawHair(ctx, dir === 'up' ? 'down' : dir, dir === 'side' ? 1.5 : 0, -34.5 + w.bob, ap, 'back');
+    const { cx, cy } = hHead(ctx, dir, w, o);
+    if (dir === 'side') poly(ctx, [[cx - 9.5, cy - 4], [cx - 8.5, cy - 0.5], [cx - 17, cy + 3 + sway], [cx - 18, cy - 1.5 + sway]], hood);
+    oval(ctx, cx, cy - 0.5, 11.8, 11.2, hood);
+    if (dir === 'up') {
+      box(ctx, cx - 2.5, cy + 2, 5, 3, 1.2, scarf);
+      return;
+    }
+    // Augenschlitz in der Kapuze
+    if (dir === 'side') box(ctx, cx + 1.5, cy - 2, 10, 5.8, 2.6, o.skin);
+    else box(ctx, cx - 8.5, cy - 2, 17, 5.8, 2.6, o.skin);
+    eyes(ctx, dir, cx, cy - 0.5, { narrow: true, color: eyeOpts(ap).color });
+    // Ab Stufe Nacht ein Stirnband mit Platte, ab Stufe Himmel leuchtende Augen
+    if (L.h >= 4) {
+      box(ctx, dir === 'side' ? cx - 1 : cx - 9, cy - 6, dir === 'side' ? 11 : 18, 2.4, 1, lookColor(A.scarf, L.h, scarf));
+      if (dir === 'down') oval(ctx, cx, cy - 4.8, 1.6, 1.6, '#e8c46a');
+    }
+    if (L.h >= 6) eyes(ctx, dir, cx, cy - 0.5, { narrow: true, color: L.h === 8 ? '#bff8ff' : L.h === 9 ? '#fff0fa' : '#bfe8ff', glow: L.h === 8 ? '#5ee8ff' : L.h === 9 ? '#ffb8e0' : '#9fe8ff' });
+  },
+
+  schamane(ctx, dir, w, f, L = { a: -1, h: -1 }) {
+    const A = ARMOR_LOOK.schamane;
+    const robe = lookColor(A.robe, L.a, '#2c6f6a');
+    const gold = lookColor(A.gold, L.a, '#e0c36a');
+    const ap = lookOf(L, 'schamane');
+    const o = { skin: skinOf(ap), boots: '#3a2c24', robe, sleeve: robe, cuff: gold, wideSleeves: true };
+    const ty = -24 + w.bob;
+    hLegs(ctx, dir, w, o);
+    gearBoots(ctx, dir, w, L.b, true);
+    const wb = hBody(ctx, dir, w, o);
+    stroke(ctx, gold, 1.2, [[-wb + 1, -3.8], [wb - 1, -3.8]]);
+    // gestickte Zacken über dem Saum
+    const zig = [];
+    for (let k = 0; k <= 10; k++) zig.push([-wb + 1.5 + (2 * wb - 3) * k / 10, k % 2 ? -6.4 : -5.2]);
+    stroke(ctx, lighter(gold, 0.1), 0.6, zig);
+    if (dir === 'down') {
+      poly(ctx, [[-2.5, ty + 1], [2.5, ty + 1], [3.6, -3], [-3.6, -3]], '#e9e2cf');
+      stroke(ctx, gold, 0.9, [[-2.6, ty + 1], [-3.7, -3]]);
+      stroke(ctx, gold, 0.9, [[2.6, ty + 1], [3.7, -3]]);
+      ctx.strokeStyle = gold;
+      ctx.lineWidth = 0.8;
+      ctx.beginPath();
+      ctx.arc(-7.5, -8, 2.4, 0.3, 5);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(7.5, -8, 2.4, Math.PI - 5, Math.PI - 0.3);
+      ctx.stroke();
+    } else if (dir === 'up') {
+      ctx.strokeStyle = gold;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(0, ty + 6, 3.6, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(0, ty + 6, 1.6, 0, Math.PI * 1.5);
+      ctx.stroke();
+    }
+    const bw = dir === 'side' ? 13 : 18.5;
+    box(ctx, -bw / 2, ty + 10.5, bw, 3, 1, gold);
+    gearBelt(ctx, dir, ty + 10.3, bw / 2, L.g);
+    if (dir !== 'up') {
+      const talisman = (x) => {
+        box(ctx, x, ty + 13.3, 3.4, 6.2, 0.5, '#efe6cc');
+        stroke(ctx, '#b33a2c', 0.6, [[x + 0.8, ty + 14.5], [x + 2.6, ty + 15.6], [x + 0.8, ty + 16.8], [x + 2.6, ty + 18]]);
+      };
+      if (dir === 'side') talisman(-2);
+      else { talisman(-7); talisman(3.6); }
+    }
+    hArms(ctx, dir, w, o);
+    gearShoulders(ctx, dir, w, L.s, ty, 10.5);
+    drawHair(ctx, dir, dir === 'side' ? 1.5 : 0, -34.5 + w.bob, ap, 'back');
+    const { cx, cy } = hHead(ctx, dir, w, o);
+    if (dir !== 'up') {
+      eyes(ctx, dir, cx, cy, { blush: true, ...eyeOpts(ap) });
+      faceMarks(ctx, dir, cx, cy, ap);
+    }
+    drawHair(ctx, dir, cx, cy, ap, 'front');
+    if (dir === 'down') {
+      oval(ctx, cx - 11, cy + 4, 1.1, 1.1, gold);
+      oval(ctx, cx + 11, cy + 4, 1.1, 1.1, gold);
+    }
+    if (L.h === -2) return;
+    const band = lookColor(A.band, L.h, gold);
+    if (dir === 'up') box(ctx, cx - 11.2, cy - 6.2, 22.4, 2.6, 1.2, band);
+    else if (dir === 'down') {
+      box(ctx, cx - 11.2, cy - 7, 22.4, 2.6, 1.2, band);
+      oval(ctx, cx, cy - 5.7, 1.5, 1.5, L.h >= 4 ? '#ffffff' : '#c8402f');
+    } else box(ctx, cx - 9.5, cy - 7, 20.5, 2.6, 1.2, band);
+    // Ab Stufe Phönix eine Krone mit Zacken, ab Stufe Himmel ein Heiligenschein
+    if (L.h >= 3 && dir !== 'up') {
+      const xs = dir === 'side' ? [cx - 6, cx - 1, cx + 4] : [cx - 7, cx - 2.5, cx + 2.5, cx + 7];
+      for (const x of xs) poly(ctx, [[x - 2, cy - 7], [x, cy - 12 - (L.h >= 5 ? 2 : 0)], [x + 2, cy - 7]], band);
+    }
+    if (L.h >= 6) {
+      ctx.strokeStyle = band;
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy - 16, 8, 2.4, 0, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  },
+
+  nekromant(ctx, dir, w, f, L = { a: -1, h: -1 }) {
+    const A = ARMOR_LOOK.nekromant;
+    const bone = '#ddd5bb';
+    const robe = lookColor(A.robe, L.a, '#334a31');
+    const ap = lookOf(L, 'nekromant');
+    const o = { skin: skinOf(ap), boots: '#2a2420', robe, sleeve: darker(robe, 0.12), wideSleeves: true, tattered: true, gloves: skinOf(ap) };
+    const hood = lookColor(A.hood, L.h, '#2a3b28');
+    const eyeGlow = lookColor(A.glow, L.h, '#a7e37f');
+    const ty = -24 + w.bob;
+    hLegs(ctx, dir, w, o);
+    gearBoots(ctx, dir, w, L.b, true);
+    const wb = hBody(ctx, dir, w, o);
+    if (dir === 'down') {
+      poly(ctx, [[-2.5, ty + 2], [2.5, ty + 2], [3.6, -3.5], [-3.6, -3.5]], '#1d281c');
+      // schwach leuchtende Rune auf der Brust und geflickte Stellen
+      ctx.strokeStyle = 'rgba(167,227,127,0.55)';
+      ctx.lineWidth = 0.6;
+      ctx.beginPath();
+      ctx.arc(0, ty + 6, 1.8, 0, Math.PI * 2);
+      ctx.moveTo(0, ty + 3.6);
+      ctx.lineTo(0, ty + 8.4);
+      ctx.stroke();
+      for (const [x, y] of [[-6, ty + 9], [5.5, ty + 12]]) {
+        stroke(ctx, '#8a8470', 0.5, [[x - 1.2, y - 1.2], [x + 1.2, y + 1.2]]);
+        stroke(ctx, '#8a8470', 0.5, [[x + 1.2, y - 1.2], [x - 1.2, y + 1.2]]);
+      }
+    }
+    stroke(ctx, 'rgba(167,227,127,0.35)', 0.7, [[-wb + 2, -5.5], [wb - 2, -5.5]]);
+    const bw = dir === 'side' ? 13 : 18.5;
+    box(ctx, -bw / 2, ty + 10.5, bw, 2.6, 1, '#4a3a2a');
+    gearBelt(ctx, dir, ty + 10.2, bw / 2, L.g);
+    const skull = (x, y, s = 1) => {
+      oval(ctx, x, y, 3.6 * s, 3.2 * s, bone);
+      dot(ctx, x - 1.3 * s, y, 0.85 * s, 0.85 * s, '#1a1210');
+      dot(ctx, x + 1.3 * s, y, 0.85 * s, 0.85 * s, '#1a1210');
+    };
+    if (dir !== 'up') skull(dir === 'side' ? 4 : 0, ty + 11.8, 0.7);
+    hArms(ctx, dir, w, o);
+    if (!gearShoulders(ctx, dir, w, L.s, ty, 10.5)) {
+      if (dir === 'side') skull(w.arm * 1.5, ty + 1.5);
+      else { skull(-10.5, ty + 1); skull(10.5, ty + 1); }
+    }
+    const cx = dir === 'side' ? 1.5 : 0;
+    const cy = -34.5 + w.bob;
+    if (dir === 'side') {
+      poly(ctx, [[cx - 12, cy + 7.5], [cx - 12.5, cy - 3], [cx - 9, cy - 10], [cx - 17, cy - 16], [cx - 2, cy - 12.5], [cx + 10, cy - 5.5], [cx + 11.8, cy + 6.5]], hood);
+      dot(ctx, cx + 5.8, cy + 1.5, 5, 6.5, '#0d120c');
+      oval(ctx, cx + 6.5, cy + 6.4, 3, 1.8, o.skin);
+      eyes(ctx, 'side', cx, cy - 1, { color: lighter(eyeGlow, 0.5), glow: eyeGlow, narrow: true });
+      if (L.h >= 4) for (const [x, h] of [[cx - 4, 6], [cx + 1, 8], [cx + 6, 6]]) poly(ctx, [[x - 1.5, cy - 11], [x, cy - 11 - h], [x + 1.5, cy - 11]], bone);
+      return;
+    }
+    poly(ctx, [[cx - 12, cy + 7.5], [cx - 12.8, cy - 4], [cx - 5, cy - 13], [cx + 1, cy - 20], [cx + 6, cy - 12.5], [cx + 12.8, cy - 4], [cx + 12, cy + 7.5]], hood);
+    if (dir === 'down') {
+      dot(ctx, cx, cy + 1.6, 7.6, 7.2, '#0d120c');
+      // lange Haare fallen vorn aus der Kapuze
+      if (ap.hair === 2 || ap.hair === 4) for (const x of [cx - 7.4, cx + 4.6]) box(ctx, x, cy - 3, 2.8, 12, 1.2, hairOf(ap));
+      oval(ctx, cx, cy + 6.6, 4, 2, o.skin);
+      eyes(ctx, 'down', cx, cy - 1, { color: lighter(eyeGlow, 0.5), glow: eyeGlow, narrow: true });
+    }
+    // Ab Stufe Totenkönig eine Knochenkrone auf der Kapuze
+    // seit 13.53: Abgrund mit Leerensplittern, Ewigkeit mit Platinzacken
+    if (L.h >= 4) for (const [x, h] of [[cx - 7, 5], [cx - 3.5, 7], [cx, 9], [cx + 3.5, 7], [cx + 7, 5]]) poly(ctx, [[x - 1.4, cy - 12], [x, cy - 12 - h], [x + 1.4, cy - 12]], L.h === 8 ? '#3a2e66' : L.h === 9 ? '#efeaf6' : bone);
+    if (L.h === 8 && dir !== 'up') { oval(ctx, cx, cy - 9, 2.4, 1.5, '#5ee8ff'); oval(ctx, cx, cy - 9, 0.5, 1.3, '#0c0816'); }
+    if (L.h === 9) oval(ctx, cx, cy - 21.5, 1.3, 1.3, '#ffb8e0');
+  },
+
+  // Magier (seit 8.6): lange gerade Robe mit Mittelschlitz, hoher Stehkragen, schmale Ärmel mit Glockenstulpen,
+  // Büchlein an der Hüfte und spitzer Krempenhut. Die Elementfarbe sitzt an Hutband, Buchschließe, Runen und Kristallen.
+  magier(ctx, dir, w, f, L = { a: -1, h: -1 }) {
+    const A = ARMOR_LOOK.magier;
+    const E = mageEl({ path: L.pt });
+    const t = L.a;
+    const robe = lookColor(A.robe, t, '#283070');
+    const silver = lookColor(A.trim, t, '#d8e0f0');
+    const ap = lookOf(L, 'magier');
+    const female = ap.sex === 1;
+    const o = { skin: skinOf(ap), boots: '#22202c', robe, sleeve: darker(robe, 0.08), cuff: silver, bell: true, hem: female ? 1.12 : 0.9 };
+    const ty = -24 + w.bob;
+    const front = dir === 'down';
+    const side = dir === 'side';
+    // Erzmagier: senkrechter Siegelring hinter dem Rücken (von hinten liegt er über dem Rücken)
+    const sigilRing = () => {
+      ctx.save();
+      ctx.globalAlpha = dir === 'up' ? 0.7 : 0.9;
+      if (side) {
+        ctx.strokeStyle = '#e8c46a';
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.ellipse(-6, ty + 4, 3.2, 13, 0, 0, Math.PI * 2);
+        ctx.stroke();
+      } else {
+        ctx.strokeStyle = '#e8c46a';
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.arc(0, ty + 4, 14, 0, Math.PI * 2);
+        ctx.stroke();
+        mageGlyph2D(ctx, 0, ty + 5, 11, E.glyph, E.main, 1.3);
+      }
+      ctx.restore();
+    };
+    if (t === 7 && dir !== 'up') sigilRing();
+    // Runenring um die Taille (Arkanrobe): hintere Hälfte hinter dem Körper
+    const waistRing = (back) => {
+      ctx.save();
+      ctx.strokeStyle = E.main;
+      ctx.globalAlpha = back ? 0.45 : 0.85;
+      ctx.lineWidth = 1;
+      ctx.setLineDash([2.2, 1.6]);
+      ctx.beginPath();
+      ctx.ellipse(0, ty + 12, side ? 10 : 15, 3.4, 0, back ? Math.PI : 0, back ? Math.PI * 2 : Math.PI);
+      ctx.stroke();
+      ctx.restore();
+    };
+    // seit 13.53 kreisen auch beim Abgrundmantel (Leerensplitter) und Ewigkeitsornat (Sterne) Ringe um die Taille
+    if (t === 4 || t >= 8) waistRing(true);
+    hLegs(ctx, dir, w, o);
+    gearBoots(ctx, dir, w, L.b, true);
+    const wb = hBody(ctx, dir, w, o);
+    // Unterrobe im Mittelschlitz, Silberlinien vorn, Saumborte
+    if (front) {
+      poly(ctx, [[-1, ty + 13], [1, ty + 13], [3.4, -2.6], [-3.4, -2.6]], darker(robe, 0.25));
+      for (const sg of [-1, 1]) stroke(ctx, silver, 0.8, [[sg * 1.9, ty + 2.5], [sg * 1.9, ty + 12.5], [sg * 3.6, -2.9]]);
+    } else if (side) {
+      poly(ctx, [[3.5, ty + 13], [5, ty + 13], [7.4, -2.6], [4.2, -2.6]], darker(robe, 0.25));
+      stroke(ctx, silver, 0.8, [[3.5, ty + 2.5], [3.5, ty + 12.5], [4.2, -2.9]]);
+    } else {
+      stroke(ctx, darker(robe, 0.3), 0.6, [[0, ty + 3], [0, -3.5]]);
+    }
+    stroke(ctx, t === 7 ? '#e8c46a' : t === 9 ? '#e2957c' : silver, t >= 7 ? 1.5 : 1.1, [[-wb + 0.8, -3.3], [wb - 0.8, -3.3]]);
+    // Merkmale je Robenstufe
+    if (t === 2) {
+      // sechs leuchtende Dreiecksrunen auf dem Saumband
+      const n = side ? 3 : 6;
+      for (let k = 0; k < n; k++) {
+        const x = -wb + 2.4 + (2 * wb - 4.8) * (k + 0.5) / n;
+        mageGlyph2D(ctx, x, -5.6, 1.5, k % 2 ? 'down' : 'up', lighter(E.main, 0.2), 0.8);
+      }
+    } else if (t === 3) {
+      // Kristallspitzen am Saum
+      const n = side ? 3 : 6;
+      for (let k = 0; k < n; k++) {
+        const x = -wb + 2 + (2 * wb - 4) * (k + 0.5) / n;
+        poly(ctx, [[x - 1.3, -3.4], [x, -0.6], [x + 1.3, -3.4]], lighter(E.main, 0.35));
+      }
+    } else if (t === 4 && dir !== 'up') {
+      // Tabard mit Element-Dreieck auf der Brust
+      const x0 = side ? 2.5 : 0;
+      poly(ctx, [[x0 - 4.6, ty + 2.5], [x0 + 4.6, ty + 2.5], [x0 + 4, -3.2], [x0 - 4, -3.2]], darker(robe, 0.22));
+      stroke(ctx, silver, 0.7, [[x0 - 4.6, ty + 2.5], [x0 - 4, -3.2]]);
+      stroke(ctx, silver, 0.7, [[x0 + 4.6, ty + 2.5], [x0 + 4, -3.2]]);
+      mageGlyph2D(ctx, x0, ty + 7.5, 2.8, E.glyph, E.main, 1);
+    } else if (t === 5) {
+      // Asche: glühende Glutrisse am Saum, das Wappen in der Elementfarbe
+      for (const [x0, h] of (side ? [[-3, 6], [4, 5]] : [[-8, 7], [-2.5, 5], [4, 8], [9, 5]])) {
+        stroke(ctx, '#ff7a2a', 0.8, [[x0, -3.4], [x0 + 1.2, -3.4 - h * 0.4], [x0 - 0.6, -3.4 - h * 0.7], [x0 + 0.6, -3.4 - h]]);
+      }
+      if (front) mageGlyph2D(ctx, 0, ty + 7, 2.4, E.glyph, E.main, 0.9);
+    } else if (t === 6) {
+      // Sternbilder: Punkte, verbunden mit dünnen Linien
+      const stars = side ? [[-4, ty + 15], [1, ty + 18], [-1, -7]] : [[-8, ty + 15], [-5, ty + 18.5], [-8.5, -6], [6, ty + 14], [8.5, ty + 19], [5, -7]];
+      ctx.save();
+      ctx.globalAlpha = 0.5;
+      stroke(ctx, '#cfe0ff', 0.4, stars.slice(0, 3));
+      if (!side) stroke(ctx, '#cfe0ff', 0.4, stars.slice(3));
+      ctx.restore();
+      for (const [x, y] of stars) dot(ctx, x, y, 0.75, 0.75, '#ffffff');
+    } else if (t === 8) {
+      // Abgrund: cyanfarbene Risse steigen vom Saum auf
+      for (const [x0, h] of (side ? [[-3, 8], [4, 6]] : [[-8, 9], [-2.5, 6], [4, 10], [9, 6]])) {
+        stroke(ctx, '#5ee8ff', 0.8, [[x0, -3.4], [x0 - 1.2, -3.4 - h * 0.4], [x0 + 0.8, -3.4 - h * 0.7], [x0 - 0.4, -3.4 - h]]);
+      }
+      if (front) { oval(ctx, 0, ty + 7, 2.6, 1.6, '#5ee8ff'); oval(ctx, 0, ty + 7, 0.5, 1.4, '#0c0816'); }
+    } else if (t === 9 && dir !== 'up') {
+      // Ewigkeit: achtstrahliger Stern auf der Brust
+      const x0 = side ? 2.5 : 0;
+      for (let k = 0; k < 8; k++) { const a = (k / 8) * Math.PI * 2; const r = k % 2 ? 2 : 3.8; poly(ctx, [[x0 + Math.cos(a - 0.4) * 0.8, ty + 7 + Math.sin(a - 0.4) * 0.8], [x0 + Math.cos(a) * r, ty + 7 + Math.sin(a) * r], [x0 + Math.cos(a + 0.4) * 0.8, ty + 7 + Math.sin(a + 0.4) * 0.8]], k % 2 ? '#e2957c' : '#ffffff'); }
+    }
+    // Korsage mit Silberschnürung (Frau)
+    if (female && dir !== 'up') {
+      const x0 = side ? 1 : 0;
+      const hw = side ? 4.6 : 6;
+      poly(ctx, [[x0 - hw, ty + 3.5], [x0 + hw, ty + 3.5], [x0 + hw - 1.2, ty + 11.5], [x0 - hw + 1.2, ty + 11.5]], darker(robe, 0.16));
+      stroke(ctx, silver, 0.7, [[x0 - hw + 0.5, ty + 4], [x0 + hw - 1.6, ty + 11]]);
+      stroke(ctx, silver, 0.7, [[x0 + hw - 0.5, ty + 4], [x0 - hw + 1.6, ty + 11]]);
+    }
+    // Gürtel: Novize mit Strickgürtel, sonst schmaler dunkler Riemen
+    const bw = side ? 13 : 17;
+    if (t === 0) {
+      ctx.save();
+      ctx.setLineDash([1.2, 0.8]);
+      stroke(ctx, '#c8b890', 1.8, [[-bw / 2, ty + 11.6], [bw / 2, ty + 11.6]]);
+      ctx.restore();
+      if (dir !== 'up') stroke(ctx, '#c8b890', 0.9, [[side ? 3 : 2.5, ty + 11.6], [side ? 3.5 : 3.4, ty + 17], [side ? 4.5 : 4.4, ty + 18.5]]);
+    } else {
+      box(ctx, -bw / 2, ty + 10.6, bw, 2.4, 1, '#2a2230');
+      if (front) box(ctx, -1.6, ty + 10.2, 3.2, 3.2, 0.8, silver);
+    }
+    gearBelt(ctx, dir, ty + 10.3, bw / 2, L.g);
+    // Büchlein an der linken Hüfte, Schließe in der Elementfarbe; ab Gelehrtenrobe an einer Kette
+    const book = (x) => {
+      if (t >= 1 || t < 0) stroke(ctx, silver, 0.5, [[x + 3, ty + 12], [x + 2.5, ty + 13.6]]);
+      box(ctx, x, ty + 13.4, 6, 7, 1, '#4a2a22');
+      box(ctx, x + 4.6, ty + 14, 1.2, 5.8, 0.4, '#efe6cc');
+      oval(ctx, x + 5.2, ty + 16.9, 1.1, 1.1, E.main);
+      // Lesezeichenband (Novize)
+      if (t === 0) stroke(ctx, E.main, 0.8, [[x + 2, ty + 20.3], [x + 1.6, ty + 23]]);
+    };
+    if (front) book(-11.5);
+    else if (side) book(-5);
+    else book(5.5);
+    // Gelehrtenrobe: drei Silberschließen
+    if (t === 1 && front) for (const y of [ty + 3.5, ty + 6.5, ty + 9.5]) box(ctx, -2.6, y, 5.2, 1.3, 0.5, silver);
+    // Sternenmantel: Halbmondschließe
+    if (t === 6 && front) {
+      oval(ctx, 0, ty + 3, 2.2, 2.2, E.main);
+      dot(ctx, 0.9, ty + 2.4, 1.8, 1.8, robe);
+    }
+    hArms(ctx, dir, w, o);
+    if (t === 4 || t >= 8) waistRing(false);
+    // Schultern: Ausrüstung, sonst beim Mann ein kurzes Schultercape mit Silberrand
+    if (!gearShoulders(ctx, dir, w, L.s, ty, 10.5) && !female) {
+      const hw = side ? 7.5 : 13;
+      const x0 = side ? -0.5 : 0;
+      paintShape(ctx, () => {
+        ctx.beginPath();
+        ctx.moveTo(x0 - hw, ty + 6);
+        ctx.quadraticCurveTo(x0 - hw + 1, ty - 1.2, x0, ty - 1.2);
+        ctx.quadraticCurveTo(x0 + hw - 1, ty - 1.2, x0 + hw, ty + 6);
+        ctx.quadraticCurveTo(x0, ty + 9, x0 - hw, ty + 6);
+        ctx.closePath();
+      }, lighter(robe, 0.06), x0 - hw, ty - 1.2, hw * 2, 10);
+      ctx.strokeStyle = silver;
+      ctx.lineWidth = 0.9;
+      ctx.beginPath();
+      ctx.moveTo(x0 - hw + 0.6, ty + 6);
+      ctx.quadraticCurveTo(x0, ty + 8.6, x0 + hw - 0.6, ty + 6);
+      ctx.stroke();
+    }
+    // Kristallrobe: zwei schwebende Kristalle über den Schultern
+    if (t === 3 || t === 7) for (const x of side ? [-3] : [-12.5, 12.5]) rodCrystal(ctx, x, ty - 6, 0.55, E.main, true);
+    // Hoher Stehkragen: Silberdreiecke hinter dem Hals (Erzmagier doppelt)
+    const collar = (s) => {
+      const fill = mixColor(robe, silver, 0.35);
+      if (side) {
+        poly(ctx, [[-0.5, ty + 1.6], [-5.5 * s, ty - 6 * s], [-4.5 * s, ty + 2.4]], fill);
+        stroke(ctx, silver, 0.7, [[-5.5 * s, ty - 6 * s], [-4.5 * s, ty + 2.4]]);
+        return;
+      }
+      for (const sg of [-1, 1]) {
+        poly(ctx, [[sg * 2.4, ty + 1.6], [sg * 8.6 * s, ty - 5.6 * s], [sg * 6.8 * s, ty + 2.6]], fill);
+        stroke(ctx, silver, 0.7, [[sg * 8.6 * s, ty - 5.6 * s], [sg * 6.8 * s, ty + 2.6]]);
+      }
+    };
+    const stiff = t !== 0;
+    if (dir !== 'up') {
+      if (t === 7) collar(1.3);
+      collar(stiff ? 1 : 0.6);
+    } else {
+      // von hinten: der Kragen steht rund um den Hals hoch, der Kopf verdeckt die Mitte
+      const top = ty - (stiff ? 5 : 2.5) - (t === 7 ? 2 : 0);
+      poly(ctx, [[-8.5, ty + 1.8], [8.5, ty + 1.8], [9.6, top], [-9.6, top]], mixColor(robe, silver, 0.35));
+      stroke(ctx, silver, 0.8, [[-9.6, top], [9.6, top]]);
+    }
+    // Haare und Kopf; unter dem Hut keine Stacheln
+    const hat = L.h !== -2 && L.h !== 7;
+    const hairAp = hat && (ap.hair === 3 || ap.hair === 4) ? { ...ap, hair: ap.hair === 3 ? 0 : 2 } : ap;
+    drawHair(ctx, dir, side ? 1.5 : 0, -34.5 + w.bob, hairAp, 'back');
+    const { cx, cy } = hHead(ctx, dir, w, o);
+    if (dir !== 'up') {
+      eyes(ctx, dir, cx, cy, { blush: true, ...eyeOpts(ap) });
+      faceMarks(ctx, dir, cx, cy, ap);
+    }
+    drawHair(ctx, dir, cx, cy, hairAp, 'front');
+    if (dir === 'up' && t === 7) sigilRing();
+    // Frau: Zopf vor der Schulter (unter dem Hut)
+    if (female && hat && ap.hair !== 5) {
+      const hc = hairOf(ap);
+      const pts = dir === 'up' ? [[cx, cy + 7], [cx + 0.6, cy + 10.5], [cx, cy + 14], [cx + 0.6, cy + 17.5]]
+        : side ? [[cx + 1, cy + 7.5], [cx + 2, cy + 11], [cx + 1.6, cy + 14.5], [cx + 2.4, cy + 18]]
+          : [[cx + 8.6, cy + 5.5], [cx + 9.4, cy + 9], [cx + 9, cy + 12.5], [cx + 9.8, cy + 16]];
+      for (const [x, y] of pts) oval(ctx, x, y, 2.1, 2.2, hc);
+      const [ex, ey] = pts[pts.length - 1];
+      box(ctx, ex - 1.6, ey + 1.8, 3.2, 1.6, 0.6, E.main);
+      poly(ctx, [[ex - 1.4, ey + 3.4], [ex + 1.4, ey + 3.4], [ex + 0.6, ey + 5.6], [ex - 0.6, ey + 5.6]], hc);
+      // Strähnen unter der Krempe
+      if (front) for (const x of [cx - 11.4, cx + 9]) box(ctx, x, cy - 5, 2.4, 8, 1.1, hc);
+    }
+    if (L.h === -2) return;
+    if (L.h === 7) {
+      // Erzmagierreif: Silberreif mit drei schwebenden Kristallen
+      if (dir === 'up') box(ctx, cx - 11.2, cy - 6.4, 22.4, 2.2, 1, '#f4f6fb');
+      else if (front) {
+        box(ctx, cx - 11.2, cy - 7.2, 22.4, 2.2, 1, '#f4f6fb');
+        oval(ctx, cx, cy - 6.1, 1.5, 1.5, E.main);
+      } else box(ctx, cx - 9.5, cy - 7.2, 20.5, 2.2, 1, '#f4f6fb');
+      for (const [dx, dy] of side ? [[-5, -14], [1, -17], [6, -13]] : [[-7.5, -14.5], [0, -18], [7.5, -14.5]]) rodCrystal(ctx, cx + dx, cy + dy, 0.5, E.main, true);
+      return;
+    }
+    mageHat2D(ctx, dir, cx, cy, L.h, lookColor(A.hat, L.h, '#283070'), silver, E, female);
+  }
+};
+
+const FIGURE_BOUNDS = { x: -30, y: -60, w: 60, h: 66 };
+// Der Magier trägt einen hohen Spitzhut: oben mehr Platz
+const MAGE_FIGURE_BOUNDS = { x: -30, y: -74, w: 60, h: 80 };
+
+function characterSprite(classId, dir, frame, look = { a: -1, h: -1 }) {
+  // Beim Magier hängt das Bild am Element (Hutband, Kristall, Runen): Weg anhängen
+  const mage = classId === 'magier';
+  const el = mage ? '|' + (look.pt ?? 'a') : '';
+  // Spielfiguren in höherer Auflösung (4 Pixel je Einheit), damit sie auch nah scharf bleiben
+  // seit 14.53: Körperbau nach Geschlecht in hBody/hArms (FIG_SEX2D gilt nur während des Zeichnens)
+  return getSprite(`c:${classId}:${dir}:${frame}:${look.a}:${look.h}:${gearTier(look.b)}:${gearTier(look.g)}:${gearTier(look.s)}:${lookKey(look.ap)}${el}`, mage ? MAGE_FIGURE_BOUNDS : FIGURE_BOUNDS, (ctx) => {
+    FIG_SEX2D = lookOf(look, classId).sex;
+    try { CHARACTER_ART[classId](ctx, dir, WALK[frame], frame, look); } finally { FIG_SEX2D = -1; }
+  }, 4);
+}
+
+// Wo die Waffenhand sitzt (relativ zu den Füßen, Figur nach rechts bzw. zum Betrachter)
+function handPosition(dir, frame, side) {
+  const w = WALK[frame];
+  if (w.raise) {
+    if (dir === 'side') return { x: 9.3, y: -29.5 + w.bob };
+    return side === 'left' ? { x: -17.6, y: -33 + w.bob } : { x: 17.6, y: -33 + w.bob };
+  }
+  if (dir === 'side') return { x: w.arm * 2.2, y: -11 + w.bob };
+  return side === 'left' ? { x: -11, y: -11 + w.bob - w.arm * 0.8 } : { x: 11, y: -11 + w.bob + w.arm * 0.8 };
+}
+
+// --- Dorfbewohner und Skelette ---------------------------------------------------------------
+
+const NPC_ART = {
+  haendler(ctx) {
+    const w = WALK[0];
+    const o = { skin: '#ecc9a5', boots: '#3a2c24', robe: '#6d3f7d', sleeve: '#6d3f7d', cuff: '#e0c36a', wideSleeves: true };
+    hLegs(ctx, 'down', w, o);
+    hBody(ctx, 'down', w, o);
+    box(ctx, -6, -18, 12, 14, 3, '#efe6cc');
+    box(ctx, -9.25, -13.5, 18.5, 3, 1, '#c9a35a');
+    hArms(ctx, 'down', w, o);
+    box(ctx, -8.5, -26.5, 17, 4.5, 2, '#c9a35a');
+    const { cx, cy } = hHead(ctx, 'down', w, o);
+    eyes(ctx, 'down', cx, cy, { blush: true });
+    const hair = '#7a4a2a';
+    paintShape(ctx, () => {
+      ctx.beginPath();
+      ctx.arc(cx, cy - 0.5, 11.4, Math.PI * 1.02, Math.PI * 1.98);
+      ctx.quadraticCurveTo(cx, cy - 7, cx - 11.3, cy - 1.5);
+      ctx.closePath();
+    }, hair, cx - 11.4, cy - 12, 22.8, 10);
+    box(ctx, cx - 11.6, cy - 4, 3.2, 12, 1.5, hair);
+    box(ctx, cx + 8.4, cy - 4, 3.2, 12, 1.5, hair);
+    oval(ctx, cx, cy - 12, 5, 4.2, hair);
+    box(ctx, cx - 1.2, cy - 17, 2.4, 6, 1, '#c9a35a');
+  },
+
+  schmied(ctx) {
+    const w = WALK[0];
+    const o = { skin: '#d9a982', pants: '#3b2d25', boots: '#2f2419', torso: '#a8907a', sleeve: '#d9a982', wide: 1.15 };
+    hLegs(ctx, 'down', w, o);
+    const half = hBody(ctx, 'down', w, o);
+    box(ctx, -half + 2, -21, half * 2 - 4, 19, 3, '#6b4a2e');
+    stroke(ctx, '#3e2c1f', 0.8, [[-half + 2, -21], [-half + 5, -25]]);
+    stroke(ctx, '#3e2c1f', 0.8, [[half - 2, -21], [half - 5, -25]]);
+    hArms(ctx, 'down', w, o);
+    const { cx, cy } = hHead(ctx, 'down', w, o);
+    eyes(ctx, 'down', cx, cy);
+    paintShape(ctx, () => {
+      ctx.beginPath();
+      ctx.moveTo(cx - 9, cy + 2);
+      ctx.quadraticCurveTo(cx - 8, cy + 13, cx, cy + 14);
+      ctx.quadraticCurveTo(cx + 8, cy + 13, cx + 9, cy + 2);
+      ctx.quadraticCurveTo(cx, cy + 6, cx - 9, cy + 2);
+      ctx.closePath();
+    }, '#7a4a2a', cx - 9, cy + 2, 18, 12);
+    oval(ctx, cx - 3, cy - 7, 3, 1.4, lighter('#d9a982', 0.2));
+    heldWeapon(ctx, 'club', 12.5, -10.5, -1.2);
+  }
+};
+
+// Waffenhändler Goro: kräftig, Lederweste, Stirnband, hält ein Schwert
+NPC_ART.waffen = (ctx) => {
+  const w = WALK[0];
+  const o = { skin: '#d9a982', pants: '#3b2d25', boots: '#2f2419', torso: '#9a3a2a', sleeve: '#d9a982', wide: 1.12 };
+  hLegs(ctx, 'down', w, o);
+  const half = hBody(ctx, 'down', w, o);
+  poly(ctx, [[-half + 1, -23], [-3, -23], [-2, -9], [-half + 2, -9]], '#5a4030');
+  poly(ctx, [[half - 1, -23], [3, -23], [2, -9], [half - 2, -9]], '#5a4030');
+  box(ctx, -half, -12.5, half * 2, 3, 1, '#3a2a1c');
+  heldWeapon(ctx, 'sword', 12.5, -10.5, -1.25);
+  hArms(ctx, 'down', w, o);
+  const { cx, cy } = hHead(ctx, 'down', w, o);
+  eyes(ctx, 'down', cx, cy);
+  paintShape(ctx, () => { ctx.beginPath(); ctx.arc(cx, cy - 0.5, 11.4, Math.PI * 1.02, Math.PI * 1.98); ctx.closePath(); }, '#2a1c14', cx - 11.4, cy - 12, 22.8, 11);
+  box(ctx, cx - 11.4, cy - 6.5, 22.8, 3, 1.2, '#c8402f');
+  poly(ctx, [[cx + 10, cy - 5], [cx + 15, cy - 1], [cx + 13, cy - 6]], '#c8402f');
+  paintShape(ctx, () => {
+    ctx.beginPath();
+    ctx.moveTo(cx - 7, cy + 4);
+    ctx.quadraticCurveTo(cx, cy + 12, cx + 7, cy + 4);
+    ctx.quadraticCurveTo(cx, cy + 7, cx - 7, cy + 4);
+    ctx.closePath();
+  }, '#2a1c14', cx - 7, cy + 4, 14, 7);
+};
+
+// Rüstungshändlerin Mei: Lederschürze mit Metallplatten, Pferdeschwanz, hält einen Schild
+NPC_ART.ruestung = (ctx) => {
+  const w = WALK[0];
+  const o = { skin: '#ecc9a5', pants: '#3a3f48', boots: '#2a2420', torso: '#5a6a7a', sleeve: '#5a6a7a', cuff: '#c9a35a' };
+  hLegs(ctx, 'down', w, o);
+  const half = hBody(ctx, 'down', w, o);
+  box(ctx, -half + 3, -20, half * 2 - 6, 16, 3, '#6b4a2e');
+  box(ctx, -4, -18, 8, 5, 1, '#c7ccd3');
+  box(ctx, -half, -12.5, half * 2, 2.6, 1, '#c9a35a');
+  hArms(ctx, 'down', w, o);
+  ctx.save();
+  ctx.translate(-11, -11);
+  ctx.scale(0.8, 0.8);
+  shieldArt(ctx, 2);
+  ctx.restore();
+  const { cx, cy } = hHead(ctx, 'down', w, o);
+  eyes(ctx, 'down', cx, cy, { blush: true });
+  const hair = '#3a2a2a';
+  paintShape(ctx, () => {
+    ctx.beginPath();
+    ctx.arc(cx, cy - 0.5, 11.4, Math.PI * 1.02, Math.PI * 1.98);
+    ctx.quadraticCurveTo(cx, cy - 7, cx - 11.3, cy - 1.5);
+    ctx.closePath();
+  }, hair, cx - 11.4, cy - 12, 22.8, 10);
+  box(ctx, cx + 8.4, cy - 4, 3.2, 9, 1.5, hair);
+  poly(ctx, [[cx + 6, cy - 10], [cx + 15, cy - 6], [cx + 13, cy + 8], [cx + 9, cy - 4]], hair);
+  box(ctx, cx + 7, cy - 9, 3, 3, 1, '#c9a35a');
+};
+
+// Symbole über den Köpfen der Dorfbewohner
+const NPC_ICONS = {
+  haendler(ctx) {
+    oval(ctx, 0, 0, 6.5, 6.5, '#e8c46a');
+    oval(ctx, 0, 0, 3.8, 3.8, '#c9a35a');
+  },
+  waffen(ctx) {
+    ctx.rotate(-Math.PI / 4);
+    ctx.scale(0.6, 0.6);
+    ctx.translate(-11, 0);
+    weaponArt(ctx, 'sword', 3);
+  },
+  ruestung(ctx) {
+    ctx.scale(0.62, 0.62);
+    shieldArt(ctx, 3);
+  },
+  // Lager (seit 9.1): kleine Truhe mit Goldschloss
+  lager(ctx) {
+    box(ctx, -6.5, -4.5, 13, 9, 1.4, '#8a6238');
+    box(ctx, -6.5, -1.2, 13, 1.4, 0.3, '#5a3e22');
+    box(ctx, -1.3, -2.2, 2.6, 3.4, 0.5, '#e8c46a');
+  },
+  schmied(ctx) {
+    ctx.rotate(-0.6);
+    box(ctx, -1.2, -2, 2.4, 13, 1, '#6b4a2e');
+    box(ctx, -6, -7, 12, 6, 1.5, '#9aa1a8');
+  }
+};
+
+// Weitere Dorfbewohner -------------------------------------------------------------------
+
+// Einfache Figur von vorn mit Haaren bzw. Kopfbedeckung (head) und Dingen in der Hand (extra)
+function villagerArt(ctx, o) {
+  const w = WALK[0];
+  if (o.scale) ctx.scale(o.scale, o.scale);
+  if (o.behind) o.behind(ctx);
+  hLegs(ctx, 'down', w, o);
+  const half = hBody(ctx, 'down', w, o);
+  if (o.body) o.body(ctx, half);
+  hArms(ctx, 'down', w, o);
+  const { cx, cy } = hHead(ctx, 'down', w, o);
+  eyes(ctx, 'down', cx, cy, o.eyes || {});
+  if (o.head) o.head(ctx, cx, cy);
+  if (o.extra) o.extra(ctx);
+}
+
+const hairCap = (ctx, cx, cy, color, long) => {
+  paintShape(ctx, () => {
+    ctx.beginPath();
+    ctx.arc(cx, cy - 0.5, 11.4, Math.PI * 1.02, Math.PI * 1.98);
+    ctx.quadraticCurveTo(cx, cy - 7, cx - 11.3, cy - 1.5);
+    ctx.closePath();
+  }, color, cx - 11.4, cy - 12, 22.8, 10);
+  if (long) {
+    box(ctx, cx - 11.6, cy - 4, 3.2, long, 1.5, color);
+    box(ctx, cx + 8.4, cy - 4, 3.2, long, 1.5, color);
+  }
+};
+
+Object.assign(NPC_ART, {
+  // Dungeon-Eingang (seit 8.4 wie in 3D): rundes Podest mit Stufe, zwei Säulen mit Moos, Bogen aus Keilsteinen;
+  // die Öffnung bleibt dunkel, den Wirbel in der Farbe des Dungeons malt drawNpc darüber
+  eingang(ctx) {
+    oval(ctx, 0, -1, 27, 7.5, '#5e5850');
+    oval(ctx, 0, -3, 23, 6, '#7a7268');
+    box(ctx, -9, 2, 18, 4.5, 2, '#6a625a');
+    paintShape(ctx, () => gateOpening2(ctx), '#120c14', -11, -39, 22, 36);
+    for (const sx of [-1, 1]) {
+      box(ctx, sx * 16 - 4, -31, 8, 29, 3.5, '#857c70');
+      box(ctx, sx * 16 - 5.5, -6, 11, 4, 2, '#6a625a');
+      box(ctx, sx * 16 - 5.5, -33, 11, 4, 2, '#6e8a44');
+    }
+    for (let i = 0; i < 7; i++) {
+      const a = Math.PI + (i * Math.PI) / 6;
+      if (i !== 3) oval(ctx, Math.cos(a) * 16, -29 + Math.sin(a) * 16, 4.8, 4.4, i % 2 ? '#857c70' : '#8e857a');
+    }
+    box(ctx, -5.5, -51, 11, 11, 4, '#968c80');
+  },
+  // Weltentor: großer Steinring mit leuchtendem Wirbel (bringt zu Map 1, 2 und 3)
+  weltentor(ctx) {
+    oval(ctx, 0, -2, 26, 7, '#5a544c');
+    oval(ctx, 0, -3, 21, 5, '#7a746a');
+    box(ctx, -22, -10, 8, 9, 2, '#6e685e');
+    box(ctx, 14, -10, 8, 9, 2, '#6e685e');
+    paintShape(ctx, () => { ctx.beginPath(); ctx.ellipse(0, -30, 20, 26, 0, 0, Math.PI * 2); ctx.ellipse(0, -30, 13.5, 19.5, 0, 0, Math.PI * 2, true); }, '#8a8478', -20, -56, 40, 52);
+    oval(ctx, 0, -30, 13.5, 19.5, '#3a6ab8');
+    oval(ctx, 0, -30, 9, 14, '#7ab8ff');
+    oval(ctx, 0, -30, 4.5, 8, '#e8f6ff');
+    for (const [x, y] of [[0, -56], [-19, -38], [19, -38], [-19, -20], [19, -20]]) oval(ctx, x, y, 3.2, 3.2, '#c9a35a');
+    ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.arc(0, -30, 7, 0.5, 3.6);
+    ctx.stroke();
+  },
+  // Ausgang im Dungeon (seit 8.4): flacher Steinkreis mit vier runden Steinen; Wirbel und Lichtsäule malt drawNpc
+  ausgang(ctx) {
+    oval(ctx, 0, -2, 19, 7, '#4a4440');
+    oval(ctx, 0, -3, 16, 5.5, '#5e5850');
+    for (const [x, y] of [[-14, -7], [14, -7], [-14, 2], [14, 2]]) oval(ctx, x, y - 4, 3.6, 5.5, '#8a8278');
+  },
+  stallmeister: (ctx) => villagerArt(ctx, {
+    skin: '#e2b98f', pants: '#4a3a2a', boots: '#2a1e16', torso: '#7a5a3a', sleeve: '#7a5a3a', gloves: '#5a3a22', belt: '#2a1e16',
+    body: (ctx, half) => { box(ctx, -half, -12.5, half * 2, 2.6, 1, '#2a1e16'); box(ctx, -3, -22, 6, 9, 1.5, '#c9a35a'); },
+    head: (ctx, cx, cy) => {
+      paintShape(ctx, () => { ctx.beginPath(); ctx.ellipse(cx, cy - 7, 17, 4, 0, 0, Math.PI * 2); }, '#c8a060', cx - 17, cy - 11, 34, 8);
+      paintShape(ctx, () => { ctx.beginPath(); ctx.arc(cx, cy - 8, 9, Math.PI, 0); ctx.closePath(); }, '#c8a060', cx - 9, cy - 17, 18, 9);
+      box(ctx, cx - 9, cy - 10, 18, 2, 0.8, '#7a2a1a');
+      stroke(ctx, '#5a3a22', 1.2, [[cx - 4, cy + 6], [cx + 4, cy + 6]]);
+    },
+    extra: (ctx) => {
+      // Zügel in der Hand
+      stroke(ctx, '#5a3a22', 1.4, [[11, -14], [16, -4], [13, 6]]);
+    }
+  }),
+  // Dorfältester Bao: weißer Bart, Robe, Stab
+  aeltester: (ctx) => villagerArt(ctx, {
+    skin: '#e6c4a0', boots: '#3a2c24', robe: '#7a5a2a', sleeve: '#7a5a2a', cuff: '#e0c36a', wideSleeves: true,
+    behind: (ctx) => { box(ctx, 11, -44, 2.6, 44, 1, '#6b4a2e'); oval(ctx, 12.3, -46, 3.4, 3.4, '#9be2ff'); },
+    body: (ctx) => box(ctx, -9.25, -13.5, 18.5, 3, 1, '#e0c36a'),
+    head: (ctx, cx, cy) => {
+      paintShape(ctx, () => { ctx.beginPath(); ctx.moveTo(cx - 8, cy + 3); ctx.quadraticCurveTo(cx - 6, cy + 18, cx, cy + 20); ctx.quadraticCurveTo(cx + 6, cy + 18, cx + 8, cy + 3); ctx.quadraticCurveTo(cx, cy + 7, cx - 8, cy + 3); ctx.closePath(); }, '#f4f0e8', cx - 8, cy + 3, 16, 17);
+      stroke(ctx, '#f4f0e8', 2.4, [[cx - 7, cy - 2], [cx - 3, cy - 3]]);
+      stroke(ctx, '#f4f0e8', 2.4, [[cx + 3, cy - 3], [cx + 7, cy - 2]]);
+      oval(ctx, cx, cy - 12, 5, 4, '#f4f0e8');
+      box(ctx, cx - 1.2, cy - 18, 2.4, 6, 1, '#6b4a2e');
+    }
+  }),
+  // Jägerin Rin: grüne Tunika, Bogen, Pferdeschwanz
+  jaegerin: (ctx) => villagerArt(ctx, {
+    skin: '#ecc9a5', pants: '#3a3a2a', boots: '#4a3424', torso: '#3e6a3a', sleeve: '#3e6a3a', gloves: '#6b4a2e', eyes: { blush: true },
+    behind: (ctx) => { box(ctx, -15, -40, 5, 18, 1.5, '#6b4a2e'); for (const x of [-14, -12]) stroke(ctx, '#e8e0cc', 0.8, [[x, -40], [x, -44]]); },
+    body: (ctx, half) => { stroke(ctx, '#6b4a2e', 1.4, [[-half + 2, -23], [half - 2, -11]]); box(ctx, -half, -12.5, half * 2, 2.6, 1, '#6b4a2e'); },
+    head: (ctx, cx, cy) => {
+      hairCap(ctx, cx, cy, '#7a3a1a', 0);
+      poly(ctx, [[cx + 6, cy - 10], [cx + 16, cy - 4], [cx + 13, cy + 10], [cx + 9, cy - 4]], '#7a3a1a');
+      box(ctx, cx - 10, cy - 7, 20, 2.4, 1, '#3e6a3a');
+    },
+    extra: (ctx) => heldWeapon(ctx, 'bow', 13, -12, -1.57)
+  }),
+  // Wegweiserin Lian: blaue Robe, leuchtende Kugel
+  teleport: (ctx) => villagerArt(ctx, {
+    skin: '#ecc9a5', boots: '#2a2c3a', robe: '#2f4f7a', sleeve: '#2f4f7a', cuff: '#9fd0ff', wideSleeves: true, eyes: { blush: true },
+    body: (ctx) => { box(ctx, -9.25, -13.5, 18.5, 3, 1, '#9fd0ff'); poly(ctx, [[-2.5, -23], [2.5, -23], [3.6, -3], [-3.6, -3]], '#e9e2cf'); },
+    head: (ctx, cx, cy) => {
+      hairCap(ctx, cx, cy, '#1a1a2a', 12);
+      oval(ctx, cx, cy - 12, 4.5, 4, '#1a1a2a');
+      stroke(ctx, '#9fd0ff', 1.2, [[cx - 3, cy - 15], [cx + 3, cy - 15]]);
+    },
+    extra: (ctx) => { oval(ctx, 12, -15, 4, 4, '#bfe8ff'); dot(ctx, 11, -16.2, 1.3, 1.3, '#ffffff'); }
+  }),
+  // Lagerverwalter (seit 9.1): braune Arbeitsjacke mit heller Schürze, Schlüsselbund am Gürtel, Kiste in der Hand
+  lager: (ctx) => villagerArt(ctx, {
+    skin: '#e2b48c', boots: '#2a2018', torso: '#6a4a2e', sleeve: '#5a3e26', pants: '#3a2c20', belt: '#2a1c12',
+    body: (ctx) => {
+      box(ctx, -6, -16, 12, 13, 1.5, '#d8c49a');
+      box(ctx, -6, -16, 12, 1.4, 0.5, '#b09a70');
+      ctx.strokeStyle = '#c9a35a'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(5.5, -8, 2.2, 0, Math.PI * 2); ctx.stroke();
+      box(ctx, 5, -6.5, 1, 3.5, 0.3, '#c9a35a');
+    },
+    head: (ctx, cx, cy) => {
+      paintShape(ctx, () => { ctx.beginPath(); ctx.arc(cx, cy - 0.5, 11.4, Math.PI * 1.05, Math.PI * 1.95); ctx.quadraticCurveTo(cx, cy - 6, cx - 11, cy - 2); ctx.closePath(); }, '#5a3a22', cx - 11.4, cy - 12, 22.8, 10);
+      paintShape(ctx, () => { ctx.beginPath(); ctx.moveTo(cx - 7, cy + 4); ctx.quadraticCurveTo(cx, cy + 13, cx + 7, cy + 4); ctx.closePath(); }, '#5a3a22', cx - 7, cy + 4, 14, 9);
+    },
+    extra: (ctx) => {
+      box(ctx, 7, -16, 11, 9, 1, '#8a6238');
+      box(ctx, 7, -12.2, 11, 1.4, 0.3, '#5a3e22');
+      box(ctx, 11.6, -16, 1.6, 9, 0.3, '#c9a35a');
+    }
+  }),
+  // Lehrmeister (seit 8.7): grüne Gelehrtenrobe mit Goldschärpe, weißer Bart, dickes Buch in der Hand
+  lehrmeister: (ctx) => villagerArt(ctx, {
+    skin: '#e9c6a1', boots: '#2a2420', robe: '#2f5a4a', sleeve: '#2f5a4a', cuff: '#c9a35a', wideSleeves: true,
+    body: (ctx) => {
+      box(ctx, -9.25, -13.5, 18.5, 3, 1, '#c9a35a');
+      paintShape(ctx, () => { ctx.beginPath(); ctx.moveTo(-6, -24); ctx.lineTo(6, -12); ctx.lineTo(3, -12); ctx.lineTo(-8, -22); ctx.closePath(); }, '#c9a35a', -8, -24, 14, 12);
+    },
+    head: (ctx, cx, cy) => {
+      paintShape(ctx, () => { ctx.beginPath(); ctx.arc(cx, cy - 1, 10.6, Math.PI, 0); ctx.closePath(); }, '#d8d0c8', cx - 10.6, cy - 11.6, 21.2, 10.6);
+      paintShape(ctx, () => { ctx.beginPath(); ctx.moveTo(cx - 6, cy + 5); ctx.quadraticCurveTo(cx, cy + 18, cx + 6, cy + 5); ctx.closePath(); }, '#e8e2da', cx - 6, cy + 5, 12, 13);
+      for (const x of [-4.2, 4.2]) { ctx.strokeStyle = '#5a4a3a'; ctx.lineWidth = 0.9; ctx.beginPath(); ctx.arc(cx + x, cy + 1.5, 2.8, 0, Math.PI * 2); ctx.stroke(); }
+    },
+    extra: (ctx) => {
+      box(ctx, 7.5, -19, 9, 11, 1.2, '#7a2a1a');
+      box(ctx, 8.6, -18, 6.8, 9, 0.8, '#f0e6cc');
+      box(ctx, 11.4, -19, 1.2, 11, 0.4, '#c9a35a');
+    }
+  }),
+  // Alchemist Yun: violette Robe, Fläschchen am Gürtel
+  alchemist: (ctx) => villagerArt(ctx, {
+    skin: '#e9c6a1', boots: '#2a2420', robe: '#5a3a6a', sleeve: '#5a3a6a', cuff: '#c9a35a', wideSleeves: true,
+    body: (ctx) => {
+      box(ctx, -9.25, -13.5, 18.5, 3, 1, '#c9a35a');
+      for (const [x, c] of [[-6, '#7fb8ff'], [-1, '#9fe08f'], [4, '#ff8a7a']]) { box(ctx, x, -11, 3, 4, 1, c); box(ctx, x + 0.8, -12.4, 1.4, 1.6, 0.4, '#6b4a2e'); }
+    },
+    head: (ctx, cx, cy) => {
+      paintShape(ctx, () => { ctx.beginPath(); ctx.arc(cx, cy - 0.5, 11.4, Math.PI, 0); ctx.closePath(); }, '#3a2a4a', cx - 11.4, cy - 12, 22.8, 11.4);
+      box(ctx, cx - 12, cy - 4, 24, 2.6, 1, '#c9a35a');
+      for (const x of [-4.2, 4.2]) { ctx.strokeStyle = '#c9a35a'; ctx.lineWidth = 0.9; ctx.beginPath(); ctx.arc(cx + x, cy + 1.5, 3, 0, Math.PI * 2); ctx.stroke(); }
+      paintShape(ctx, () => { ctx.beginPath(); ctx.moveTo(cx - 5, cy + 6); ctx.lineTo(cx, cy + 13); ctx.lineTo(cx + 5, cy + 6); ctx.closePath(); }, '#2a2a2a', cx - 5, cy + 6, 10, 7);
+    },
+    extra: (ctx) => { box(ctx, 10, -18, 5, 7, 2, '#9fe08f'); box(ctx, 11.4, -20, 2.2, 2.4, 0.5, '#6b4a2e'); }
+  }),
+  // Torwache mit Speer und Helm
+  wache: (ctx) => villagerArt(ctx, {
+    skin: '#e0b896', pants: '#3a2d25', boots: '#2a1e18', torso: '#8a2a24', sleeve: '#6a2a24', gloves: '#5a4030',
+    behind: (ctx) => { box(ctx, 12, -58, 2.4, 58, 1, '#6b4a2e'); poly(ctx, [[11, -58], [13.2, -66], [15.4, -58]], '#c7ccd3'); },
+    body: (ctx, half) => {
+      for (let k = 0; k < 3; k++) stroke(ctx, 'rgba(201,163,90,0.8)', 0.7, [[-half + 1.5, -20.5 + k * 3], [half - 1.5, -20.5 + k * 3]]);
+      box(ctx, -half, -12.5, half * 2, 3, 1, '#c9a35a');
+    },
+    head: (ctx, cx, cy) => {
+      paintShape(ctx, () => { ctx.beginPath(); ctx.arc(cx, cy - 1, 11.8, Math.PI, 0); ctx.closePath(); }, '#7a828c', cx - 11.8, cy - 12.8, 23.6, 11.8);
+      box(ctx, cx - 12.5, cy - 2.6, 25, 3.2, 1.5, '#c9a35a');
+      oval(ctx, cx, cy - 13.5, 2.2, 2.2, '#c8402f');
+    }
+  }),
+  bauer: (ctx) => villagerArt(ctx, {
+    skin: '#d9a982', pants: '#5a4a32', boots: '#3a2a1c', torso: '#8a7a5a', sleeve: '#8a7a5a',
+    head: (ctx, cx, cy) => {
+      paintShape(ctx, () => { ctx.beginPath(); ctx.moveTo(cx - 17, cy - 3); ctx.lineTo(cx, cy - 16); ctx.lineTo(cx + 17, cy - 3); ctx.closePath(); }, '#d8b86a', cx - 17, cy - 16, 34, 13);
+      stroke(ctx, '#a8884a', 0.7, [[cx - 9, cy - 7], [cx + 9, cy - 7]]);
+    },
+    extra: (ctx) => { box(ctx, 11.5, -34, 2, 30, 1, '#6b4a2e'); poly(ctx, [[9, -36], [16, -36], [17, -32], [8, -32]], '#9aa1a8'); }
+  }),
+  kind: (ctx) => villagerArt(ctx, {
+    scale: 0.72, skin: '#f0cfaa', pants: '#3a4a6a', boots: '#3a2a1c', torso: '#c8602a', sleeve: '#c8602a', eyes: { blush: true },
+    head: (ctx, cx, cy) => { hairCap(ctx, cx, cy, '#2a1c14', 0); oval(ctx, cx - 8, cy - 9, 3.4, 3.4, '#2a1c14'); oval(ctx, cx + 8, cy - 9, 3.4, 3.4, '#2a1c14'); }
+  }),
+  alte: (ctx) => villagerArt(ctx, {
+    skin: '#e0c0a0', boots: '#2a2420', robe: '#5a4a5a', sleeve: '#5a4a5a', wideSleeves: true,
+    head: (ctx, cx, cy) => { hairCap(ctx, cx, cy, '#cfcac4', 6); oval(ctx, cx, cy - 12.5, 5, 4.2, '#cfcac4'); stroke(ctx, '#c9a35a', 1, [[cx - 4, cy - 14], [cx + 5, cy - 11]]); },
+    extra: (ctx) => box(ctx, -15, -16, 2.2, 16, 1, '#6b4a2e')
+  }),
+  moench: (ctx) => villagerArt(ctx, {
+    skin: '#e0b48a', boots: '#3a2a1c', robe: '#d8782a', sleeve: '#d8782a', wideSleeves: true,
+    body: (ctx) => stroke(ctx, '#9a3a1a', 2.4, [[-7, -23], [6, -6]]),
+    head: (ctx, cx, cy) => { oval(ctx, cx - 3, cy - 7, 3, 1.5, lighter('#e0b48a', 0.25)); for (let k = 0; k < 5; k++) oval(ctx, -8 + k * 4, -23.5, 1.6, 1.6, '#6b2a1a'); }
+  })
+});
+
+Object.assign(NPC_ICONS, {
+  aeltester(ctx) {
+    box(ctx, -6, -8, 12, 16, 1.5, '#efe6cc');
+    for (const y of [-4, 0, 4]) stroke(ctx, '#8a7a5a', 0.8, [[-3.5, y], [3.5, y]]);
+    oval(ctx, 0, -8, 7, 1.8, '#c9a35a');
+    oval(ctx, 0, 8, 7, 1.8, '#c9a35a');
+  },
+  jaegerin(ctx) {
+    oval(ctx, 0, 0, 7.5, 7.5, '#e8d8a8');
+    oval(ctx, 0, 0, 5, 5, '#c8402f');
+    oval(ctx, 0, 0, 2.2, 2.2, '#e8d8a8');
+    stroke(ctx, '#6b4a2e', 1.2, [[2, -2], [9, -9]]);
+  },
+  teleport(ctx) {
+    oval(ctx, 0, 0, 7, 7, '#5a8ab0');
+    oval(ctx, 0, 0, 4.4, 4.4, '#bfe8ff');
+    stroke(ctx, '#2f4f7a', 1.1, [[-2.5, -2.5], [2, 0], [-2.5, 2.5]]);
+  },
+  alchemist(ctx) {
+    oval(ctx, 0, 3, 6.5, 6, '#9fe08f');
+    box(ctx, -2.5, -9, 5, 7, 1, '#c9e8d0');
+    box(ctx, -3.2, -10, 6.4, 2, 0.6, '#6b4a2e');
+    dot(ctx, -2, 2, 1.4, 1.4, '#ffffff');
+  }
+});
+
+// Symbole über den Köpfen (seit 12.0 einheitlich): runde Plakette mit Goldrand, Grundfarbe der Rolle und einem
+// klaren Bild – Trank, gekreuzte Schwerter, Brustpanzer, Hammer und Amboss, Truhe, Schriftrolle, Kompass,
+// Bogen, Kessel, Buch, Hufeisen
+function npcBadge(ctx, color, pic) {
+  dot(ctx, 0, 0.8, 12.6, 12.6, 'rgba(0,0,0,0.35)');
+  const g = ctx.createRadialGradient(-3, -4, 1, 0, 0, 12);
+  g.addColorStop(0, lighter(color, 0.25));
+  g.addColorStop(1, darker(color, 0.35));
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(0, 0, 11.4, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#e8c878';
+  ctx.lineWidth = 1.8;
+  ctx.stroke();
+  ctx.strokeStyle = 'rgba(40,24,8,0.8)';
+  ctx.lineWidth = 0.8;
+  ctx.beginPath();
+  ctx.arc(0, 0, 12.5, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.save();
+  pic(ctx);
+  ctx.restore();
+  // Glanz oben links
+  ctx.fillStyle = 'rgba(255,255,255,0.18)';
+  ctx.beginPath();
+  ctx.ellipse(-3.5, -6, 5.5, 2.6, -0.4, 0, Math.PI * 2);
+  ctx.fill();
+}
+const badgeArc = (ctx, color, w, r, a0, a1, x = 0, y = 0) => {
+  ctx.strokeStyle = color;
+  ctx.lineWidth = w;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.arc(x, y, r, a0, a1);
+  ctx.stroke();
+};
+function badgeSword(ctx, ang) {
+  ctx.save();
+  ctx.rotate(ang);
+  poly(ctx, [[-1.3, 3], [-1.3, -6], [0, -8.4], [1.3, -6], [1.3, 3]], '#e4ebf2');
+  box(ctx, -3.8, 2.6, 7.6, 1.8, 0.8, '#e8c46a');
+  box(ctx, -0.9, 4.3, 1.8, 3.4, 0.6, '#7a4a2a');
+  dot(ctx, 0, 8.2, 1.3, 1.3, '#e8c46a');
+  ctx.restore();
+}
+Object.assign(NPC_ICONS, {
+  haendler: (ctx) => npcBadge(ctx, '#7a3a8a', (c) => {
+    box(c, -1.7, -7, 3.4, 4.5, 0.8, '#dfeef4');
+    box(c, -2.3, -8.6, 4.6, 2, 0.6, '#8a5a34');
+    oval(c, 0, 1.6, 5.6, 5.4, '#e8404a');
+    dot(c, -1.8, -0.2, 1.5, 1.2, 'rgba(255,255,255,0.75)');
+  }),
+  alchemist: (ctx) => npcBadge(ctx, '#2f6a46', (c) => {
+    oval(c, 0, 2.6, 6.4, 4.8, '#2e2a2e');
+    box(c, -7, -1.6, 14, 2, 1, '#4a4448');
+    oval(c, 0, -1.4, 5.6, 1.2, '#7aff6a');
+    for (const [x, y, r] of [[-2, -4.5, 1.6], [1.8, -6.5, 1.2], [0.2, -8.6, 0.9]]) dot(c, x, y, r, r, '#b8ffa8');
+  }),
+  waffen: (ctx) => npcBadge(ctx, '#8a2a2a', (c) => {
+    badgeSword(c, -0.7);
+    badgeSword(c, 0.7);
+  }),
+  ruestung: (ctx) => npcBadge(ctx, '#2f5a7a', (c) => {
+    poly(c, [[-6.5, -6], [-2.4, -7], [0, -4.6], [2.4, -7], [6.5, -6], [7, -0.5], [5, 5.5], [0, 7.8], [-5, 5.5], [-7, -0.5]], '#c4cdd6');
+    stroke(c, '#7a8694', 0.9, [[0, -4.4], [0, 7.4]]);
+    stroke(c, '#e8c46a', 1.2, [[-5.4, 1.6], [0, 3.4], [5.4, 1.6]]);
+  }),
+  schmied: (ctx) => npcBadge(ctx, '#5a4636', (c) => {
+    poly(c, [[-7, 1.2], [6, 1.2], [8, -0.8], [6.5, 3.2], [3, 3.6], [3, 5.6], [5, 7.4], [-5, 7.4], [-3, 5.6], [-3, 3.6], [-7, 3.2]], '#6a707a');
+    c.rotate(-0.55);
+    box(c, -0.9, -4, 1.8, 9.5, 0.6, '#8a5a34');
+    box(c, -4.4, -7.8, 8.8, 4, 1, '#c4cdd6');
+  }),
+  lager: (ctx) => npcBadge(ctx, '#6a4a2a', (c) => {
+    box(c, -7, -3.6, 14, 9.6, 1.4, '#a8783e');
+    box(c, -7, -6.6, 14, 4, 1.6, '#c08a48');
+    box(c, -7, -2.4, 14, 1.4, 0.3, '#5a3e22');
+    for (const x of [-4.6, 3.4]) box(c, x, -6.4, 1.2, 12.2, 0.3, '#5a3e22');
+    box(c, -1.5, -3.6, 3, 3.8, 0.6, '#f0cc6a');
+  }),
+  aeltester: (ctx) => npcBadge(ctx, '#7c3a2c', (c) => {
+    box(c, -5.2, -6.6, 10.4, 13.2, 1, '#f4ead0');
+    for (const y of [-3.4, -0.8, 1.8, 4.2]) stroke(c, '#9a8a6a', 0.9, [[-3.4, y], [3.4, y]]);
+    for (const y of [-7.2, 7.2]) box(c, -6.8, y - 1.4, 13.6, 2.8, 1.4, '#c9a35a');
+    dot(c, 2.6, 4.6, 1.6, 1.6, '#c8302a');
+  }),
+  teleport: (ctx) => npcBadge(ctx, '#2f5a8a', (c) => {
+    oval(c, 0, 0, 8, 8, '#e8f2fa');
+    badgeArc(c, '#7a8694', 0.8, 6.2, 0, Math.PI * 2);
+    poly(c, [[0, -7], [1.9, 0], [-1.9, 0]], '#d83a3a');
+    poly(c, [[0, 7], [1.9, 0], [-1.9, 0]], '#3a4a5a');
+    dot(c, 0, 0, 1.2, 1.2, '#e8c46a');
+  }),
+  jaegerin: (ctx) => npcBadge(ctx, '#3e5a2e', (c) => {
+    badgeArc(c, '#b07a40', 2, 8, -Math.PI * 0.42, Math.PI * 0.42, -3, 0);
+    stroke(c, '#f4ead0', 0.8, [[-3 + 8 * Math.cos(Math.PI * 0.42), -8 * Math.sin(Math.PI * 0.42)], [-3 + 8 * Math.cos(Math.PI * 0.42), 8 * Math.sin(Math.PI * 0.42)]]);
+    stroke(c, '#e8e0d0', 1.2, [[-6, 0], [7, 0]]);
+    poly(c, [[9, 0], [5.6, -2], [5.6, 2]], '#c4cdd6');
+    poly(c, [[-6, 0], [-8.4, -2.2], [-7, 0], [-8.4, 2.2]], '#d83a3a');
+  }),
+  lehrmeister: (ctx) => npcBadge(ctx, '#226060', (c) => {
+    poly(c, [[0, -4.6], [-7.6, -6.4], [-7.6, 5], [0, 6.8]], '#f4ead0');
+    poly(c, [[0, -4.6], [7.6, -6.4], [7.6, 5], [0, 6.8]], '#e8dcc0');
+    for (const y of [-2.6, 0, 2.6]) {
+      stroke(c, '#8a7a5a', 0.8, [[-6, y - 1], [-1.4, y]]);
+      stroke(c, '#8a7a5a', 0.8, [[1.4, y], [6, y - 1]]);
+    }
+    stroke(c, '#8a5a34', 1.2, [[0, -4.6], [0, 6.8]]);
+  }),
+  stallmeister: (ctx) => npcBadge(ctx, '#6a4a2a', (c) => {
+    badgeArc(c, '#c4cdd6', 3.4, 5.6, Math.PI * 0.82, Math.PI * 2.18, 0, 0.6);
+    for (const a of [0.95, 1.2, 1.45, 1.55, 1.8, 2.05]) dot(c, Math.cos(Math.PI * a) * 5.6, 0.6 + Math.sin(Math.PI * a) * 5.6, 0.7, 0.7, '#4a4e56');
+  })
+});
+
+function npcIconSprite(id) {
+  return getSprite('ni2:' + id, { x: -14, y: -14, w: 28, h: 28 }, (ctx) => NPC_ICONS[id](ctx));
+}
+
+function shieldSprite(tier) {
+  return getSprite('sh:' + tier, { x: -12, y: -13, w: 24, h: 26 }, (ctx) => shieldArt(ctx, tier));
+}
+
+function npcSprite(id) {
+  return getSprite('n:' + id, FIGURE_BOUNDS, (ctx) => NPC_ART[id](ctx));
+}
+
+function drawSkeletonArt(ctx, w) {
+  const bone = '#ddd5bb';
+  const dark = '#8f8a78';
+  const s = w.l * 2.6;
+  box(ctx, -1.5 - s, -10, 3, 8, 1.5, dark);
+  box(ctx, -1.5 + s, -10, 3, 8, 1.5, bone);
+  box(ctx, -2.5 + s, -3, 6, 3, 1.4, bone);
+  box(ctx, -5, -12, 10, 3, 1.5, bone);
+  box(ctx, -1.2, -24 + w.bob, 2.4, 12, 1, dark);
+  for (let k = 0; k < 3; k++) box(ctx, -6, -23 + w.bob + k * 3.5, 12, 2, 1, bone);
+  box(ctx, -1 + w.arm * 2, -22 + w.bob, 2.6, 11, 1.3, bone);
+  heldWeapon(ctx, 'sword', 0.5 + w.arm * 2, -11 + w.bob, -1);
+  oval(ctx, 1.5, -33 + w.bob, 9, 8.5, bone);
+  box(ctx, 2.5, -29 + w.bob, 7, 4, 1.5, bone);
+  dot(ctx, 5.5, -33.5 + w.bob, 2, 2.4, '#1a1210');
+  dot(ctx, 5.5, -33.5 + w.bob, 0.7, 0.7, '#a7e37f');
+  stroke(ctx, '#1a1210', 0.6, [[4, -27.5 + w.bob], [9, -27.5 + w.bob]]);
+}
+
+function skeletonSprite(frame) {
+  return getSprite('s:' + frame, FIGURE_BOUNDS, (ctx) => drawSkeletonArt(ctx, WALK[frame]));
+}
+
+// Tuch über der unteren Gesichtshälfte (Seitenansicht), auf die Kopfform zugeschnitten
+function faceCloth(ctx, cx, cy, color) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, 11, 10.5, 0, 0, Math.PI * 2);
+  ctx.clip();
+  box(ctx, cx - 3, cy + 2.6, 16, 10, 1, color);
+  ctx.restore();
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, 11, 10.5, 0, 0.05, 1.35);
+  ctx.strokeStyle = darker(color, 0.5);
+  ctx.lineWidth = 0.7;
+  ctx.stroke();
+}
+
+// --- Monster -------------------------------------------------------------------------------
+// Alle Monster sind von der Seite gezeichnet und schauen nach rechts; links wird gespiegelt.
+
+// Auge mit Weiß, Pupille und Glanzpunkt (Blick nach rechts)
+function monsterEye(ctx, x, y, r, iris, angry) {
+  dot(ctx, x, y, r, r * (angry ? 0.7 : 1), '#f4efe2');
+  dot(ctx, x + r * 0.25, y + (angry ? r * 0.05 : 0), r * 0.62, r * (angry ? 0.5 : 0.7), iris);
+  dot(ctx, x + r * 0.35, y, r * 0.3, r * 0.34, '#120c08');
+  dot(ctx, x - r * 0.05, y - r * 0.3, r * 0.22, r * 0.22, '#ffffff');
+  if (angry) stroke(ctx, '#120c08', 1.2, [[x - r * 1.1, y - r * 1.1], [x + r * 0.9, y - r * 0.45]]);
+}
+
+// Vierbeiner von der Seite: Hund, Wolf, Alpha-Wolf, Wildschwein
+function beastArt(ctx, f, o) {
+  const swing = [0, 2.2, 0, -2.2][f];
+  const fur = o.fur;
+  const dark = darker(fur, 0.28);
+  const leg = (x, phase, back) => {
+    const c = back ? darker(fur, 0.22) : fur;
+    oval(ctx, x + phase * 0.4, -7.5, 3.2, 3.6, c);
+    box(ctx, x + phase - 1.5, -8, 3.2, 7.4, 1.4, c);
+    oval(ctx, x + phase + 0.6, -0.9, 2.8, 1.6, darker(fur, 0.45));
+    stroke(ctx, '#f4efe2', 0.6, [[x + phase + 2.4, -0.4], [x + phase + 3.2, 0.3]]);
+  };
+  // Schwanz
+  if (o.tail !== false) {
+    if (o.bushy) poly(ctx, [[-10, -13], [-12, -9], [-17, -12 + swing * 0.4], [-21, -18 + swing * 0.4], [-18, -21 + swing * 0.4], [-14, -17]], fur);
+    else poly(ctx, [[-10, -13], [-11, -10.5], [-17, -15 + swing * 0.5], [-17, -19 + swing * 0.5]], fur);
+    if (o.bushy) dot(ctx, -19, -19 + swing * 0.4, 2.2, 1.8, o.belly);
+  }
+  leg(-8, -swing, true);
+  leg(5, swing, true);
+  leg(-6, swing, false);
+  leg(7, -swing, false);
+  // Körper mit hellerem Bauch und dunklem Rücken
+  oval(ctx, 0, -12, 12.5, o.bulky ? 8.5 : 7, fur);
+  dot(ctx, 1, -8.2, 9, 2.8, o.belly);
+  dot(ctx, -1, -17.2, 9, 2.2, dark);
+  // Fellsträhnen
+  for (const [x, y] of [[-6, -14], [-1, -15], [4, -14]]) stroke(ctx, dark, 0.8, [[x, y], [x - 2, y + 3]]);
+  if (o.ridge) {
+    ctx.fillStyle = darker(fur, 0.45);
+    ctx.beginPath();
+    ctx.moveTo(-11, -16);
+    for (let k = 0; k <= 9; k++) ctx.lineTo(-11 + k * 2.4, -21.5 + (k % 2 ? 3 : 0));
+    ctx.lineTo(10, -16);
+    ctx.closePath();
+    ctx.fill();
+  }
+  if (o.scar) stroke(ctx, '#e0c0b0', 0.9, [[-4, -15], [0, -10]]);
+  // Halskrause bzw. Mähne
+  if (o.ruff) poly(ctx, [[4, -20], [7, -24], [8.5, -19.5], [11, -23.5], [12.5, -18], [12, -9], [5, -7]], o.ruff);
+  if (o.mane) poly(ctx, [[1, -21], [4, -27], [6.5, -21], [9, -27], [11, -21], [14, -25], [13.5, -13], [3, -9]], o.mane);
+  // Kopf
+  const hx = o.bulky ? 12.5 : 11.5;
+  oval(ctx, hx, -15.5, 6.6, 6, fur);
+  if (o.ears !== false) {
+    poly(ctx, [[hx - 3.5, -19.5], [hx - 1.5, -27], [hx + 2, -20]], darker(fur, 0.1));
+    poly(ctx, [[hx - 2.6, -20.5], [hx - 1.5, -25], [hx + 0.8, -20.6]], '#d89a8a');
+  }
+  // Schnauze mit Maul und Nase
+  box(ctx, hx + 2.5, -16.5, 8, 5.4, 2.4, o.snout || o.belly);
+  stroke(ctx, darker(o.snout || o.belly, 0.5), 0.8, [[hx + 4, -12.6], [hx + 9.8, -13]]);
+  if (o.fangs) {
+    poly(ctx, [[hx + 6, -12.8], [hx + 6.8, -10.6], [hx + 7.4, -12.9]], '#ffffff');
+    poly(ctx, [[hx + 8.4, -13], [hx + 9, -11], [hx + 9.5, -13]], '#ffffff');
+  }
+  dot(ctx, hx + 10, -15.6, 1.5, 1.2, '#1a1210');
+  dot(ctx, hx + 9.6, -16.1, 0.5, 0.4, '#ffffff');
+  if (o.tusk) {
+    poly(ctx, [[hx + 6, -12], [hx + 9.5, -18], [hx + 8, -11.5]], '#f4ecd8');
+    stroke(ctx, '#c8b898', 0.6, [[hx + 7, -12.5], [hx + 8.8, -16]]);
+  }
+  monsterEye(ctx, hx + 2, -17.6, o.small ? 1.3 : 1.7, o.eye || '#6a4a2a', o.angry);
+  if (o.glow) {
+    ctx.globalAlpha = 0.45;
+    dot(ctx, hx + 2.3, -17.6, 3.6, 3.6, o.eye);
+    ctx.globalAlpha = 1;
+  }
+}
+
+// Menschengestalten von der Seite: Banditen, Orks, Oger, Dämon
+function humanoidMonsterArt(ctx, f, o) {
+  const w = WALK[f];
+  ctx.save();
+  ctx.scale(o.scale || 1, o.scale || 1);
+  if (o.tail) {
+    const sw = [0, 1.5, 0, -1.5][f];
+    stroke(ctx, o.skin, 2.6, [[-4, -12], [-12, -10 + sw], [-17, -15 + sw]]);
+    poly(ctx, [[-17, -15 + sw], [-21, -19 + sw], [-15, -20 + sw]], darker(o.skin, 0.3));
+  }
+  if (o.wings) {
+    const flap = [0, -1.5, 0, 1.5][f];
+    poly(ctx, [[-2, -24 + w.bob], [-15, -38 + flap], [-24, -30 + flap], [-18, -27], [-22, -19 + flap], [-13, -21], [-4, -14 + w.bob]], o.wings);
+    stroke(ctx, darker(o.wings, 0.5), 1.2, [[-2, -24 + w.bob], [-15, -38 + flap], [-18, -27]]);
+    stroke(ctx, darker(o.wings, 0.5), 1, [[-15, -38 + flap], [-22, -19 + flap]]);
+  }
+  if (o.cape) poly(ctx, [[-4, -24 + w.bob], [3, -24 + w.bob], [0, -4], [-9, -3 - w.arm * 1.5]], o.cape);
+  hLegs(ctx, 'side', w, o);
+  if (o.belly) {
+    oval(ctx, 0, -17 + w.bob, 11, 10.5, o.skin);
+    dot(ctx, 2, -14 + w.bob, 7, 6, lighter(o.skin, 0.12));
+    for (const [x, y] of [[-5, -22], [4, -9], [-2, -13]]) stroke(ctx, darker(o.skin, 0.35), 0.8, [[x, y + w.bob], [x + 2, y + 2 + w.bob], [x + 1, y + 4 + w.bob]]);
+    box(ctx, -10, -11 + w.bob, 20, 5, 2, o.pants);
+    stroke(ctx, '#8a7a5a', 1, [[-10, -10 + w.bob], [10, -10 + w.bob]]);
+    if (o.cracks) {
+      for (const pts of [[[-6, -24], [-2, -19], [-5, -14]], [[3, -22], [6, -16], [3, -12]], [[-1, -10], [2, -7]]]) {
+        stroke(ctx, o.cracks, 1.4, pts.map(([x, y]) => [x, y + w.bob]));
+      }
+    }
+  } else {
+    hBody(ctx, 'side', w, o);
+    if (o.straps) stroke(ctx, o.straps, 1.3, [[-5, -23 + w.bob], [5, -13 + w.bob]]);
+    if (o.belt) {
+      box(ctx, -6.5, -13.5 + w.bob, 13, 2.6, 1, o.belt);
+      if (o.pouch) box(ctx, -6, -12 + w.bob, 4, 4, 1, o.pouch);
+    }
+    if (o.necklace) for (let k = 0; k < 3; k++) poly(ctx, [[k * 2.5 - 1, -23 + w.bob], [k * 2.5 + 0.2, -20 + w.bob], [k * 2.5 + 1.2, -23 + w.bob]], '#f4ecd8');
+    if (o.pauldron) {
+      oval(ctx, w.arm, -21 + w.bob, 5.8, 4.2, o.pauldron);
+      if (o.spikes) {
+        poly(ctx, [[w.arm - 3, -24 + w.bob], [w.arm - 2, -29 + w.bob], [w.arm, -24.5 + w.bob]], '#d9dde2');
+        poly(ctx, [[w.arm + 1, -24.5 + w.bob], [w.arm + 3, -28.5 + w.bob], [w.arm + 3.5, -23.5 + w.bob]], '#d9dde2');
+      }
+    }
+    if (o.runes) {
+      ctx.globalAlpha = 0.8;
+      stroke(ctx, o.runes, 1, [[-1, -21 + w.bob], [2, -18 + w.bob], [-1, -15 + w.bob]]);
+      ctx.globalAlpha = 1;
+    }
+  }
+  const hand = handPosition('side', f);
+  if (o.weapon) heldWeapon(ctx, o.weapon, hand.x + 1, hand.y, o.weaponAngle != null ? o.weaponAngle : -1);
+  hArms(ctx, 'side', w, o);
+  if (o.claws) for (let k = 0; k < 3; k++) stroke(ctx, '#f4ecd8', 0.8, [[hand.x + 1 + k, hand.y + 2], [hand.x + 2 + k, hand.y + 4.2]]);
+  const { cx, cy } = hHead(ctx, 'side', w, o);
+  if (o.head) o.head(ctx, cx, cy, w);
+  ctx.restore();
+}
+
+const MONSTER_ART = {
+  hund: { h: 26, draw: (ctx, f) => beastArt(ctx, f, { fur: '#8a6748', belly: '#c8a47e', eye: '#7a4a1a', lean: true }) },
+  wolf: { h: 28, draw: (ctx, f) => { ctx.scale(1.08, 1.08); beastArt(ctx, f, { fur: '#7d8188', belly: '#c4c7cb', ruff: '#a4a8ad', bushy: true, eye: '#d8a03a', fangs: true, lean: true }); } },
+  alphawolf: { h: 35, draw: (ctx, f) => { ctx.scale(1.32, 1.32); beastArt(ctx, f, { fur: '#43484f', belly: '#8d9196', mane: '#25292e', bushy: true, eye: '#ff3a2a', angry: true, glow: true, fangs: true, scar: true, lean: true }); } },
+  wildschwein: { h: 30, draw: (ctx, f) => { ctx.scale(1.15, 1.15); beastArt(ctx, f, { fur: '#5a3f2e', belly: '#7a5a44', snout: '#c09080', bulky: true, ridge: true, tusk: true, tail: false, small: true, eye: '#3a1a0a', angry: true }); } },
+  bandit: {
+    h: 46, draw: (ctx, f) => humanoidMonsterArt(ctx, f, {
+      scale: 0.95, skin: '#d9b896', pants: '#4a3b2a', boots: '#2f2419', torso: '#6d5a3e', sleeve: '#5c4b33', belt: '#2f2419', pouch: '#8a6a44', straps: '#3a2a1c', cape: '#7a2a24', weapon: 'sword',
+      head: (ctx, cx, cy) => {
+        paintShape(ctx, () => { ctx.beginPath(); ctx.arc(cx, cy - 0.5, 11.4, Math.PI * 0.9, Math.PI * 2.02); ctx.closePath(); }, '#5a3a22', cx - 11.4, cy - 12, 22.8, 12);
+        box(ctx, cx - 10.5, cy - 6, 21.5, 3, 1.4, '#9a2f2a');
+        poly(ctx, [[cx - 10, cy - 5], [cx - 17, cy - 1], [cx - 15, cy - 6]], '#9a2f2a');
+        faceCloth(ctx, cx, cy, '#9a2f2a');
+        monsterEye(ctx, cx + 5.6, cy - 0.8, 1.8, '#4a3a22', true);
+      }
+    })
+  },
+  banditschuetze: {
+    h: 46, draw: (ctx, f) => humanoidMonsterArt(ctx, f, {
+      scale: 0.95, skin: '#d9b896', pants: '#3e4a2e', boots: '#2f2419', torso: '#4f6a3e', sleeve: '#435a35', belt: '#2f2419', pouch: '#8a6a44', weapon: 'bow', weaponAngle: 0,
+      head: (ctx, cx, cy) => {
+        poly(ctx, [[cx - 12, cy + 6], [cx - 12, cy - 4], [cx - 4, cy - 12.5], [cx + 7, cy - 10], [cx + 11.5, cy - 2], [cx + 3, cy - 3], [cx - 2, cy + 6]], '#3e5530');
+        faceCloth(ctx, cx, cy, '#9a2f2a');
+        monsterEye(ctx, cx + 5.6, cy - 0.8, 1.8, '#3a4a22', true);
+        // Köcher auf dem Rücken
+        box(ctx, cx - 16, cy + 4, 5, 14, 1.5, '#6b4a2e');
+        stroke(ctx, '#e8e0cc', 0.8, [[cx - 15, cy + 4], [cx - 16.5, cy + 0.5]]);
+        stroke(ctx, '#e8e0cc', 0.8, [[cx - 13, cy + 4], [cx - 12.5, cy + 0.5]]);
+      }
+    })
+  },
+  ork: {
+    h: 52, draw: (ctx, f) => humanoidMonsterArt(ctx, f, {
+      scale: 1.12, skin: '#6f8f45', pants: '#3e3226', boots: '#2a2018', torso: '#5a4632', sleeve: '#6f8f45', gloves: '#6f8f45', belt: '#2a2018', pauldron: '#7d848c', spikes: true, straps: '#2a2018', necklace: true, weapon: 'axe',
+      head: (ctx, cx, cy) => {
+        poly(ctx, [[cx - 3, cy - 6], [cx - 9, cy - 13], [cx - 1, cy - 9]], '#6f8f45');
+        box(ctx, cx - 10, cy - 10, 20, 4, 1.8, '#3e3226');
+        dot(ctx, cx + 6, cy - 3.2, 4.5, 1.6, darker('#6f8f45', 0.3));
+        poly(ctx, [[cx + 6.5, cy + 7], [cx + 8, cy + 1.5], [cx + 9.5, cy + 7]], '#f4ecd8');
+        poly(ctx, [[cx + 3.5, cy + 7.5], [cx + 4.5, cy + 3.5], [cx + 5.8, cy + 7.5]], '#f4ecd8');
+        monsterEye(ctx, cx + 6, cy - 0.6, 1.8, '#c8302a', true);
+        stroke(ctx, '#2a3a1a', 0.8, [[cx - 4, cy + 1], [cx - 1, cy + 4]]);
+      }
+    })
+  },
+  orkschamane: {
+    h: 50, draw: (ctx, f) => humanoidMonsterArt(ctx, f, {
+      scale: 1.05, skin: '#5d8a73', boots: '#2a2018', robe: '#3e5a4f', sleeve: '#3e5a4f', gloves: '#5d8a73', wideSleeves: true, tattered: true, necklace: true, weapon: 'skullstaff', weaponAngle: -1.35,
+      head: (ctx, cx, cy) => {
+        poly(ctx, [[cx - 8, cy - 9], [cx - 15, cy - 21], [cx - 9, cy - 19]], '#c9a35a');
+        poly(ctx, [[cx - 5, cy - 10], [cx - 9, cy - 25], [cx - 3, cy - 22]], '#b33a2c');
+        poly(ctx, [[cx - 2, cy - 10], [cx - 3, cy - 23], [cx + 2, cy - 20]], '#3a6a8a');
+        box(ctx, cx - 10, cy - 9.5, 20, 3.4, 1.5, '#4a3a2a');
+        for (let k = 0; k < 3; k++) dot(ctx, cx - 6 + k * 5, cy - 7.8, 1, 1, '#f4ecd8');
+        poly(ctx, [[cx + 6.5, cy + 7], [cx + 8, cy + 1.5], [cx + 9.5, cy + 7]], '#f4ecd8');
+        monsterEye(ctx, cx + 6, cy - 0.6, 1.8, '#5ac8ff', false);
+        ctx.globalAlpha = 0.5;
+        dot(ctx, cx + 6.3, cy - 0.6, 3.6, 3.6, '#9be2ff');
+        ctx.globalAlpha = 1;
+        stroke(ctx, '#e8e0cc', 0.9, [[cx - 1, cy + 3], [cx + 3, cy + 5]]);
+      }
+    })
+  },
+  oger: {
+    h: 66, draw: (ctx, f) => humanoidMonsterArt(ctx, f, {
+      scale: 1.45, belly: true, skin: '#8f897b', pants: '#4a3a2a', boots: '#3a3328', sleeve: '#8f897b', gloves: '#8f897b', weapon: 'club', weaponAngle: -1.3,
+      head: (ctx, cx, cy) => {
+        poly(ctx, [[cx - 2, cy - 9], [cx + 1, cy - 18], [cx + 3.5, cy - 9]], '#e0d6bc');
+        stroke(ctx, '#a89c80', 0.7, [[cx - 0.5, cy - 12], [cx + 2.5, cy - 12.5]]);
+        poly(ctx, [[cx + 5.5, cy + 7], [cx + 7.5, cy + 1], [cx + 9, cy + 7]], '#f4ecd8');
+        dot(ctx, cx + 5, cy - 3.2, 4.6, 1.5, darker('#8f897b', 0.35));
+        monsterEye(ctx, cx + 5.2, cy - 0.4, 1.5, '#d8a03a', true);
+        for (const [x, y] of [[-6, -4], [-3, 4]]) stroke(ctx, darker('#8f897b', 0.4), 0.8, [[cx + x, cy + y], [cx + x + 2, cy + y + 2]]);
+      }
+    })
+  },
+  daemon: {
+    h: 52, draw: (ctx, f) => humanoidMonsterArt(ctx, f, {
+      scale: 1.1, skin: '#a8343f', pants: '#1f1214', boots: '#2a1416', torso: '#8e2f3a', sleeve: '#a8343f', gloves: '#2a1416', wings: '#4a1a20', belt: '#1f1214', tail: true, claws: true, runes: '#ffb04a',
+      head: (ctx, cx, cy) => {
+        poly(ctx, [[cx - 6, cy - 8], [cx - 13, cy - 16], [cx - 11, cy - 22], [cx - 2, cy - 10]], '#2a1416');
+        poly(ctx, [[cx + 2, cy - 9.5], [cx + 1, cy - 19], [cx + 4, cy - 23], [cx + 7, cy - 9]], '#2a1416');
+        stroke(ctx, '#4a2a2a', 0.7, [[cx - 9, cy - 13], [cx - 7, cy - 12]]);
+        dot(ctx, cx + 5.6, cy - 3, 4.8, 1.4, '#5a141a');
+        monsterEye(ctx, cx + 6, cy - 0.6, 1.8, '#ffd34d', true);
+        ctx.globalAlpha = 0.55;
+        dot(ctx, cx + 6.3, cy - 0.6, 4, 4, '#ff9a4a');
+        ctx.globalAlpha = 1;
+        poly(ctx, [[cx + 4, cy + 5], [cx + 10.5, cy + 4.5], [cx + 7.5, cy + 7.5]], '#2a1416');
+        poly(ctx, [[cx + 6, cy + 5], [cx + 6.8, cy + 6.8], [cx + 7.4, cy + 5]], '#ffffff');
+      }
+    })
+  }
+};
+
+// Spinne von der Seite: großer Hinterleib, acht Beine, Augenreihe
+function spiderArt(ctx, f, o) {
+  const sw = [0, 1.8, 0, -1.8][f];
+  const legC = darker(o.body, 0.25);
+  for (let k = 0; k < 4; k++) {
+    const x = -4 + k * 4.5;
+    const ph = (k % 2 ? sw : -sw);
+    stroke(ctx, legC, 1.8, [[x, -10], [x - 4 + ph, -17], [x - 7 + ph, 0]]);
+    stroke(ctx, o.body, 2, [[x + 1, -10], [x + 5 - ph, -18], [x + 8 - ph, 0]]);
+  }
+  oval(ctx, -9, -13, 10.5, 8.5, o.body);
+  for (let k = 0; k < 3; k++) dot(ctx, -11 + k * 3.5, -16 + (k % 2) * 3, 1.8, 1.2, o.mark);
+  oval(ctx, 5, -11, 7, 5.6, lighter(o.body, 0.08));
+  poly(ctx, [[10, -9], [13, -4], [11, -8.5]], '#2a2018');
+  poly(ctx, [[9, -8], [11.5, -3.5], [9.5, -7.5]], '#2a2018');
+  for (const [x, y, r] of [[7.5, -14, 1.3], [10, -13, 1.5], [9, -11, 1], [11.5, -11, 1]]) dot(ctx, x, y, r, r, o.eye);
+  ctx.globalAlpha = 0.4;
+  dot(ctx, 9.5, -12.5, 4, 3, o.eye);
+  ctx.globalAlpha = 1;
+}
+
+// Skorpion: Scheren vorn, Stachelschwanz über dem Rücken
+function scorpionArt(ctx, f, o) {
+  const sw = [0, 1.6, 0, -1.6][f];
+  for (let k = 0; k < 3; k++) {
+    const x = -6 + k * 5;
+    stroke(ctx, darker(o.body, 0.3), 1.6, [[x, -8], [x - 3 + (k % 2 ? sw : -sw), -1]]);
+    stroke(ctx, o.body, 1.8, [[x + 1, -8], [x + 4 - (k % 2 ? sw : -sw), 0]]);
+  }
+  // Schwanz aus Gliedern
+  const seg = [[-11, -11], [-16, -16], [-17, -23], [-13, -29], [-6, -31]];
+  seg.forEach(([x, y], i) => oval(ctx, x, y + (i > 2 ? sw * 0.4 : 0), 4 - i * 0.4, 3.6 - i * 0.4, i % 2 ? darker(o.body, 0.12) : o.body));
+  poly(ctx, [[-4, -33 + sw * 0.4], [2, -30 + sw * 0.4], [-4, -28 + sw * 0.4]], o.sting);
+  ctx.globalAlpha = 0.5;
+  dot(ctx, -2, -30.5 + sw * 0.4, 4, 4, o.sting);
+  ctx.globalAlpha = 1;
+  oval(ctx, -2, -9, 11, 5.5, o.body);
+  for (const x of [-8, -3, 2]) stroke(ctx, darker(o.body, 0.35), 0.8, [[x, -14], [x + 1, -4.5]]);
+  oval(ctx, 9, -9, 5, 4.4, lighter(o.body, 0.08));
+  // Scheren
+  stroke(ctx, o.body, 2.2, [[10, -8], [15, -5 - sw * 0.5]]);
+  poly(ctx, [[14, -8 - sw * 0.5], [21, -9 - sw * 0.5], [22, -5 - sw * 0.5], [18, -5.5 - sw * 0.5], [21, -2 - sw * 0.5], [15, -2 - sw * 0.5]], darker(o.body, 0.1));
+  monsterEye(ctx, 11, -11.5, 1.2, '#2a1a0a', true);
+}
+
+// Geist: schwebt, unten ausgefranst, durchscheinend
+function ghostArt(ctx, f, o) {
+  const sw = [0, 1, 0, -1][f];
+  ctx.globalAlpha = 0.88;
+  paintShape(ctx, () => {
+    ctx.beginPath();
+    ctx.moveTo(-11, -28);
+    ctx.quadraticCurveTo(-12, -44, 0, -46);
+    ctx.quadraticCurveTo(13, -44, 12, -28);
+    ctx.lineTo(13, -8);
+    for (let k = 0; k < 5; k++) ctx.lineTo(13 - (k + 0.5) * 5.2, -2 - ((k + f) % 2) * 4);
+    ctx.lineTo(-13, -8);
+    ctx.closePath();
+  }, o.body, -13, -46, 26, 44);
+  ctx.globalAlpha = 1;
+  // Arme
+  poly(ctx, [[8, -26], [17, -20 + sw], [15, -17 + sw], [7, -21]], o.body);
+  poly(ctx, [[-8, -26], [-15, -18 - sw], [-12, -16 - sw], [-7, -21]], darker(o.body, 0.1));
+  // Eiszapfen-Krone
+  for (const [x, h] of [[-6, 6], [0, 9], [6, 6]]) poly(ctx, [[x - 2.5, -42], [x, -42 - h], [x + 2.5, -42]], o.crown);
+  dot(ctx, 3, -34, 2.2, 3, '#0d1a2a');
+  dot(ctx, 9, -34, 2, 2.8, '#0d1a2a');
+  ctx.globalAlpha = 0.6;
+  dot(ctx, 3, -34, 3.4, 3.8, o.eye);
+  dot(ctx, 9, -34, 3, 3.4, o.eye);
+  ctx.globalAlpha = 1;
+  dot(ctx, 6, -27, 3, 1.4, '#0d1a2a');
+}
+
+// Flügel hinter einem Vierbeiner (Feuerdrache)
+function dragonWings(ctx, f, color) {
+  const flap = [0, -3, 0, 3][f];
+  poly(ctx, [[-2, -18], [-10, -40 + flap], [-20, -44 + flap], [-16, -34 + flap], [-26, -32 + flap], [-18, -26], [-24, -20 + flap * 0.5], [-8, -14]], color);
+  stroke(ctx, darker(color, 0.5), 1.1, [[-2, -18], [-10, -40 + flap], [-16, -34 + flap]]);
+  stroke(ctx, darker(color, 0.5), 1, [[-10, -40 + flap], [-18, -26]]);
+}
+
+Object.assign(MONSTER_ART, {
+  waldspinne: { h: 26, draw: (ctx, f) => { ctx.scale(1.15, 1.15); spiderArt(ctx, f, { body: '#3a3328', mark: '#b8402a', eye: '#ff4a3a' }); } },
+  braunbaer: { h: 42, draw: (ctx, f) => { ctx.scale(1.55, 1.55); beastArt(ctx, f, { fur: '#6a4a30', belly: '#9a7a58', snout: '#b89a78', bulky: true, tail: false, eye: '#3a2010', angry: true, fangs: true }); } },
+  skorpion: { h: 32, draw: (ctx, f) => { ctx.scale(1.2, 1.2); scorpionArt(ctx, f, { body: '#b07a3a', sting: '#9be07a' }); } },
+  orkhauptmann: {
+    h: 60, draw: (ctx, f) => humanoidMonsterArt(ctx, f, {
+      scale: 1.28, skin: '#5a7a38', pants: '#2e261c', boots: '#1e1810', torso: '#3e3a40', sleeve: '#5a7a38', gloves: '#3e3a40', belt: '#c9a35a', pauldron: '#c9a35a', spikes: true, cape: '#8a1a14', necklace: true, weapon: 'axe',
+      head: (ctx, cx, cy) => {
+        paintShape(ctx, () => { ctx.beginPath(); ctx.arc(cx, cy - 1, 11.6, Math.PI, 0); ctx.closePath(); }, '#6e7680', cx - 11.6, cy - 12.6, 23.2, 11.6);
+        poly(ctx, [[cx - 8, cy - 9], [cx - 15, cy - 20], [cx - 6, cy - 12]], '#e0d6bc');
+        poly(ctx, [[cx + 4, cy - 11], [cx + 6, cy - 23], [cx + 9, cy - 10]], '#e0d6bc');
+        poly(ctx, [[cx + 6.5, cy + 7], [cx + 8, cy + 1.5], [cx + 9.5, cy + 7]], '#f4ecd8');
+        monsterEye(ctx, cx + 6, cy - 0.6, 1.8, '#ffb04a', true);
+        stroke(ctx, '#e0c0b0', 0.9, [[cx + 2, cy - 4], [cx + 5, cy + 3]]);
+      }
+    })
+  },
+  hoellenhund: { h: 36, draw: (ctx, f) => { ctx.scale(1.3, 1.3); beastArt(ctx, f, { fur: '#2e2222', belly: '#4a3030', mane: '#d8402a', bushy: true, eye: '#ffb04a', angry: true, glow: true, fangs: true, ridge: true, lean: true }); } },
+  eiswolf: { h: 32, draw: (ctx, f) => { ctx.scale(1.2, 1.2); beastArt(ctx, f, { fur: '#c8d8e8', belly: '#f4f8fc', ruff: '#ffffff', bushy: true, eye: '#3ab0ff', glow: true, angry: true, fangs: true, lean: true }); } },
+  yeti: {
+    h: 68, draw: (ctx, f) => humanoidMonsterArt(ctx, f, {
+      scale: 1.5, belly: true, skin: '#e8eef4', pants: '#c8d4e0', boots: '#a8b8c8', sleeve: '#e8eef4', gloves: '#9aa8b8', claws: true,
+      head: (ctx, cx, cy) => {
+        oval(ctx, cx + 4, cy + 1, 6.5, 5.5, '#8aa8c8');
+        poly(ctx, [[cx - 4, cy - 9], [cx - 8, cy - 16], [cx - 1, cy - 10]], '#f4f8fc');
+        monsterEye(ctx, cx + 5.5, cy - 0.5, 1.5, '#3a6ab8', true);
+        poly(ctx, [[cx + 5, cy + 5], [cx + 6, cy + 2.5], [cx + 7, cy + 5]], '#ffffff');
+        poly(ctx, [[cx + 8, cy + 5], [cx + 9, cy + 2.5], [cx + 10, cy + 5]], '#ffffff');
+      }
+    })
+  },
+  frostgeist: { h: 46, draw: (ctx, f) => ghostArt(ctx, f, { body: '#cfeeff', crown: '#ffffff', eye: '#3ab0ff' }) },
+  untoter: {
+    h: 46, draw: (ctx, f) => humanoidMonsterArt(ctx, f, {
+      scale: 1, skin: '#cfc8b0', pants: '#3a3428', boots: '#2a241c', torso: '#5a5448', sleeve: '#cfc8b0', gloves: '#cfc8b0', belt: '#3a2a1c', pauldron: '#6e6a60', straps: '#3a2a1c', weapon: 'sword',
+      head: (ctx, cx, cy) => {
+        dot(ctx, cx + 5.5, cy - 0.5, 2.6, 2.8, '#1a1210');
+        dot(ctx, cx + 5.5, cy - 0.5, 1, 1, '#a7e37f');
+        ctx.globalAlpha = 0.5;
+        dot(ctx, cx + 5.5, cy - 0.5, 3.6, 3.6, '#a7e37f');
+        ctx.globalAlpha = 1;
+        box(ctx, cx + 2, cy + 4, 8, 3.4, 1, '#ddd5bb');
+        for (let k = 0; k < 4; k++) stroke(ctx, '#1a1210', 0.5, [[cx + 3 + k * 2, cy + 4], [cx + 3 + k * 2, cy + 7.4]]);
+        paintShape(ctx, () => { ctx.beginPath(); ctx.arc(cx, cy - 1, 11.4, Math.PI * 0.95, Math.PI * 2.05); ctx.closePath(); }, '#6e6a60', cx - 11.4, cy - 12.4, 22.8, 11.4);
+      }
+    })
+  },
+  sumpfhexe: {
+    h: 50, draw: (ctx, f) => humanoidMonsterArt(ctx, f, {
+      scale: 1.02, skin: '#8aa070', boots: '#2a2018', robe: '#3a4a2e', sleeve: '#3a4a2e', gloves: '#8aa070', wideSleeves: true, tattered: true, necklace: true, weapon: 'skullstaff', weaponAngle: -1.35,
+      head: (ctx, cx, cy) => {
+        poly(ctx, [[cx - 15, cy - 4], [cx + 15, cy - 5], [cx + 6, cy - 9], [cx - 2, cy - 27], [cx - 6, cy - 9]], '#2a2a22');
+        box(ctx, cx - 6, cy - 11, 13, 3, 1, '#7a2a6a');
+        poly(ctx, [[cx + 9, cy + 1], [cx + 14, cy + 3], [cx + 9, cy + 4]], '#7a9060');
+        monsterEye(ctx, cx + 5.6, cy - 0.5, 1.7, '#c6f08a', true);
+        box(ctx, cx - 12, cy - 3, 4, 12, 1.5, '#4a4a3a');
+      }
+    })
+  },
+  ghul: {
+    h: 58, draw: (ctx, f) => humanoidMonsterArt(ctx, f, {
+      scale: 1.35, belly: true, skin: '#6a7a5a', pants: '#3a3428', boots: '#2a241c', sleeve: '#6a7a5a', gloves: '#6a7a5a', claws: true,
+      head: (ctx, cx, cy) => {
+        dot(ctx, cx + 5, cy - 2.6, 4.6, 1.4, darker('#6a7a5a', 0.4));
+        monsterEye(ctx, cx + 5.4, cy - 0.4, 1.6, '#e8e04a', true);
+        box(ctx, cx + 2, cy + 4, 9, 3.5, 1.5, '#3a1a14');
+        for (let k = 0; k < 4; k++) poly(ctx, [[cx + 3 + k * 2, cy + 4], [cx + 4 + k * 2, cy + 6.5], [cx + 5 + k * 2, cy + 4]], '#ece4cc');
+        for (const x of [-6, -2]) stroke(ctx, '#3a4a2a', 0.8, [[cx + x, cy - 8], [cx + x + 1, cy - 4]]);
+      }
+    })
+  },
+  lavagolem: {
+    h: 72, draw: (ctx, f) => humanoidMonsterArt(ctx, f, {
+      scale: 1.6, belly: true, skin: '#3a2a26', pants: '#2a1e1a', boots: '#1e1614', sleeve: '#3a2a26', gloves: '#4a3430', cracks: '#ff8a2a',
+      head: (ctx, cx, cy) => {
+        stroke(ctx, '#ff8a2a', 1.3, [[cx - 6, cy - 8], [cx - 2, cy - 3], [cx - 5, cy + 2]]);
+        dot(ctx, cx + 5.5, cy - 0.5, 2.2, 1.6, '#ffd34d');
+        ctx.globalAlpha = 0.55;
+        dot(ctx, cx + 5.5, cy - 0.5, 4.4, 4, '#ff7a2a');
+        ctx.globalAlpha = 1;
+        box(ctx, cx + 3, cy + 4, 7, 2.6, 1, '#ff7a2a');
+      }
+    })
+  },
+  feuerdaemon: {
+    h: 56, draw: (ctx, f) => humanoidMonsterArt(ctx, f, {
+      scale: 1.18, skin: '#c8402f', pants: '#2a1010', boots: '#1a0a0a', torso: '#a82a1a', sleeve: '#c8402f', gloves: '#1a0a0a', wings: '#6a1a10', belt: '#ffd34d', tail: true, claws: true, runes: '#ffd34d',
+      head: (ctx, cx, cy) => {
+        for (const [x, h] of [[-8, 10], [-3, 15], [2, 12], [7, 9]]) poly(ctx, [[cx + x - 3, cy - 8], [cx + x, cy - 8 - h], [cx + x + 3, cy - 8]], x % 2 ? '#ffb04a' : '#ff6a1a');
+        poly(ctx, [[cx - 4, cy - 8], [cx - 11, cy - 16], [cx - 1, cy - 10]], '#1a0a0a');
+        monsterEye(ctx, cx + 6, cy - 0.6, 1.8, '#ffd34d', true);
+        ctx.globalAlpha = 0.6;
+        dot(ctx, cx + 6.3, cy - 0.6, 4.2, 4.2, '#ffb04a');
+        ctx.globalAlpha = 1;
+        poly(ctx, [[cx + 4, cy + 5], [cx + 10.5, cy + 4.5], [cx + 7.5, cy + 7.5]], '#1a0a0a');
+      }
+    })
+  },
+  feuerdrache: {
+    h: 58, draw: (ctx, f) => {
+      ctx.scale(1.55, 1.55);
+      dragonWings(ctx, f, '#7a1a10');
+      beastArt(ctx, f, { fur: '#a82a1a', belly: '#e8a050', snout: '#c84a2a', ridge: true, eye: '#ffd34d', angry: true, glow: true, fangs: true, tusk: true });
+    }
+  },
+
+  // Map 2: Schlangen und Nagas
+  sandviper: { h: 34, draw: (ctx, f) => serpentArt(ctx, f, { body: '#c8a060', belly: '#f0dca8', mark: '#8a6a3a', eye: '#ffd34d' }) },
+  klapperschlange: { h: 36, draw: (ctx, f) => serpentArt(ctx, f, { scale: 1.1, body: '#a07a4a', belly: '#e8d0a0', mark: '#4a3018', eye: '#ffb04a', rattle: true }) },
+  kobra: { h: 44, draw: (ctx, f) => serpentArt(ctx, f, { scale: 1.2, body: '#3a4a2a', belly: '#c8b060', mark: '#1e2814', eye: '#ff3a2a', hood: '#c8b060' }) },
+  riesenpython: { h: 56, draw: (ctx, f) => serpentArt(ctx, f, { scale: 1.65, body: '#4a6a3a', belly: '#c8c890', mark: '#22341a', eye: '#ffd34d' }) },
+  naga: { h: 58, draw: (ctx, f) => nagaArt(ctx, f, { scale: 1.15, body: '#2a7a6a', belly: '#a8e0c8', mark: '#154a40', skin: '#5aa890', armor: '#c9a35a', trim: '#7a5a2a', hair: '#1a3a4a', eye: '#ffd34d' }) },
+  nagapriesterin: { h: 58, draw: (ctx, f) => nagaArt(ctx, f, { scale: 1.12, body: '#6a3a8a', belly: '#d8b8f0', mark: '#3a1a5a', skin: '#b890c8', armor: '#3a2a5a', trim: '#e8c84a', hair: '#e8e0f0', eye: '#c89aff', staff: '#c89aff' }) },
+
+  // Map 3: Donnerklamm
+  trollkrieger: {
+    h: 64, draw: (ctx, f) => humanoidMonsterArt(ctx, f, {
+      scale: 1.45, belly: true, skin: '#5a8a6a', pants: '#4a3a2a', boots: '#2a2018', sleeve: '#5a8a6a', gloves: '#4a7a5a', claws: true,
+      head: (ctx, cx, cy) => {
+        poly(ctx, [[cx - 6, cy - 9], [cx - 2, cy - 17], [cx + 2, cy - 9]], '#c8302a');
+        oval(ctx, cx + 8, cy + 1, 3.6, 3, '#4a7a5a');
+        poly(ctx, [[cx + 5, cy + 6], [cx + 6.5, cy - 1], [cx + 8, cy + 6]], '#f4ecd8');
+        monsterEye(ctx, cx + 5, cy - 2, 1.6, '#ffd34d', true);
+      }
+    })
+  },
+  harpyie: {
+    h: 50, draw: (ctx, f) => humanoidMonsterArt(ctx, f, {
+      scale: 1.05, skin: '#d8b8a8', pants: '#5a3a6a', boots: '#3a2a3a', torso: '#6a4a7a', sleeve: '#8a6a9a', gloves: '#3a2a3a', wings: '#8a6a9a', claws: true,
+      head: (ctx, cx, cy) => {
+        for (const [dx, h] of [[-6, 14], [-2, 17], [2, 13]]) poly(ctx, [[cx + dx - 2, cy - 8], [cx + dx, cy - 8 - h], [cx + dx + 2, cy - 8]], '#c89ad8');
+        monsterEye(ctx, cx + 6, cy - 0.6, 1.7, '#ff4aff', true);
+        poly(ctx, [[cx + 9, cy + 1], [cx + 13, cy + 2.5], [cx + 9, cy + 4]], '#e8c84a');
+      }
+    })
+  },
+  minotaurus: {
+    h: 72, draw: (ctx, f) => humanoidMonsterArt(ctx, f, {
+      scale: 1.6, belly: true, skin: '#7a4a2a', pants: '#3a2a1a', boots: '#1e1610', sleeve: '#7a4a2a', gloves: '#5a3418', claws: false,
+      head: (ctx, cx, cy) => {
+        poly(ctx, [[cx - 4, cy - 8], [cx - 14, cy - 12], [cx - 16, cy - 20], [cx - 10, cy - 13], [cx - 1, cy - 10]], '#e8dcc0');
+        poly(ctx, [[cx + 3, cy - 9], [cx + 10, cy - 15], [cx + 9, cy - 22], [cx + 13, cy - 14], [cx + 6, cy - 7]], '#e8dcc0');
+        oval(ctx, cx + 8, cy + 3, 5, 3.8, '#9a6a4a');
+        stroke(ctx, '#e8c84a', 1.2, [[cx + 11, cy + 4], [cx + 11, cy + 7]]);
+        monsterEye(ctx, cx + 5, cy - 2, 1.7, '#ff3a2a', true);
+      }
+    })
+  },
+  steintitan: {
+    h: 82, draw: (ctx, f) => humanoidMonsterArt(ctx, f, {
+      scale: 1.85, belly: true, skin: '#8a8478', pants: '#5a544a', boots: '#3a3630', sleeve: '#8a8478', gloves: '#6a6458', cracks: '#ffb04a',
+      head: (ctx, cx, cy) => {
+        poly(ctx, [[cx - 9, cy - 8], [cx - 4, cy - 12], [cx + 4, cy - 12], [cx + 9, cy - 7]], '#6a6458');
+        monsterEye(ctx, cx + 5, cy - 1, 2, '#ffb04a', true);
+        ctx.globalAlpha = 0.6;
+        dot(ctx, cx + 5, cy - 1, 4, 4, '#ff8a2a');
+        ctx.globalAlpha = 1;
+      }
+    })
+  },
+  gargoyle: {
+    h: 56, draw: (ctx, f) => humanoidMonsterArt(ctx, f, {
+      scale: 1.12, skin: '#6a6a72', pants: '#3a3a40', boots: '#2a2a30', torso: '#5a5a62', sleeve: '#6a6a72', gloves: '#3a3a40', wings: '#4a4a52', tail: true, claws: true, runes: '#9fd0ff',
+      head: (ctx, cx, cy) => {
+        poly(ctx, [[cx - 6, cy - 8], [cx - 11, cy - 19], [cx - 2, cy - 10]], '#3a3a40');
+        poly(ctx, [[cx + 2, cy - 9.5], [cx + 4, cy - 20], [cx + 7, cy - 9]], '#3a3a40');
+        monsterEye(ctx, cx + 6, cy - 0.6, 1.8, '#9fd0ff', true);
+        poly(ctx, [[cx + 6, cy + 5], [cx + 6.8, cy + 7], [cx + 7.4, cy + 5]], '#ffffff');
+      }
+    })
+  },
+  donnerriese: {
+    h: 86, draw: (ctx, f) => humanoidMonsterArt(ctx, f, {
+      scale: 1.95, belly: true, skin: '#7a8aa8', pants: '#3a4a6a', boots: '#2a3248', sleeve: '#7a8aa8', gloves: '#5a6a88', cracks: '#bfe8ff',
+      head: (ctx, cx, cy) => {
+        poly(ctx, [[cx - 2, cy + 2], [cx + 10, cy + 2], [cx + 6, cy + 13], [cx + 1, cy + 10]], '#f4f8fc');
+        poly(ctx, [[cx - 9, cy - 8], [cx - 2, cy - 15], [cx + 6, cy - 14], [cx + 10, cy - 7]], '#e8eef8');
+        monsterEye(ctx, cx + 5.5, cy - 1.5, 1.7, '#9fd0ff', true);
+      }
+    })
+  },
+
+  // Dungeon-Monster und Bosse
+  hoehlenspinne: { h: 30, draw: (ctx, f) => { ctx.scale(1.3, 1.3); spiderArt(ctx, f, { body: '#4a3a5a', mark: '#b48cff', eye: '#ff4aff' }); } },
+  giftspinne: { h: 29, draw: (ctx, f) => { ctx.scale(1.25, 1.25); spiderArt(ctx, f, { body: '#2e4a24', mark: '#c6f08a', eye: '#d8ff6a' }); } },
+  spinnenkoenigin: { h: 62, draw: (ctx, f) => { ctx.scale(2.7, 2.7); spiderArt(ctx, f, { body: '#3a2450', mark: '#ffd34d', eye: '#ff3aff' }); } },
+  orkelite: {
+    h: 56, draw: (ctx, f) => humanoidMonsterArt(ctx, f, {
+      scale: 1.2, skin: '#5a7a38', pants: '#2e261c', boots: '#1e1810', torso: '#6e7680', sleeve: '#5a7a38', gloves: '#6e7680', belt: '#2a2018', pauldron: '#9aa1a8', spikes: true, cape: '#2a3a6a', weapon: 'sword',
+      head: (ctx, cx, cy) => {
+        paintShape(ctx, () => { ctx.beginPath(); ctx.arc(cx, cy - 1, 11.6, Math.PI, 0); ctx.closePath(); }, '#9aa1a8', cx - 11.6, cy - 12.6, 23.2, 11.6);
+        box(ctx, cx - 1.5, cy - 16, 3, 7, 1, '#2a3a6a');
+        poly(ctx, [[cx + 6.5, cy + 7], [cx + 8, cy + 1.5], [cx + 9.5, cy + 7]], '#f4ecd8');
+        monsterEye(ctx, cx + 6, cy - 0.6, 1.8, '#ffd34d', true);
+      }
+    })
+  },
+  orkberserker: {
+    h: 56, draw: (ctx, f) => humanoidMonsterArt(ctx, f, {
+      scale: 1.2, skin: '#7a8a40', pants: '#4a2a1a', boots: '#2a1810', torso: '#7a8a40', sleeve: '#7a8a40', gloves: '#7a8a40', belt: '#8a2a1a', straps: '#5a2a1a', necklace: true, weapon: 'axe',
+      head: (ctx, cx, cy) => {
+        poly(ctx, [[cx - 6, cy - 9], [cx - 2, cy - 18], [cx + 2, cy - 9]], '#c8302a');
+        poly(ctx, [[cx + 6.5, cy + 7], [cx + 8, cy + 1.5], [cx + 9.5, cy + 7]], '#f4ecd8');
+        stroke(ctx, '#c8302a', 1.2, [[cx + 1, cy - 4], [cx + 8, cy - 2]]);
+        monsterEye(ctx, cx + 6, cy - 0.6, 2, '#ff3a2a', true);
+      }
+    })
+  },
+  kriegsherr: {
+    h: 84, draw: (ctx, f) => humanoidMonsterArt(ctx, f, {
+      scale: 1.8, skin: '#4a6a30', pants: '#2a2018', boots: '#1a140e', torso: '#2a2a30', sleeve: '#4a6a30', gloves: '#c9a35a', belt: '#c9a35a', pauldron: '#ffd34d', spikes: true, cape: '#a81a14', necklace: true, weapon: 'axe',
+      head: (ctx, cx, cy) => {
+        paintShape(ctx, () => { ctx.beginPath(); ctx.arc(cx, cy - 1, 11.8, Math.PI, 0); ctx.closePath(); }, '#c9a35a', cx - 11.8, cy - 12.8, 23.6, 11.8);
+        poly(ctx, [[cx - 9, cy - 9], [cx - 17, cy - 23], [cx - 6, cy - 12]], '#f4ecd8');
+        poly(ctx, [[cx + 4, cy - 11], [cx + 7, cy - 26], [cx + 10, cy - 10]], '#f4ecd8');
+        poly(ctx, [[cx - 3, cy - 12], [cx, cy - 19], [cx + 3, cy - 12]], '#ff6a3a');
+        poly(ctx, [[cx + 6.5, cy + 7], [cx + 8, cy + 1], [cx + 9.5, cy + 7]], '#f4ecd8');
+        monsterEye(ctx, cx + 6, cy - 0.6, 2, '#ff6a2a', true);
+        stroke(ctx, '#e0c0b0', 1, [[cx + 1, cy - 5], [cx + 5, cy + 3]]);
+      }
+    })
+  },
+  eisgolem: {
+    h: 68, draw: (ctx, f) => humanoidMonsterArt(ctx, f, {
+      scale: 1.5, belly: true, skin: '#a8cce6', pants: '#7aa4c8', boots: '#5a84a8', sleeve: '#a8cce6', gloves: '#d4eaf8', claws: true,
+      head: (ctx, cx, cy) => {
+        poly(ctx, [[cx - 8, cy - 8], [cx - 5, cy - 18], [cx - 1, cy - 9]], '#e8f6ff');
+        poly(ctx, [[cx + 1, cy - 10], [cx + 5, cy - 20], [cx + 8, cy - 8]], '#e8f6ff');
+        monsterEye(ctx, cx + 5.5, cy - 0.5, 1.8, '#3ab0ff', true);
+      }
+    })
+  },
+  eiskoenig: { h: 100, draw: (ctx, f) => { ctx.scale(2.2, 2.2); ghostArt(ctx, f, { body: '#9fd8ff', crown: '#ffd34d', eye: '#1a6aff' }); } },
+  drachenbrut: {
+    h: 40, draw: (ctx, f) => {
+      ctx.scale(1.2, 1.2);
+      dragonWings(ctx, f, '#a8401a');
+      beastArt(ctx, f, { fur: '#c8501a', belly: '#f0b060', snout: '#d86a2a', ridge: true, eye: '#ffd34d', angry: true, fangs: true });
+    }
+  },
+  urdrache: {
+    h: 96, draw: (ctx, f) => {
+      ctx.scale(2.6, 2.6);
+      dragonWings(ctx, f, '#3a1a3a');
+      beastArt(ctx, f, { fur: '#2a1a2a', belly: '#c8902a', snout: '#4a2a3a', ridge: true, eye: '#ff6a2a', angry: true, glow: true, fangs: true, tusk: true, scar: true });
+    }
+  },
+
+  // Version 3.3: Banditenkeller
+  kellerwache: {
+    h: 48, draw: (ctx, f) => humanoidMonsterArt(ctx, f, {
+      scale: 1.02, skin: '#d9b896', pants: '#3a2e20', boots: '#2a2018', torso: '#5a4a32', sleeve: '#4a3c28', gloves: '#3a2e20', belt: '#2a2018', pauldron: '#8a8e96', straps: '#3a2a1c', weapon: 'axe',
+      head: (ctx, cx, cy) => {
+        paintShape(ctx, () => { ctx.beginPath(); ctx.arc(cx, cy - 1, 11.6, Math.PI, 0); ctx.closePath(); }, '#7a7e86', cx - 11.6, cy - 12.6, 23.2, 11.6);
+        box(ctx, cx - 12, cy - 3, 24, 3, 1.2, '#5a5e66');
+        faceCloth(ctx, cx, cy, '#9a2f2a');
+        monsterEye(ctx, cx + 5.6, cy - 0.6, 1.8, '#4a3a22', true);
+      }
+    })
+  },
+  armbrustschuetze: {
+    h: 46, draw: (ctx, f) => humanoidMonsterArt(ctx, f, {
+      scale: 0.96, skin: '#d9b896', pants: '#3e4a2e', boots: '#2f2419', torso: '#4a5a3a', sleeve: '#3e4e30', belt: '#2f2419', pouch: '#8a6a44', weapon: 'bow', weaponAngle: 0,
+      head: (ctx, cx, cy) => {
+        paintShape(ctx, () => { ctx.beginPath(); ctx.arc(cx, cy - 0.5, 11.4, Math.PI * 0.95, Math.PI * 2.05); ctx.closePath(); }, '#3a2a1c', cx - 11.4, cy - 12, 22.8, 12);
+        poly(ctx, [[cx - 14, cy - 6], [cx + 14, cy - 6], [cx + 4, cy - 11], [cx - 6, cy - 11]], '#5a3a22');
+        faceCloth(ctx, cx, cy, '#9a2f2a');
+        monsterEye(ctx, cx + 5.6, cy - 0.8, 1.8, '#3a4a22', true);
+      }
+    })
+  },
+  banditenfuerst: {
+    h: 80, draw: (ctx, f) => humanoidMonsterArt(ctx, f, {
+      scale: 1.75, skin: '#d9b896', pants: '#2a1e16', boots: '#1a120c', torso: '#3a2a22', sleeve: '#5a2a24', gloves: '#2a1e16', belt: '#c9a35a', pouch: '#8a6a44', straps: '#1a120c', pauldron: '#c9a35a', spikes: true, cape: '#9a2f2a', necklace: true, weapon: 'sword',
+      head: (ctx, cx, cy) => {
+        paintShape(ctx, () => { ctx.beginPath(); ctx.arc(cx, cy - 0.5, 11.4, Math.PI * 0.9, Math.PI * 2.02); ctx.closePath(); }, '#2a1a12', cx - 11.4, cy - 12, 22.8, 12);
+        poly(ctx, [[cx - 15, cy - 6], [cx + 15, cy - 6], [cx + 6, cy - 12], [cx - 2, cy - 22], [cx - 7, cy - 12]], '#3a2a22');
+        box(ctx, cx - 6, cy - 12, 12, 2.6, 1, '#c9a35a');
+        poly(ctx, [[cx - 2, cy - 14], [cx + 4, cy - 26], [cx + 3, cy - 14]], '#e8402a');
+        stroke(ctx, '#7a3a2a', 1.4, [[cx + 2, cy - 4], [cx + 6, cy + 4]]);
+        monsterEye(ctx, cx + 5.6, cy - 0.6, 2, '#ffb04a', true);
+        box(ctx, cx + 1, cy + 5, 9, 3, 1, '#3a2a1c');
+      }
+    })
+  },
+  // Totengruft
+  grabwaechter: {
+    h: 50, draw: (ctx, f) => humanoidMonsterArt(ctx, f, {
+      scale: 1.08, skin: '#ddd5bb', pants: '#2a2630', boots: '#1a1820', torso: '#3a3644', sleeve: '#ddd5bb', gloves: '#ddd5bb', belt: '#2a2018', pauldron: '#6a6474', spikes: true, runes: '#a774e0', weapon: 'sword',
+      head: (ctx, cx, cy) => {
+        dot(ctx, cx + 5.5, cy - 0.5, 2.6, 2.8, '#1a1210');
+        dot(ctx, cx + 5.5, cy - 0.5, 1, 1, '#c89aff');
+        ctx.globalAlpha = 0.5;
+        dot(ctx, cx + 5.5, cy - 0.5, 3.8, 3.8, '#a774e0');
+        ctx.globalAlpha = 1;
+        box(ctx, cx + 2, cy + 4, 8, 3.4, 1, '#ddd5bb');
+        for (let k = 0; k < 4; k++) stroke(ctx, '#1a1210', 0.5, [[cx + 3 + k * 2, cy + 4], [cx + 3 + k * 2, cy + 7.4]]);
+        paintShape(ctx, () => { ctx.beginPath(); ctx.arc(cx, cy - 1, 11.6, Math.PI * 0.95, Math.PI * 2.05); ctx.closePath(); }, '#4a4458', cx - 11.6, cy - 12.6, 23.2, 11.6);
+        poly(ctx, [[cx - 2, cy - 12], [cx, cy - 20], [cx + 2, cy - 12]], '#a774e0');
+      }
+    })
+  },
+  seelenfresser: { h: 50, draw: (ctx, f) => { ctx.scale(1.1, 1.1); ghostArt(ctx, f, { body: '#8a6ac8', crown: '#2a1a3a', eye: '#ff3aff' }); } },
+  gruftkoenig: {
+    h: 88, draw: (ctx, f) => humanoidMonsterArt(ctx, f, {
+      scale: 1.9, skin: '#ddd5bb', pants: '#1e1a24', boots: '#14101a', torso: '#2a2434', sleeve: '#3a3048', gloves: '#ddd5bb', belt: '#c9a35a', pauldron: '#4a3a5a', spikes: true, cape: '#3a1a4a', runes: '#c89aff', necklace: true, weapon: 'skullstaff', weaponAngle: -1.3,
+      head: (ctx, cx, cy) => {
+        dot(ctx, cx + 5.5, cy - 0.5, 2.8, 3, '#1a1210');
+        ctx.globalAlpha = 0.55;
+        dot(ctx, cx + 5.5, cy - 0.5, 4.4, 4.4, '#c89aff');
+        ctx.globalAlpha = 1;
+        dot(ctx, cx + 5.5, cy - 0.5, 1.2, 1.2, '#ffffff');
+        box(ctx, cx + 2, cy + 4, 8, 3.4, 1, '#ddd5bb');
+        for (let k = 0; k < 4; k++) stroke(ctx, '#1a1210', 0.5, [[cx + 3 + k * 2, cy + 4], [cx + 3 + k * 2, cy + 7.4]]);
+        box(ctx, cx - 10, cy - 11, 20, 4, 1, '#c9a35a');
+        for (const x of [-8, -3, 2, 7]) poly(ctx, [[cx + x - 2, cy - 11], [cx + x, cy - 19], [cx + x + 2, cy - 11]], '#c9a35a');
+        oval(ctx, cx - 0.5, cy - 9, 1.4, 1.4, '#a774e0');
+      }
+    })
+  },
+  // Schlangentempel und Titanenschmiede
+  nagakoenigin: { h: 104, draw: (ctx, f) => nagaArt(ctx, f, { scale: 1.95, body: '#1e5a4e', belly: '#e8d8a0', mark: '#c9a35a', skin: '#4a9a84', armor: '#ffd34d', trim: '#7a5a10', hair: '#0e2a30', eye: '#ff4a6a', staff: '#7ad8c8' }) },
+  titanenkoenig: {
+    h: 118, draw: (ctx, f) => humanoidMonsterArt(ctx, f, {
+      scale: 2.5, belly: true, skin: '#6a6458', pants: '#3a3630', boots: '#24201c', sleeve: '#6a6458', gloves: '#4a4640', cracks: '#ffb04a', pauldron: '#3a3430', spikes: true, runes: '#ffb04a',
+      head: (ctx, cx, cy) => {
+        poly(ctx, [[cx - 9, cy - 8], [cx - 4, cy - 12], [cx + 4, cy - 12], [cx + 9, cy - 7]], '#4a4640');
+        for (const x of [-7, -2, 3, 8]) poly(ctx, [[cx + x - 2, cy - 11], [cx + x, cy - 20], [cx + x + 2, cy - 11]], '#ffb04a');
+        monsterEye(ctx, cx + 5, cy - 1, 2.2, '#ffd34d', true);
+        ctx.globalAlpha = 0.6;
+        dot(ctx, cx + 5, cy - 1, 4.5, 4.5, '#ff8a2a');
+        ctx.globalAlpha = 1;
+      }
+    })
+  }
+});
+
+// Schlange von der Seite (Kopf rechts): Körper als Kette von Ringen, die sich schlängeln,
+// der Hals richtet sich auf. o: body, belly, mark (Muster), eye, hood (Kobra), rattle, noHead
+function serpentArt(ctx, f, o) {
+  ctx.save();
+  if (o.scale) ctx.scale(o.scale, o.scale);
+  const belly = o.belly || lighter(o.body, 0.35);
+  const mark = o.mark || darker(o.body, 0.35);
+  const ph = f * 1.4;
+  const pts = [];
+  for (let k = 0; k <= 14; k++) {
+    const t = k / 14;
+    pts.push([-21 + t * 26, -4 - Math.sin(t * 6.5 + ph) * 3 * (1 - t * 0.5), 1.6 + t * 4.4]);
+  }
+  if (o.rattle) for (let k = 0; k < 3; k++) oval(ctx, -23 - k * 2.6, pts[0][1] - 1 - k, 1.9, 1.5, k % 2 ? '#c8b080' : '#e8d8a8');
+  for (const [x, y, r] of pts) oval(ctx, x, y, r, r * 0.85, o.body);
+  for (const [x, y, r] of pts) dot(ctx, x, y + r * 0.4, r * 0.75, r * 0.32, belly);
+  pts.forEach(([x, y, r], k) => { if (k % 2 === 0 && k > 1) dot(ctx, x, y - r * 0.35, r * 0.45, r * 0.3, mark); });
+  if (!o.noHead) {
+    const sway = [0, 1, 0, -1][f];
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = o.body;
+    ctx.lineWidth = 8.5;
+    ctx.beginPath();
+    ctx.moveTo(4, -6);
+    ctx.quadraticCurveTo(17, -12, 13 + sway, -24);
+    ctx.stroke();
+    ctx.strokeStyle = belly;
+    ctx.lineWidth = 3.2;
+    ctx.beginPath();
+    ctx.moveTo(7, -5);
+    ctx.quadraticCurveTo(19, -11, 16 + sway, -22);
+    ctx.stroke();
+    if (o.hood) {
+      oval(ctx, 13 + sway, -26, 8.5, 11, o.hood);
+      dot(ctx, 10 + sway, -27, 1.8, 2.4, '#1a1a10');
+      dot(ctx, 16 + sway, -27, 1.8, 2.4, '#1a1a10');
+    }
+    paintShape(ctx, () => { ctx.beginPath(); ctx.ellipse(17 + sway, -28, 7.2, 4.6, -0.15, 0, Math.PI * 2); }, o.body, 10, -33, 15, 10);
+    dot(ctx, 21 + sway, -26.5, 3.2, 1.6, belly);
+    monsterEye(ctx, 18.5 + sway, -29.5, 1.5, o.eye || '#ffd34d', true);
+    if (f % 2 === 1) stroke(ctx, '#d8303a', 0.9, [[24 + sway, -26.5], [28 + sway, -26], [30 + sway, -28]]);
+    if (f % 2 === 1) stroke(ctx, '#d8303a', 0.9, [[28 + sway, -26], [30 + sway, -24.5]]);
+  }
+  ctx.restore();
+}
+
+// Naga: Schlangenleib mit Oberkörper, Krone und Dreizack bzw. Stab
+function nagaArt(ctx, f, o) {
+  ctx.save();
+  ctx.scale(o.scale || 1, o.scale || 1);
+  serpentArt(ctx, f, { body: o.body, belly: o.belly, mark: o.mark, noHead: true });
+  const bob = [0, -0.6, 0, 0.6][f];
+  poly(ctx, [[0, -8], [10, -8], [9, -30 + bob], [1, -30 + bob]], o.skin);
+  box(ctx, -0.5, -24 + bob, 11, 9, 2, o.armor);
+  stroke(ctx, o.trim, 1.2, [[-0.5, -20 + bob], [10.5, -20 + bob]]);
+  oval(ctx, 5.5, -36 + bob, 6.5, 6.5, o.skin);
+  paintShape(ctx, () => { ctx.beginPath(); ctx.arc(5.5, -37 + bob, 7, Math.PI * 0.9, Math.PI * 2.1); ctx.closePath(); }, o.hair, -1.5, -44 + bob, 14, 8);
+  monsterEye(ctx, 8.5, -36 + bob, 1.4, o.eye, true);
+  poly(ctx, [[0.5, -42 + bob], [2, -47 + bob], [4, -43 + bob], [5.5, -48 + bob], [7, -43 + bob], [9, -47 + bob], [10.5, -42 + bob]], '#e8c84a');
+  // Arm und Waffe
+  stroke(ctx, o.skin, 3, [[8, -26 + bob], [14, -20 + bob]]);
+  if (o.staff) {
+    stroke(ctx, '#6b4a2e', 1.8, [[15, -6], [15, -40 + bob]]);
+    oval(ctx, 15, -42 + bob, 3.6, 3.6, o.staff);
+  } else {
+    stroke(ctx, '#c9a35a', 1.6, [[15, -4], [15, -42 + bob]]);
+    for (const dx of [-3, 0, 3]) stroke(ctx, '#d9dde2', 1.3, [[15 + dx, -42 + bob], [15 + dx, -47 + bob]]);
+    stroke(ctx, '#d9dde2', 1.3, [[12, -42 + bob], [18, -42 + bob]]);
+  }
+  ctx.restore();
+}
+
+// Pferd von der Seite (Füße bei y = 0, Kopf nach rechts). frame 0–3: Galopp
+function horseArt(ctx, frame, o = {}) {
+  const coat = o.coat || '#8a5a36';
+  const dark = darker(coat, 0.35);
+  const mane = o.mane || '#3a2418';
+  const hoof = '#241a14';
+  const t = frame * Math.PI / 2;
+  // seit 14.38 (wie im 3D-Modell): Beine als eine geschwungene Form statt zwei Klötzen – hinten breiter Schenkel,
+  // Unterschenkel schräg nach hinten zum Sprunggelenk, schlankes Röhrbein; vorn Unterarm, Knie, Röhrbein
+  const leg = (x, phase, back) => {
+    const sw = frame ? Math.sin(t + phase) * 5 : 0;
+    // der Huf schwingt am weitesten, der Ansatz am Rumpf bleibt stehen
+    const P = (px, py) => [x + px + sw * Math.max(0, Math.min(1, (py + 19) / 16)), py];
+    const c = back ? dark : coat;
+    const hind = x < 0;
+    // die nahen Beine liegen vor dem Rumpf: oben ohne Umrisslinie, damit sie aus dem Leib herauswachsen
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(x - 14, -18.2, 28, 20);
+    ctx.clip();
+    paintShape(ctx, () => {
+      ctx.beginPath();
+      const M = (px, py) => ctx.moveTo(...P(px, py));
+      const L = (px, py) => ctx.lineTo(...P(px, py));
+      const Q = (ax, ay, px, py) => ctx.quadraticCurveTo(...P(ax, ay), ...P(px, py));
+      if (hind) {
+        M(-4.6, -21);
+        Q(4.6, -23, 4.4, -15.5);
+        Q(3.4, -11.5, 0.5, -8.6);
+        L(0.9, -2.4);
+        L(-2.2, -2.4);
+        L(-2.4, -7.6);
+        Q(-4, -9.6, -2.7, -11.2);
+        Q(-5.8, -15, -4.6, -21);
+      } else {
+        M(-2.6, -20);
+        L(2.8, -20);
+        Q(3, -13, 1.9, -9.4);
+        L(1.5, -2.4);
+        L(-1.5, -2.4);
+        L(-1.7, -9);
+        Q(-3, -13, -2.6, -20);
+      }
+      ctx.closePath();
+    }, c, x - 6 + Math.min(0, sw), -23, 12 + Math.abs(sw), 21);
+    ctx.restore();
+    box(ctx, x - (hind ? 2.7 : 2.1) + sw, -2.6, 4.4, 2.8, 1, hoof);
+  };
+  leg(-11, 0, true);
+  leg(9, Math.PI, true);
+  // Schweif (seit 14.38): drei überlappende Strähnen, oben voll, unten spitz, statt einer Sichel
+  const wag = frame ? Math.sin(t) * 2 : 0;
+  for (const [k, c] of [[1, darker(mane, 0.15)], [-1, lighter(mane, 0.08)], [0, mane]]) {
+    paintShape(ctx, () => {
+      ctx.beginPath();
+      ctx.moveTo(-16, -27.5);
+      ctx.quadraticCurveTo(-26.5 - k * 1.6, -25, -24 + k * 1.6 - wag * 0.4, -5.5 - Math.abs(k) * 2.5 + wag);
+      ctx.quadraticCurveTo(-20.5 + k, -15, -15.5, -22.5);
+      ctx.closePath();
+    }, c, -28, -28, 13, 24);
+  }
+  oval(ctx, 0, -23, 18, 9.5, coat);
+  oval(ctx, 2, -20, 13, 5, lighter(coat, 0.12));
+  // Hals und Kopf
+  poly(ctx, [[9, -30], [16, -42], [22, -42], [19, -27], [13, -18]], coat);
+  paintShape(ctx, () => { ctx.beginPath(); ctx.ellipse(24, -40, 8, 4.6, 0.45, 0, Math.PI * 2); }, coat, 16, -46, 16, 12);
+  oval(ctx, 29.5, -36.5, 2.6, 2.2, lighter(coat, 0.2));
+  poly(ctx, [[18, -45], [19, -51], [21.5, -45]], coat);
+  dot(ctx, 22.5, -41.5, 1.2, 1.2, '#1a120c');
+  // Mähne (seit 14.38): fällt vom Kamm am Hals herab, unten in Strähnen auslaufend, dazu der Schopf – statt eines Balkens
+  const mr = (i) => [9.4 + (i / 4) * 8.2, -31 - (i / 4) * 13];
+  const mt = (i) => [mr(i)[0] + 0.8 - (i % 2) * 0.8, mr(i)[1] + 7.6 + (i % 2) * 1.8 - i * 0.7];
+  paintShape(ctx, () => {
+    ctx.beginPath();
+    ctx.moveTo(19, -45.8);
+    ctx.lineTo(15.4, -44.2);
+    ctx.lineTo(8.4, -30.6);
+    ctx.lineTo(...mt(0));
+    for (let i = 0; i < 4; i++) ctx.quadraticCurveTo((mr(i)[0] + mr(i + 1)[0]) / 2 + 0.9, (mr(i)[1] + mr(i + 1)[1]) / 2 + 3.2, ...mt(i + 1));
+    ctx.quadraticCurveTo(20.4, -42.5, 19, -45.8);
+    ctx.closePath();
+  }, mane, 6, -46, 16, 24);
+  for (let i = 1; i < 4; i++) stroke(ctx, darker(mane, 0.35), 0.5, [[mr(i)[0] + 0.9, mr(i)[1] + 1.2], [mt(i)[0] + 0.2, mt(i)[1] - 1.4]]);
+  paintShape(ctx, () => { ctx.beginPath(); ctx.moveTo(17.6, -45.6); ctx.quadraticCurveTo(21.5, -47.5, 23.6, -43.2); ctx.quadraticCurveTo(20.6, -44.6, 17.6, -45.6); ctx.closePath(); }, mane, 17, -48, 7, 5);
+  leg(-8, Math.PI / 2, false);
+  leg(12, Math.PI * 1.5, false);
+  if (o.saddle) {
+    box(ctx, -7, -33, 14, 6, 2.5, o.saddle);
+    box(ctx, -5.5, -27.5, 11, 5, 1.5, darker(o.saddle, 0.25));
+    stroke(ctx, '#2a1a10', 1, [[0, -27], [0, -15]]);
+    stroke(ctx, '#2a1a10', 1, [[26, -40], [14, -33]]);
+  }
+}
+
+// Glutschwinge von der Seite (seit 14.27, 2D), Kopf nach rechts. y = 0 ist der Boden, der Drache schwebt darüber
+// (Rumpfmitte bei y = -38). frame 0–3: Flügelschlag (oben, Mitte, unten, Mitte). o.saddle: Farbe der Satteldecke.
+// seit 14.39: Farben der Glutschwinge in 2D (p.dragonColor, DRAGON_COLORS in spieler.js), passend zu DRACHE3_FARBEN
+const DRAGON2D_FARBEN = {
+  rot: { body: '#7a1f1d', bodyD: '#4e1214', belly: '#ead3a2', horn: '#c08a44', hornHi: '#e0b062', far: '#3e1012', farEdge: '#2a0a0c', edge: '#3a0c0e', claw: '#efe3c6', eye: '#ffb63c' },
+  blau: { body: '#24497e', bodyD: '#152c52', belly: '#d4e2ea', horn: '#9aa8ba', hornHi: '#dde6ee', far: '#152a4c', farEdge: '#0c1a32', edge: '#0f2240', claw: '#eef5fa', eye: '#7fe0ff' },
+  schwarz: { body: '#2a2430', bodyD: '#151218', belly: '#6a5262', horn: '#7a3049', hornHi: '#b04c72', far: '#141118', farEdge: '#08070a', edge: '#0a080c', claw: '#dcd0dc', eye: '#c45cff' },
+  weiss: { body: '#dcd7cd', bodyD: '#aaa396', belly: '#f4e4bc', horn: '#c39a44', hornHi: '#f0d27a', far: '#a8a194', farEdge: '#857e72', edge: '#8e877a', claw: '#fffaf0', eye: '#8fd8ff' }
+};
+function dragonWing2d(ctx, sx, sy, k, col, edge, tip = '#c08a44') {
+  // Vorderkante vom Schultergelenk schräg nach hinten: oben steil, unten unter den Rumpf
+  const ang = (15 - 47 * k) * Math.PI / 180;
+  const dx = -Math.cos(ang);
+  const dy = -Math.sin(ang);
+  const at = (d, bx, by) => [sx + dx * d + bx, sy + dy * d + by];
+  const E = at(15, 0, -1.5);
+  const T = at(31, 0, 0);
+  const F2 = at(25, -6, 7);
+  const F3 = at(15, -9, 10);
+  const R = [sx - 13, sy + 4];
+  paintShape(ctx, () => {
+    ctx.beginPath();
+    ctx.moveTo(sx + 3, sy);
+    ctx.lineTo(E[0], E[1]);
+    ctx.lineTo(T[0], T[1]);
+    // Hinterrand bogenförmig eingebuchtet zwischen den Fingerspitzen
+    ctx.quadraticCurveTo((T[0] + F2[0]) / 2 + 3, (T[1] + F2[1]) / 2 - 2, F2[0], F2[1]);
+    ctx.quadraticCurveTo((F2[0] + F3[0]) / 2 + 3, (F2[1] + F3[1]) / 2 - 2, F3[0], F3[1]);
+    ctx.quadraticCurveTo((F3[0] + R[0]) / 2 + 3, (F3[1] + R[1]) / 2 - 3, R[0], R[1]);
+    ctx.closePath();
+  }, col, Math.min(T[0], R[0], F2[0]) - 2, Math.min(T[1], sy) - 4, 50, 52);
+  stroke(ctx, edge, 1.6, [[sx + 3, sy], E, T]);
+  stroke(ctx, edge, 0.9, [E, F2]);
+  stroke(ctx, edge, 0.9, [E, F3]);
+  dot(ctx, T[0], T[1], 1.2, 1.2, tip);
+}
+// Vorschaubild einer Drachenfarbe für den Stallmeister (seit 14.39). seit 14.67 keine 2D-Zeichnung mehr, sondern
+// fertige Bilder des echten 3D-Modells (Dreiviertelansicht, Flügel ausgebreitet, durchsichtiger Hintergrund):
+// bilder/drache-<farbe>.webp, erzeugt mit tools/drache-farbbilder.js – kein WebGL im Fenster, gleich im 2D-Modus.
+function dragonPreviewUrl(color) {
+  return `bilder/drache-${DRAGON2D_FARBEN[color] ? color : 'rot'}.webp`;
+}
+// Großer Flügel (seit 15.61): Oberarm und Unterarm bis zum Handgelenk, vier Fingerknochen, dazwischen die Flughaut mit
+// eingebuchtetem Hinterrand, Daumenkralle am Handgelenk. k: −1 oben, 0 Mitte, 1 unten (Flügelschlag).
+function dragonWingBig(ctx, sx, sy, k, skin, bone, claw, far) {
+  const th = k < 0 ? 0.44 + (-k) * (1.31 - 0.44) : 0.44 - k * (0.44 + 0.61);
+  const dir = (a, L) => [-Math.cos(a) * L, -Math.sin(a) * L];
+  const d1 = dir(th, 12);
+  const E = [sx + d1[0], sy + d1[1]];
+  const d2 = dir(th - 0.2, 12);
+  const W = [E[0] + d2[0], E[1] + d2[1]];
+  const tips = [[0.15, 17], [-0.35, 20], [-0.9, 18], [-1.5, 13]].map(([o, L]) => { const d = dir(th + o, L); return [W[0] + d[0], W[1] + d[1]]; });
+  const R = [sx - 16, sy + 4];
+  const xs = [sx, E[0], W[0], R[0], ...tips.map((t) => t[0])];
+  const ys = [sy, E[1], W[1], R[1], ...tips.map((t) => t[1])];
+  const bx = Math.min(...xs) - 2;
+  const byy = Math.min(...ys) - 2;
+  paintShape(ctx, () => {
+    ctx.beginPath();
+    ctx.moveTo(sx, sy);
+    ctx.lineTo(E[0], E[1]);
+    ctx.lineTo(W[0], W[1]);
+    ctx.lineTo(tips[0][0], tips[0][1]);
+    // Hinterrand zwischen den Fingerspitzen zum Handgelenk hin eingebuchtet
+    let prev = tips[0];
+    for (let i = 1; i < tips.length; i++) {
+      const t = tips[i];
+      const mx = (prev[0] + t[0]) / 2;
+      const my = (prev[1] + t[1]) / 2;
+      ctx.quadraticCurveTo(mx + (W[0] - mx) * 0.32, my + (W[1] - my) * 0.32, t[0], t[1]);
+      prev = t;
+    }
+    const mx = (prev[0] + R[0]) / 2;
+    const my = (prev[1] + R[1]) / 2;
+    ctx.quadraticCurveTo(mx + (W[0] - mx) * 0.25, my + (W[1] - my) * 0.25, R[0], R[1]);
+    ctx.closePath();
+  }, skin, bx, byy, Math.max(...xs) - bx + 2, Math.max(...ys) - byy + 2);
+  // Knochen: Arm kräftig, Finger dünn; feine Adern der Flughaut
+  stroke(ctx, bone, far ? 1.6 : 2, [[sx, sy], E, W]);
+  for (const t of tips) stroke(ctx, bone, far ? 0.8 : 1, [W, t]);
+  if (!far) stroke(ctx, lighter(skin, 0.18), 0.6, [[sx - 2, sy + 1], [E[0] - 1, E[1] + 1.5]]);
+  // Daumenkralle und Gelenkhöcker
+  poly(ctx, [[W[0] + 0.5, W[1] - 1], [W[0] + 3.5, W[1] - 3.2], [W[0] + 1.8, W[1] + 0.4]], claw);
+  dot(ctx, E[0], E[1], 1.2, 1.2, bone);
+}
+
+// o.saddle: Satteldecke (Klassenfarbe), o.color (seit 14.39): Drachenfarbe (DRAGON2D_FARBEN)
+// seit 15.61 neu gezeichnet: gehörnter Kopf mit Kiefer, Zähnen und glühendem Auge, S-förmiger Hals, kräftige Brust,
+// Bauchschuppen, angelegte Beine mit Krallen, Rückenzacken, langer Schwanz mit Hornblatt, große Flügel mit Knochen.
+// Kopf nach rechts, Rumpfmitte bei (0, −38), Sattel an derselben Stelle wie vorher (der Reiter sitzt darauf).
+function dragonMountArt(ctx, frame, o = {}) {
+  const F = DRAGON2D_FARBEN[o.color] || DRAGON2D_FARBEN.rot;
+  const body = F.body;
+  const bodyD = F.bodyD;
+  const belly = F.belly;
+  const horn = F.horn;
+  const k = [-1, 0, 1, 0][frame];
+  const by = -38;
+  const tw = k * 1.6;
+  const spike = (x, y, h, w, c, lean = -0.35) => poly(ctx, [[x - w, y], [x + lean * h, y - h], [x + w, y]], c);
+  // ferner Flügel hinter dem Rumpf (dunkler)
+  dragonWingBig(ctx, -2, by - 9, k * 0.85, F.far, F.farEdge, F.claw, true);
+  // ferne Beine (dunkel, halb verdeckt)
+  oval(ctx, -9, by + 8, 5, 4, darker(bodyD, 0.2));
+  poly(ctx, [[17, by + 5], [21, by + 10], [18, by + 11]], darker(bodyD, 0.2));
+  // Schwanz: dicke Wurzel an der Hüfte, Bogen nach unten, Spitze wieder hoch, Hornblatt am Ende
+  paintShape(ctx, () => {
+    ctx.beginPath();
+    ctx.moveTo(-14, by - 7);
+    ctx.quadraticCurveTo(-30, by - 6, -40, by + 1 + tw * 0.5);
+    ctx.quadraticCurveTo(-49, by + 7 + tw, -57, by + 1 + tw);
+    ctx.lineTo(-56.5, by + 4 + tw);
+    ctx.quadraticCurveTo(-48, by + 12 + tw, -38, by + 8 + tw * 0.4);
+    ctx.quadraticCurveTo(-28, by + 4, -12, by + 6);
+    ctx.closePath();
+  }, body, -58, by - 8, 47, 22);
+  stroke(ctx, belly, 1.1, [[-14, by + 5], [-27, by + 4.5], [-37, by + 7 + tw * 0.4], [-47, by + 9 + tw], [-55, by + 3.6 + tw]]);
+  poly(ctx, [[-56, by + 1.2 + tw], [-61, by - 4 + tw], [-63.5, by + 2 + tw], [-61, by + 7.5 + tw], [-56, by + 4.2 + tw]], horn);
+  poly(ctx, [[-57, by + 2 + tw], [-61, by - 1.5 + tw], [-62, by + 2.4 + tw], [-57, by + 3.4 + tw]], F.hornHi);
+  for (const [x, h] of [[-19, 3.6], [-26, 3.2], [-33, 2.8], [-40, 2.4], [-46, 2], [-51, 1.6]]) {
+    const yy = x > -38 ? by - 6.6 - (x + 19) * 0.03 : by + (x + 38) * -0.55 - 0.5 + tw * ((-38 - x) / 19);
+    spike(x, yy, h, 1.6, horn);
+  }
+  // Hinterbein angelegt: Oberschenkel, Unterschenkel nach hinten, Krallen
+  paintShape(ctx, () => { ctx.beginPath(); ctx.ellipse(-12, by + 5, 8, 6.5, -0.3, 0, Math.PI * 2); }, body, -20, by - 2, 16, 13);
+  poly(ctx, [[-16, by + 8], [-24, by + 12], [-26, by + 15], [-21, by + 14.5], [-12, by + 11]], bodyD);
+  for (const dx of [0, 2.2, 4.4]) poly(ctx, [[-26.5 + dx, by + 14], [-28.5 + dx, by + 16.6], [-25.2 + dx, by + 15.4]], F.claw);
+  // Rumpf: Rücken, Hüfte, Bauch, breite Brust
+  paintShape(ctx, () => {
+    ctx.beginPath();
+    ctx.moveTo(-19, by - 3);
+    ctx.bezierCurveTo(-12, by - 11, 6, by - 12.5, 14, by - 9.5);
+    ctx.quadraticCurveTo(23, by - 5, 22, by + 3);
+    ctx.quadraticCurveTo(20, by + 9, 13, by + 9.5);
+    ctx.quadraticCurveTo(0, by + 12.5, -13, by + 8.5);
+    ctx.quadraticCurveTo(-22, by + 4, -19, by - 3);
+    ctx.closePath();
+  }, body, -22, by - 13, 46, 26);
+  // Bauchschuppen: helles Band mit Querrillen
+  paintShape(ctx, () => {
+    ctx.beginPath();
+    ctx.moveTo(20, by + 1);
+    ctx.quadraticCurveTo(19, by + 8, 12, by + 9.6);
+    ctx.quadraticCurveTo(0, by + 12.6, -12, by + 8.6);
+    ctx.quadraticCurveTo(0, by + 9, 11, by + 6.2);
+    ctx.quadraticCurveTo(17, by + 4.5, 20, by + 1);
+    ctx.closePath();
+  }, belly, -12, by + 1, 32, 12);
+  for (const x of [-7, -2, 3, 8, 13]) stroke(ctx, darker(belly, 0.28), 0.6, [[x, by + 8.2 + Math.abs(x - 3) * 0.05], [x - 0.6, by + 11.2 - Math.abs(x - 3) * 0.06]]);
+  // Schuppenreihen an der Flanke
+  for (let r = 0; r < 2; r++) for (let i = 0; i < 5; i++) {
+    const x = -12 + i * 6 + r * 3;
+    const y = by - 3 + r * 4;
+    stroke(ctx, darker(body, 0.22), 0.55, [[x - 1.6, y], [x, y + 1.2], [x + 1.6, y]]);
+  }
+  // Vorderbein angelegt mit Krallen nach vorn
+  poly(ctx, [[13, by + 2], [18, by + 8], [24, by + 10.5], [25.5, by + 12.5], [20, by + 12], [12, by + 7]], bodyD);
+  for (const dx of [0, 1.9, 3.8]) poly(ctx, [[24 + dx * 0.3, by + 10.4 + dx * 0.5], [27.5 + dx * 0.3, by + 11.2 + dx * 0.6], [24.6 + dx * 0.3, by + 12 + dx * 0.5]], F.claw);
+  // Hals: S-Bogen nach vorn oben, vorn helle Kehlschuppen
+  paintShape(ctx, () => {
+    ctx.beginPath();
+    ctx.moveTo(11, by - 9);
+    ctx.quadraticCurveTo(20, by - 14, 22, by - 22);
+    ctx.quadraticCurveTo(24, by - 30, 30, by - 31);
+    ctx.lineTo(35, by - 26);
+    ctx.quadraticCurveTo(29, by - 22, 28, by - 13);
+    ctx.quadraticCurveTo(26, by - 3, 20, by + 2);
+    ctx.closePath();
+  }, body, 10, by - 32, 26, 35);
+  stroke(ctx, belly, 1.6, [[21, by + 0.5], [25.6, by - 6], [27, by - 15], [29.5, by - 22], [33.5, by - 25.5]]);
+  for (const [x, y, h] of [[13.5, by - 10.4, 3.6], [17.6, by - 13.2, 3.4], [20.4, by - 17.6, 3.2], [22, by - 22.6, 3], [24.4, by - 27.4, 2.6]]) spike(x, y, h, 1.5, horn, -0.6);
+  // Rückenzacken hinter dem Sattel
+  for (const [x, h] of [[-11, 3.8], [-15.5, 3.4]]) spike(x, by - 9.5 - (x + 11) * -0.12, h, 1.7, horn);
+  // Kopf: Schädel mit Stirnwulst, langer Schnauze und Unterkiefer
+  const hx = 29;
+  const hy = by - 28;
+  paintShape(ctx, () => {
+    ctx.beginPath();
+    ctx.moveTo(hx, hy - 1);
+    ctx.quadraticCurveTo(hx + 3, hy - 6.5, hx + 9, hy - 6);
+    ctx.lineTo(hx + 15.5, hy - 2.6);
+    ctx.quadraticCurveTo(hx + 18.6, hy - 1.6, hx + 18.2, hy + 0.6);
+    ctx.lineTo(hx + 11, hy + 1.6);
+    ctx.lineTo(hx + 16, hy + 2.6);
+    ctx.quadraticCurveTo(hx + 15, hy + 5.4, hx + 10.5, hy + 5.2);
+    ctx.quadraticCurveTo(hx + 4, hy + 5, hx + 1, hy + 3);
+    ctx.closePath();
+  }, body, hx - 1, hy - 7, 20, 13);
+  // Maul: dunkle Spalte, kleine Zähne, Unterkiefer hell
+  stroke(ctx, F.edge, 0.8, [[hx + 18, hy + 0.7], [hx + 10.6, hy + 1.7], [hx + 7, hy + 2.6]]);
+  for (const x of [12.5, 14.6, 16.6]) poly(ctx, [[hx + x - 0.7, hy + 1.2], [hx + x, hy + 2.6], [hx + x + 0.7, hy + 1.1]], F.claw);
+  stroke(ctx, belly, 1, [[hx + 5, hy + 4.4], [hx + 10, hy + 4.7], [hx + 14.5, hy + 3.2]]);
+  // Nüster, Stirnwulst, glühendes Auge
+  dot(ctx, hx + 16.4, hy - 1.4, 0.8, 0.6, F.edge);
+  stroke(ctx, darker(body, 0.35), 1.1, [[hx + 5, hy - 4.6], [hx + 9.4, hy - 4.2], [hx + 11.6, hy - 2.8]]);
+  dot(ctx, hx + 9, hy - 2.6, 1.9, 1.1, F.eye);
+  dot(ctx, hx + 9.4, hy - 2.6, 0.5, 1, '#1c0c0c');
+  dot(ctx, hx + 8.3, hy - 3, 0.5, 0.4, '#ffffff');
+  // Hörner: zwei nach hinten geschwungen, dazu kleine Zacken am Kiefer
+  poly(ctx, [[hx + 2, hy - 4.5], [hx - 5, hy - 8.5], [hx - 10.5, hy - 14], [hx - 6, hy - 10.6], [hx + 4.4, hy - 6.6]], horn);
+  poly(ctx, [[hx + 4.5, hy - 5.8], [hx, hy - 11], [hx - 1.8, hy - 16.5], [hx + 1.6, hy - 11.2], [hx + 7, hy - 6.2]], F.hornHi);
+  for (const [x, y] of [[hx + 1, hy + 2.4], [hx + 3.5, hy + 4.4]]) poly(ctx, [[x, y], [x - 4, y + 1.4], [x + 0.6, y + 1.6]], horn);
+  // Sattel in der Farbe der Klasse mit Gurt
+  if (o.saddle) {
+    box(ctx, -7, by - 13, 14, 5, 2.2, o.saddle);
+    box(ctx, -5, by - 9, 10, 4, 1.4, darker(o.saddle, 0.25));
+    stroke(ctx, '#2a1a10', 1, [[0, by - 8], [0, by + 9]]);
+    stroke(ctx, '#c8a050', 0.8, [[-1.2, by + 4], [1.2, by + 4]]);
+  }
+  // naher Flügel vor dem Rumpf
+  dragonWingBig(ctx, 2, by - 8, k, body, F.edge, F.claw, false);
+}
+
+// Glutschwinge von vorn (fliegt auf die Kamera zu) und von hinten (fliegt weg), seit 15.68 – vorher blieb der Drache
+// beim Flug nach oben und unten seitlich stehen. layer 'back': alles hinter dem Reiter, 'front': was vor ihm liegt
+// (von vorn Hals, Kopf und Vorderklauen, von hinten Hinterbeine und Schwanz). Maße wie von der Seite: Rumpfmitte
+// bei y = −38, Sattel oben auf dem Rücken (der Reiter sitzt an derselben Stelle).
+// Flügel von vorn: Schulter, Ellbogen, Handgelenk, vier Fingerspitzen, Flughaut mit eingebuchtetem Hinterrand;
+// s = −1 links, 1 rechts; k = −1 oben, 0 Mitte, 1 unten
+function dragonWingFront(ctx, s, k, skin, bone, claw) {
+  const lift = -k;
+  const S = [s * 9, -50];
+  const E = [s * 27, -58 - 10 * lift];
+  const W = [s * 42, -60 - 20 * lift];
+  const tips = [[s * 62, W[1] - 10 - 4 * lift], [s * 67, W[1] + 6], [s * 60, W[1] + 19 + 4 * Math.max(0, -lift)], [s * 46, W[1] + 28]];
+  const R = [s * 12, -30];
+  const xs = [S[0], E[0], W[0], R[0], ...tips.map((t) => t[0])];
+  const ys = [S[1], E[1], W[1], R[1], ...tips.map((t) => t[1])];
+  const bx = Math.min(...xs) - 2;
+  const byy = Math.min(...ys) - 2;
+  paintShape(ctx, () => {
+    ctx.beginPath();
+    ctx.moveTo(S[0], S[1]);
+    ctx.lineTo(E[0], E[1]);
+    ctx.lineTo(W[0], W[1]);
+    ctx.lineTo(tips[0][0], tips[0][1]);
+    let prev = tips[0];
+    for (let i = 1; i < tips.length; i++) {
+      const t = tips[i];
+      const mx = (prev[0] + t[0]) / 2;
+      const my = (prev[1] + t[1]) / 2;
+      ctx.quadraticCurveTo(mx + (W[0] - mx) * 0.3, my + (W[1] - my) * 0.3, t[0], t[1]);
+      prev = t;
+    }
+    const mx = (prev[0] + R[0]) / 2;
+    const my = (prev[1] + R[1]) / 2;
+    ctx.quadraticCurveTo(mx + (W[0] - mx) * 0.22, my + (W[1] - my) * 0.22, R[0], R[1]);
+    ctx.closePath();
+  }, skin, bx, byy, Math.max(...xs) - bx + 2, Math.max(...ys) - byy + 2);
+  stroke(ctx, bone, 2.2, [S, E, W]);
+  for (const t of tips) stroke(ctx, bone, 1, [W, t]);
+  stroke(ctx, lighter(skin, 0.16), 0.7, [[S[0] + s * 2, S[1] + 2], [E[0], E[1] + 2]]);
+  poly(ctx, [[W[0], W[1] - 1], [W[0] + s * 1.5, W[1] - 5], [W[0] + s * 3, W[1] - 0.5]], claw);
+  dot(ctx, E[0], E[1], 1.3, 1.3, bone);
+}
+function dragonFrontArt(ctx, frame, o, layer) {
+  const F = DRAGON2D_FARBEN[o.color] || DRAGON2D_FARBEN.rot;
+  const k = [-1, 0, 1, 0][frame];
+  if (layer === 'back') {
+    for (const s of [-1, 1]) dragonWingFront(ctx, s, k, F.body, F.edge, F.claw);
+    // Schwanz schaut links hinter dem Rumpf hervor, mit Hornblatt
+    paintShape(ctx, () => {
+      ctx.beginPath();
+      ctx.moveTo(-6, -30);
+      ctx.quadraticCurveTo(-22, -24, -30, -14);
+      ctx.quadraticCurveTo(-34, -9, -38, -12);
+      ctx.quadraticCurveTo(-32, -18, -24, -26);
+      ctx.quadraticCurveTo(-16, -33, -4, -36);
+      ctx.closePath();
+    }, F.bodyD, -40, -38, 38, 30);
+    poly(ctx, [[-36, -13], [-42, -9], [-41, -15], [-36, -16]], F.horn);
+    // hängende Hinterbeine
+    for (const s of [-1, 1]) {
+      oval(ctx, s * 11, -24, 4.5, 6, F.bodyD);
+      for (const dx of [-1.6, 0, 1.6]) poly(ctx, [[s * 11 + dx - 0.8, -18.5], [s * 11 + dx, -16], [s * 11 + dx + 0.8, -18.5]], F.claw);
+    }
+    // Schultern und Brust
+    oval(ctx, 0, -44, 14, 10, F.body);
+    oval(ctx, 0, -33, 12.5, 12, F.body);
+    oval(ctx, 0, -31, 6.5, 10.5, F.belly);
+    for (let i = 0; i < 4; i++) stroke(ctx, darker(F.belly, 0.28), 0.6, [[-5.5 + Math.abs(i - 1.5) * 0.4, -38 + i * 4.4], [5.5 - Math.abs(i - 1.5) * 0.4, -38 + i * 4.4]]);
+    // Rückenzacken hinter dem Kopf, Sattel
+    for (const s of [-1, 1]) poly(ctx, [[s * 6, -52], [s * 8.5, -58], [s * 10, -51]], F.horn);
+    if (o.saddle) {
+      box(ctx, -8, -54, 16, 6, 2.2, o.saddle);
+      stroke(ctx, '#2a1a10', 1, [[-9, -50], [-12, -40]]);
+      stroke(ctx, '#2a1a10', 1, [[9, -50], [12, -40]]);
+    }
+    return;
+  }
+  // vorn: Hals zur Kamera hin, Kopf vor der Brust, Vorderklauen darunter
+  paintShape(ctx, () => {
+    ctx.beginPath();
+    ctx.moveTo(-7, -46);
+    ctx.lineTo(7, -46);
+    ctx.lineTo(6, -32);
+    ctx.lineTo(-6, -32);
+    ctx.closePath();
+  }, F.body, -7, -46, 14, 14);
+  stroke(ctx, F.belly, 3, [[0, -45], [0, -33]]);
+  for (const s of [-1, 1]) {
+    poly(ctx, [[s * 6, -22], [s * 10, -16], [s * 7, -14.5], [s * 4, -19]], F.bodyD);
+    for (const dx of [0, 1.6, 3.2]) poly(ctx, [[s * (6 + dx * 0.5) - 0.8, -15.5], [s * (6 + dx * 0.5), -12.8], [s * (6 + dx * 0.5) + 0.8, -15.5]], F.claw);
+  }
+  // Hörner: groß nach oben außen geschwungen, hell an der Kante
+  for (const s of [-1, 1]) {
+    poly(ctx, [[s * 4, -34], [s * 12, -40], [s * 17, -49], [s * 13, -44], [s * 8, -36]], F.horn);
+    poly(ctx, [[s * 6, -35], [s * 12.5, -41], [s * 16, -47.5], [s * 12, -43.5], [s * 8, -37]], F.hornHi);
+    poly(ctx, [[s * 9.5, -28], [s * 14, -29.5], [s * 10, -25.5]], F.horn);
+  }
+  // Schädel: breite Stirn, schmale Schnauze nach unten
+  paintShape(ctx, () => {
+    ctx.beginPath();
+    ctx.moveTo(-9, -34);
+    ctx.quadraticCurveTo(0, -37, 9, -34);
+    ctx.quadraticCurveTo(11, -29, 9, -25);
+    ctx.lineTo(5.5, -19);
+    ctx.quadraticCurveTo(0, -15.5, -5.5, -19);
+    ctx.lineTo(-9, -25);
+    ctx.quadraticCurveTo(-11, -29, -9, -34);
+    ctx.closePath();
+  }, F.body, -11, -37, 22, 22);
+  // Schnauze heller, Nüstern, Maul mit Fängen
+  oval(ctx, 0, -19.5, 4.6, 2.8, lighter(F.body, 0.08));
+  dot(ctx, -1.9, -20.2, 0.8, 0.6, F.edge);
+  dot(ctx, 1.9, -20.2, 0.8, 0.6, F.edge);
+  stroke(ctx, F.edge, 0.8, [[-4.6, -17.6], [0, -16.6], [4.6, -17.6]]);
+  for (const s of [-1, 1]) poly(ctx, [[s * 3.8, -17.6], [s * 3.2, -15], [s * 2.6, -17.3]], F.claw);
+  // Brauen und glühende Augen mit Schlitzpupille
+  for (const s of [-1, 1]) {
+    stroke(ctx, darker(F.body, 0.38), 1.3, [[s * 1.6, -31.2], [s * 5, -30.6], [s * 8.8, -31.8]]);
+    dot(ctx, s * 5, -28.4, 2.2, 1.3, F.eye);
+    dot(ctx, s * 5, -28.4, 0.45, 1.1, '#1c0c0c');
+    dot(ctx, s * 4.3, -28.9, 0.5, 0.4, '#ffffff');
+  }
+}
+function dragonBackArt(ctx, frame, o, layer) {
+  const F = DRAGON2D_FARBEN[o.color] || DRAGON2D_FARBEN.rot;
+  const k = [-1, 0, 1, 0][frame];
+  if (layer === 'back') {
+    // Kopf und Hals weit vorn (oben im Bild), von hinten: Hinterkopf mit zwei Hörnern
+    paintShape(ctx, () => {
+      ctx.beginPath();
+      ctx.moveTo(-5, -48);
+      ctx.lineTo(5, -48);
+      ctx.lineTo(3.5, -62);
+      ctx.lineTo(-3.5, -62);
+      ctx.closePath();
+    }, F.body, -5, -62, 10, 14);
+    for (const y of [-52, -57]) poly(ctx, [[-1.4, y], [0, y - 3], [1.4, y]], F.horn);
+    oval(ctx, 0, -66, 6.5, 5.2, F.body);
+    for (const s of [-1, 1]) {
+      poly(ctx, [[s * 2.5, -69], [s * 9, -77], [s * 10, -82], [s * 6.5, -76], [s * 1.5, -66]], F.horn);
+      poly(ctx, [[s * 3.5, -70], [s * 8.5, -76.5], [s * 9.4, -80.5], [s * 6.4, -76], [s * 2.6, -68]], F.hornHi);
+    }
+    for (const s of [-1, 1]) dragonWingFront(ctx, s, k, darker(F.body, 0.12), F.edge, F.claw);
+    // Rücken: Buckel mit Zacken entlang der Wirbelsäule, dunkle Flanken
+    oval(ctx, 0, -40, 15, 13, F.body);
+    oval(ctx, -9, -36, 5, 8, F.bodyD);
+    oval(ctx, 9, -36, 5, 8, F.bodyD);
+    for (const [y, h] of [[-44, 3.6], [-38.5, 3.4], [-33, 3], [-28.5, 2.6]]) poly(ctx, [[-1.8, y], [0, y - h], [1.8, y]], F.horn);
+    if (o.saddle) {
+      box(ctx, -9, -55, 18, 8, 2.2, o.saddle);
+      box(ctx, -7, -48, 14, 3, 1.2, darker(o.saddle, 0.25));
+      stroke(ctx, '#2a1a10', 1, [[-10, -50], [-13, -36]]);
+      stroke(ctx, '#2a1a10', 1, [[10, -50], [13, -36]]);
+    }
+    return;
+  }
+  // vorn: Hinterbeine an den Seiten, Schwanz hängt zur Kamera hin mit Zacken und Hornblatt
+  for (const s of [-1, 1]) {
+    oval(ctx, s * 12.5, -29, 5, 7, F.bodyD);
+    poly(ctx, [[s * 10.5, -24], [s * 15, -18], [s * 11.5, -17.5]], F.bodyD);
+    for (const dx of [-1.6, 0, 1.6]) poly(ctx, [[s * 13 + dx - 0.8, -18.6], [s * 13 + dx, -16], [s * 13 + dx + 0.8, -18.6]], F.claw);
+  }
+  const sw = Math.sin(frame * Math.PI / 2) * 1.5;
+  paintShape(ctx, () => {
+    ctx.beginPath();
+    ctx.moveTo(-6, -30);
+    ctx.quadraticCurveTo(-5, -18, 2 + sw, -10);
+    ctx.quadraticCurveTo(6 + sw, -4, 1 + sw, -1);
+    ctx.quadraticCurveTo(2 + sw, -6, -2 + sw, -10);
+    ctx.quadraticCurveTo(-8, -19, -6, -30);
+    ctx.moveTo(6, -30);
+    ctx.quadraticCurveTo(4, -20, -1, -13);
+    ctx.lineTo(-6, -30);
+    ctx.closePath();
+  }, F.body, -9, -31, 17, 31);
+  for (const [x, y] of [[-1.5, -24], [0, -18], [1.5 + sw, -12.5]]) poly(ctx, [[x - 1.5, y], [x, y - 3], [x + 1.5, y]], F.horn);
+  poly(ctx, [[sw, -2], [sw - 4, 2], [sw + 1, 4.5], [sw + 4, 0.5]], F.horn);
+}
+
+// Größe der Bosse in 2D (seit 15.65): Endbosse benutzen das Bild ihrer Vorlage (raid.art) und waren deshalb nur so
+// groß wie ein Alphawolf oder Yeti – in 3D wächst ihr Modell um raid.scale. Jetzt auch in 2D: Endbosse um raid.scale,
+// Wächter mit fremdem Aussehen um lookScale (Instanz-Wächter haben ihr vergrößertes Bild schon, instanzen.js),
+// Dungeon-Bosse um ein Viertel. Gilt für Bild, Schatten, Namen und Lebensbalken (figureHeight).
+const MON2D_SCALE = {};
+function mon2dScale(typeId) {
+  let s = MON2D_SCALE[typeId];
+  if (s !== undefined) return s;
+  const t = MONSTER_TYPES[typeId];
+  s = 1;
+  if (t && t.raid && t.raid.scale > 1) s = t.raid.scale;
+  else if (t && t.look && !t.inst && t.lookScale > 1) s = t.lookScale;
+  else if (t && t.boss && !t.inst && !t.turm) s = 1.25;
+  MON2D_SCALE[typeId] = s;
+  return s;
+}
+function monsterSprite(typeId, frame) {
+  const art = MONSTER_ART[typeId];
+  const s = mon2dScale(typeId);
+  const ah = art.h * s;
+  const k = ah / 30;
+  const bounds = { x: -36 * Math.max(1, k), y: -ah - 14 * Math.max(1, s * 0.6), w: 72 * Math.max(1, k), h: ah + 20 * Math.max(1, s * 0.6) };
+  return getSprite(`m:${typeId}:${frame}`, bounds, s === 1 ? (ctx) => art.draw(ctx, frame) : (ctx) => {
+    ctx.scale(s, s);
+    art.draw(ctx, frame);
+  });
+}
+
+// Höhe einer Figur über ihren Füßen, für Namen und Lebensbalken
+// seit 13.94: Höhe der fliegenden Knochendrachen (samt Flughöhe) und der Seelenkolosse
+const ALLY_FIG_H = { drache: 50, koloss: 66 };
+function figureHeight(e) {
+  if (e.isStone) return stoneHeight(e);
+  if ((e.ally || e.remoteAlly) && ALLY_FIG_H[e.kind]) return ALLY_FIG_H[e.kind] * (e.scale || 1);
+  if (e.typeId && MONSTER_ART[e.typeId]) return MONSTER_ART[e.typeId].h * mon2dScale(e.typeId);
+  return 47;
+}
+
+function feetY(e) {
+  return e.y + e.r * 0.8;
+}
+
+// Endbosse (seit 6.5) sehen aus wie ihre Vorlage, nur riesig und geschmückt
+// Neue Tiere (seit 6.7): in 2D aus den Vierbeiner-Bausteinen; in 3D teils mit eigenem Modell (drei-tiere.js)
+const beastIn = (sc, o) => (ctx, f) => { ctx.scale(sc, sc); beastArt(ctx, f, o); };
+Object.assign(MONSTER_ART, {
+  fuchs: { h: 24, draw: beastIn(0.95, { fur: '#c8682a', belly: '#f4ece0', snout: '#f4ece0', bushy: true, tailTip: '#f8f4ec', bigEars: true, eye: '#d8a03a', lean: true, muzzle: 0.3 }) },
+  hirsch: { h: 44, draw: beastIn(1.3, { fur: '#9a6a3e', belly: '#e8dcc8', horns: '#e0d0b0', tail: false, eye: '#2a1a10' }) },
+  dornenkeiler: { h: 36, draw: beastIn(1.35, { fur: '#4a3a26', belly: '#6a5a3a', snout: '#a88a6a', mane: '#6a8a3a', bulky: true, ridge: true, tusk: true, tail: false, small: true, eye: '#c8ff6a', angry: true }) },
+  luchs: { h: 28, draw: beastIn(1.05, { fur: '#b08a5a', belly: '#efe2c8', snout: '#efe2c8', spots: '#5a4630', cat: true, tufts: '#1a1410', stub: '#1a1410', eye: '#c8d84a', angry: true, fangs: true }) },
+  hyaene: { h: 30, draw: beastIn(1.1, { fur: '#a08a62', belly: '#c8b890', snout: '#3a2e22', mane: '#4a3a28', spots: '#3a2e20', ridge: true, eye: '#d8a03a', angry: true, fangs: true, lean: true, muzzle: 0.2 }) },
+  schakal: { h: 28, draw: beastIn(1.05, { fur: '#c8a060', belly: '#f0e0c0', saddleFur: '#3a3028', bushy: true, bigEars: true, eye: '#e8b040', angry: true, fangs: true, lean: true, muzzle: 0.3 }) },
+  warg: { h: 40, draw: beastIn(1.5, { fur: '#2e2a2a', belly: '#4a4444', mane: '#141010', bushy: true, eye: '#ff6a2a', glow: true, angry: true, fangs: true, scar: true, lean: true }) },
+  eisbaer: { h: 44, draw: beastIn(1.62, { fur: '#eef4f8', belly: '#dfe8ee', snout: '#e4ecf0', bulky: true, tail: false, eye: '#1a2a3a', angry: true, fangs: true, long: 0.5 }) },
+  panther: { h: 30, draw: beastIn(1.15, { fur: '#1e1e26', belly: '#2a2a34', snout: '#2a2a34', cat: true, longTail: true, eye: '#ffd34d', glow: true, angry: true, fangs: true }) },
+  mammut: { h: 58, draw: beastIn(1.6, { fur: '#7a5a42', belly: '#5a4030', bulky: true, tusk: true, tail: false, eye: '#9fe8ff' }) },
+  moorwolf: { h: 32, draw: beastIn(1.18, { fur: '#4a5a4a', belly: '#6a7a5a', mane: '#2a3a2a', bushy: true, eye: '#9be07a', glow: true, angry: true, fangs: true, lean: true }) },
+  donnerbock: { h: 44, draw: beastIn(1.3, { fur: '#8a8a92', belly: '#c8c8d0', horns: '#6a6458', tail: false, eye: '#9fd0ff', glow: true }) },
+  glutkatze: { h: 30, draw: beastIn(1.15, { fur: '#2a1a16', belly: '#3a2420', snout: '#3a2420', cat: true, longTail: true, tailTip: '#ff7a2a', stripes: '#ff6a1a', glowStripes: true, eye: '#ffb04a', glow: true, angry: true, fangs: true }) }
+});
+
+for (const [id, t] of Object.entries(MONSTER_TYPES)) if ((t.raid || t.look) && !MONSTER_ART[id]) MONSTER_ART[id] = MONSTER_ART[t.raid ? t.raid.art : t.look];

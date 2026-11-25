@@ -1,0 +1,115 @@
+{
+  "rules": {
+    "konten": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    },
+    "lager": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid",
+        ".validate": "!newData.exists() || (newData.child('items').isString() && newData.child('items').val().length <= 400000)"
+      }
+    },
+    "namen": {
+      ".read": "auth != null",
+      ".indexOn": ["uid"],
+      "$name": {
+        ".write": "auth != null && (!data.exists() || data.child('uid').val() === auth.uid) && (!newData.exists() || newData.child('uid').val() === auth.uid)",
+        ".validate": "!newData.exists() || (newData.child('uid').isString() && newData.child('name').isString() && newData.child('name').val().length >= 2 && newData.child('name').val().length <= 14 && newData.child('name').val().toLowerCase() === $name && !newData.child('name').val().contains('<') && !newData.child('name').val().contains('>') && !newData.child('name').val().contains('&') && !newData.child('name').val().contains('\"'))"
+      }
+    },
+    "post": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid",
+        "$id": {
+          ".write": "auth != null && !data.exists() && newData.child('vonUid').val() === auth.uid && ((!newData.child('sys').exists() && newData.child('vonKey').isString() && newData.child('von').isString() && newData.child('von').val().toLowerCase() === newData.child('vonKey').val() && root.child('namen').child(newData.child('vonKey').val()).child('uid').val() === auth.uid) || (newData.child('sys').val() === 'ah' && newData.child('von').val() === 'Auktionshaus' && newData.child('ah').isString() && newData.child('ah').val().matches(/^[A-Za-z0-9_-]+$/) && newData.child('ah').val().length <= 64 && root.child('auktion').child(newData.child('ah').val()).child('kaeufer').exists() && !newData.parent().parent().parent().child('auktion').child(newData.child('ah').val()).exists() && (root.child('auktion').child(newData.child('ah').val()).child('kaeufer/uid').val() === auth.uid || (root.child('auktion').child(newData.child('ah').val()).child('uid').val() === auth.uid && root.child('auktion').child(newData.child('ah').val()).child('kaeufer/at').val() < now - 3600000)) && (($id === 'a' + newData.child('ah').val() + 'k' && $uid === root.child('auktion').child(newData.child('ah').val()).child('kaeufer/uid').val() && newData.child('gold').val() === 0 && newData.child('ware').val() === '[' + root.child('auktion').child(newData.child('ah').val()).child('ware').val() + ']') || ($id === 'a' + newData.child('ah').val() + 'e' && $uid === root.child('auktion').child(newData.child('ah').val()).child('uid').val() && root.child('auktion').child(newData.child('ah').val()).child('kaeufer/art').val() === 'kauf' && newData.child('gold').val() === root.child('auktion').child(newData.child('ah').val()).child('preis').val()) || ($id === 'a' + newData.child('ah').val() + 'r' && $uid === root.child('auktion').child(newData.child('ah').val()).child('uid').val() && root.child('auktion').child(newData.child('ah').val()).child('kaeufer/art').val() !== 'kauf' && newData.child('gold').val() === 0 && newData.child('ware').val() === '[' + root.child('auktion').child(newData.child('ah').val()).child('ware').val() + ']'))))",
+          ".validate": "$id.matches(/^[A-Za-z0-9_-]+$/) && $id.length <= 64 && newData.hasChildren(['an', 'von', 'vonUid', 'at']) && newData.child('von').isString() && newData.child('von').val().length <= 20 && (!newData.child('sys').exists() || newData.child('sys').val() === 'ah') && newData.child('text').isString() && newData.child('text').val().length <= 500 && newData.child('betreff').isString() && newData.child('betreff').val().length <= 40 && newData.child('gold').isNumber() && newData.child('gold').val() >= 0 && (!newData.child('ware').exists() || (newData.child('ware').isString() && newData.child('ware').val().length <= 20000))"
+        }
+      }
+    },
+    "auktion": {
+      ".read": "auth != null",
+      "$id": {
+        ".write": "auth != null && ((!data.exists() && newData.child('uid').val() === auth.uid && newData.child('at').val() <= now + 60000 && newData.child('ende').val() <= now + 172860000 && !newData.child('kaeufer').exists()) || (data.exists() && !newData.exists() && data.child('kaeufer').exists() && (data.child('kaeufer/uid').val() === auth.uid || (data.child('uid').val() === auth.uid && data.child('kaeufer/at').val() < now - 3600000))) || (data.exists() && newData.exists() && !data.child('kaeufer').exists() && newData.child('kaeufer/uid').val() === auth.uid && newData.child('uid').val() === data.child('uid').val() && newData.child('von').val() === data.child('von').val() && newData.child('ware').val() === data.child('ware').val() && newData.child('preis').val() === data.child('preis').val() && newData.child('ende').val() === data.child('ende').val()))",
+        ".validate": "$id.matches(/^[A-Za-z0-9_-]+$/) && $id.length <= 64 && newData.hasChildren(['uid', 'von', 'ware', 'preis', 'at', 'ende']) && newData.child('ware').isString() && newData.child('ware').val().length <= 5000 && newData.child('preis').isNumber() && newData.child('preis').val() >= 1 && newData.child('preis').val() <= 999999999 && newData.child('ende').val() <= newData.child('at').val() + 172800000",
+        "kaeufer": {
+          ".validate": "newData.hasChildren(['uid', 'art', 'at']) && ((newData.child('art').val() === 'kauf' && now < data.parent().child('ende').val() && data.parent().child('uid').val() !== auth.uid) || (newData.child('art').val() === 'abbruch' && data.parent().child('uid').val() === auth.uid) || (newData.child('art').val() === 'ablauf' && now >= data.parent().child('ende').val()))"
+        }
+      }
+    },
+    "meldungen": {
+      "$id": {
+        ".write": "auth != null && !data.exists() && newData.exists()",
+        ".validate": "newData.hasChildren(['vonUid', 'von', 'gegen', 'grund', 'zeit']) && newData.parent().parent().child('meldezeit/' + auth.uid).val() === now",
+        "vonUid": { ".validate": "newData.val() === auth.uid" },
+        "von": { ".validate": "newData.isString() && newData.val().length <= 40" },
+        "figur": { ".validate": "newData.isString() && newData.val().length <= 40" },
+        "gegen": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 40" },
+        "grund": { ".validate": "newData.isString() && newData.val().matches(/^(beleidigung|betrug|spam|name|sonstiges)$/)" },
+        "text": { ".validate": "newData.isString() && newData.val().length <= 500" },
+        "chat": { ".validate": "newData.isString() && newData.val().length <= 3000" },
+        "ort": { ".validate": "newData.isString() && newData.val().length <= 60" },
+        "version": { ".validate": "newData.isString() && newData.val().length <= 20" },
+        "zeit": { ".validate": "newData.val() === now" },
+        "$other": { ".validate": false }
+      }
+    },
+    "rangliste": {
+      ".read": true,
+      ".indexOn": ["level", "rp"],
+      "$id": {
+        ".write": "auth != null && $id.beginsWith(auth.uid + '_') && $id.length === auth.uid.length + 2",
+        ".validate": "newData.hasChildren(['name', 'cls', 'level', 'xp', 'rp', 'at'])",
+        "name": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 16" },
+        "cls": { ".validate": "newData.isString() && newData.val().matches(/^[a-z]{3,20}$/)" },
+        "path": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 9" },
+        "level": { ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 80" },
+        "xp": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+        "gs": {
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 300"
+        },
+        "rp": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 50000" },
+        "liga": { ".validate": "newData.isString() && newData.val().length <= 12" },
+        "seite": { ".validate": "newData.isString() && newData.val().matches(/^(l|s)$/)" },
+        "at": { ".validate": "newData.isNumber() && newData.val() <= now + 60000" },
+        "$other": { ".validate": false }
+      }
+    },
+    "meldezeit": {
+      "$uid": {
+        ".write": "auth != null && auth.uid === $uid && (!newData.exists() || !data.exists() || data.val() < now - 60000)",
+        ".validate": "newData.val() === now"
+      }
+    },
+    "feedback": {
+      "$uid": {
+        ".write": "auth != null && auth.uid === $uid && !newData.exists()",
+        "$id": {
+          ".write": "auth != null && auth.uid === $uid && !data.exists() && newData.exists()",
+          ".validate": "newData.hasChildren(['von', 'art', 'text', 'zeit']) && newData.parent().parent().parent().child('feedbackzeit/' + auth.uid).val() === now",
+          "von": { ".validate": "newData.isString() && newData.val().length <= 40" },
+          "figur": { ".validate": "newData.isString() && newData.val().length <= 40" },
+          "klasse": { ".validate": "newData.isString() && newData.val().length <= 20" },
+          "stufe": { ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 80" },
+          "art": { ".validate": "newData.isString() && newData.val().matches(/^(fehler|wunsch|lob)$/)" },
+          "sterne": { ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 5" },
+          "text": { ".validate": "newData.isString() && newData.val().length >= 10 && newData.val().length <= 1000" },
+          "geraet": { ".validate": "newData.isString() && newData.val().length <= 160" },
+          "version": { ".validate": "newData.isString() && newData.val().length <= 20" },
+          "zeit": { ".validate": "newData.val() === now" },
+          "$other": { ".validate": false }
+        }
+      }
+    },
+    "feedbackzeit": {
+      "$uid": {
+        ".write": "auth != null && auth.uid === $uid && (!newData.exists() || !data.exists() || data.val() < now - 600000)",
+        ".validate": "newData.val() === now"
+      }
+    }
+  }
+}

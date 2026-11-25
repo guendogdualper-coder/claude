@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Seelenstein</title>
+<!--
+  Startseite im App-Paket. Normalerweise wird sie NIE angezeigt, weil die App direkt
+  https://seelenstein.online/ lädt (server.url in capacitor.config.json). Capacitor verlangt aber,
+  dass es eine index.html gibt. Falls sie doch erscheint: weiter zur Seite „Keine Verbindung“,
+  die das Spiel lädt, sobald der Server erreichbar ist.
+-->
+<style>html, body { margin: 0; height: 100%; background: #12100c; }</style>
+<script>location.replace('offline.html');</script>
+</head>
+<body></body>
+</html>

@@ -1,0 +1,24 @@
+# Wird von „npm ci“ bzw. „npx cap sync ios“ erzeugt – nie einchecken
+node_modules/
+App/App/public/
+App/App/capacitor.config.json
+App/App/config.xml
+capacitor-cordova-ios-plugins/
+
+# Xcode-Arbeitsdateien und Builds
+App/build/
+App/output/
+App/Pods/
+DerivedData/
+build/
+xcuserdata/
+*.xcuserstate
+.DS_Store
+
+# Signierung: Schlüssel, Zertifikate und Profile gehören NIE ins Repo (nur als GitHub-Secrets)
+*.p8
+*.p12
+*.mobileprovision
+*.cer
+*.ipa
+*.xcarchive

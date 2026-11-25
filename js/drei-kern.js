@@ -1,0 +1,3740 @@
+// 3D-Grafik (ab Version 4.0): Welt, Figuren und Monster als echte 3D-Szene mit three.js.
+// Spiellogik, Kollision und Menüs bleiben unverändert. Die Welt bleibt eine flache Karte
+// (x nach rechts, y nach unten, 32 Pixel je Kachel) und liegt hier auf dem Boden der Szene:
+// x → x, y → z, eine Kachel = eine Einheit, die Höhe ist y.
+// Namen, Schadenszahlen, Geschosse und Zaubereffekte malt weiterhin das 2D-Canvas darüber;
+// jede dieser Zeichnungen wird an die Stelle gerückt, an der ihr Punkt im 3D-Bild liegt (V3.anchor).
+//
+// Alle Formen haben weiche, abgerundete Kanten (abgerundete Quader, Kapseln, glatte Kugeln),
+// dazu ein dünner dunkler Umriss und weiche Zeichentrick-Schattierung wie im 2D-Spiel.
+
+const U3 = 1 / TILE;
+const V3 = {
+  on: false,
+  gl: null,
+  scene: null,
+  camera: null,
+  sun: null,
+  hemi: null,
+  canvas: null,
+  pitch: 0.86,
+  time: 0,
+  focus: { x: 0, y: 0 },
+  fadeScreen: new Float32Array(4)
+};
+
+// Farben aus Zeichenketten merken (seit 14.26): THREE.Color.set('#ff8800') zerlegt die Zeichenkette jedes Mal mit
+// regulären Ausdrücken. Lichter und Effekte tun das hundertfach je Bild – das kostete Rechenzeit und erzeugte viel
+// Müll für die Speicherbereinigung (kleine Hänger alle paar Sekunden). Ungültige Angaben werden nicht gemerkt.
+(() => {
+  if (typeof THREE === 'undefined' || THREE.Color.prototype.__memo) return;
+  const parse = THREE.Color.prototype.setStyle;
+  const memo = new Map();
+  THREE.Color.prototype.setStyle = function (style) {
+    const c = memo.get(style);
+    if (c) {
+      this.r = c[0];
+      this.g = c[1];
+      this.b = c[2];
+      return this;
+    }
+    const r = this.r;
+    this.r = NaN;
+    parse.call(this, style);
+    if (this.r !== this.r) {
+      this.r = r;
+      return this;
+    }
+    if (memo.size > 4000) memo.clear();
+    memo.set(style, [this.r, this.g, this.b]);
+    return this;
+  };
+  THREE.Color.prototype.__memo = true;
+})();
+
+function v3Supported() {
+  if (typeof THREE === 'undefined') return false;
+  try {
+    const c = document.createElement('canvas');
+    return !!(window.WebGLRenderingContext && (c.getContext('webgl') || c.getContext('experimental-webgl')));
+  } catch (e) {
+    return false;
+  }
+}
+
+// --- Materialien -----------------------------------------------------------------------------
+
+// Zeichentrick-Schattierung in drei Stufen mit weichen Kanten. Die Schatten sind kühl blau-violett
+// getönt statt grau (wie in Anime-Spielen), die Lichtseite bleibt warm.
+let toonGradient = null;
+function toonRamp() {
+  if (toonGradient) return toonGradient;
+  const N = 64;
+  const d = new Uint8Array(N * 4);
+  const shadow = [0.5, 0.5, 0.66];
+  const mid = [0.8, 0.79, 0.88];
+  const lit = [1, 1, 1];
+  const step = (a, b, x) => Math.max(0, Math.min(1, (x - a) / (b - a)));
+  for (let i = 0; i < N; i++) {
+    const t = i / (N - 1);
+    const k1 = step(0.3, 0.38, t);
+    const k2 = step(0.58, 0.66, t);
+    for (let c = 0; c < 3; c++) {
+      const v = shadow[c] + (mid[c] - shadow[c]) * k1 + (lit[c] - mid[c]) * k2;
+      d[i * 4 + c] = Math.round(v * 255);
+    }
+    d[i * 4 + 3] = 255;
+  }
+  toonGradient = new THREE.DataTexture(d, N, 1, THREE.RGBAFormat);
+  toonGradient.minFilter = THREE.LinearFilter;
+  toonGradient.magFilter = THREE.LinearFilter;
+  toonGradient.needsUpdate = true;
+  return toonGradient;
+}
+
+// Für Figuren: Randlicht an den Kanten (warm auf der Sonnenseite) und kleine Glanzpunkte auf
+// Metall, Augen und Haaren (Eckenwert "shine"). Kostet fast nichts, macht sie deutlich plastischer.
+function addRimShine(mat) {
+  mat.onBeforeCompile = (sh) => {
+    sh.vertexShader = sh.vertexShader
+      .replace('void main() {', 'attribute float shine;\nvarying float vShine;\nvoid main() {\n\tvShine = shine;');
+    sh.fragmentShader = sh.fragmentShader
+      .replace('void main() {', 'varying float vShine;\nvoid main() {')
+      .replace('#include <output_fragment>', `
+	vec3 vdir = normalize(vViewPosition);
+	float ndv = clamp(dot(normal, vdir), 0.0, 1.0);
+	float rim = smoothstep(0.55, 0.92, 1.0 - ndv);
+	#if NUM_DIR_LIGHTS > 0
+		vec3 ldir = directionalLights[0].direction;
+		float facing = clamp(dot(normal, ldir) * 0.5 + 0.5, 0.0, 1.0);
+		outgoingLight += rim * mix(vec3(0.22, 0.24, 0.42), vec3(0.95, 0.78, 0.55), facing) * 0.42 * (0.4 + 0.6 * diffuseColor.rgb);
+		vec3 hv = normalize(ldir + vdir);
+		float sp = smoothstep(0.86, 0.93, dot(normal, hv)) * vShine;
+		outgoingLight += sp * vec3(1.0, 0.97, 0.9) * 0.75;
+	#endif
+	#include <output_fragment>`);
+  };
+  mat.customProgramCacheKey = () => 'rimshine' + (mat.skinning ? 's' : '');
+  return mat;
+}
+
+// Objekte zwischen Kamera und Spieler werden in einem kleinen Kreis um ihn durchsichtig gerastert,
+// damit man hinter Bäumen, Dächern und Mauern sieht, wo man steht (wie im 2D-Spiel).
+const FADE_UNIFORM = { value: V3.fadeScreen };
+function addFade(mat, minHeight) {
+  const prev = mat.onBeforeCompile;
+  mat.onBeforeCompile = (sh, r) => {
+    if (prev) prev(sh, r);
+    sh.uniforms.uFade = FADE_UNIFORM;
+    sh.vertexShader = sh.vertexShader
+      .replace('void main() {', 'varying float vFadeY;\nvoid main() {')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\n\tvFadeY = (modelMatrix * vec4(transformed, 1.0)).y;');
+    sh.fragmentShader = sh.fragmentShader
+      .replace('void main() {', `uniform vec4 uFade;\nvarying float vFadeY;\nvoid main() {
+	if (uFade.z > 0.0 && vFadeY > ${minHeight.toFixed(2)} && gl_FragCoord.z < uFade.w) {
+		vec2 fd = gl_FragCoord.xy - uFade.xy;
+		if (dot(fd, fd) < uFade.z * uFade.z && mod(floor(gl_FragCoord.x) + floor(gl_FragCoord.y), 2.0) < 1.0) discard;
+	}`);
+  };
+  const key = mat.customProgramCacheKey ? mat.customProgramCacheKey.bind(mat) : () => '';
+  mat.customProgramCacheKey = () => key() + 'fade' + minHeight;
+  return mat;
+}
+
+function toonMat(o = {}) {
+  return new THREE.MeshToonMaterial(Object.assign({ vertexColors: true, gradientMap: toonRamp() }, o));
+}
+
+// Umriss: rückseitige Hülle, entlang der Normalen um eine feste Dicke aufgeblasen
+// seit 14.44: Hülle dicht vor der Kamera weglassen. Schwenkte die Schulterkamera beim schnellen Drehen kurz durch ein
+// Haus, eine Mauer oder eine Baumkrone, sah sie von innen nur die dunkle Hülle (die beleuchteten Flächen zeigen nach
+// außen und fehlen von innen) – das war das schwarze Flackern. Unter 1,4 Einheiten Tiefe wird die Hülle verworfen.
+function outlineMat(width, skinning) {
+  const m = new THREE.MeshBasicMaterial({ color: 0x1a1210, side: THREE.BackSide, skinning: !!skinning });
+  m.onBeforeCompile = (sh) => {
+    sh.vertexShader = sh.vertexShader
+      .replace('void main() {', 'varying float vOutZ;\nvoid main() {')
+      .replace('#include <begin_vertex>', `#include <begin_vertex>\n\ttransformed += normalize(normal) * ${width.toFixed(4)};`)
+      .replace('#include <project_vertex>', '#include <project_vertex>\n\tvOutZ = -mvPosition.z;');
+    sh.fragmentShader = sh.fragmentShader.replace('void main() {', 'varying float vOutZ;\nvoid main() {\n\tif (vOutZ < 1.4) discard;');
+  };
+  m.customProgramCacheKey = () => 'outline' + width + (skinning ? 's' : '') + 'n';
+  return m;
+}
+
+const MAT3 = {};
+function mat3(key, make) {
+  if (!MAT3[key]) MAT3[key] = make();
+  return MAT3[key];
+}
+
+// --- Formen mit weichen Kanten -----------------------------------------------------------------
+
+const GEO3 = new Map();
+// Detailstufe beim Bauen (seit 14.26): 1 = volles Modell; kleiner baut dieselben Teile mit weniger Unterteilungen
+// (vereinfachtes Monstermodell für Figuren, die im Bild klein sind, drei-figuren.js modelLod3). Nur während eines
+// solchen Baus kleiner als 1; die Teile landen unter eigenen Schlüsseln im Vorrat.
+let GEO3_LOD = 1;
+const lodSeg3 = (n, min = 3) => (GEO3_LOD >= 1 ? n : Math.max(Math.min(n, min), Math.round(n * GEO3_LOD)));
+function geo3(key, make) {
+  if (GEO3_LOD < 1) key = 'L' + GEO3_LOD + ':' + key;
+  let g = GEO3.get(key);
+  if (!g) {
+    g = make();
+    GEO3.set(key, g);
+  }
+  return g;
+}
+
+// Quader mit abgerundeten Kanten und Ecken (r = Rundung), glatte Normalen
+function roundBox(w, h, d, r, k) {
+  r = Math.max(0.001, Math.min(r, w / 2, h / 2, d / 2) * 0.999);
+  // kleine Teile brauchen weniger Unterteilung, große Kanten bleiben schön rund
+  if (k == null) k = r < 0.045 ? 1 : r < 0.13 ? 2 : 3;
+  // vereinfachtes Modell: eine Stufe weniger Rundung, kleinste Teile als Quader mit weichen Normalen (8 Ecken)
+  if (GEO3_LOD < 1) {
+    k = Math.max(0, k - (GEO3_LOD <= 0.4 ? 2 : 1));
+    if (k === 0) return geo3(`rb0${w},${h},${d}`, () => smoothGeo(new THREE.BoxGeometry(w, h, d)));
+  }
+  return geo3(`rb${w},${h},${d},${r},${k}`, () => {
+    const n = 2 * k + 1;
+    const g = new THREE.BoxGeometry(1, 1, 1, n, n, n);
+    const pos = g.attributes.position;
+    const nor = g.attributes.normal;
+    const half = [w / 2, h / 2, d / 2];
+    const inner = half.map((v) => v - r);
+    const map = (u, hv) => {
+      const i = Math.round((u + 0.5) * n);
+      if (i <= k) return -hv + r * (i / k);
+      return hv - r * ((n - i) / k);
+    };
+    const p = [0, 0, 0];
+    const c = [0, 0, 0];
+    for (let i = 0; i < pos.count; i++) {
+      p[0] = map(pos.getX(i), half[0]);
+      p[1] = map(pos.getY(i), half[1]);
+      p[2] = map(pos.getZ(i), half[2]);
+      for (let a = 0; a < 3; a++) c[a] = Math.max(-inner[a], Math.min(inner[a], p[a]));
+      let dx = p[0] - c[0];
+      let dy = p[1] - c[1];
+      let dz = p[2] - c[2];
+      const l = hyp3(dx, dy, dz);
+      if (l > 1e-6) {
+        dx /= l; dy /= l; dz /= l;
+        pos.setXYZ(i, c[0] + dx * r, c[1] + dy * r, c[2] + dz * r);
+        nor.setXYZ(i, dx, dy, dz);
+      } else {
+        pos.setXYZ(i, p[0], p[1], p[2]);
+      }
+    }
+    return g;
+  });
+}
+
+// Gleiche Eckpunkte zusammenlegen, damit die Normalen weich werden (keine sichtbaren Facetten)
+function smoothGeo(g) {
+  const P = g.attributes.position;
+  const map = new Map();
+  const pos = [];
+  const idx = [];
+  for (let i = 0; i < P.count; i++) {
+    const key = `${Math.round(P.getX(i) * 1e4)},${Math.round(P.getY(i) * 1e4)},${Math.round(P.getZ(i) * 1e4)}`;
+    let j = map.get(key);
+    if (j === undefined) {
+      j = pos.length / 3;
+      map.set(key, j);
+      pos.push(P.getX(i), P.getY(i), P.getZ(i));
+    }
+    idx.push(j);
+  }
+  const out = new THREE.BufferGeometry();
+  out.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  out.setIndex(idx);
+  out.computeVertexNormals();
+  return out;
+}
+
+function sphere3(r, ws = 12, hs = 9) {
+  ws = lodSeg3(ws, 5);
+  hs = lodSeg3(hs, 4);
+  return geo3(`sp${r},${ws},${hs}`, () => new THREE.SphereGeometry(r, ws, hs));
+}
+
+// Drehkörper aus einem Profil [[radius, höhe], ...] von unten nach oben
+function lathe3(key, pts, seg = 12) {
+  seg = lodSeg3(seg, 4);
+  return geo3('la' + key + seg, () => {
+    const g = new THREE.LatheGeometry(pts.map(([x, y]) => new THREE.Vector2(Math.max(0, x), y)), seg);
+    g.computeVertexNormals();
+    return g;
+  });
+}
+
+// Kapsel von y = 0 nach unten bis y = -len, oben Radius r1, unten r2 (Arme, Beine, Schwänze)
+function limb3(len, r1, r2 = r1, seg = 9) {
+  const pts = [];
+  const q = 3;
+  for (let i = 0; i <= q; i++) {
+    const a = Math.PI / 2 - (i / q) * (Math.PI / 2);
+    pts.push([Math.cos(a) * r2, -len + r2 - Math.sin(a) * r2]);
+  }
+  for (let i = 0; i <= q; i++) {
+    const a = (i / q) * (Math.PI / 2);
+    pts.push([Math.cos(a) * r1, -r1 + Math.sin(a) * r1]);
+  }
+  pts.sort((a, b) => a[1] - b[1]);
+  pts[0][0] = 0;
+  pts[pts.length - 1][0] = 0;
+  return lathe3(`limb${len},${r1},${r2}`, pts, seg);
+}
+
+// Glied zwischen zwei Punkten a → b (z. B. Spinnenbeine, Äste)
+const _down = new THREE.Vector3(0, -1, 0);
+function limbBetween(A, a, b, r1, r2, color, o = {}) {
+  const d = new THREE.Vector3(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
+  const len = d.length();
+  const q = new THREE.Quaternion().setFromUnitVectors(_down, d.normalize());
+  const m = new THREE.Matrix4().compose(new THREE.Vector3(...a), q, new THREE.Vector3(1, 1, 1));
+  A(limb3(+len.toFixed(2), r1, r2, o.seg || 7), color, Object.assign({}, o, { m: o.parentM ? o.parentM.clone().multiply(m) : m }));
+}
+
+// Spitzer Kegel mit runder Basis und weicher Spitze (Hörner, Ohren, Dornen, Stacheln)
+function horn3(len, r, seg = 10) {
+  // vereinfachtes Modell (seit 14.26): drei statt sechs Ringe, ab drei Seiten (Stacheln, Fellbüschel, Zähne)
+  if (GEO3_LOD < 1) {
+    const s = Math.max(3, Math.round(seg * GEO3_LOD));
+    return geo3(`hornL${len},${r},${s}`, () => {
+      const g = new THREE.LatheGeometry([[0, 0], [r, 0.12 * len], [r * 0.55, 0.55 * len], [0, len]].map(([x, y]) => new THREE.Vector2(x, y)), s);
+      g.computeVertexNormals();
+      return g;
+    });
+  }
+  const pts = [[0, 0], [r * 0.9, 0.02 * len], [r, 0.12 * len], [r * 0.72, 0.45 * len], [r * 0.38, 0.75 * len], [r * 0.12, 0.95 * len], [0, len]];
+  return lathe3(`horn${len},${r}`, pts, seg);
+}
+
+// Glattes, sich verjüngendes Rohr entlang einer weichen Kurve durch pts (seit 12.7.1): Hörner, Stoßzähne,
+// Rüssel – ohne Ringe und ohne Knicke zwischen Gliedern. r0 am Anfang, r1 am Ende; die Spitze ist geschlossen.
+function tube3(pts, r0, r1, seg = 18, rad = 9) {
+  seg = lodSeg3(seg, 4);
+  rad = lodSeg3(rad, 4);
+  const key = 'tube' + pts.map((p) => p.map((v) => v.toFixed(3)).join(',')).join(';') + r0.toFixed(3) + r1.toFixed(3) + seg + rad;
+  return geo3(key, () => {
+    const curve = new THREE.CatmullRomCurve3(pts.map((p) => new THREE.Vector3(...p)));
+    const g = new THREE.TubeGeometry(curve, seg, 1, rad, false);
+    const P = g.attributes.position;
+    const c = new THREE.Vector3();
+    for (let i = 0; i <= seg; i++) {
+      const t = i / seg;
+      curve.getPointAt(t, c);
+      const r = r0 + (r1 - r0) * Math.pow(t, 0.85);
+      for (let j = 0; j <= rad; j++) {
+        const k = i * (rad + 1) + j;
+        P.setXYZ(k, c.x + (P.getX(k) - c.x) * r, c.y + (P.getY(k) - c.y) * r, c.z + (P.getZ(k) - c.z) * r);
+      }
+    }
+    g.computeVertexNormals();
+    return g;
+  });
+}
+
+// Rohr mit Dickenverlauf (seit 13.2): wie tube3, aber radii ist eine Liste über die ganze Kurve (gleichmäßig
+// verteilt, dazwischen linear), t0/t1 schneiden ein Stück heraus (z. B. die helle Schwanzspitze), flat staucht
+// den Querschnitt seitlich (< 1 = flacher, z. B. ein buschiger Schwanz von oben breiter als hoch)
+function tubeProfile3(pts, radii, seg = 18, rad = 10, t0 = 0, t1 = 1, flat = 1) {
+  seg = lodSeg3(seg, 4);
+  rad = lodSeg3(rad, 4);
+  const key = 'tubeP' + pts.map((p) => p.map((v) => v.toFixed(3)).join(',')).join(';') + '|' + radii.map((r) => r.toFixed(3)).join(',') + '|' + seg + ',' + rad + ',' + t0 + ',' + t1 + ',' + flat;
+  return geo3(key, () => {
+    const full = new THREE.CatmullRomCurve3(pts.map((p) => new THREE.Vector3(...p)));
+    // Teilstück als eigene Kurve (dichte Stützpunkte), damit die Röhre genau dort beginnt und endet
+    const sub = [];
+    for (let i = 0; i <= 10; i++) sub.push(full.getPointAt(t0 + (t1 - t0) * (i / 10)));
+    const curve = new THREE.CatmullRomCurve3(sub);
+    const rAt = (t) => {
+      const f = Math.max(0, Math.min(1, t)) * (radii.length - 1);
+      const i = Math.min(radii.length - 2, Math.floor(f));
+      return radii[i] + (radii[i + 1] - radii[i]) * (f - i);
+    };
+    const g = new THREE.TubeGeometry(curve, seg, 1, rad, false);
+    const P = g.attributes.position;
+    const c = new THREE.Vector3();
+    const side = new THREE.Vector3();
+    const up = new THREE.Vector3(0, 1, 0);
+    const tan = new THREE.Vector3();
+    for (let i = 0; i <= seg; i++) {
+      const u = i / seg;
+      curve.getPointAt(u, c);
+      curve.getTangentAt(u, tan);
+      side.crossVectors(tan, up).normalize();
+      const r = rAt(t0 + (t1 - t0) * u);
+      for (let j = 0; j <= rad; j++) {
+        const k = i * (rad + 1) + j;
+        let dx = P.getX(k) - c.x;
+        let dy = P.getY(k) - c.y;
+        let dz = P.getZ(k) - c.z;
+        if (flat !== 1 && side.lengthSq() > 0.5) {
+          // Anteil quer zur Seite stauchen
+          const s = dx * side.x + dy * side.y + dz * side.z;
+          dx -= side.x * s * (1 - 1 / flat);
+          dy -= side.y * s * (1 - 1 / flat);
+          dz -= side.z * s * (1 - 1 / flat);
+        }
+        P.setXYZ(k, c.x + dx * r, c.y + dy * r, c.z + dz * r);
+      }
+    }
+    g.computeVertexNormals();
+    return g;
+  });
+}
+
+// Glatter Tierleib (seit 13.2) statt aufeinandergesetzter Kugeln: Querschnitte entlang z, je Station
+// [z, Mitte y, halbe Breite, Höhe nach oben, Höhe nach unten]; dazwischen weich (Catmull-Rom) verbunden,
+// an beiden Enden geschlossen. So entstehen tiefe Brust, eingezogene Taille und runde Hinterhand in einem Stück.
+function loft3(stations, rad = 16, sub = 4) {
+  rad = lodSeg3(rad, 6);
+  sub = lodSeg3(sub, 2);
+  const key = 'loft' + stations.map((s) => s.map((v) => v.toFixed(3)).join(',')).join(';') + rad + ',' + sub;
+  return geo3(key, () => {
+    const cr = (a, b, c, d, t) => 0.5 * (2 * b + (-a + c) * t + (2 * a - 5 * b + 4 * c - d) * t * t + (-a + 3 * b - 3 * c + d) * t * t * t);
+    const n = stations.length;
+    const rows = [];
+    for (let i = 0; i < n - 1; i++) {
+      for (let k = 0; k < sub; k++) {
+        const t = k / sub;
+        const A = stations[Math.max(0, i - 1)];
+        const B = stations[i];
+        const C = stations[i + 1];
+        const D = stations[Math.min(n - 1, i + 2)];
+        rows.push(B.map((_, q) => Math.max(q >= 2 ? 0.002 : -99, cr(A[q], B[q], C[q], D[q], t))));
+      }
+    }
+    rows.push(stations[n - 1].slice());
+    const pos = [];
+    const idx = [];
+    for (const [z, y, rx, ru, rd] of rows) {
+      for (let j = 0; j <= rad; j++) {
+        const a = (j / rad) * Math.PI * 2;
+        const sa = Math.sin(a);
+        pos.push(Math.cos(a) * rx, y + sa * (sa > 0 ? ru : rd), z);
+      }
+    }
+    const W = rad + 1;
+    for (let i = 0; i < rows.length - 1; i++) {
+      for (let j = 0; j < rad; j++) {
+        const a = i * W + j;
+        const b = (i + 1) * W + j;
+        // nach außen gewunden (Ringe laufen mit wachsendem z)
+        idx.push(a, a + 1, b, a + 1, b + 1, b);
+      }
+    }
+    // Deckel an beiden Enden
+    const c0 = pos.length / 3;
+    pos.push(0, rows[0][1], rows[0][0]);
+    const c1 = pos.length / 3;
+    const L = rows.length - 1;
+    pos.push(0, rows[L][1], rows[L][0]);
+    for (let j = 0; j < rad; j++) {
+      idx.push(c0, j + 1, j);
+      idx.push(c1, L * W + j, L * W + j + 1);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.setIndex(idx);
+    g.computeVertexNormals();
+    return g;
+  });
+}
+
+// Vereinfachtes Modell (seit 14.26): Jede vereinfachte Form merkt sich ihre volle Fassung. Große Teile (Rumpf, Kopf,
+// Leuchtring, Panzerplatten) behalten beim Backen die volle Form (Bake3.add, lodBig3) – so bleiben Umriss und große
+// Rundungen gleich, gespart wird an den vielen kleinen Teilen (Zähne, Krallen, Schnallen, Nieten, Stacheln, Fellbüschel).
+function lodWrap3(fn) {
+  return function (...args) {
+    const g = fn.apply(this, args);
+    if (GEO3_LOD < 1 && g && !g.userData.full) {
+      const k = GEO3_LOD;
+      GEO3_LOD = 1;
+      try { g.userData.full = fn.apply(this, args); } finally { GEO3_LOD = k; }
+    }
+    return g;
+  };
+}
+// Teile ab diesem Halbmesser (Einheiten des Modells, ein Ork ist etwa 1,6 hoch) bleiben voll
+const LOD3_BIG = 0.14;
+function lodBig3(geo, m, parent) {
+  if (!geo.boundingSphere) geo.computeBoundingSphere();
+  let s = geo.boundingSphere.radius * m.getMaxScaleOnAxis();
+  if (parent) s *= parent.getMaxScaleOnAxis();
+  return s > LOD3_BIG ? geo.userData.full : geo;
+}
+/* eslint-disable no-func-assign */
+roundBox = lodWrap3(roundBox);
+sphere3 = lodWrap3(sphere3);
+lathe3 = lodWrap3(lathe3);
+horn3 = lodWrap3(horn3);
+tube3 = lodWrap3(tube3);
+tubeProfile3 = lodWrap3(tubeProfile3);
+loft3 = lodWrap3(loft3);
+/* eslint-enable no-func-assign */
+
+// Ohrmuschel (seit 12.7.1): gewölbte halbe Schale, Öffnung nach vorn (+z), Spitze oben; inner = Innenseite
+function earGeo3(inner) {
+  return geo3('ear3' + (inner ? 'in' : 'out'), () => {
+    const pts = [[0, 0], [0.42, 0.04], [0.5, 0.22], [0.44, 0.48], [0.3, 0.74], [0.12, 0.93], [0, 1]].map(([x, y]) => new THREE.Vector2(x * (inner ? 0.86 : 1), y * (inner ? 0.94 : 1)));
+    const g = new THREE.LatheGeometry(pts, 10, Math.PI / 2, Math.PI);
+    g.computeVertexNormals();
+    return inner ? flipGeo(g) : g;
+  });
+}
+
+// Rundes Dach mit hochgezogenen Ecken (asiatisches Walmdach), Grundfläche w × d, Höhe h
+function roofGeo(w, d, h, lift = 0.35) {
+  return geo3(`roof${w},${d},${h},${lift}`, () => {
+    const around = 32;
+    const rings = 7;
+    const pos = [];
+    const idx = [];
+    for (let j = 0; j <= rings; j++) {
+      const t = j / rings;
+      const s = 1 - t;
+      const y = h * Math.pow(t, 1.55);
+      for (let i = 0; i <= around; i++) {
+        const a = (i / around) * Math.PI * 2;
+        const cx = Math.cos(a);
+        const cz = Math.sin(a);
+        const m = Math.max(Math.abs(cx), Math.abs(cz));
+        const sx = cx / m;
+        const sz = cz / m;
+        // Ecken: so weit, wie der Punkt von der Seitenmitte entfernt ist
+        const corner = Math.pow(Math.min(Math.abs(sx), Math.abs(sz)), 3);
+        const up = lift * corner * Math.pow(1 - t, 2.4);
+        pos.push(sx * (w / 2) * s, y + up, sz * (d / 2) * s);
+      }
+    }
+    for (let j = 0; j < rings; j++) {
+      for (let i = 0; i < around; i++) {
+        const a = j * (around + 1) + i;
+        const b = a + around + 1;
+        idx.push(a, b, a + 1, a + 1, b, b + 1);
+      }
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.setIndex(idx);
+    g.computeVertexNormals();
+    return g;
+  });
+}
+
+// --- Zusammenbauen: viele Teile → wenige Meshes ----------------------------------------------
+// Jedes Teil bekommt seine Farbe als Eckenfarbe und (bei Figuren) den Knochen, an dem es hängt.
+// Pro Figur entstehen so nur ein beleuchtetes, ein leuchtendes und ein durchscheinendes Mesh.
+
+const _m4 = new THREE.Matrix4();
+const _q = new THREE.Quaternion();
+const _e = new THREE.Euler();
+const _v1 = new THREE.Vector3();
+const _v2 = new THREE.Vector3();
+const _n3 = new THREE.Matrix3();
+const _c = new THREE.Color();
+
+function partMatrix(o) {
+  if (o.m) return o.m.clone();
+  _e.set(o.r ? o.r[0] : 0, o.r ? o.r[1] : 0, o.r ? o.r[2] : 0, o.order || 'XYZ');
+  _q.setFromEuler(_e);
+  const s = o.s == null ? 1 : o.s;
+  _v2.set(...(Array.isArray(s) ? s : [s, s, s]));
+  _v1.set(...(o.p || [0, 0, 0]));
+  return new THREE.Matrix4().compose(_v1, _q, _v2);
+}
+
+class Bake3 {
+  constructor(skinned = false) {
+    this.skinned = skinned;
+    this.lists = {};
+  }
+
+  // o: p (Position), r (Drehung), s (Größe), bone, mat ('lit' | 'glow' | 'aura' …), shade (dunkler nach unten),
+  //    top/topK (zweite Farbe auf Oberseiten), shine (Glanzlicht 0–1, z. B. Metall), m (Matrix), parent (Matrix)
+  add(geo, color, o = {}) {
+    const key = o.mat || 'lit';
+    const m = partMatrix(o);
+    if (GEO3_LOD < 1 && geo.userData && geo.userData.full) geo = lodBig3(geo, m, o.parent);
+    (this.lists[key] = this.lists[key] || []).push({
+      geo, color, m, bone: o.bone || 0, shade: o.shade || 0, parent: o.parent || null,
+      top: o.top ? new THREE.Color(o.top) : null, topK: o.topK == null ? 0.5 : o.topK, shine: o.shine || 0, ao: o.ao == null ? 0.22 : o.ao
+    });
+    // seit 14.51: shadowExact – das Teil wirft seinen Schatten mit der echten Form (Drachenflügel: die grobe Ellipse
+    // um die gewölbte Haut gab ovale Flecken statt Flügeln)
+    if (this.skinned && key === 'lit' && o.shadowExact) {
+      (this.lists.shadow = this.lists.shadow || []).push({ geo, color: '#000000', m, bone: o.bone || 0, shade: 0, parent: o.parent || null, top: null, topK: 0.5, shine: 0, ao: 0 });
+    } else if (this.skinned && key === 'lit' && !o.noShadow) shadowPart(this, geo, m, o);
+    return this;
+  }
+
+  // fertige Vorlage (siehe bakeTemplate) an eine Stelle setzen: viel schneller als Teil für Teil
+  addTemplate(tpl, M) {
+    for (const key in tpl) (this.lists[key] = this.lists[key] || []).push({ tpl: tpl[key], m: M });
+    return this;
+  }
+
+  build(keepArrays) {
+    const out = {};
+    for (const k in this.lists) out[k] = mergeParts(this.lists[k], this.skinned, keepArrays);
+    return out;
+  }
+
+  // Rohdaten statt Geometrie (für Vorlagen)
+  raw() {
+    const out = {};
+    for (const k in this.lists) out[k] = mergeRaw(this.lists[k], false);
+    return out;
+  }
+}
+
+// Schattenmodell (seit 7.9): Figuren werfen ihren Schatten mit einer groben Kopie. Jedes größere feste
+// Teil wird darin zu einer kleinen Kugel in der Größe seines Umrisses, Kleinteile fallen weg. So kostet
+// der Schatten nur einen Bruchteil, und das sichtbare Modell darf viel mehr Einzelheiten haben.
+const SHADOW3_MIN = 0.07;
+const _sbS = new THREE.Vector3();
+function shadowPart(b, geo, m, o) {
+  if (!geo.boundingBox) geo.computeBoundingBox();
+  const bb = geo.boundingBox;
+  bb.getSize(_v1);
+  _sbS.setFromMatrixScale(m);
+  if (Math.max(_v1.x * _sbS.x, _v1.y * _sbS.y, _v1.z * _sbS.z) < SHADOW3_MIN) return;
+  bb.getCenter(_v2);
+  const M = m.clone().multiply(new THREE.Matrix4().makeTranslation(_v2.x, _v2.y, _v2.z))
+    .multiply(new THREE.Matrix4().makeScale(Math.max(0.01, _v1.x / 2), Math.max(0.01, _v1.y / 2), Math.max(0.01, _v1.z / 2)));
+  (b.lists.shadow = b.lists.shadow || []).push({
+    geo: geo3('shadowball', () => new THREE.SphereGeometry(1, 6, 4)), color: '#000000', m: M, bone: o.bone || 0, shade: 0,
+    parent: o.parent || null, top: null, topK: 0.5, shine: 0, ao: 0
+  });
+}
+
+// Vorlage: ein Objekt einmal aus seinen Teilen backen und als Rohdaten behalten
+const TPL3 = new Map();
+function bakeTemplate(key, make) {
+  if (GEO3_LOD < 1) key = 'L' + GEO3_LOD + ':' + key;
+  let t = TPL3.get(key);
+  if (!t) {
+    const b = new Bake3(false);
+    make(b);
+    t = b.raw();
+    TPL3.set(key, t);
+  }
+  return t;
+}
+
+// Nach dem Hochladen auf die Grafikkarte braucht der Arbeitsspeicher die Daten nicht mehr
+function freeArray() {
+  this.array = null;
+}
+
+// Alle Teile zu Rohdaten zusammenführen (Position, Normale, Farbe, Glanz, Knochen)
+// seit 14.38 in Schritten (mergeRawSteps): mit slice (ms) gibt die Arbeit nach jeweils so viel Rechenzeit ab (yield) –
+// für das Nachladen der Welt beim Laufen und Reiten (objectJob, drei-welt.js). Dort lief das Zusammenführen aller
+// Gegenstände eines Blocks am Stück: 30–100 ms in einem einzigen Bild, obwohl das Nachladen nur 5 ms je Bild haben soll
+// – das war der kurze Hänger „einfach so“ beim Reiten. mergeRaw selbst rechnet wie bisher in einem Zug.
+// Gespiegelte Teile (negative Größe, z. B. der rechte Flügel als s: [-1, 1, 1]) seit 14.68 mit umgedrehtem Umlauf:
+// vorher zeigten ihre Dreiecke nach innen – die beleuchtete Seite wurde weggeschnitten und man sah nur die schwarze
+// Umrisshülle (der „schwarze Flügel“ der Drachen, auch bei Aelvyr und den anderen Endbossen)
+function flipTris3(idx, from, n) {
+  for (let i = from; i + 2 < from + n; i += 3) {
+    const t = idx[i + 1];
+    idx[i + 1] = idx[i + 2];
+    idx[i + 2] = t;
+  }
+}
+function mergeRaw(list, skinned) {
+  const g = mergeRawSteps(list, skinned, 0);
+  let r = g.next();
+  while (!r.done) r = g.next();
+  return r.value;
+}
+function* mergeRawSteps(list, skinned, slice) {
+  let sliceT = slice ? performance.now() : 0;
+  let nv = 0;
+  let ni = 0;
+  for (const it of list) {
+    if (it.tpl) {
+      nv += it.tpl.n;
+      ni += it.tpl.idx.length;
+    } else {
+      nv += it.geo.attributes.position.count;
+      ni += it.geo.index ? it.geo.index.count : it.geo.attributes.position.count;
+    }
+  }
+  const pos = new Float32Array(nv * 3);
+  const nor = new Float32Array(nv * 3);
+  const col = new Float32Array(nv * 3);
+  const shine = new Float32Array(nv);
+  const idx = new Uint32Array(ni);
+  const si = skinned ? new Uint8Array(nv * 4) : null;
+  const sw = skinned ? new Float32Array(nv * 4) : null;
+  let vo = 0;
+  let io = 0;
+  let anyShine = false;
+  for (const it of list) {
+    if (slice && performance.now() - sliceT > slice) {
+      yield;
+      sliceT = performance.now();
+    }
+    if (it.tpl) {
+      // Vorlage verschieben: Positionen mit der Matrix, Normalen nur gedreht
+      const t = it.tpl;
+      const e = it.m.elements;
+      _n3.getNormalMatrix(it.m);
+      const ne = _n3.elements;
+      for (let i = 0; i < t.n; i++) {
+        const x = t.pos[i * 3];
+        const y = t.pos[i * 3 + 1];
+        const z = t.pos[i * 3 + 2];
+        const o = (vo + i) * 3;
+        pos[o] = e[0] * x + e[4] * y + e[8] * z + e[12];
+        pos[o + 1] = e[1] * x + e[5] * y + e[9] * z + e[13];
+        pos[o + 2] = e[2] * x + e[6] * y + e[10] * z + e[14];
+        const a = t.nor[i * 3];
+        const b2 = t.nor[i * 3 + 1];
+        const c = t.nor[i * 3 + 2];
+        let nx = ne[0] * a + ne[3] * b2 + ne[6] * c;
+        let ny = ne[1] * a + ne[4] * b2 + ne[7] * c;
+        let nz = ne[2] * a + ne[5] * b2 + ne[8] * c;
+        const l = hyp3(nx, ny, nz) || 1;
+        nor[o] = nx / l;
+        nor[o + 1] = ny / l;
+        nor[o + 2] = nz / l;
+        col[o] = t.col[i * 3];
+        col[o + 1] = t.col[i * 3 + 1];
+        col[o + 2] = t.col[i * 3 + 2];
+        shine[vo + i] = t.shine[i];
+      }
+      if (t.anyShine) anyShine = true;
+      for (let i = 0; i < t.idx.length; i++) idx[io + i] = t.idx[i] + vo;
+      if (it.m.determinant() < 0) flipTris3(idx, io, t.idx.length);
+      io += t.idx.length;
+      vo += t.n;
+      continue;
+    }
+    const g = it.geo;
+    const P = g.attributes.position;
+    const N = g.attributes.normal;
+    const m = it.parent ? it.parent.clone().multiply(it.m) : it.m;
+    _n3.getNormalMatrix(m);
+    // ohne Farbe: Eckenfarben der Form selbst (z. B. gestreifte Schlangen)
+    const VC = it.color == null ? g.attributes.color : null;
+    if (!VC) _c.set(it.color);
+    // eigene Knochen-Gewichte der Form (weich biegende Schläuche)
+    const SI = g.attributes.skinIndex;
+    const SW = g.attributes.skinWeight;
+    let minY = 0;
+    let span = 1;
+    if (it.shade) {
+      if (!g.boundingBox) g.computeBoundingBox();
+      minY = g.boundingBox.min.y;
+      span = Math.max(1e-4, g.boundingBox.max.y - minY);
+    }
+    if (it.shine) anyShine = true;
+    for (let i = 0; i < P.count; i++) {
+      _v1.set(P.getX(i), P.getY(i), P.getZ(i));
+      const ly = _v1.y;
+      _v1.applyMatrix4(m);
+      // seit 14.53: Verformung nach dem Platzieren (Körperform der Spielfiguren, bodyWarp3)
+      if (it.warp) it.warp(_v1);
+      const o = (vo + i) * 3;
+      pos[o] = _v1.x;
+      pos[o + 1] = _v1.y;
+      pos[o + 2] = _v1.z;
+      _v2.set(N.getX(i), N.getY(i), N.getZ(i)).applyMatrix3(_n3).normalize();
+      nor[o] = _v2.x;
+      nor[o + 1] = _v2.y;
+      nor[o + 2] = _v2.z;
+      // weiche Verdunkelung: nach unten zeigende Flächen und der untere Teil eines Teils
+      let k = it.shade ? 1 - it.shade * (1 - (ly - minY) / span) : 1;
+      if (it.ao) k *= 1 - it.ao * Math.max(0, -_v2.y);
+      let r = VC ? VC.getX(i) : _c.r;
+      let gg = VC ? VC.getY(i) : _c.g;
+      let bb = VC ? VC.getZ(i) : _c.b;
+      if (it.top) {
+        // nach oben zeigende Flächen nehmen die zweite Farbe an (Moos, Schnee, helle Dachziegel)
+        const t = Math.max(0, Math.min(1, (_v2.y - 0.25) / 0.6)) * it.topK;
+        r += (it.top.r - r) * t;
+        gg += (it.top.g - gg) * t;
+        bb += (it.top.b - bb) * t;
+      }
+      col[o] = r * k;
+      col[o + 1] = gg * k;
+      col[o + 2] = bb * k;
+      shine[vo + i] = it.shine;
+      if (skinned) {
+        if (SI) {
+          for (let c = 0; c < 4; c++) {
+            si[(vo + i) * 4 + c] = SI.array[i * 4 + c];
+            sw[(vo + i) * 4 + c] = SW.array[i * 4 + c];
+          }
+        } else {
+          si[(vo + i) * 4] = it.bone;
+          sw[(vo + i) * 4] = 1;
+          // seit 15.46: Gelenke der Spielfiguren (Ellbogen, Knie, Knöchel) – Gewichte nach der Lage der Ecke
+          // (it.skin, siehe joints3 in drei-figuren.js), Platz 0 bleibt der stärkste Knochen
+          if (it.skin) it.skin(_v1, si, sw, (vo + i) * 4);
+        }
+      }
+    }
+    const n = g.index ? g.index.count : P.count;
+    if (g.index) {
+      const I = g.index;
+      for (let i = 0; i < I.count; i++) idx[io + i] = I.getX(i) + vo;
+    } else {
+      for (let i = 0; i < P.count; i++) idx[io + i] = vo + i;
+    }
+    if (m.determinant() < 0) flipTris3(idx, io, n);
+    io += n;
+    vo += P.count;
+  }
+  return { n: nv, pos, nor, col, shine, idx, si, sw, anyShine };
+}
+
+// Zu einer Geometrie im Sparformat: Normalen und Farben als Bytes, Knochen als Bytes.
+// Je Eckpunkt 22–30 statt 68 Bytes; nach dem Hochladen wird die Kopie im Arbeitsspeicher freigegeben.
+function mergeParts(list, skinned, keepArrays) {
+  return mergeFinish(mergeRaw(list, skinned), skinned, keepArrays);
+}
+// seit 14.38: dasselbe in Schritten für Bauaufträge (yield* mergePartsSteps(...), slice in ms)
+function* mergePartsSteps(list, skinned, keepArrays, slice) {
+  const r = yield* mergeRawSteps(list, skinned, slice);
+  yield;
+  return mergeFinish(r, skinned, keepArrays);
+}
+function mergeFinish(r, skinned, keepArrays) {
+  const nv = r.n;
+  const nor = new Int8Array(nv * 3);
+  const col = new Uint8Array(nv * 3);
+  for (let i = 0; i < nv * 3; i++) {
+    nor[i] = Math.round(Math.max(-1, Math.min(1, r.nor[i])) * 127);
+    col[i] = Math.round(Math.max(0, Math.min(1, r.col[i])) * 255);
+  }
+  const out = new THREE.BufferGeometry();
+  out.setAttribute('position', new THREE.BufferAttribute(r.pos, 3));
+  out.setAttribute('normal', new THREE.BufferAttribute(nor, 3, true));
+  out.setAttribute('color', new THREE.BufferAttribute(col, 3, true));
+  if (r.anyShine) {
+    const sh = new Uint8Array(nv);
+    for (let i = 0; i < nv; i++) sh[i] = Math.round(Math.min(1, r.shine[i]) * 255);
+    out.setAttribute('shine', new THREE.BufferAttribute(sh, 1, true));
+  }
+  if (skinned) {
+    const sw = new Uint8Array(nv * 4);
+    for (let i = 0; i < nv * 4; i++) sw[i] = Math.round(r.sw[i] * 255);
+    out.setAttribute('skinIndex', new THREE.BufferAttribute(r.si, 4));
+    out.setAttribute('skinWeight', new THREE.BufferAttribute(sw, 4, true));
+  }
+  out.setIndex(new THREE.BufferAttribute(nv > 65535 ? r.idx : Uint16Array.from(r.idx), 1));
+  out.computeBoundingSphere();
+  if (!keepArrays) {
+    for (const k in out.attributes) out.attributes[k].onUpload(freeArray);
+    out.index.onUpload(freeArray);
+  }
+  return out;
+}
+
+// --- Einrichten --------------------------------------------------------------------------------
+
+// Zeichner für eine Zeichenfläche anlegen (beim Start und nach einem verlorenen Grafikkontext, v3CtxRebuild)
+function v3MakeRenderer(canvas) {
+  // Kantenglättung (MSAA) nur am PC und auf Bildschirmen mit niedriger Pixeldichte: auf Handys mit 2–3facher
+  // Dichte sieht man kaum Treppen, die Glättung kostet dort aber viel Grafikleistung (seit 9.9)
+  const gl = new THREE.WebGLRenderer({ canvas, antialias: IS_PC || (window.devicePixelRatio || 1) < 2, powerPreference: 'high-performance' });
+  // Grafikkontext verloren (Speicherdruck, Treiber-Neustart; seit 11.0): beim Zurückkommen die Welt neu
+  // aufbauen und die Größe neu setzen, statt mit leerem (hellem) Bild weiterzulaufen. Kommt er nicht von selbst
+  // zurück (iOS unter Speicherdruck), holt ihn v3CtxStep zurück (seit 15.49)
+  canvas.addEventListener('webglcontextlost', v3CtxLost);
+  canvas.addEventListener('webglcontextrestored', v3CtxRestored);
+  // seit 13.60: keine Fehlerabfrage nach jedem Übersetzen der Shader. Sie wartet jedes Mal, bis der Treiber fertig ist
+  // (getProgramInfoLog/getProgramParameter) – das waren im Kampf bis zu 30 % der Rechenzeit und spürbare Hänger.
+  gl.debug.checkShaderErrors = false;
+  gl.shadowMap.enabled = true;
+  // weiche Schatten (viele Proben) nur am PC; Handys nehmen die einfache Filterung
+  gl.shadowMap.type = IS_PC ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;
+  // seit Wärme 2 (3D-Szene Niedrig): Auf „Niedrig“ schaltet v3UpdateLights das eine Punktlicht ab, wenn keine Lampe in
+  // Reichweite ist (0 statt 1 Punktlicht in allen beleuchteten Shadern). Jedes Vorwärmen (Figuren, Effekte, Boden,
+  // Kartenwechsel) übersetzt darum die Programme für beide Lagen – der Wechsel tauscht später nur das Programm.
+  const compile = gl.compile;
+  gl.compile = function (scene, camera) {
+    compile.call(this, scene, camera);
+    const l = V3.pointsAll && V3.pointsAll[0];
+    if (scene !== V3.scene || !l || V3.points.length !== 1) return;
+    l.visible = !l.visible;
+    try {
+      compile.call(this, scene, camera);
+    } finally {
+      l.visible = !l.visible;
+    }
+  };
+  return gl;
+}
+
+// --- Verlorener Grafikkontext (seit 15.49) ------------------------------------------------------------------------
+// Spieler (iPhone, 3D): „Manchmal verschwindet der Charakter einfach und das Spiel ist abgestürzt“ – auf dem Bild nur
+// noch die blaugraue Fläche hinter der 3D-Welt, HUD, Namen und Minikarte liefen weiter. iOS nimmt einer Seite unter
+// Speicherdruck den Grafikkontext weg und gibt ihn oft nie zurück (kein webglcontextrestored). Bis 15.48 wartete das
+// Spiel darauf für immer. Jetzt in Stufen:
+//   1. nach CTX3.wait ms: three.js bittet um den Kontext (forceContextRestore, WEBGL_lose_context.restoreContext)
+//   2. nach weiteren CTX3.wait ms: neue Zeichenfläche und neuer Zeichner, die Welt wird neu gebaut (wie beim Zurückkommen)
+//   3. klappt das nicht, geht der Kontext zu oft verloren (CTX3.max in CTX3.span ms) oder hängen danach die Bilder:
+//      Spiel speichern und die Seite neu laden – danach geht es mit derselben Figur direkt weiter (retten.js)
+// Im Hintergrund (App nicht sichtbar) wird nur gewartet. Nach jedem Neustart der Grafik kurz im Chat: „Grafik wurde neu
+// gestartet“.
+const CTX3 = { wait: 2500, max: 3, span: 120000, timer: 0, stage: 0, lostAt: 0, history: [], watchUntil: 0, errs: 0 };
+function v3CtxLost(e) {
+  e.preventDefault();
+  // Ereignis der alten Zeichenfläche nach einem Neubau: nichts mehr zu tun
+  if (e.target !== V3.canvas) return;
+  V3.lost = true;
+  CTX3.lostAt = performance.now();
+  CTX3.stage = 0;
+  const now = Date.now();
+  CTX3.history = CTX3.history.filter((t) => now - t < CTX3.span);
+  CTX3.history.push(now);
+  console.warn('3D: Grafikkontext verloren (' + CTX3.history.length + '× in ' + CTX3.span / 1000 + ' s)');
+  clearTimeout(CTX3.timer);
+  CTX3.timer = setTimeout(v3CtxStep, CTX3.wait);
+}
+function v3CtxRestored(e) {
+  if (e && e.target !== V3.canvas) return;
+  v3CtxBack(false);
+}
+// nächste Stufe, solange der Kontext weg ist
+function v3CtxStep() {
+  clearTimeout(CTX3.timer);
+  if (!V3.lost) return;
+  // im Hintergrund nichts erzwingen (iOS gibt dort ohnehin keinen Kontext), beim Zurückkommen weiter
+  if (document.hidden) {
+    CTX3.timer = setTimeout(v3CtxStep, 1000);
+    return;
+  }
+  CTX3.stage++;
+  if (CTX3.history.length >= CTX3.max) {
+    v3CtxReload('Grafikkontext ' + CTX3.history.length + '× verloren');
+    return;
+  }
+  if (CTX3.stage === 1) {
+    try { V3.gl.forceContextRestore(); } catch (err) { /* nicht möglich: nächste Stufe */ }
+    CTX3.timer = setTimeout(v3CtxStep, CTX3.wait);
+    return;
+  }
+  if (CTX3.stage === 2 && v3CtxRebuild()) {
+    // gelungen? Sonst (wieder verloren, Bilder werfen Fehler) neu laden
+    CTX3.timer = setTimeout(() => { if (V3.lost) v3CtxStep(); }, CTX3.wait);
+    return;
+  }
+  v3CtxReload(CTX3.stage === 2 ? 'neuer Grafikkontext gescheitert' : 'Grafikkontext kommt nicht zurück');
+}
+// neue Zeichenfläche (gleiche Kennung, Klassen und Maße) und neuer Zeichner; die alte Fläche fliegt aus der Seite
+function v3CtxRebuild() {
+  const old = V3.canvas;
+  if (!old || !old.parentNode) return false;
+  const nc = old.cloneNode(false);
+  let gl = null;
+  try {
+    old.replaceWith(nc);
+    gl = v3MakeRenderer(nc);
+  } catch (err) {
+    console.warn('3D: neuer Grafikkontext gescheitert', err);
+    if (nc.parentNode && !old.parentNode) nc.replaceWith(old);
+    return false;
+  }
+  try { V3.gl.dispose(); } catch (err) { /* alter Kontext ist ohnehin weg */ }
+  V3.gl = gl;
+  V3.canvas = nc;
+  const ctx = gl.getContext();
+  if (ctx && ctx.isContextLost && ctx.isContextLost()) return false;
+  v3CtxBack(true);
+  return true;
+}
+// Kontext wieder da (von selbst, erbeten oder neu): alles, was seine Daten nach dem Hochladen freigegeben hat, neu bauen
+function v3CtxBack(fresh) {
+  clearTimeout(CTX3.timer);
+  V3.lost = false;
+  V3.sizeKey = null;
+  // seit 14.69 auch alle Figuren neu: ihre Modelle haben die Daten nach dem ersten Hochladen freigegeben und lassen
+  // sich nicht noch einmal hochladen (vorher blieb danach das ganze Spiel stehen, v3ResetFigures in drei-figuren.js)
+  V3.ctxGen = (V3.ctxGen || 0) + 1;
+  try {
+    if (typeof v3ResetFigures === 'function') v3ResetFigures();
+    // seit 15.49 auch die Wahrzeichen (wahrzeichen.js, ebenfalls freigegebene Daten): im nächsten Bild neu
+    if (typeof wzClear === 'function' && typeof WZ !== 'undefined') { wzClear(); WZ.key = null; }
+    v3ClearChunks();
+    v3ApplyGraphics();
+    if (typeof v3Resize === 'function') v3Resize();
+    // die Karte hinter dem Ladebild neu bauen, wenn man gerade spielt
+    if (game.running && V3.home && !V3.home.dungeon) FULL3.loading = { t0: performance.now(), key: V3.home.key, shown: false };
+  } catch (err) {
+    console.warn('3D: Neuaufbau nach Kontextverlust', err);
+  }
+  // ein paar Sekunden beobachten: werfen die Bilder danach laufend Fehler, hilft nur Neuladen (frameFailed, spiel.js)
+  CTX3.watchUntil = performance.now() + 8000;
+  CTX3.errs = 0;
+  console.warn('3D: Grafik ' + (fresh ? 'neu angelegt' : 'zurück'));
+  if (game.running && typeof ui !== 'undefined') ui.log('Grafik wurde neu gestartet.', 'info');
+}
+// Bildfehler kurz nach dem Neustart der Grafik zählen (aus frameFailed, spiel.js)
+function v3CtxFrameErr() {
+  if (performance.now() > CTX3.watchUntil) return;
+  if (++CTX3.errs >= 20) {
+    CTX3.watchUntil = 0;
+    v3CtxReload('Bildfehler nach Neustart der Grafik');
+  }
+}
+// letzte Stufe: speichern, neu laden und mit derselben Figur weiter (retten.js), sonst einfach neu laden
+function v3CtxReload(why) {
+  clearTimeout(CTX3.timer);
+  console.warn('3D: Seite wird neu geladen – ' + why);
+  if (typeof rettenNeuLaden === 'function') rettenNeuLaden('grafik', why);
+  else {
+    try { if (game.running) saveGame(); } catch (err) { /* trotzdem neu laden */ }
+    location.reload();
+  }
+}
+
+function v3Init() {
+  const canvas = document.getElementById('welt3d');
+  if (!canvas || !v3Supported()) return false;
+  try {
+    V3.gl = v3MakeRenderer(canvas);
+  } catch (e) {
+    return false;
+  }
+  V3.canvas = canvas;
+  canvas.hidden = false;
+  V3.scene = new THREE.Scene();
+  V3.scene.background = new THREE.Color('#9ec8e0');
+  V3.scene.fog = new THREE.Fog('#9ec8e0', 30, 64);
+  V3.camera = new THREE.PerspectiveCamera(30, 1, 0.5, 160);
+  V3.hemi = new THREE.HemisphereLight(0xe4f2ff, 0x5a6a40, 0.62);
+  V3.scene.add(V3.hemi);
+  V3.sun = new THREE.DirectionalLight(0xfff0d4, 0.92);
+  V3.sun.castShadow = true;
+  const sc = V3.sun.shadow.camera;
+  // Echtzeit-Schatten werfen nur Figuren (die Welt hat eingebackene Schatten): kleiner Bereich, scharf
+  sc.left = -13; sc.right = 13; sc.top = 13; sc.bottom = -13; sc.near = 1; sc.far = 60;
+  sc.updateProjectionMatrix();
+  V3.sun.shadow.bias = -0.0008;
+  V3.sun.shadow.normalBias = 0.02;
+  V3.scene.add(V3.sun, V3.sun.target);
+  // Warme Lichter von Laternen, Feuerbecken und Portalen: die vier nächsten leuchten echt
+  // seit Wärme 2 (3D-Szene Niedrig): V3.pointsAll sind alle vier, V3.points die aktiven (auf „Niedrig“ nur das erste,
+  // v3PointTier; feuerfeld.js und sturmgericht.js leihen sich das schwächste aus V3.points)
+  V3.pointsAll = [0, 1, 2, 3].map(() => {
+    const l = new THREE.PointLight(0xffb060, 0, 7, 2);
+    V3.scene.add(l);
+    return l;
+  });
+  V3.points = V3.pointsAll;
+  V3.terrain = new THREE.Group();
+  V3.objects = new THREE.Group();
+  V3.actors = new THREE.Group();
+  V3.scene.add(V3.terrain, V3.objects, V3.actors);
+  // Grundfläche unter der Welt (seit 11.6): fehlt beim schnellen Laufen ein Block noch, sieht man Boden in der
+  // Farbe der Gegend statt des hellen Himmels (das war das graue Aufblitzen am Bildrand auf dem Handy)
+  const ug = new THREE.PlaneGeometry(1, 1);
+  ug.rotateX(-Math.PI / 2);
+  V3.under = new THREE.Mesh(ug, new THREE.MeshLambertMaterial({ color: 0x5a7a3a }));
+  V3.under.scale.set(240, 1, 240);
+  V3.under.position.y = -0.9;
+  // seit Wärme 2 (3D-Szene Niedrig, alle Stufen): nach den deckenden Bodenblöcken zeichnen (vorher −10, also zuerst).
+  // Er liegt tiefer als jeder Boden (−0,9 bzw. unter der tiefsten Flüssigkeit, mapFormUnderY) und ist deckend – der
+  // Tiefentest verwirft ihn jetzt unter dem Boden, statt ihn erst über das ganze Bild zu malen (vorher 41 % aller
+  // Fragmente). Sichtbar bleibt er genau dort, wo kein Block liegt (Lücken beim schnellen Laufen, Kartenrand).
+  V3.under.renderOrder = 1;
+  V3.under.matrixAutoUpdate = true;
+  V3.scene.add(V3.under);
+  v3ApplyGraphics();
+  V3.on = true;
+  document.body.classList.add('drei');
+  // Namen und Balken über der 3D-Welt in voller Schärfe (13.23)
+  if (typeof resizeRenderer === 'function' && renderer.canvas) resizeRenderer();
+  return true;
+}
+
+// Grafikstufe: Auflösung und Schatten
+function v3ApplyGraphics() {
+  if (!V3.gl) return;
+  const g = gfx();
+  if (V3.builtFor && V3.builtFor !== opts.graphics) v3ClearChunks();
+  V3.builtFor = opts.graphics;
+  V3.ultra = opts.graphics === 'ultra' || opts.graphics === 'plus'; // Plus (seit 14.11) baut auf Ultra auf
+  V3.sun.castShadow = g.castShadows && !quality.noShadow;
+  // seit 14.44: eine Stufe feiner (v3ShadowSize), weil der Schattenbereich jetzt das ganze Bild abdeckt (v3FitSun)
+  const size = v3ShadowSize();
+  // Ultra: schärfere Bodentexturen (Anisotropie bis zum Maximum der Karte). Den Schattenbereich legt seit 14.44
+  // jedes Bild v3FitSun auf die sichtbare Fläche (vorher fest ±13, Ultra ±18 Einheiten).
+  if (groundTex) {
+    const an = V3.ultra ? V3.gl.capabilities.getMaxAnisotropy() : 4;
+    for (const t of [groundTex.noise, groundTex.cobble]) if (t.anisotropy !== an) { t.anisotropy = an; t.needsUpdate = true; }
+  }
+  if (V3.sun.shadow.mapSize.x !== size) {
+    V3.sun.shadow.mapSize.set(size, size);
+    if (V3.sun.shadow.map) {
+      V3.sun.shadow.map.dispose();
+      V3.sun.shadow.map = null;
+    }
+  }
+  if (typeof gpApply === 'function') gpApply();
+  // seit Wärme 2 (3D-Szene Niedrig): Zahl der Punktlichter je Stufe (die Boden-Varianten wärmt v3WarmGround je Stufe vor)
+  v3PointTier();
+  v3Resize();
+}
+
+function v3Resize() {
+  if (!V3.gl) return;
+  // wie resizeRenderer (zeichnen.js): außerhalb eines Bildes nur vormerken, sonst bleibt die 3D-Fläche bis zum nächsten
+  // gezeichneten Bild leer (Aufblinken)
+  if (renderer.loop && !renderer.inFrame) {
+    renderer.resizeDue = true;
+    return;
+  }
+  const w = renderer.w || window.innerWidth;
+  const h = renderer.h || window.innerHeight;
+  const pr = Math.min(window.devicePixelRatio || 1, renderer.maxDpr || gfx().dpr);
+  // unveränderte Größe nicht neu setzen (seit 11.0): setSize leert das Bild bis zum nächsten Zeichnen
+  const key = w + 'x' + h + '@' + pr;
+  if (V3.sizeKey === key) return;
+  V3.sizeKey = key;
+  V3.gl.setPixelRatio(pr);
+  V3.gl.setSize(w, h, false);
+  V3.camera.aspect = w / h;
+  V3.camera.updateProjectionMatrix();
+}
+
+// --- Stimmung je Gebiet: Himmel, Nebel, Licht ------------------------------------------------
+
+// Seit 8.4 ohne graue Himmel: Himmel und Nebel färben auch die Ferne hinter dem Kartenrand
+const MOOD3 = {
+  dorf: { sky: '#a8d4ec', sun: '#fff0d4', sunI: 0.95, hemi: '#e4f2ff', ground: '#6a7a48', hemiI: 0.62 },
+  wiesen: { sky: '#a8d8ee', sun: '#fff2d0', sunI: 0.98, hemi: '#e8f6ff', ground: '#6a8a40', hemiI: 0.64 },
+  wald: { sky: '#8ab4a6', sun: '#ffe8c0', sunI: 0.72, hemi: '#cfe8e0', ground: '#2e4a2a', hemiI: 0.56, near: 22, far: 52 },
+  orktal: { sky: '#d8c08a', sun: '#ffe0a8', sunI: 0.95, hemi: '#fff0d0', ground: '#8a6a3a', hemiI: 0.6 },
+  oedland: { sky: '#c0a896', sun: '#f0dcc8', sunI: 0.78, hemi: '#e0d8d0', ground: '#4a4440', hemiI: 0.58, near: 24, far: 56 },
+  frost: { sky: '#cfe4f4', sun: '#f4f8ff', sunI: 0.9, hemi: '#f0f8ff', ground: '#9ab0c8', hemiI: 0.7 },
+  moor: { sky: '#7e9070', sun: '#d8e8c0', sunI: 0.6, hemi: '#b8c8b0', ground: '#2a3a28', hemiI: 0.52, near: 18, far: 46 },
+  vulkan: { sky: '#7a3a28', sun: '#ffb080', sunI: 0.75, hemi: '#ffb890', ground: '#3a1a14', hemiI: 0.5, near: 22, far: 54 },
+  oasenlager: { sky: '#e8d4a0', sun: '#fff0c8', sunI: 1, hemi: '#fff4e0', ground: '#a88a50', hemiI: 0.62 },
+  sandwueste: { sky: '#ecd8a8', sun: '#fff0c8', sunI: 1, hemi: '#fff4e0', ground: '#b09050', hemiI: 0.62 },
+  nagadschungel: { sky: '#7aa088', sun: '#f0f0c0', sunI: 0.75, hemi: '#d0e8d0', ground: '#2a4a30', hemiI: 0.56, near: 22, far: 52 },
+  klammwacht: { sky: '#98a4b8', sun: '#e8ecff', sunI: 0.82, hemi: '#d8e0f0', ground: '#4a4a50', hemiI: 0.6 },
+  donnerklamm: { sky: '#8e9cc4', sun: '#d8e4ff', sunI: 0.75, hemi: '#c8d4f0', ground: '#3a3e4a', hemiI: 0.56, near: 24, far: 56 },
+  titanenkamm: { sky: '#7a4e4a', sun: '#ffc090', sunI: 0.72, hemi: '#e8c0a8', ground: '#2a1a18', hemiI: 0.5, near: 22, far: 54 },
+  // Dungeons und Riss-Dungeons: seit Version 6.1 deutlich heller, damit man Monster und Boden gut erkennt
+  dungeon: { sky: '#2a2232', sun: '#f0e4ff', sunI: 0.9, hemi: '#d8d0f0', ground: '#5a4a5a', hemiI: 0.78, near: 20, far: 46 }
+};
+const moodState = { sky: new THREE.Color('#a8d4ec'), sun: new THREE.Color('#fff0d4'), hemi: new THREE.Color('#e4f2ff'), ground: new THREE.Color('#6a7a48'), sunI: 0.95, hemiI: 0.62, near: 30, far: 64 };
+const _mc = new THREE.Color();
+
+function v3UpdateMood(dt, x, y) {
+  const zone = zoneAt(x, y);
+  // seit 15.45: Instanzen mit eigenem Licht (mood3, daten/instanzen.js), sonst das helle Dungeon-Licht
+  const m = zone.dungeon ? zone.dungeon.mood3 || MOOD3.dungeon : MOOD3[zone.id] || MOOD3.dorf;
+  const k = Math.min(1, dt * 1.2);
+  const s = moodState;
+  s.sky.lerp(_mc.set(m.sky), k);
+  s.sun.lerp(_mc.set(m.sun), k);
+  s.hemi.lerp(_mc.set(m.hemi), k);
+  s.ground.lerp(_mc.set(m.ground), k);
+  s.sunI += (m.sunI - s.sunI) * k;
+  s.hemiI += (m.hemiI - s.hemiI) * k;
+  s.near += ((m.near || 30) - s.near) * k;
+  s.far += ((m.far || 64) - s.far) * k;
+  V3.scene.background.copy(s.sky);
+  V3.scene.fog.color.copy(s.sky);
+  // Im Schulterblick sieht man weiter in die Ferne: Nebel etwas näher, damit kein Rand der Welt auftaucht
+  const fogK = v3Shoulder() ? 0.62 : V3.ultra ? 1.25 : 1;
+  // Einstellung Nebel (seit 14.17, FOG_MODES in optionen.js)
+  const fm = (typeof FOG_MODES !== 'undefined' && FOG_MODES[opts.fog]) || { near: 1, far: 1 };
+  // seit 14.44: im Schulterblick wandert der Nebel mit hinaus, wenn man herauszoomt (sonst stünde die Figur selbst im Dunst)
+  const zoomOut = v3Shoulder() ? Math.max(0, (V3.zoomMul || 1) - 1) * SHOULDER3.dist : 0;
+  // seit 14.45 in der festen Kamera ab der Figur gerechnet statt ab der Kamera: herausgezoomt stand die Kamera schon
+  // 50–90 Einheiten weg, die Figur also selbst am Nebelanfang (alles diesig). Schon die Dämmerung (Nebel −12 %) oder
+  // ein Gebietswechsel schoben dann das ganze Bild ins Nebelende – einige Bilder lang nur Nebelfarbe (gelb, grau,
+  // dunkel), die Welt war weg. Jetzt beginnt der Nebel ein gutes Stück hinter der Figur, egal wie weit herausgezoomt.
+  const camD = v3Shoulder() ? 0 : V3.camDist || 0;
+  const nearK = v3Shoulder() ? 1 : 0.9;
+  const farK = v3Shoulder() ? 1 : 1.15;
+  V3.scene.fog.near = s.near * fogK * fm.near * nearK + zoomOut + camD;
+  V3.scene.fog.far = s.far * fogK * fm.far * farK + zoomOut + camD;
+  // seit 15.34: Die Sichtweite der Kamera reicht immer bis hinter das Nebelende. Sie stand fest auf 160 Einheiten;
+  // weit herausgezoomt liegt das Nebelende aber bei 180 und mehr – dann schnitt die Kamera die Welt vorher ab, und am
+  // oberen Bildrand stand eine gerade Kante (gut zu sehen über dem Wolkenmeer von Frostgipfel).
+  const camFar = Math.max(160, V3.scene.fog.far * 1.08 + 8);
+  if (Math.abs(V3.camera.far - camFar) > 2) {
+    V3.camera.far = camFar;
+    V3.camera.updateProjectionMatrix();
+  }
+  V3.sun.color.copy(s.sun);
+  V3.sun.intensity = s.sunI;
+  V3.hemi.color.copy(s.hemi);
+  V3.hemi.groundColor.copy(s.ground);
+  V3.hemi.intensity = s.hemiI;
+  // Tag und Nacht (seit 13.8, tag-nacht.js)
+  if (typeof v3NightMood === 'function') v3NightMood(zone);
+}
+
+// --- Kamera und Umrechnung Bildschirm ↔ Welt ----------------------------------------------------
+
+const CAM3 = { nah: 0.86, normal: 1, weit: 1.2 };
+// Zoom per Mausrad/zwei Fingern (V3.zoomMul, eingabe.js). seit 14.44: im Schulterblick deutlich weiter hinaus
+// (3,2 statt 1,8: Kamera bis gut 30 statt 17 Einheiten hinter der Figur); die feste Kamera bleibt bei 1,8.
+// seit 14.48 im Schulterblick bis 4,2 (vorher 3,2) – am Handy auf Wunsch noch weiter heraus
+// seit 14.52 auch die feste Kamera bis 2,4 (vorher 1,8): am Handy war das Bild besonders auf dem Drachen zu eng
+const ZOOM3 = { min: 0.6, max: 2.4, shoulderMax: 4.2 };
+function v3ZoomMax() {
+  return v3Shoulder() ? ZOOM3.shoulderMax : ZOOM3.max;
+}
+function v3SetZoom(z) {
+  V3.zoomMul = Math.max(ZOOM3.min, Math.min(v3ZoomMax(), z));
+}
+
+// Schulterblick: tiefe, nahe Kamera hinter der Figur (wie die 3D-Vorschau), drehbar per Wischen.
+// V3.yaw: 0 = Kamera im Süden, Blick nach Norden
+const SHOULDER3 = { pitch: 0.5, dist: 9.5, fov: 45, ahead: 12 };
+function v3Shoulder() {
+  return V3.on && opts.camera === 'schulter';
+}
+
+// Schulterblick ohne Durchstoßen (seit 14.32): Vorher stand die Kamera stur 8,3 Kacheln hinter und 4,5 über der Figur.
+// Stand ein Haus, eine Mauer oder eine Höhlenwand dazwischen, verdeckte es die Figur ganz (das Raster um die Figur
+// half kaum), und rückwärts an eine Hauswand gelaufen steckte die Kamera im Dach. Jetzt prüft jedes Bild die Kacheln
+// zwischen Figur und Kamera (dazu je eine links und rechts daneben, für den Bildrand): Liegt ein festes Hindernis im
+// Weg, hebt sich die Kamera so weit, dass der Blick über seine Oberkante geht (höchstens maxPitch, 69°; die normale
+// Kamera hat 49°) – sie rückt nicht in die Figur hinein. Was dann noch über der Figur liegt (Dachtraufe direkt an der
+// Hauswand), rastert wie in der normalen Kamera der größere Kreis um die Figur weg. Hinein (steiler) geht es schnell, zurück langsam, damit nichts springt.
+// Höhen in Einheiten (eine Kachel = 1): Häuser mit Dach bis 3,3 (gemessen), Säulen, sonst Mauern, Palisaden,
+// Höhlenwände (WALL3_H 1,5) und Felsrand. Bäume bleiben außen vor (schmal, dafür gibt es das Raster um die Figur).
+const SHOULDER3_BOOM = { house: 3.4, pillar: 2.6, wall: 1.8, margin: 0.25, side: 0.35, maxPitch: 1.2, inK: 14, outK: 2.5 };
+function v3CamBlockH(x, z) {
+  const tx = Math.floor(x);
+  const ty = Math.floor(z);
+  if (typeof tileBlockedFlying !== 'function' || !tileBlockedFlying(tx, ty)) return 0;
+  const o = game.world.obj[tileIndex(Math.max(0, Math.min(MAP_W - 1, tx)), Math.max(0, Math.min(MAP_H - 1, ty)))];
+  const B = SHOULDER3_BOOM;
+  return o === OBJ.HOUSE ? B.house : o === OBJ.PILLAR ? B.pillar : B.wall;
+}
+// Gewünschter Neigungswinkel für den Schulterblick bei Blickmitte (fx, fy) in Weltpixeln, Drehung yaw, Abstand d
+function v3ShoulderPitch(fx, fy, yaw, d) {
+  const B = SHOULDER3_BOOM;
+  const sx = Math.sin(yaw);
+  const sz = Math.cos(yaw);
+  const x0 = fx / TILE;
+  const z0 = fy / TILE;
+  const reach = d * Math.cos(SHOULDER3.pitch) + 0.5;
+  let pitch = SHOULDER3.pitch;
+  for (let s = 0.25; s <= reach; s += 0.25) {
+    const tanNow = Math.tan(pitch);
+    for (const o of [0, -B.side, B.side]) {
+      const h = v3CamBlockH(x0 + sx * s + sz * o, z0 + sz * s - sx * o);
+      // Strahl von der Blickmitte (Höhe 1) muss hier über h + margin liegen
+      if (!h || 1 + s * tanNow >= h + B.margin) continue;
+      pitch = Math.min(B.maxPitch, Math.atan2(h + B.margin - 1, s));
+    }
+  }
+  return pitch;
+}
+// Mitte des sichtbaren Bereichs (im Schulterblick ein Stück vor der Figur) und sein Radius in Pixeln
+function v3ViewCenter(out) {
+  const yaw = V3.yaw || 0;
+  const ahead = v3Shoulder() ? SHOULDER3.ahead * TILE * (V3.zoomMul || 1) : 0;
+  out.x = V3.focus.x - Math.sin(yaw) * ahead;
+  out.y = V3.focus.y - Math.cos(yaw) * ahead;
+  return out;
+}
+const _vc = { x: 0, y: 0 };
+
+// Monster, die überhaupt ins Bild kommen können (seit 14.26). Die Welt hat über 7.000 Monster; vorher gingen
+// Figuren, Namen, Zustandsanzeigen und Vorwärmen in jedem Bild alle durch. Jetzt nur die Gebiete (Maps, Dungeons),
+// deren Monster in der Nähe der Kamera stehen können – aus dem Gebietsverzeichnis von gegner.js (monsterIndex).
+// Je Gebiet ein Rechteck um die Startplätze plus die größte Verfolgungsstrecke (Leine, mehr gehen Monster nicht weg).
+// Seit Wärme 2 stehen die Rechtecke im Gebietsverzeichnis selbst (monstersNear, gegner.js): dieselbe Regel gilt jetzt
+// auch für Monsterlaute, Kampf, Geschosse, Karte, 2D-Bild und Netz.
+const MONS3 = { list: null, frame: -1 };
+function v3Monsters() {
+  const M = MONS3;
+  if (M.frame === V3.frame && M.list) return M.list;
+  M.frame = V3.frame;
+  const r = renderer;
+  const R = (Math.max(r.w, r.h) / Math.max(0.5, r.zoom || 1) + 40 * TILE) * (V3.zoomMul || 1);
+  M.list = typeof monstersNear === 'function' ? monstersNear(V3.focus.x, V3.focus.y, R) : game.monsters;
+  return M.list;
+}
+
+// Liegt ein Weltpunkt im Bild? Feste Kamera: Rechteck mit mehr Sicht nach Norden; Schulterblick: Kreis
+function v3InView(x, y, pad = 0) {
+  const r = renderer;
+  // Was weiter hinter dem Rand der eigenen Map ist (Nachbarkarte), steckt in der Randkulisse (seit 8.4)
+  const H = V3.home;
+  if (H && !H.dungeon && homeOut3(H, Math.floor(x / TILE), Math.floor(y / TILE)) > 3) return false;
+  if (v3Shoulder()) {
+    v3ViewCenter(_vc);
+    return hyp(x - _vc.x, y - _vc.y) < (22 * TILE + pad) * (V3.zoomMul || 1);
+  }
+  // seit 15.34: Die feste Kamera prüft gegen die Fläche, die sie wirklich sieht (die vier Ecken des Sichtkegels am
+  // Boden, VIEW3.q) – mit Rand für hohe Figuren. Vorher galt ein festes Rechteck in der Größe des 2D-Bilds: Wer mit
+  // dem Mausrad oder zwei Fingern weit herauszoomte (bis 2,4-fach, Kamera „Weit“ dazu), sah am Bildrand Boden, Bäume
+  // und Felsen, aber keine Monster, Bewohner oder Mitspieler – die erschienen erst, wenn man näher kam.
+  const F = VIEW3;
+  if (F.ok) {
+    const px = x * U3;
+    const pz = y * U3;
+    const m = (96 + pad) * U3;
+    // Kanten als Ecke + Richtung, Länge 1 und Umlaufsinn eingerechnet (seit Wärme 2 einmal je Bild in v3ViewFoot statt
+    // vier Wurzeln je Aufruf – rund 1.300 Aufrufe je Bild)
+    const e = F.e;
+    for (let i = 0; i < 16; i += 4) if (e[i + 2] * (pz - e[i + 1]) - e[i + 3] * (px - e[i]) < -m) return false;
+    return true;
+  }
+  return Math.abs(x - V3.focus.x) < r.w / r.zoom * 0.62 + 64 + pad && y - V3.focus.y > -r.h / r.zoom * 0.95 - 96 - pad && y - V3.focus.y < r.h / r.zoom * 0.62 + 64 + pad;
+}
+
+// Schatten ohne Flimmern (seit 9.0): Der Schattenbereich wandert mit der Kamera. Liegt seine Mitte nicht genau auf
+// einem Schatten-Bildpunkt, springen die Schattenkanten bei jeder Bewegung um einen Bildpunkt hin und her. Darum wird
+// die Mitte im Blickfeld der Sonne auf ganze Bildpunkte gerundet.
+const SUN3_OFF = new THREE.Vector3(9, 24, 13);
+const _sunD = SUN3_OFF.clone().normalize();
+const _sunR = new THREE.Vector3().crossVectors(_sunD, new THREE.Vector3(0, 1, 0)).normalize();
+const _sunU = new THREE.Vector3().crossVectors(_sunR, _sunD).normalize();
+const _sunT = new THREE.Vector3();
+// --- seit 14.44: Sichtfläche am Boden, Schatten über das ganze Bild ---------------------------------
+// Vorher hatte der Schattenbereich eine feste Größe (±13, Ultra ±18 Einheiten) um die Figur. Herausgezoomt und am
+// breiten Bildschirm sieht man aber 50–70 Einheiten Welt: Mauern, Häuser und Bäume am Bildrand hatten keine echten
+// Schatten, und beim Laufen „wuchsen“ sie ihnen erst, sobald der Bereich sie erreichte (Video vom 10.11., Kazehana).
+// Jetzt wird jedes Bild die Bodenfläche bestimmt, die die Kamera sieht (die vier Ecken des Sichtkegels auf dem Boden,
+// höchstens bis zum Nebelende), und der Schattenbereich genau darauf gelegt – im Blickfeld der Sonne als Rechteck,
+// Größe in 2er-Schritten gerundet und Mitte auf ganze Schatten-Bildpunkte gerastet (kein Flimmern beim Laufen).
+// Dieselbe Fläche steuert das Vorladen der Blöcke (v3UpdateChunks).
+const VIEW3 = { x0: 0, z0: 0, x1: 0, z1: 0, reach: 0, back: 0, q: new Float32Array(8), e: new Float64Array(16), ok: false };
+const _vfD = new THREE.Vector3();
+const VIEW3_CORNERS = [[-1, -1], [1, -1], [1, 1], [-1, 1]];
+function v3ViewFoot() {
+  const cam = V3.camera;
+  const cp = cam.position;
+  // etwas über das Nebelende hinaus: der Nebel rechnet mit der Tiefe im Bild, nicht mit dem Abstand
+  const far = (V3.scene.fog ? V3.scene.fog.far : 80) * 1.08;
+  const F = VIEW3;
+  F.x0 = F.z0 = Infinity;
+  F.x1 = F.z1 = -Infinity;
+  let qi = 0;
+  for (const c of VIEW3_CORNERS) {
+    _vfD.set(c[0], c[1], 0.5).unproject(cam).sub(cp).normalize();
+    const h = hyp(_vfD.x, _vfD.z) || 1e-6;
+    const t = Math.min(_vfD.y < -1e-4 ? cp.y / -_vfD.y : Infinity, far / h);
+    const x = cp.x + _vfD.x * t;
+    const z = cp.z + _vfD.z * t;
+    // die vier Ecken selbst (seit 15.34, für v3InView): unten links, unten rechts, oben rechts, oben links
+    F.q[qi++] = x;
+    F.q[qi++] = z;
+    if (x < F.x0) F.x0 = x;
+    if (x > F.x1) F.x1 = x;
+    if (z < F.z0) F.z0 = z;
+    if (z > F.z1) F.z1 = z;
+  }
+  // Kanten für v3InView (seit Wärme 2): je Kante Anfangsecke und Richtung mit Länge 1, mal Umlaufsinn der Ecken
+  // (Spiegelungen ausgeschlossen, aber die Drehrichtung hängt von der Blickrichtung ab)
+  const q = F.q;
+  const o = (q[2] - q[0]) * (q[5] - q[1]) - (q[3] - q[1]) * (q[4] - q[0]) >= 0 ? 1 : -1;
+  for (let i = 0; i < 4; i++) {
+    const ax = q[i * 2];
+    const az = q[i * 2 + 1];
+    const j = ((i + 1) & 3) * 2;
+    const ex = q[j] - ax;
+    const ez = q[j + 1] - az;
+    const l = (hyp(ex, ez) || 1) * o;
+    F.e[i * 4] = ax;
+    F.e[i * 4 + 1] = az;
+    F.e[i * 4 + 2] = ex / l;
+    F.e[i * 4 + 3] = ez / l;
+  }
+  F.ok = true;
+  // Reichweite um die Kamera am Boden (Schulterblick: so weit kann es nach einer Drehung zu sehen sein)
+  F.reach = Math.min(far, Math.max(hyp(F.x0 - cp.x, F.z0 - cp.z), hyp(F.x1 - cp.x, F.z0 - cp.z), hyp(F.x0 - cp.x, F.z1 - cp.z), hyp(F.x1 - cp.x, F.z1 - cp.z)));
+  return F;
+}
+// Schattenbereich auf die Sichtfläche legen (statt v3PlaceSun mit fester Größe)
+const SUN3_FIT = { step: 2, pad: 2.5, tall: 4, max: 72 };
+const _sunUY = _sunU.y;
+function v3FitSun() {
+  const F = v3ViewFoot();
+  const S = SUN3_FIT;
+  let a0 = Infinity, a1 = -Infinity, b0 = Infinity, b1 = -Infinity;
+  for (const x of [F.x0, F.x1]) {
+    for (const z of [F.z0, F.z1]) {
+      const a = x * _sunR.x + z * _sunR.z;
+      const b = x * _sunU.x + z * _sunU.z;
+      if (a < a0) a0 = a;
+      if (a > a1) a1 = a;
+      if (b < b0) b0 = b;
+      if (b > b1) b1 = b;
+    }
+  }
+  // hohe Dinge (Häuser, Türme, Baumkronen) liegen im Blickfeld der Sonne etwas höher
+  b1 += S.tall * Math.abs(_sunUY);
+  const q = (v) => Math.min(S.max, Math.ceil((v + S.pad) / S.step) * S.step);
+  const hw = q((a1 - a0) / 2);
+  const hh = q((b1 - b0) / 2);
+  const sc = V3.sun.shadow.camera;
+  // Sonne weit genug zurück, dass der ganze schräge Boden im Bereich zwischen near und far liegt
+  const back = hh * Math.abs(_sunUY / _sunD.y) + 16;
+  if (sc.right !== hw || sc.top !== hh || F.back !== back) {
+    sc.left = -hw; sc.right = hw; sc.top = hh; sc.bottom = -hh;
+    sc.near = 0.5;
+    sc.far = back * 2 + 12;
+    sc.updateProjectionMatrix();
+    F.back = back;
+  }
+  const size = V3.sun.shadow.mapSize.x || 1024;
+  const ta = (2 * hw) / size;
+  const tb = (2 * hh) / size;
+  const ca = Math.round((a0 + a1) / 2 / ta) * ta;
+  const cb = Math.round((b0 + b1) / 2 / tb) * tb;
+  // Punkt mit diesen Sonnen-Koordinaten auf Bodenhöhe
+  _sunT.set(0, 0, 0).addScaledVector(_sunR, ca).addScaledVector(_sunU, cb);
+  _sunT.addScaledVector(_sunD, -_sunT.y / _sunD.y);
+  V3.sun.target.position.copy(_sunT);
+  V3.sun.position.copy(_sunT).addScaledVector(_sunD, back);
+  V3.sun.target.updateMatrixWorld();
+}
+// Auflösung der Schattenkarte je Grafikstufe (der Bereich ist jetzt größer, darum eine Stufe mehr als früher)
+function v3ShadowSize() {
+  const max = (V3.gl && V3.gl.capabilities.maxTextureSize) || 4096;
+  const s = V3.ultra ? (IS_PC ? 4096 : 2048) : opts.graphics === 'hoch' ? 2048 : 1024;
+  return Math.min(max, s);
+}
+
+// seit 14.39: fliegt man auf dem Drachen hoch (dragonHighK, spieler.js), hebt sich die Kamera mit – im Schulterblick
+// ganz (sie bleibt über und hinter dem Reiter, nie unter dem Drachen), in der normalen Kamera zum Teil (Figur, Name
+// und Lebensbalken bleiben in der Bildmitte, der Boden darunter bleibt im Bild)
+const CAM3_HIGH = { shoulder: 1.0, normal: 0.75, airShoulder: 0.9, airNormal: 0.9 };
+function v3CamLift() {
+  const p = game.player;
+  if (!p || !p.riding || typeof dragonHighK !== 'function' || typeof DRACHE3 === 'undefined') return 0;
+  return dragonHighK(p) * DRACHE3.high;
+}
+// Schon in der tiefen Flughöhe sitzt der Reiter so hoch, dass sein Name oben am Bildrand klebte (Schulterblick,
+// Handy-Querformat unter der Menüzeile) – mit dem Abheben (dm.air des Drachen, weich) schaut die Kamera darum 0,9 höher
+function v3CamDragonAir() {
+  const p = game.player;
+  const d = p && p.riding && p.__drOn ? actors3.get(p.__drOn) : null;
+  return d && d.dm ? d.dm.air || 0 : 0;
+}
+// seit 15.31: Auch die feste Kamera (Normal, Weit) lässt sich mit gedrückter rechter Maustaste um die Figur drehen
+// (V3.yawGoal) und neigen (V3.orbitTilt, Abweichung vom Grundwinkel V3.pitch in Bogenmaß). Mittlere Maustaste = zurück
+// auf die gewohnte Sicht von Süden. Beim Wechsel der Kameraart beginnt die Sicht wieder gerade.
+const ORBIT3 = { min: -0.3, max: 0.34 };
+function v3OrbitReset() {
+  V3.yawGoal = Math.round((V3.yaw || 0) / (Math.PI * 2)) * Math.PI * 2;
+  V3.orbitTilt = 0;
+}
+function v3PlaceCamera(fx, fy, dt = 0.016) {
+  const r = renderer;
+  const cam = V3.camera;
+  const lift = v3CamLift();
+  const kind = v3Shoulder() ? 's' : 'f';
+  if (V3.camKind !== kind) {
+    V3.camKind = kind;
+    V3.yaw = 0;
+    V3.yawGoal = 0;
+    V3.orbitTilt = 0;
+    V3.orbitNow = 0;
+  }
+  V3.orbit = false;
+  if (v3Shoulder()) {
+    if (cam.fov !== SHOULDER3.fov) {
+      cam.fov = SHOULDER3.fov;
+      cam.updateProjectionMatrix();
+    }
+    // Drehen per Wischen setzt nur das Ziel (V3.yawGoal), die Kamera dreht weich hinterher
+    if (V3.yawGoal == null) V3.yawGoal = V3.yaw || 0;
+    V3.yaw = (V3.yaw || 0) + (V3.yawGoal - (V3.yaw || 0)) * (1 - Math.exp(-dt * 16));
+    const yaw = V3.yaw;
+    const d = SHOULDER3.dist * (V3.zoomMul || 1);
+    const tx = fx * U3;
+    const tz = fy * U3;
+    const ty = 1.0 + lift * CAM3_HIGH.shoulder + CAM3_HIGH.airShoulder * v3CamDragonAir();
+    // seit 14.32: über Hindernisse hinweg statt hindurch (v3ShoulderPitch), weich nachgeführt
+    // seit 14.48 mit Kippen (V3.tilt, senkrecht wischen): bis gut 40° steiler als der Grundwinkel
+    const want = Math.max(v3ShoulderPitch(fx, fy, yaw, d), SHOULDER3.pitch + (V3.tilt || 0) * 0.68);
+    const B = SHOULDER3_BOOM;
+    if (V3.camPitch == null) V3.camPitch = want;
+    V3.camPitch += (want - V3.camPitch) * (1 - Math.exp(-dt * (want > V3.camPitch ? B.inK : B.outK)));
+    // seit 14.44: steckte die Kamera nach dem weichen Nachführen noch in einem Hindernis (schnelle Drehung mit der
+    // rechten Maustaste an einer Mauer oder einem Haus vorbei), sofort darüber – sonst sah man ein, zwei Bilder lang
+    // das Innere (dunkel) statt der Welt
+    if (V3.camPitch < want) {
+      const cpN = Math.cos(V3.camPitch);
+      const camH = ty + Math.sin(V3.camPitch) * d;
+      const bh = v3CamBlockH(tx + Math.sin(yaw) * cpN * d, tz + Math.cos(yaw) * cpN * d);
+      if (bh && camH < bh + B.margin) V3.camPitch = want;
+    }
+    const pitch = V3.camPitch;
+    const cp = Math.cos(pitch);
+    cam.position.set(tx + Math.sin(yaw) * cp * d, ty + Math.sin(pitch) * d, tz + Math.cos(yaw) * cp * d);
+    // seit 14.79: hinter dem Kartenrand über dem ansteigenden Hang bleiben (kartenrand.js)
+    if (typeof rand3Cam === 'function') rand3Cam(cam.position);
+    cam.lookAt(tx, ty, tz);
+    cam.updateMatrixWorld();
+    v3FitSun(); // seit 14.44 statt v3PlaceSun: Schattenbereich über das ganze Bild
+    V3.focus.x = fx;
+    V3.focus.y = fy;
+    return;
+  }
+  if (cam.fov !== 30) {
+    cam.fov = 30;
+    cam.updateProjectionMatrix();
+  }
+  if (V3.yawGoal == null) V3.yawGoal = V3.yaw || 0;
+  const ek = 1 - Math.exp(-dt * 16);
+  V3.yaw = (V3.yaw || 0) + (V3.yawGoal - (V3.yaw || 0)) * ek;
+  V3.orbitNow = (V3.orbitNow || 0) + ((V3.orbitTilt || 0) - (V3.orbitNow || 0)) * ek;
+  // ganz am Ziel einrasten: gerade Sicht ist dann wieder genau die alte Kamera
+  if (Math.abs(V3.yawGoal - V3.yaw) < 1e-4) {
+    V3.yaw = V3.yawGoal = V3.yawGoal % (Math.PI * 2);
+  }
+  if (Math.abs((V3.orbitTilt || 0) - V3.orbitNow) < 1e-4) V3.orbitNow = V3.orbitTilt || 0;
+  V3.orbit = !!(V3.yaw || V3.orbitNow);
+  V3.camPitch = null;
+  // seit 14.44: vom Schulterblick (bis 3,2) zurück zur festen Kamera auf deren Grenze
+  if (V3.zoomMul > ZOOM3.max) V3.zoomMul = ZOOM3.max;
+  // so weit weg, dass etwa so viel Welt zu sehen ist wie im 2D-Spiel (etwas mehr Überblick)
+  const viewH = r.h / r.zoom * U3;
+  const fov = (cam.fov * Math.PI) / 180;
+  // seit 14.52: im Flug auf dem Drachen (weich mit dem Abheben) 20 % weiter weg – man sitzt hoch und sieht sonst zu wenig
+  const dist = (viewH * Math.sin(V3.pitch)) / (2 * Math.tan(fov / 2)) * 0.98 * (CAM3[opts.camera] || 1) * (V3.zoomMul || 1) * (1 + 0.2 * v3CamDragonAir());
+  const tx = fx * U3;
+  const tz = fy * U3;
+  const ty = 0.7 + lift * CAM3_HIGH.normal + CAM3_HIGH.airNormal * v3CamDragonAir();
+  if (V3.orbit) {
+    const pitch = V3.pitch + V3.orbitNow;
+    const cp = Math.cos(pitch);
+    cam.position.set(tx + Math.sin(V3.yaw) * cp * dist, ty + Math.sin(pitch) * dist, tz + Math.cos(V3.yaw) * cp * dist);
+    if (typeof rand3Cam === 'function') rand3Cam(cam.position);
+  } else {
+    cam.position.set(tx, ty + Math.sin(V3.pitch) * dist, tz + Math.cos(V3.pitch) * dist);
+  }
+  V3.camDist = dist; // Nebel ab der Figur (v3UpdateMood, seit 14.45)
+  cam.lookAt(tx, ty, tz);
+  cam.updateMatrixWorld();
+  // Sonne steht im Südosten hoch am Himmel, der Schattenbereich folgt der Kamera
+  v3FitSun(); // seit 14.44 statt v3PlaceSun(tx, tz - 2): Schattenbereich über das ganze Bild
+  V3.focus.x = fx;
+  V3.focus.y = fy;
+}
+
+const _pv = new THREE.Vector3();
+// Weltpunkt (Pixel der Karte, Höhe in Einheiten) → Bildschirmpunkt in CSS-Pixeln
+function v3Project(wx, wy, h = 0, out = {}) {
+  _pv.set(wx * U3, h, wy * U3).project(V3.camera);
+  out.x = (_pv.x + 1) * 0.5 * renderer.w;
+  out.y = (1 - _pv.y) * 0.5 * renderer.h;
+  out.z = _pv.z;
+  return out;
+}
+
+const _pa = {};
+const _pb = {};
+const _fadeA = {};
+const _fadeB = {};
+const _fadeC = {};
+// Zeichnet das 2D-Canvas ab hier so, dass der Weltpunkt (wx, wy) an seiner Stelle im 3D-Bild liegt.
+// h: Höhe des Punkts, ax/ay: welcher 2D-Punkt dorthin gehört (Standard: derselbe)
+// Rückgabe (seit 14.66): false, wenn der Punkt hinter oder dicht an der Kamera liegt bzw. weit neben dem Bild –
+// dort ist der Maßstab unbrauchbar, der Aufrufer zeichnet dann nichts. Vorher wurde trotzdem gezeichnet: Im
+// Schulterblick liegen Teilchen (Pollen, Glühwürmchen, Funken der Umgebung, updateAmbient) auch neben und unter der
+// Kamera; ein Punkt knapp vor ihrer Bildebene bekam den Maßstab 1000–7000, ein Pollenkorn (2 px, leuchtend addiert)
+// wurde zur Scheibe über den ganzen Bildschirm – für ein Bild war alles weißlich („flackert ab und zu weiß“).
+function v3Anchor(ctx, wx, wy, h = 0, ax = wx, ay = wy) {
+  const ok = v3AnchorAt(wx, wy, h, _anc);
+  ctx.setTransform(_anc.a, 0, 0, _anc.a, _anc.x - ax * _anc.a, _anc.y - ay * _anc.a);
+  return ok;
+}
+// Ankerpunkt ohne Zeichenfläche (seit Wärme 2, für das Sammeln der Schilder in drawOverlay3): Bildschirmpunkt des
+// Weltpunkts in Geräte-Pixeln (out.x, out.y) und Maßstab out.a (Geräte-Pixel je Weltpixel); Rückgabe wie v3Anchor
+const _anc = { a: 1, x: 0, y: 0 };
+function v3AnchorAt(wx, wy, h, out) {
+  v3Project(wx, wy, h, _pa);
+  // seit 15.31: Maßstab entlang der Bildwaagerechten der Kamera statt entlang der Welt-X-Achse – bei gedrehter
+  // Kamera (Schulterblick, rechte Maustaste) schrumpften Namen, Balken und Zahlen sonst bis zum Verschwinden
+  const yaw = V3.yaw || 0;
+  if (yaw) v3Project(wx + 32 * Math.cos(yaw), wy - 32 * Math.sin(yaw), h, _pb);
+  else v3Project(wx + 32, wy, h, _pb);
+  const dx = _pb.x - _pa.x;
+  const k = Math.max(0.05, dx) / 32;
+  const r = renderer;
+  const d = r.dpr;
+  out.a = k * d;
+  out.x = _pa.x * d;
+  out.y = _pa.y * d;
+  // nah an der Kamera wächst der Maßstab ins Unendliche: mehr als h/12 Pixel je Weltpixel kommt im Bild nicht vor
+  // (gemessen: feste Kamera bis 2,7, Schulterblick am Bildrand unten etwa h/26)
+  return _pa.z > -1 && _pa.z < 1 && hyp(dx, _pb.y - _pa.y) / 32 < r.h / 12 + 2 &&
+    _pa.x > -1.5 * r.w && _pa.x < 2.5 * r.w && _pa.y > -1.5 * r.h && _pa.y < 2.5 * r.h;
+}
+
+const _ray = new THREE.Vector3();
+// Bildschirmpunkt → Punkt auf dem Boden (für Antippen und Klicks)
+function v3ScreenToWorld(sx, sy) {
+  const cam = V3.camera;
+  _ray.set((sx / renderer.w) * 2 - 1, -(sy / renderer.h) * 2 + 1, 0.5).unproject(cam).sub(cam.position).normalize();
+  // seit 14.32: Im Schulterblick zeigt der obere Bildrand fast waagerecht (oder über den Horizont) – dann traf der Strahl
+  // den Boden erst sehr weit weg oder HINTER der Kamera, und Zielkreis bzw. Laufziel sprangen auf die andere Seite der
+  // Figur. Jetzt höchstens 60 Kacheln weit in Blickrichtung. Die normale Kamera schaut steil nach unten (unverändert).
+  let t = _ray.y < 0 ? -cam.position.y / _ray.y : Infinity;
+  if (v3Shoulder()) t = Math.min(t, 60 / (hyp(_ray.x, _ray.z) || 1));
+  else if (V3.orbit) t = Math.min(t, 90 / (hyp(_ray.x, _ray.z) || 1));
+  return { x: (cam.position.x + _ray.x * t) * TILE, y: (cam.position.z + _ray.z * t) * TILE };
+}
+
+// --- Boden: weiche Übergänge zwischen den Bodenarten, Wasser in Mulden, Höhlenwände als Felsen ---
+
+const CHUNK3 = 16;
+const SUB3 = 2;
+let groundRGB = null;
+
+function groundColorsRGB() {
+  if (groundRGB) return groundRGB;
+  groundRGB = GROUND_PALETTE.map((row) => row.map((hex) => {
+    _c.set(hex);
+    return [_c.r, _c.g, _c.b];
+  }));
+  return groundRGB;
+}
+
+// Bodenart für die Feinstruktur im Shader (seit 7.9): 0 Gras, 1 Weg, 2 Sand, 3 Pflaster, 4 Schnee, 5 Asche
+const SOIL3 = {
+  [GROUND.GRASS]: 0, [GROUND.MEADOW]: 0, [GROUND.FOREST]: 0, [GROUND.SWAMP]: 0, [GROUND.PATH]: 1, [GROUND.CAVE]: 1,
+  [GROUND.SAND]: 2, [GROUND.PLAZA]: 3, [GROUND.FLAGSTONE]: 3, [GROUND.SNOW]: 4, [GROUND.ICE]: 4, [GROUND.ASH]: 5, [GROUND.BASALT]: 5
+};
+
+// Kachel-Werte für die Glättung: Farbe, Höhe, Bodenart (soil), Nässe am Ufer (wet), Brandrand an Lava (hot)
+const WALL3_H = 1.5;
+const WATER3_DEPTH = 0.5;
+// seit 14.70 (Kartenformen, kartenformen.js): je Bodenart einer Flüssigkeit die Tiefe des Bodens darunter (tiefer =
+// sichtbare Absturzkante), die Bodenfarbe der Kante und die Art der Oberfläche in LIQUID3
+const LIQUID3_DEPTH = {};
+const LIQUID3_UNDER = {};
+const LIQUID3_GROUND = {};
+const wetGround3 = (g) => g === GROUND.WATER || g === GROUND.BOG;
+
+// --- Kartenrand (seit 8.4) -------------------------------------------------------------------------
+// Gebaut wird nur, was zur Map gehört, in der man steht (V3.home, siehe v3UpdateHome). Hinter ihrem Rand
+// läuft der Boden als Böschung weiter und steigt nach außen leicht an; darauf steht die Randkulisse
+// (drei-welt.js, kulisse3). Weiter als KUL3_OUT Kacheln draußen steht nichts mehr, bei KUL3_FAR der
+// Horizont (drei-fx.js). Nachbarkarten, Füllfels und die Weltgrenze sieht man so nicht mehr.
+const KUL3_OUT = 10;
+const KUL3_FAR = KUL3_OUT + 3;
+// Abstand einer Kachel außerhalb des Rechtecks (Schachbrett-Abstand, füllt die Ecken; 0 = drinnen)
+const homeOut3 = (H, x, y) => Math.max(H.x0 - x, x - (H.x1 - 1), H.y0 - y, y - (H.y1 - 1), 0);
+// Abstand zum Rand von innen (0 = äußerste Reihe der Map)
+const homeIn3 = (H, x, y) => Math.min(x - H.x0, H.x1 - 1 - x, y - H.y0, H.y1 - 1 - y);
+// Höhe der Böschung d Kacheln vor dem Rand
+const bermH3 = (d) => Math.min(2.2, 0.15 + 0.28 * d);
+
+// Map bzw. Dungeon-Halle der Kamera-Mitte; beim Wechsel (Teleport, Dungeon) wird alles neu gebaut,
+// denn die Blöcke am Rand gehören je nach Map zur Böschung oder zur Nachbarkarte
+function v3UpdateHome(fx, fy) {
+  const rr = regionRect3(fx, fy);
+  const key = rr ? rr.key : '';
+  if (key === (V3.home ? V3.home.key : '')) return;
+  const oldHome = V3.home;
+  if (!rr) V3.home = null;
+  else {
+    const [rx, ry, rw, rh] = rr.r;
+    const dungeon = key[0] === 'd';
+    const style = dungeon ? '' : ZONES[game.world.zoneIdx[(ry + 1) * MAP_W + rx + 1]].id;
+    V3.home = { key, x0: rx, y0: ry, x1: rx + rw, y1: ry + rh, dungeon, style, B: dungeon ? null : kulStyle3(style) };
+    // seit 14.70: Karte, deren Rand im Wolkenmeer oder offenen Meer liegt – draußen geht die Flüssigkeit weiter
+    V3.home.voidG = !dungeon && typeof mapFormVoidEdge === 'function' ? mapFormVoidEdge(rx, ry) : null;
+    // seit 14.79: Karte mit Meer nur an einer Seite (kartenrand.js)
+    V3.home.side3 = !dungeon && typeof RAND3_SEITE !== 'undefined' && !!RAND3_SEITE[key];
+    // die Grundfläche unter der Welt liegt unter der tiefsten Flüssigkeit der Karte (Schlucht, Wolkenmeer)
+    if (V3.under) V3.under.position.y = !dungeon && typeof mapFormUnderY === 'function' ? mapFormUnderY(rx, ry) : -0.9;
+  }
+  full3Switch(oldHome, V3.home);
+}
+
+// Abstand jeder Felskachel zur nächsten offenen Kachel (Schachbrett-Abstand, höchstens 15), je Halle (V3.home)
+// einmal berechnet – nur ihr Rechteck, außerhalb gilt alles als Fels
+const CAVEDEPTH3 = { key: '', world: null, d: null, x0: 0, y0: 0, w: 0, h: 0 };
+function caveDepth3(x, y) {
+  const w = game.world;
+  const H = V3.home;
+  if (!H) return 0;
+  const C = CAVEDEPTH3;
+  if (C.key !== H.key || C.world !== w) {
+    C.key = H.key;
+    C.world = w;
+    C.x0 = Math.max(0, H.x0);
+    C.y0 = Math.max(0, H.y0);
+    C.w = Math.max(1, Math.min(MAP_W, H.x1) - C.x0);
+    C.h = Math.max(1, Math.min(MAP_H, H.y1) - C.y0);
+    const W = C.w;
+    const d = new Uint8Array(W * C.h);
+    for (let yy = 0; yy < C.h; yy++) for (let xx = 0; xx < W; xx++) d[yy * W + xx] = w.obj[(C.y0 + yy) * MAP_W + C.x0 + xx] === OBJ.CAVEWALL ? 15 : 0;
+    // zwei Durchläufe (vorwärts, rückwärts) mit den acht Nachbarn
+    for (let yy = 0; yy < C.h; yy++) for (let xx = 0; xx < W; xx++) {
+      const k = yy * W + xx;
+      if (!d[k]) continue;
+      let m = d[k];
+      if (xx > 0) m = Math.min(m, d[k - 1] + 1);
+      if (yy > 0) {
+        m = Math.min(m, d[k - W] + 1);
+        if (xx > 0) m = Math.min(m, d[k - W - 1] + 1);
+        if (xx < W - 1) m = Math.min(m, d[k - W + 1] + 1);
+      }
+      d[k] = m;
+    }
+    for (let yy = C.h - 1; yy >= 0; yy--) for (let xx = W - 1; xx >= 0; xx--) {
+      const k = yy * W + xx;
+      if (!d[k]) continue;
+      let m = d[k];
+      if (xx < W - 1) m = Math.min(m, d[k + 1] + 1);
+      if (yy < C.h - 1) {
+        m = Math.min(m, d[k + W] + 1);
+        if (xx < W - 1) m = Math.min(m, d[k + W + 1] + 1);
+        if (xx > 0) m = Math.min(m, d[k + W - 1] + 1);
+      }
+      d[k] = m;
+    }
+    C.d = d;
+  }
+  const lx = x - C.x0;
+  const ly = y - C.y0;
+  if (lx < 0 || ly < 0 || lx >= C.w || ly >= C.h) return 15;
+  return C.d[ly * C.w + lx];
+}
+// weiches Rauschen je Kachel (Grate und Kuppen über mehrere Kacheln)
+function caveNoise3(x, y, cell, s) {
+  const fx = x / cell;
+  const fy = y / cell;
+  const ix = Math.floor(fx);
+  const iy = Math.floor(fy);
+  const ax = fx - ix;
+  const ay = fy - iy;
+  const ux = ax * ax * (3 - 2 * ax);
+  const uy = ay * ay * (3 - 2 * ay);
+  const q = (a, b) => {
+    let v = (a * 374761393 + b * 668265263 + s * 982451653) | 0;
+    v = Math.imul(v ^ (v >>> 13), 1274126177);
+    return ((v ^ (v >>> 16)) >>> 0) / 4294967296;
+  };
+  const a0 = q(ix, iy);
+  const b0 = q(ix + 1, iy);
+  const c0 = q(ix, iy + 1);
+  const d0 = q(ix + 1, iy + 1);
+  return a0 + (b0 - a0) * ux + (c0 - a0) * uy + (a0 - b0 - c0 + d0) * ux * uy;
+}
+function caveRock3(x, y, out) {
+  const dd = caveDepth3(x, y);
+  if (dd <= 1) return;
+  const n1 = caveNoise3(x, y, 5, 3);
+  const n2 = caveNoise3(x, y, 2.2, 4);
+  const rise = Math.min(4.6, (dd - 1) * 0.62) * (0.55 + 0.75 * n1) + (n2 - 0.5) * 0.5 * Math.min(1, (dd - 1) / 3);
+  out.h = WALL3_H + Math.max(0, rise);
+  // terrainJob hellt hohen Fels auf (je Wandhöhe +25 %) – das hier ausgleichen, dazu nach innen dunkler, fleckig
+  const k = (1.25 / (1 + (out.h / WALL3_H) * 0.25)) * (1 - Math.min(0.3, (dd - 1) * 0.035)) * (0.9 + 0.2 * n2);
+  out.r *= k; out.g *= k; out.b *= k;
+}
+
+function tileSample(x, y, out) {
+  const w = game.world;
+  // Hinter dem Rand der Map: Boden der nächsten Randkachel als ansteigende Böschung (ohne Wasser und Lava)
+  const H = V3.home;
+  if (H && !H.dungeon) {
+    const d = homeOut3(H, x, y);
+    // seit 14.79 je Seite (Kartenrand, kartenrand.js): Schattenklippen haben im Norden das offene Meer
+    const vg = d > 0 ? (typeof rand3Void === 'function' ? rand3Void(H, x, y) : H.voidG) : null;
+    if (vg != null) {
+      const ug = LIQUID3_UNDER[vg] != null ? LIQUID3_UNDER[vg] : vg;
+      const c = groundColorsRGB()[ug][3];
+      out.h = -(LIQUID3_DEPTH[vg] || WATER3_DEPTH);
+      out.wet = 0;
+      out.hot = 0;
+      out.soil = -1;
+      out.r = c[0]; out.g = c[1]; out.b = c[2];
+      return out;
+    }
+    if (d > 0) {
+      tileSample(Math.max(H.x0, Math.min(H.x1 - 1, x)), Math.max(H.y0, Math.min(H.y1 - 1, y)), out);
+      out.h = bermH3(d);
+      out.wet = 0;
+      out.hot = 0;
+      // terrainJob hellt Felsen nach oben auf; die Böschung bleibt in der Bodenfarbe, nach außen etwas dunkler
+      const k = (1 - Math.min(0.18, d * 0.03)) / (1 + (out.h / WALL3_H) * 0.25);
+      out.r *= k; out.g *= k; out.b *= k;
+      // seit 14.79: Hang steigt nach außen weiter an, Farbe geht in die Landschaft dahinter über (kartenrand.js)
+      if (typeof rand3Sample === 'function') rand3Sample(H, x, y, out);
+      return out;
+    }
+  }
+  x = Math.max(0, Math.min(MAP_W - 1, x));
+  y = Math.max(0, Math.min(MAP_H - 1, y));
+  const i = y * MAP_W + x;
+  let g = w.ground[i];
+  const pal = groundColorsRGB();
+  out.h = 0;
+  out.soil = -1;
+  out.wet = 0;
+  out.hot = 0;
+  if (w.obj[i] === OBJ.CAVEWALL) {
+    out.h = WALL3_H;
+    const zone = ZONES[w.zoneIdx[i]];
+    // seit 13.86: auch eigene Wandfarben ohne Dungeon (zone.wallLook, Hallen der Turnierarena)
+    _c.set(lighter(zone.dungeon ? zone.dungeon.wall.top : zone.wallLook ? zone.wallLook.wall.top : '#3a3430', 0.22));
+    out.r = _c.r; out.g = _c.g; out.b = _c.b;
+    // seit 15.62: in Dungeons und Hallen steigt der Fels mit dem Abstand zum Höhlenboden zu Graten und Kuppen an
+    // und wird dunkler – statt einer glatten, hellen Platte um die Halle (von weit oben sah das wie „nichts“ aus)
+    if (V3.home && V3.home.dungeon) caveRock3(x, y, out);
+    return out;
+  }
+  if (LIQUID.has(g)) out.h = -(LIQUID3_DEPTH[g] || WATER3_DEPTH);
+  // Ufer: die Kacheln neben Wasser und Moor sind nass, neben Lava verbrannt
+  if (wetGround3(g)) out.wet = 1;
+  else if (g === GROUND.LAVA) out.hot = 1;
+  else {
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        const n = groundAt(x + dx, y + dy);
+        if (wetGround3(n)) out.wet = 0.4;
+        else if (n === GROUND.LAVA) out.hot = 0.4;
+      }
+    }
+  }
+  if (g === GROUND.WATER) g = GROUND.SAND;
+  else if (g === GROUND.LAVA) g = GROUND.BASALT;
+  else if (g === GROUND.BOG) g = GROUND.SWAMP;
+  else if (LIQUID3_UNDER[g] != null) g = LIQUID3_UNDER[g];
+  const c = pal[g][g === GROUND.PATH || g === GROUND.PLAZA || g === GROUND.FLAGSTONE ? Math.min(7, (w.shade[i] >> 6) + 3) : w.shade[i] >> 5];
+  out.r = c[0]; out.g = c[1]; out.b = c[2];
+  out.soil = SOIL3[g] == null ? -1 : SOIL3[g];
+  // seit 15.20: Waldboden im dichten Wald der Kartenformen (Dunkelwald, Aschewald) – unter dem geschlossenen
+  // Kronendach dunkel, zum Waldrand hin heller
+  const dn = typeof formDense3 === 'function' ? formDense3(i) : 0;
+  if (dn) {
+    const k = dn === 1 ? 0.55 : dn === 2 ? 0.66 : 0.84;
+    out.r *= k * 0.96; out.g *= k; out.b *= k * 0.9;
+  }
+  return out;
+}
+
+// Bodenstruktur als gemalte Texturen (seit 7.9 je Kanal ein Muster) und Pflastersteine.
+// Feinstruktur, 256 × 256, direkt in ein Feld gemalt (ohne Zeichenfläche, darum schnell und ohne Nähte):
+//   r: feines Rauschen (Grasflecken, Kiesel; wie bis 7.8)
+//   g: Grasstriche, hell und dunkel
+//   b: Kies (helle Punkte) und Trittspuren (dunkle Sohlen) für Wege
+//   a: Risse (dunkle Linien) für Asche und Glitzerpunkte (hell) für Schnee
+// Dazu ein weiches Großrauschen (64 × 64) für Farbflecken über viele Kacheln.
+let groundTex = null;
+const GTEX3 = 256;
+// weicher Fleck (gedrehte Ellipse) in Kanal ch, über den Rand hinweg gekachelt
+function texBlot(f, ch, cx, cy, rx, ry, a, v, k) {
+  const N = GTEX3;
+  const r = Math.max(rx, ry) + 1;
+  const ca = Math.cos(a);
+  const sa = Math.sin(a);
+  const edge = Math.min(rx, ry);
+  for (let y = Math.floor(cy - r); y <= Math.ceil(cy + r); y++) {
+    for (let x = Math.floor(cx - r); x <= Math.ceil(cx + r); x++) {
+      const dx = x + 0.5 - cx;
+      const dy = y + 0.5 - cy;
+      const u = (dx * ca + dy * sa) / rx;
+      const w = (dy * ca - dx * sa) / ry;
+      const cov = Math.min(1, (1 - Math.sqrt(u * u + w * w)) * edge + 0.5);
+      if (cov <= 0) continue;
+      const i = (((y + N) % N) * N + ((x + N) % N)) * 4 + ch;
+      f[i] += (v - f[i]) * k * cov;
+    }
+  }
+}
+// Strich von (x0, y0) nach (x1, y1) mit Breite w
+function texLine(f, ch, x0, y0, x1, y1, w, v) {
+  const N = GTEX3;
+  const lx = x1 - x0;
+  const ly = y1 - y0;
+  const ll = lx * lx + ly * ly || 1;
+  for (let y = Math.floor(Math.min(y0, y1) - w); y <= Math.ceil(Math.max(y0, y1) + w); y++) {
+    for (let x = Math.floor(Math.min(x0, x1) - w); x <= Math.ceil(Math.max(x0, x1) + w); x++) {
+      const px = x + 0.5 - x0;
+      const py = y + 0.5 - y0;
+      const t = Math.max(0, Math.min(1, (px * lx + py * ly) / ll));
+      const cov = Math.min(1, w / 2 - hyp(px - t * lx, py - t * ly) + 0.5);
+      if (cov <= 0) continue;
+      const i = (((y + N) % N) * N + ((x + N) % N)) * 4 + ch;
+      f[i] += (v - f[i]) * cov;
+    }
+  }
+}
+function groundTextures() {
+  if (groundTex) return groundTex;
+  const N = GTEX3;
+  const f = new Float32Array(N * N * 4).fill(128);
+  const rnd = mulberry32(99);
+  for (let i = 0; i < 900; i++) {
+    const v = 100 + Math.floor(rnd() * 60);
+    const s = 1 + rnd() * 3;
+    texBlot(f, 0, rnd() * N, rnd() * N, s * 2, s * 1.2, rnd() * 3, v, 0.5);
+  }
+  const cob = newCanvas(128, 128);
+  const cx = cob.getContext('2d');
+  cx.fillStyle = '#5c5c5c';
+  cx.fillRect(0, 0, 128, 128);
+  for (let row = 0; row < 8; row++) {
+    for (let col = 0; col < 8; col++) {
+      const ox = col * 16 + (row % 2) * 8;
+      const oy = row * 16;
+      const v = 150 + Math.floor(rnd() * 50);
+      for (const sx of [0, -128]) {
+        cx.fillStyle = `rgb(${v},${v},${v})`;
+        cx.beginPath();
+        cx.roundRect(ox + sx + 1.2, oy + 1.2, 13.6, 13.6, 4.5);
+        cx.fill();
+        cx.fillStyle = 'rgba(255,255,255,0.18)';
+        cx.fillRect(ox + sx + 4, oy + 3, 7, 2);
+      }
+    }
+  }
+  const r2 = mulberry32(7);
+  for (let i = 0; i < 1500; i++) {
+    const px = r2() * N;
+    const py = r2() * N;
+    const a = -Math.PI / 2 + (r2() - 0.5) * 1.2;
+    const len = 3 + r2() * 5;
+    const v = r2() < 0.55 ? 160 + Math.floor(r2() * 60) : 60 + Math.floor(r2() * 40);
+    texLine(f, 1, px, py, px + Math.cos(a) * len, py + Math.sin(a) * len, 1 + r2() * 0.8, v);
+  }
+  // Trittspuren: kurze Fährten aus abwechselnd linken und rechten Sohlen
+  for (let t = 0; t < 16; t++) {
+    let px = r2() * N;
+    let py = r2() * N;
+    const a = r2() * Math.PI * 2;
+    for (let k = 0; k < 4; k++) {
+      const side = k % 2 ? 1 : -1;
+      texBlot(f, 2, px - Math.sin(a) * side * 4, py + Math.cos(a) * side * 4, 6, 3.4, a, 70 + Math.floor(r2() * 25), 1);
+      px += Math.cos(a) * 15;
+      py += Math.sin(a) * 15;
+    }
+  }
+  for (let i = 0; i < 650; i++) {
+    const px = r2() * N;
+    const py = r2() * N;
+    const s = 0.8 + r2() * 1.8;
+    const v = 170 + Math.floor(r2() * 70);
+    texBlot(f, 2, px + 0.5, py + 0.8, s, s * 0.75, 0, 100, 1);
+    texBlot(f, 2, px, py, s, s * 0.75, 0, v, 1);
+  }
+  // Risse: Kanten zwischen unregelmäßigen Zellen (je Zelle eines 6 × 6-Gitters ein Punkt; geprüft werden
+  // nur die Nachbarzellen), dazu helle Glitzerpunkte
+  const G = 6;
+  const cell = N / G;
+  const seeds = Array.from({ length: G * G }, (_, k) => [((k % G) + 0.15 + r2() * 0.7) * cell, (Math.floor(k / G) + 0.15 + r2() * 0.7) * cell]);
+  for (let y = 0; y < N; y++) {
+    for (let x = 0; x < N; x++) {
+      let d1 = 1e9;
+      let d2 = 1e9;
+      const gx = Math.floor(x / cell);
+      const gy = Math.floor(y / cell);
+      for (let oy = -1; oy <= 1; oy++) {
+        for (let ox = -1; ox <= 1; ox++) {
+          const s = seeds[((gy + oy + G) % G) * G + ((gx + ox + G) % G)];
+          let dx = Math.abs(x - s[0]);
+          let dy = Math.abs(y - s[1]);
+          if (dx > N / 2) dx = N - dx;
+          if (dy > N / 2) dy = N - dy;
+          const d = dx * dx + dy * dy;
+          if (d < d1) {
+            d2 = d1;
+            d1 = d;
+          } else if (d < d2) d2 = d;
+        }
+      }
+      const e = Math.sqrt(d2) - Math.sqrt(d1) + (f[(y * N + x) * 4] - 128) * 0.04;
+      f[(y * N + x) * 4 + 3] = e < 1.1 ? 50 : e < 2.2 ? 100 : 128;
+    }
+  }
+  for (let i = 0; i < 700; i++) {
+    const k = (Math.floor(r2() * (N - 1)) * N + Math.floor(r2() * (N - 1))) * 4 + 3;
+    for (const o of [0, 4, N * 4, N * 4 + 4]) if (f[k + o] === 128) f[k + o] = 255;
+  }
+  const bytes = new Uint8ClampedArray(f.length);
+  bytes.set(f);
+  const detail = new THREE.DataTexture(new Uint8Array(bytes.buffer), N, N, THREE.RGBAFormat);
+  detail.generateMipmaps = true;
+  detail.minFilter = THREE.LinearMipmapLinearFilter;
+  detail.magFilter = THREE.LinearFilter;
+  // Großrauschen: zwei Lagen weich verblendeter Zufallswerte, nahtlos kachelbar
+  const M = 64;
+  const macroData = new Uint8Array(M * M * 4);
+  const lattice = (n) => {
+    const g = Array.from({ length: n * n }, () => r2());
+    return (u, v) => {
+      const x0 = Math.floor(u);
+      const y0 = Math.floor(v);
+      const fx = (u - x0) * (u - x0) * (3 - 2 * (u - x0));
+      const fy = (v - y0) * (v - y0) * (3 - 2 * (v - y0));
+      const at = (x, y) => g[(y % n) * n + (x % n)];
+      const top = at(x0, y0) + (at(x0 + 1, y0) - at(x0, y0)) * fx;
+      const bot = at(x0, y0 + 1) + (at(x0 + 1, y0 + 1) - at(x0, y0 + 1)) * fx;
+      return top + (bot - top) * fy;
+    };
+  };
+  const big = lattice(8);
+  const small = lattice(16);
+  for (let y = 0; y < M; y++) {
+    for (let x = 0; x < M; x++) {
+      const v = big((x / M) * 8, (y / M) * 8) * 0.68 + small((x / M) * 16, (y / M) * 16) * 0.32;
+      const k = (y * M + x) * 4;
+      macroData[k] = macroData[k + 1] = macroData[k + 2] = Math.round(Math.max(0, Math.min(1, (v - 0.5) * 1.7 + 0.5)) * 255);
+      macroData[k + 3] = 255;
+    }
+  }
+  const macro = new THREE.DataTexture(macroData, M, M, THREE.RGBAFormat);
+  macro.magFilter = THREE.LinearFilter;
+  macro.minFilter = THREE.LinearFilter;
+  const mk = (t) => {
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    t.anisotropy = V3.ultra ? V3.gl.capabilities.getMaxAnisotropy() : 4;
+    t.needsUpdate = true;
+    return t;
+  };
+  groundTex = { noise: mk(detail), cobble: mk(new THREE.CanvasTexture(cob)), macro: mk(macro) };
+  return groundTex;
+}
+
+// Boden: vier Texturabfragen je Pixel (Feinstruktur nah und mittel, Großrauschen, Pflaster). Die Bodenart
+// kommt als Gewichte aus den Ecken: soil = Gras, Weg, Sand, Pflaster; soil2 = Schnee, Asche, Hitze (seit 13.85: der
+// Boden am Lavaufer glüht orange nach). Der Reihe nach:
+// feines Rauschen; große Flecken über viele Kacheln (hier heller und wärmer, dort dunkler und kühler);
+// Grasstriche auf grünem Boden; heller Kies und stellenweise dunkle Trittspuren auf Wegen; weiche, vom
+// Rauschen verbogene Rippeln im Sand; dunkle Risse in der Asche; Schnee etwas gedämpft (sonst überstrahlt
+// er, und man sähe weder Struktur noch Glitzern); Pflastersteine mit Fugen. Zuletzt leuchten auf Schnee
+// Glitzerpunkte auf, je nach Blickrichtung (sie blitzen, wenn sich die Kamera bewegt).
+// (In den Shader-Texten stehen keine Kommentare: Umlaute darin mögen manche Grafiktreiber nicht.)
+// Höhlenwände zwischen Kamera und Figur absenken (seit 14.32, wie das Ausblenden der Hausdächer, v3SyncHouses):
+// In Dungeons, Instanzen und den Arenahallen (V3.home.dungeon) sinken die Felswände im Streifen von der Figur zur
+// Kamera bis auf einen niedrigen Sockel, damit sie weder die eigene Figur noch Monster und Mitspieler davor
+// verdecken. Nur im Bild: Kollision, Wegsuche und Karte bleiben, wie sie sind. Beim Verlassen wachsen sie weich
+// zurück. uCut: Figur (x, z) und Richtung zur Kamera; uCutP: Stärke 0–1, Länge und Breite des Streifens.
+const CUT3 = { pos: new THREE.Vector4(0, 0, 0, 1), par: new THREE.Vector4(0, 12, 3.2, 0) };
+const CUT3_UNIFORMS = { uCut: { value: CUT3.pos }, uCutP: { value: CUT3.par } };
+function v3SyncCut(dt) {
+  const p = game.player;
+  const H = V3.home;
+  const want = p && game.running && !p.dead && H && H.dungeon ? 1 : 0;
+  const k = CUT3.par.x + Math.sign(want - CUT3.par.x) * Math.min(Math.abs(want - CUT3.par.x), Math.min(0.1, dt || 0.016) * 3);
+  CUT3.par.x = k;
+  if (!p || k <= 0) return;
+  const px = p.x * U3;
+  const pz = feetY(p) * U3;
+  const cam = V3.camera.position;
+  let dx = cam.x - px;
+  let dz = cam.z - pz;
+  const l = hyp(dx, dz);
+  if (l < 0.01) { dx = 0; dz = 1; } else { dx /= l; dz /= l; }
+  CUT3.pos.set(px, pz, dx, dz);
+  // Länge: bis hinter die Kamera; Breite wächst mit der Entfernung (Blickkegel), steiler Blick braucht weniger
+  CUT3.par.y = l + 2.5;
+  CUT3.par.z = 3.2;
+  CUT3.par.w = 0.5;
+}
+// Ecken-Shader und Werte des Bodens (seit Wärme 2 als eigene Funktion, Text unverändert): gemeinsam für den vollen
+// Boden und den einfachen Boden auf „Niedrig“ (groundLowMat)
+function groundVertex3(sh, tex) {
+  sh.uniforms.tNoise = { value: tex.noise };
+  sh.uniforms.tCobble = { value: tex.cobble };
+  sh.uniforms.tMacro = { value: tex.macro };
+  sh.uniforms.uCut = CUT3_UNIFORMS.uCut;
+  sh.uniforms.uCutP = CUT3_UNIFORMS.uCutP;
+  sh.vertexShader = sh.vertexShader
+    .replace('void main() {', 'attribute vec4 soil;\nattribute vec3 soil2;\nvarying vec4 vSoil;\nvarying vec3 vSoil2;\nvarying vec3 vGW;\nuniform vec4 uCut;\nuniform vec4 uCutP;\nvoid main() {')
+    .replace('#include <begin_vertex>', `#include <begin_vertex>
+	if (uCutP.x > 0.0 && transformed.y > 0.14) {
+		vec2 cRel = (modelMatrix * vec4(transformed, 1.0)).xz - uCut.xy;
+		float cAl = dot(cRel, uCut.zw);
+		float cLa = abs(cRel.x * uCut.w - cRel.y * uCut.z);
+		float cK = uCutP.x * smoothstep(-0.9, 0.6, cAl) * (1.0 - smoothstep(uCutP.z, uCutP.z + 2.2, cLa - max(cAl, 0.0) * uCutP.w)) * (1.0 - smoothstep(uCutP.y, uCutP.y + 3.0, cAl));
+		transformed.y = mix(transformed.y, 0.14 + transformed.y * 0.1, cK);
+		vNormal = normalize(mix(vNormal, normalize(normalMatrix * vec3(0.0, 1.0, 0.0)), cK));
+	}
+	vSoil = soil;
+	vSoil2 = soil2;
+	vGW = (modelMatrix * vec4(transformed, 1.0)).xyz;`);
+}
+const GROUND3_FRAG_HEAD = 'uniform sampler2D tNoise;\nuniform sampler2D tCobble;\nuniform sampler2D tMacro;\nvarying vec4 vSoil;\nvarying vec3 vSoil2;\nvarying vec3 vGW;\nvoid main() {';
+function groundMat() {
+  return mat3('ground', () => {
+    const tex = groundTextures();
+    const m = toonMat();
+    m.onBeforeCompile = (sh) => {
+      groundVertex3(sh, tex);
+      sh.fragmentShader = sh.fragmentShader
+        .replace('void main() {', GROUND3_FRAG_HEAD)
+        .replace('#include <color_fragment>', `#include <color_fragment>
+	vec4 d1 = texture2D(tNoise, vGW.xz * 0.21);
+	vec4 d2 = texture2D(tNoise, vGW.xz * 0.053);
+	float mac = texture2D(tMacro, vGW.xz * 0.011).r;
+	float nz = d1.r * 0.6 + d2.r * 0.4;
+	diffuseColor.rgb *= 0.86 + nz * 0.28;
+	diffuseColor.rgb *= mix(vec3(0.86, 0.91, 0.92), vec3(1.1, 1.07, 0.95), mac);
+	diffuseColor.rgb *= 1.0 + (d1.g - 0.5) * 0.4 * vSoil.x;
+	float pebble = max(d1.b - 0.5, 0.0) * 2.0;
+	float tread = max(0.5 - d1.b, 0.0) * 2.0 * smoothstep(0.35, 0.65, d2.r + mac * 0.3);
+	diffuseColor.rgb *= 1.0 + (pebble * 0.4 - tread * 0.32) * vSoil.y;
+	float rip = sin(dot(vGW.xz, vec2(2.4, 5.1)) + d2.r * 7.0 + mac * 10.0);
+	diffuseColor.rgb *= 1.0 + rip * 0.075 * vSoil.z;
+	diffuseColor.rgb *= 1.0 - max(0.5 - d1.a, 0.0) * (0.3 + 0.6 * d2.r) * vSoil2.y;
+	diffuseColor.rgb *= 1.0 - 0.26 * vSoil2.x;
+	float cb = texture2D(tCobble, vGW.xz * 0.5).r;
+	diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * (0.62 + cb * 0.62), smoothstep(0.35, 0.75, vSoil.w));`)
+        .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+	float spark = max(d1.a - 0.5, 0.0) * 2.0 * smoothstep(0.2, 0.6, fract(dot(vGW.xz, vec2(1.7, 2.9)) + dot(normalize(vViewPosition), vec3(6.0, 9.0, 4.0))));
+	totalEmissiveRadiance += spark * vSoil2.x * 1.2;
+	totalEmissiveRadiance += vec3(1.0, 0.34, 0.07) * vSoil2.z * vSoil2.z * (0.3 + 0.16 * d2.g);`);
+    };
+    m.customProgramCacheKey = () => 'ground';
+    return addFade(m, 0.45);
+  });
+}
+
+// --- Einfacher Boden auf „Niedrig“ (seit Wärme 2, 3D-Szene Niedrig) ---------------------------------------------------
+// Der volle Boden deckt fast das ganze Bild und war mit Abstand der teuerste Shader (4 Texturabfragen, Rippeln, Glitzern,
+// dazu die Durchsicht mit discard). Mit der Sparoptik nimmt jeder Block beim Bau (terrainJob) eine einfache Variante:
+// drei Abfragen (feines Rauschen d1, Großrauschen mac, Pflaster) – wo bisher das mittlere Rauschen d2 stand, steht jetzt
+// mac (Helligkeit, Trittspuren, Ascherisse, Glut). Ohne Sand-Rippeln (sin) und ohne Glitzern auf Schnee (Blickrichtung).
+// Bleiben: Grasstriche, Kies und Trittspuren, Ascherisse, gedämpfter Schnee, Pflaster, Glut am Lavaufer und das Absenken
+// der Höhlenwände (uCut, Ecken-Shader wie beim vollen Boden).
+// Durchsicht: addFade verwirft erst ab 0,45 Höhe. Liegt keine Ecke eines Blocks darüber (GROUND3_FADE_H), nimmt er
+// 'groundLow' ganz ohne discard – das Bild ist gleich, aber die Grafikchips verwerfen verdeckte Flächen wieder früh
+// (Early-Z, am iPhone HSR). Blöcke mit Klippen, Mauersockeln oder Dungeonwänden nehmen 'groundLowFade'.
+// Ein Wechsel der Grafikstufe baut alle Blöcke neu (v3ApplyGraphics, V3.builtFor).
+const GROUND3_FADE_H = 0.45;
+function groundLowMat(fade) {
+  return mat3(fade ? 'groundLowFade' : 'groundLow', () => {
+    const tex = groundTextures();
+    const m = toonMat();
+    m.onBeforeCompile = (sh) => {
+      groundVertex3(sh, tex);
+      sh.fragmentShader = sh.fragmentShader
+        .replace('void main() {', GROUND3_FRAG_HEAD)
+        .replace('#include <color_fragment>', `#include <color_fragment>
+	vec4 d1 = texture2D(tNoise, vGW.xz * 0.21);
+	float mac = texture2D(tMacro, vGW.xz * 0.011).r;
+	float cb = texture2D(tCobble, vGW.xz * 0.5).r;
+	float tread = max(0.5 - d1.b, 0.0) * 2.0 * smoothstep(0.35, 0.65, mac * 1.3);
+	diffuseColor.rgb *= (0.86 + (d1.r * 0.6 + mac * 0.4) * 0.28) * mix(vec3(0.86, 0.91, 0.92), vec3(1.1, 1.07, 0.95), mac)
+		* (1.0 + (d1.g - 0.5) * 0.4 * vSoil.x) * (1.0 + (max(d1.b - 0.5, 0.0) * 0.8 - tread * 0.32) * vSoil.y)
+		* (1.0 - max(0.5 - d1.a, 0.0) * (0.3 + 0.6 * mac) * vSoil2.y) * (1.0 - 0.26 * vSoil2.x);
+	diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * (0.62 + cb * 0.62), smoothstep(0.35, 0.75, vSoil.w));`)
+        .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+	totalEmissiveRadiance += vec3(1.0, 0.34, 0.07) * vSoil2.z * vSoil2.z * (0.3 + 0.16 * mac);`);
+    };
+    m.customProgramCacheKey = () => 'groundLow';
+    return fade ? addFade(m, GROUND3_FADE_H) : m;
+  });
+}
+// Material eines Blocks: volle Stufen wie bisher; „Niedrig“ nach der höchsten Ecke (hi)
+function groundMatFor3(hi) {
+  return sparOptik3() ? groundLowMat(hi > GROUND3_FADE_H) : groundMat();
+}
+const sparOptik3 = () => (typeof sparOptik === 'function' ? sparOptik() : opts.graphics === 'niedrig');
+// Beide Varianten vorab übersetzen (einmal je Grafikstufe und Grafikkontext, beim ersten Bau eines Blocks): zwei kleine
+// Testnetze kurz in die Szene, V3.gl.compile (übersetzt auf „Niedrig“ auch beide Lichtlagen), wieder heraus. Sonst
+// übersetzte der Treiber die zweite Variante mitten im Spiel, sobald der erste Block mit Klippe ins Bild kommt.
+function v3WarmGround() {
+  const key = opts.graphics + ':' + (V3.ctxGen || 0);
+  if (V3.groundWarm === key || !V3.gl || !V3.scene || !sparOptik3()) return;
+  V3.groundWarm = key;
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(new Float32Array([0, -50, 0, 0.01, -50, 0, 0, -50, 0.01]), 3));
+  g.setAttribute('normal', new THREE.BufferAttribute(new Int8Array([0, 127, 0, 0, 127, 0, 0, 127, 0]), 3, true));
+  g.setAttribute('color', new THREE.BufferAttribute(new Uint8Array(9), 3, true));
+  g.setAttribute('soil', new THREE.BufferAttribute(new Uint8Array(12), 4, true));
+  g.setAttribute('soil2', new THREE.BufferAttribute(new Uint8Array(9), 3, true));
+  const meshes = [groundLowMat(false), groundLowMat(true)].map((mat) => {
+    const m = new THREE.Mesh(g, mat);
+    m.frustumCulled = false;
+    V3.scene.add(m);
+    return m;
+  });
+  try {
+    V3.gl.compile(V3.scene, V3.camera);
+  } catch (err) {
+    console.warn('3D: Boden vorwärmen', err);
+  }
+  for (const m of meshes) V3.scene.remove(m);
+  g.dispose();
+}
+
+// Wasser, Lava und Moor (seit 7.9 je mit eigenem Bild), ohne Texturen und ohne Schleifen:
+//   Wasser: türkis am Ufer, tiefblau in der Mitte; je flacher der Blick auf die bewegte Oberfläche, desto
+//           mehr Himmelsfarbe (Fresnel); ziehende Wellenlinien in Stücken; Glanzfunken (je Zelle höchstens
+//           einer, der kurz aufblitzt); ein leicht pulsierender weißer Schaumstreifen am Ufer
+//   Lava:   dunkle Krusten, dazwischen hell glühende Adern auf den Nullstellen eines verbogenen, langsam
+//           wandernden Wellenmusters; glühender Rand am Ufer
+//   Moor:   trübes Grün mit Algenflecken und kleinen Blasen (je Zelle höchstens eine: wächst als Ring, zerplatzt)
+// depth ist die Wassertiefe in der Ecke (0 an der Uferlinie); uTime und uSky setzt renderDrei.
+const LIQUID3 = {
+  water: {
+    shallow: '#48c2bc', deep: '#1b5788', foam: '#f4fcff', alpha: 0.84, frag: `
+          vec3 col = mix(uShallow, uDeep, smoothstep(0.0, 0.8, d));
+          float wa = sin(p.x * 1.9 + p.y * 0.8 + t * 0.9);
+          float wb = sin(p.y * 2.3 - p.x * 0.7 + t * 0.7);
+          vec3 n = normalize(vec3(wa * 0.14, 1.0, wb * 0.14));
+          float fres = smoothstep(0.12, 0.72, 1.0 - dot(n, normalize(cameraPosition - vW)));
+          col = mix(col, uSky * 1.04, fres * 0.8);
+          float wl = sin(dot(p, vec2(0.55, 1.0)) * 3.0 - t * 0.7 + sin(p.x * 0.8 + t * 0.25) * 1.8);
+          col += smoothstep(0.86, 0.98, wl) * smoothstep(0.1, 0.8, sin(p.x * 0.9 - p.y * 0.5 + t * 0.3)) * (0.05 + 0.09 * d);
+          vec2 gq = p * 2.4 + vec2(t * 0.12, t * 0.05);
+          float gh = fract(sin(dot(floor(gq), vec2(41.3, 289.1))) * 43758.5453);
+          vec2 go = fract(gq) - 0.25 - 0.5 * vec2(fract(gh * 13.7), fract(gh * 7.9));
+          float tw = smoothstep(0.55, 1.0, sin(t * 2.2 + gh * 40.0)) * step(gh, 0.6);
+          col += smoothstep(0.1, 0.0, length(go * vec2(1.0, 2.0))) * tw * 0.6 * (1.0 - 0.75 * uNight);
+          float band = 0.22 + 0.08 * sin(t * 1.6 + p.x * 0.6 + p.y * 0.4);
+          float foam = smoothstep(band, band * 0.45, d) * (0.8 + 0.2 * sin(p.x * 7.0 + p.y * 5.0 + t * 1.5));
+          col = mix(col, uFoam, foam * (0.85 - 0.4 * uNight));
+          float alpha = mix(uAlpha * 0.78, uAlpha, smoothstep(0.0, 0.5, d)) + foam * 0.16;`,
+    // seit Wärme 2 auf „Niedrig“: Farbe nach Tiefe, Himmel nach Blickwinkel (Fresnel) und ein ruhiger Schaumstreifen –
+    // ohne ziehende Wellenlinien und Glanzfunken
+    fragLow: `
+          vec3 col = mix(uShallow, uDeep, smoothstep(0.0, 0.8, d));
+          vec3 n = normalize(vec3(sin(p.x * 1.9 + p.y * 0.8 + t * 0.9) * 0.14, 1.0, sin(p.y * 2.3 - p.x * 0.7 + t * 0.7) * 0.14));
+          float fres = smoothstep(0.12, 0.72, 1.0 - dot(n, normalize(cameraPosition - vW)));
+          col = mix(col, uSky * 1.04, fres * 0.8);
+          float foam = smoothstep(0.22, 0.1, d) * 0.9;
+          col = mix(col, uFoam, foam * (0.85 - 0.4 * uNight));
+          float alpha = mix(uAlpha * 0.78, uAlpha, smoothstep(0.0, 0.5, d)) + foam * 0.16;`
+  },
+  // seit 13.85 echte Lava: Krustenschollen (Zellmuster), die langsam treiben und sich drehen, dazwischen hell glühende
+  // Risse; offene, heiße Ströme, wo die Kruste aufreißt; abgekühlte, dunklere Flecken; am Ufer dickere Kruste mit
+  // glühender Naht und einzelne aufblitzende Funken. Auf niedriger Grafik das einfache Bild von vorher (fragLow).
+  lava: {
+    shallow: '#ff6a14', deep: '#2a0f08', foam: '#ffe890', alpha: 1, frag: `
+          vec2 q = p * 0.5 + vec2(t * 0.045, t * 0.028);
+          q += vec2(sin(q.y * 1.3 + t * 0.12), cos(q.x * 1.1 - t * 0.1)) * 0.42;
+          vec2 sc = q * 1.35;
+          vec2 ci = floor(sc);
+          vec2 cf = fract(sc);
+          float f1 = 8.0;
+          float f2 = 8.0;
+          vec2 cid = ci;
+          for (int j = -1; j <= 1; j++) {
+            for (int i = -1; i <= 1; i++) {
+              vec2 g = vec2(float(i), float(j));
+              vec2 o = fract(sin(vec2(dot(ci + g, vec2(127.1, 311.7)), dot(ci + g, vec2(269.5, 183.3)))) * 43758.5453);
+              o = 0.5 + 0.36 * sin(t * 0.18 + 6.2831 * o);
+              float dd = length(g + o - cf);
+              if (dd < f1) { f2 = f1; f1 = dd; cid = ci + g; } else if (dd < f2) { f2 = dd; }
+            }
+          }
+          float ch = fract(sin(dot(cid, vec2(12.9898, 78.233))) * 43758.5453);
+          float edge = f2 - f1;
+          float crack = 1.0 - smoothstep(0.0, 0.2, edge);
+          float core = 1.0 - smoothstep(0.0, 0.06, edge);
+          float flow = sin(q.x * 0.8 + t * 0.07) * sin(q.y * 1.05 - t * 0.06) + 0.4 * sin((q.x + q.y) * 1.9 - t * 0.09);
+          float crust = smoothstep(-0.45, 0.35, flow + (ch - 0.5) * 0.5) * 0.9 + smoothstep(0.45, 0.0, d) * 0.5;
+          crust = clamp(crust, 0.0, 1.0);
+          float streak = sin(dot(q, vec2(2.6, 1.1)) * 3.0 + sin(q.y * 2.0 + t * 0.2) * 2.0 - t * 0.5);
+          float pulse = 0.5 + 0.5 * sin(t * 1.3 + q.x * 2.1 - q.y * 1.7);
+          vec3 molten = mix(vec3(0.9, 0.25, 0.04), vec3(1.0, 0.72, 0.2), 0.3 + 0.3 * pulse + 0.3 * smoothstep(0.4, 1.0, streak));
+          vec3 plate = mix(uDeep, vec3(0.32, 0.08, 0.03), ch * 0.7) * (0.75 + 0.35 * f1 + 0.12 * sin(q.x * 9.0 + q.y * 7.0));
+          plate += vec3(0.45, 0.1, 0.0) * smoothstep(0.32, 0.02, edge) * 0.6;
+          vec3 col = mix(molten, plate, crust * (1.0 - crack * 0.85));
+          col = mix(col, mix(vec3(1.0, 0.45, 0.08), uFoam, core), crack * crust);
+          col = mix(col, uFoam, core * (1.0 - crust) * 0.35);
+          float bn = sin(p.x * 3.1 + sin(p.y * 2.3) * 1.5) * sin(p.y * 2.7 - p.x * 0.9) + 0.5 * sin((p.x - p.y) * 5.3);
+          float edgeD = 0.36 + 0.13 * bn;
+          float bank = smoothstep(edgeD + 0.1, edgeD - 0.06, d);
+          vec3 rock = vec3(0.15, 0.075, 0.055) * (0.8 + 0.25 * sin(p.x * 9.0 + p.y * 7.0));
+          col = mix(col, rock, bank);
+          col += vec3(1.0, 0.45, 0.1) * bank * (1.0 - bank) * 2.8;
+          vec2 eq = p * 3.0 + vec2(0.0, t * 0.2);
+          float eh = fract(sin(dot(floor(eq), vec2(41.3, 289.1))) * 43758.5453);
+          float spark = smoothstep(0.16, 0.0, length(fract(eq) - 0.5)) * step(0.88, eh) * smoothstep(0.6, 1.0, sin(t * 3.0 + eh * 50.0));
+          col += vec3(1.0, 0.85, 0.5) * spark * (1.0 - 0.6 * crust) * (1.0 - bank);
+          float alpha = 1.0;`,
+    fragLow: `
+          vec2 q = p * 0.62;
+          q += vec2(sin(q.y * 1.3 + t * 0.22), cos(q.x * 1.1 - t * 0.18)) * 0.7;
+          float f = sin(q.x * 2.1 + t * 0.3) * sin(q.y * 2.5 - t * 0.25) + 0.35 * sin((q.x - q.y) * 3.3 + t * 0.4);
+          float vein = 1.0 - smoothstep(0.05, 0.36, abs(f));
+          float core = 1.0 - smoothstep(0.0, 0.12, abs(f));
+          vec3 col = uDeep * (0.8 + 0.25 * sin(q.x * 5.0 + q.y * 4.0) + 0.15 * sin(q.y * 9.0 - q.x * 7.0)) + uShallow * 0.12 * (1.0 - smoothstep(0.0, 0.7, abs(f)));
+          col = mix(col, uShallow, vein);
+          col = mix(col, uFoam, core * 0.85);
+          col = mix(col, uShallow * 1.15, smoothstep(0.28, 0.0, d) * 0.7);
+          col *= 0.92 + 0.08 * sin(t * 2.0 + p.x * 0.5 + p.y * 0.3);
+          float alpha = 1.0;`
+  },
+  bog: {
+    shallow: '#56683a', deep: '#22321e', foam: '#a8b878', alpha: 0.92, frag: `
+          vec3 col = mix(uShallow, uDeep, smoothstep(0.0, 0.7, d));
+          float al = sin(p.x * 2.6 + sin(p.y * 1.8 + t * 0.05) * 1.6) * sin(p.y * 2.2 + sin(p.x * 1.4) * 1.4) + 0.45 * sin(p.x * 5.1 - p.y * 4.3);
+          col = mix(col, vec3(0.42, 0.52, 0.2), smoothstep(0.5, 0.75, al) * 0.55);
+          vec2 cell = floor(p * 1.4);
+          float h = fract(sin(dot(cell, vec2(12.9898, 78.233))) * 43758.5453);
+          vec2 c = (cell + 0.3 + 0.4 * vec2(fract(h * 7.13), fract(h * 3.71))) / 1.4;
+          float life = fract(t * 0.3 + h * 5.0);
+          float r = 0.025 + life * 0.08;
+          float dist = length(p - c);
+          float on = step(h, 0.5);
+          col += smoothstep(0.02, 0.0, abs(dist - r)) * (1.0 - life) * on * 0.4;
+          col += smoothstep(0.045, 0.0, dist) * step(life, 0.22) * on * 0.35;
+          float foam = smoothstep(0.14, 0.03, d);
+          col = mix(col, uFoam, foam * 0.45);
+          float alpha = mix(uAlpha * 0.9, uAlpha, d);`,
+    // seit Wärme 2 auf „Niedrig“: dieselben Algenflecken (stehend), ohne Blasen
+    fragLow: `
+          vec3 col = mix(uShallow, uDeep, smoothstep(0.0, 0.7, d));
+          float al = sin(p.x * 2.6 + sin(p.y * 1.8) * 1.6) * sin(p.y * 2.2 + sin(p.x * 1.4) * 1.4) + 0.45 * sin(p.x * 5.1 - p.y * 4.3);
+          col = mix(col, vec3(0.42, 0.52, 0.2), smoothstep(0.5, 0.75, al) * 0.55);
+          col = mix(col, uFoam, smoothstep(0.14, 0.03, d) * 0.45);
+          float alpha = mix(uAlpha * 0.9, uAlpha, d);`
+  }
+};
+// Farben je Art (seit Wärme 2): volle und einfache Variante teilen sich uShallow/uDeep/uFoam. Karten, die eine Fläche
+// umfärben (karte82.js Nebelküste, kartenluecken.js Kluft), setzen die Farbe nur beim Kartenwechsel – nach einem
+// Wechsel der Grafikstufe auf derselben Karte trug die neue Variante sonst wieder die Grundfarbe.
+const LIQUID3_COL = {};
+// Flächen, deren Zeit, Himmel und Nachtlicht renderDrei jedes Bild setzt (seit Wärme 2 auch die einfachen Varianten
+// von Wasser und Moor)
+const LIQUID3_FRAME = ['water', 'lava', 'bog', 'abyss', 'lavaL', 'waterL', 'bogL'];
+function liquidMat(kind) {
+  // niedrige Grafik (seit 13.85): einfacheres Bild, wo es eines gibt (Lava, seit Wärme 2 auch Wasser und Moor), als
+  // eigenes Material 'liquid<art>L'
+  const low = opts.graphics === 'niedrig' && !!LIQUID3[kind].fragLow;
+  return mat3('liquid' + kind + (low ? 'L' : ''), () => {
+    const P = LIQUID3[kind];
+    const frag = low ? P.fragLow : P.frag;
+    const uniforms = THREE.UniformsUtils.merge([THREE.UniformsLib.fog, {
+      uTime: { value: 0 },
+      uShallow: { value: new THREE.Color(P.shallow) },
+      uDeep: { value: new THREE.Color(P.deep) },
+      uFoam: { value: new THREE.Color(P.foam) },
+      uSky: { value: new THREE.Color('#a8d4ec') },
+      uAlpha: { value: P.alpha },
+      uNight: { value: 0 },
+      uLight: { value: new THREE.Color(1, 1, 1) }
+    }]);
+    const C = LIQUID3_COL[kind] || (LIQUID3_COL[kind] = { uShallow: uniforms.uShallow, uDeep: uniforms.uDeep, uFoam: uniforms.uFoam });
+    uniforms.uShallow = C.uShallow;
+    uniforms.uDeep = C.uDeep;
+    uniforms.uFoam = C.uFoam;
+    const m = new THREE.ShaderMaterial({
+      uniforms,
+      fog: true,
+      transparent: P.alpha < 1,
+      depthWrite: P.alpha >= 1,
+      vertexShader: `
+        attribute float depth;
+        uniform float uTime;
+        varying float vDepth;
+        varying vec3 vW;
+        #include <fog_pars_vertex>
+        void main() {
+          vec3 p = position;
+          vec4 w = modelMatrix * vec4(p, 1.0);
+          w.y += sin(w.x * 1.7 + uTime * 1.6) * 0.025 + cos(w.z * 1.3 + uTime * 1.2) * 0.025;
+          vDepth = depth;
+          vW = w.xyz;
+          vec4 mvPosition = viewMatrix * w;
+          gl_Position = projectionMatrix * mvPosition;
+          #include <fog_vertex>
+        }`,
+      fragmentShader: `
+        uniform float uTime;
+        uniform vec3 uShallow;
+        uniform vec3 uDeep;
+        uniform vec3 uFoam;
+        uniform vec3 uSky;
+        uniform float uAlpha;
+        uniform float uNight;
+        uniform vec3 uLight;
+        varying float vDepth;
+        varying vec3 vW;
+        #include <fog_pars_fragment>
+        ${P.pre || ''}
+        void main() {
+          float d = clamp(vDepth / 0.36, 0.0, 1.0);
+          vec2 p = vW.xz;
+          float t = uTime;
+          ${frag}
+          col *= uLight;
+          gl_FragColor = vec4(col, alpha);
+          #include <fog_fragment>
+        }`
+    });
+    return m;
+  });
+}
+
+// Schattenwerfer der festen Welt (Bäume, Felsen, Häuser, Mauer, Bauten) in Kacheln.
+// Ihr Schatten wird einmal in die Bodenfarbe gebacken, statt jedes Bild neu gezeichnet zu werden.
+// h: Höhe des Schattenzentrums, r: Radius, s: Stärke. Die Sonne steht im Südosten (wie V3.sun).
+const SUN_DX = -9 / 24;
+const SUN_DZ = -13 / 24;
+const CASTER3 = {
+  [OBJ.TREE]: [1.9, 1.05, 0.42], [OBJ.BLOSSOM]: [1.9, 1.05, 0.4], [OBJ.PINE]: [1.6, 0.9, 0.45],
+  [OBJ.DEADTREE]: [1.1, 0.55, 0.22], [OBJ.ROCK]: [0.3, 0.6, 0.32], [OBJ.WALL]: [0.9, 0.78, 0.4]
+};
+const CASTER3_LOW = [0.35, 0.7, 0.3];
+const PROP_CASTER3 = { tower: [2.0, 1.1, 0.45], holzturm: [1.8, 1.0, 0.4], kristallturm: [1.6, 0.6, 0.3], holztor: [1.6, 0.5, 0.25], tpstein: [0.4, 0.5, 0.22], stall: [1.0, 0.85, 0.35], stand: [1.3, 1.0, 0.4], well: [0.8, 0.65, 0.35], lantern: [0.7, 0.35, 0.22], board: [0.8, 0.55, 0.28], hay: [0.4, 0.6, 0.3], horse: [0.9, 0.7, 0.3], brazier: [0.5, 0.4, 0.25],
+  dpillar: [1.4, 0.6, 0.4], dbanner: [1.2, 0.45, 0.25], dstatue: [1.0, 0.6, 0.35], dthrone: [1.4, 1.0, 0.4], dchest: [0.4, 0.55, 0.3], dshrine: [0.8, 0.8, 0.35],
+  // Stadtschmuck (seit 13.85, welt.js TOWN_DECO)
+  planter: [0.3, 0.42, 0.22], bench: [0.4, 0.62, 0.24], goods: [0.45, 0.62, 0.3], woodpile: [0.3, 0.5, 0.25], sacks: [0.25, 0.45, 0.22],
+  pots: [0.3, 0.4, 0.22], totem: [0.9, 0.35, 0.22], ore: [0.15, 0.45, 0.22], wallbanner: [1.0, 0.35, 0.2], barrel: [0.3, 0.35, 0.22], crate: [0.25, 0.35, 0.22],
+  waesche: [0.9, 0.5, 0.2], karren: [0.5, 0.65, 0.28] }; // seit 13.91: Wäscheleine, Handkarren
+// Schmuck ohne Kollision (seit 7.9): kleiner Schatten und dunkler Fuß, wie bei Bäumen und Felsen
+// (seit 8.4 auf die echten Größen der neuen Modelle abgestimmt)
+const DECO_CASTER3 = {
+  [DECO.STUMP]: [0.28, 0.45, 0.26], [DECO.LOG]: [0.22, 0.6, 0.26], [DECO.SHRUB]: [0.36, 0.52, 0.3], [DECO.MUSHROOM]: [0.24, 0.36, 0.22],
+  [DECO.BONES]: [0.1, 0.42, 0.2], [DECO.CRYSTAL]: [0.4, 0.42, 0.22], [DECO.DEADTREE]: [0.6, 0.45, 0.22], [DECO.DRIFT]: [0.1, 0.5, 0.12]
+};
+
+function shadowCasters(x0, y0, x1, y1) {
+  const w = game.world;
+  const out = [];
+  const push = (x, z, h, r, st) => {
+    out.push(x + SUN_DX * h, z + SUN_DZ * h, r, st);
+    // dunkler Fuß direkt am Objekt (Umgebungsverdeckung)
+    out.push(x, z, r * 0.55, st * 0.55);
+  };
+  for (let y = Math.max(0, y0); y < Math.min(MAP_H, y1); y++) {
+    for (let x = Math.max(0, x0); x < Math.min(MAP_W, x1); x++) {
+      const i = y * MAP_W + x;
+      // seit 14.16: Stützmauern der Terrassen sind niedrig
+      const c = w.obj[i] === OBJ.WALL && (WALL_STYLE.get(i) === 'terrasse' || WALL_STYLE.get(i) === 'sonnenstein') ? CASTER3_LOW : CASTER3[w.obj[i]];
+      if (c) push(x + 0.5, y + 0.55, c[0], c[1], c[2]);
+      const d = !w.obj[i] && DECO_CASTER3[w.deco[i]];
+      if (d) {
+        // gleiche Verschiebung wie in objectJob
+        const h = tileHash(x, y);
+        push(x + 0.5 + ((h >> 5) % 5 - 2) * 0.15, y + 0.5 + ((h >> 9) % 5 - 2) * 0.15, d[0], d[1], d[2]);
+      }
+    }
+  }
+  for (const h of w.houses) {
+    if (h.x + h.w < x0 || h.x > x1 || h.y + h.h < y0 || h.y > y1) continue;
+    for (let y = h.y; y < h.y + h.h; y++) for (let x = h.x; x < h.x + h.w; x++) push(x + 0.5, y + 0.5, 2.1, 1.05, 0.42);
+  }
+  for (const pr of w.props) {
+    const c = PROP_CASTER3[pr.type];
+    const x = pr.x * U3;
+    const z = pr.y * U3 - 0.3;
+    if (c && x > x0 && x < x1 && z > y0 && z < y1) push(x, z, c[0], c[1], c[2]);
+  }
+  return out;
+}
+
+// Boden eines Blocks als Bauauftrag in kleinen Schritten (yield), damit kein Bild lange hängt
+function* terrainJob(cx, cy) {
+  const w = game.world;
+  const S = SUB3;
+  const n = CHUNK3 * S + 1;
+  const x0 = cx * CHUNK3;
+  const y0 = cy * CHUNK3;
+  // Kachelwerte für den Block plus Rand
+  const span = CHUNK3 + 2;
+  const tr = new Float32Array(span * span);
+  const tg = new Float32Array(span * span);
+  const tb = new Float32Array(span * span);
+  const th = new Float32Array(span * span);
+  // Bodenarten (Gewicht je Art, siehe SOIL3), nasser und verbrannter Uferrand
+  const ts = Array.from({ length: 6 }, () => new Float32Array(span * span));
+  const tw = new Float32Array(span * span);
+  const tl = new Float32Array(span * span);
+  const tmp = {};
+  for (let ty = 0; ty < span; ty++) {
+    for (let tx = 0; tx < span; tx++) {
+      tileSample(x0 + tx - 1, y0 + ty - 1, tmp);
+      const k = ty * span + tx;
+      tr[k] = tmp.r; tg[k] = tmp.g; tb[k] = tmp.b; th[k] = tmp.h; tw[k] = tmp.wet; tl[k] = tmp.hot;
+      if (tmp.soil >= 0) ts[tmp.soil][k] = 1;
+    }
+  }
+  yield;
+  const casters = shadowCasters(x0 - 4, y0 - 4, x0 + CHUNK3 + 4, y0 + CHUNK3 + 4);
+  // Höhen mit einem Eckpunkt Rand (für die Normalen)
+  const m = n + 2;
+  const hgt = new Float32Array(m * m);
+  const tIdx = (tx, ty) => (Math.max(y0 - 1, Math.min(y0 + CHUNK3, ty)) - y0 + 1) * span + (Math.max(x0 - 1, Math.min(x0 + CHUNK3, tx)) - x0 + 1);
+  const pos = new Float32Array(n * n * 3);
+  const col = new Uint8Array(n * n * 3);
+  const soil = new Uint8Array(n * n * 4);
+  const soil2 = new Uint8Array(n * n * 3); // Schnee, Asche, seit 13.85 Hitze am Lavaufer (Glühen im Boden)
+  let rowT = performance.now();
+  for (let j = -1; j <= n; j++) {
+    for (let i = -1; i <= n; i++) {
+      const vx = x0 + i / S;
+      const vy = y0 + j / S;
+      // bilinear zwischen den Kachelmitten
+      const fx = vx - 0.5;
+      const fy = vy - 0.5;
+      const ix = Math.floor(fx);
+      const iy = Math.floor(fy);
+      const ax = fx - ix;
+      const ay = fy - iy;
+      const a = tIdx(ix, iy);
+      const b = tIdx(ix + 1, iy);
+      const c = tIdx(ix, iy + 1);
+      const d = tIdx(ix + 1, iy + 1);
+      const mix = (arr) => (arr[a] * (1 - ax) + arr[b] * ax) * (1 - ay) + (arr[c] * (1 - ax) + arr[d] * ax) * ay;
+      let h = mix(th);
+      // Felsen oben leicht unruhig, Wiese ganz leicht gewellt
+      const hash = (((vx * 7919) ^ (vy * 104729)) >>> 0) % 1000 / 1000;
+      if (h > 0.2) h += (hash - 0.5) * 0.18 * (h / WALL3_H);
+      else if (h > -0.05) h += Math.sin(vx * 1.3 + vy * 0.7) * Math.cos(vy * 1.1) * 0.035;
+      hgt[(j + 1) * m + (i + 1)] = h;
+      if (i < 0 || j < 0 || i >= n || j >= n) continue;
+      const v = j * n + i;
+      pos[v * 3] = vx;
+      pos[v * 3 + 1] = h;
+      pos[v * 3 + 2] = vy;
+      // eingebackener Schatten der Objekte, kühl getönt
+      let dark = 0;
+      for (let q = 0; q < casters.length; q += 4) {
+        const dx = vx - casters[q];
+        const dz = vy - casters[q + 1];
+        const r = casters[q + 2];
+        if (dx > r || dx < -r || dz > r || dz < -r) continue;
+        const dd = Math.sqrt(dx * dx + dz * dz);
+        if (dd >= r) continue;
+        const t = dd / r;
+        const k = casters[q + 3] * (t < 0.5 ? 1 : 1 - (t - 0.5) * 2) ;
+        if (k > dark) dark = k;
+      }
+      // Felsen werden nach oben heller
+      const lift = h > 0.3 ? 1 + (h / WALL3_H) * 0.25 : 1;
+      // Ufer: nasser Boden ist dunkler und etwas kühler, neben Lava verkohlt er
+      const wet = Math.max(0, Math.min(1, (mix(tw) - 0.18) * 3));
+      const hot = Math.max(0, Math.min(1, (mix(tl) - 0.12) * 2.2));
+      const cr = mix(tr) * lift * (1 - dark) * (1 - wet * 0.34) * (1 - hot * 0.3);
+      const cg = mix(tg) * lift * (1 - dark * 0.95) * (1 - wet * 0.3) * (1 - hot * 0.5);
+      const cb = mix(tb) * lift * (1 - dark * 0.7) * (1 - wet * 0.18) * (1 - hot * 0.55);
+      col[v * 3] = Math.min(255, cr * 255);
+      col[v * 3 + 1] = Math.min(255, cg * 255);
+      col[v * 3 + 2] = Math.min(255, cb * 255);
+      for (let c = 0; c < 4; c++) soil[v * 4 + c] = Math.round(mix(ts[c]) * 255);
+      soil2[v * 3] = Math.round(mix(ts[4]) * 255);
+      soil2[v * 3 + 1] = Math.round(mix(ts[5]) * 255);
+      soil2[v * 3 + 2] = Math.round(hot * 255);
+    }
+    // seit 14.38 nach Rechenzeit statt alle sechs Reihen (auf langsamen Geräten dauerten sechs Reihen zu lang)
+    if (performance.now() - rowT > 2) {
+      yield;
+      rowT = performance.now();
+    }
+  }
+  yield;
+  // Normalen direkt aus dem Höhenfeld (schneller und ohne zweite Gleitkomma-Kopie)
+  const nor = new Int8Array(n * n * 3);
+  const step = 2 / S;
+  for (let j = 0; j < n; j++) {
+    for (let i = 0; i < n; i++) {
+      const hx = hgt[(j + 1) * m + (i + 2)] - hgt[(j + 1) * m + i];
+      const hz = hgt[(j + 2) * m + (i + 1)] - hgt[j * m + (i + 1)];
+      const nx = -hx / step;
+      const nz = -hz / step;
+      const l = Math.sqrt(nx * nx + 1 + nz * nz);
+      const v = (j * n + i) * 3;
+      nor[v] = Math.round((nx / l) * 127);
+      nor[v + 1] = Math.round((1 / l) * 127);
+      nor[v + 2] = Math.round((nz / l) * 127);
+    }
+  }
+  const idx = new Uint16Array((n - 1) * (n - 1) * 6);
+  let q = 0;
+  for (let j = 0; j < n - 1; j++) {
+    for (let i = 0; i < n - 1; i++) {
+      const a = j * n + i;
+      idx[q++] = a; idx[q++] = a + n; idx[q++] = a + 1;
+      idx[q++] = a + 1; idx[q++] = a + n; idx[q++] = a + n + 1;
+    }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  g.setAttribute('normal', new THREE.BufferAttribute(nor, 3, true));
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3, true));
+  g.setAttribute('soil', new THREE.BufferAttribute(soil, 4, true));
+  g.setAttribute('soil2', new THREE.BufferAttribute(soil2, 3, true));
+  g.setIndex(new THREE.BufferAttribute(idx, 1));
+  g.computeBoundingSphere();
+  yield;
+  // seit Wärme 2 (3D-Szene Niedrig): höchste Ecke des Blocks wählt die Variante (groundMatFor3)
+  let hi = -Infinity;
+  for (let v = 1; v < pos.length; v += 3) if (pos[v] > hi) hi = pos[v];
+  if (sparOptik3()) v3WarmGround();
+  const mesh = new THREE.Mesh(g, groundMatFor3(hi));
+  mesh.receiveShadow = true;
+  const group = new THREE.Group();
+  group.add(mesh);
+
+  // Flüssigkeiten: nur Zellen, in denen der Boden unter der Oberfläche liegt
+  const kinds = { water: [], lava: [], bog: [], abyss: [] };
+  for (const k in LIQUID3) if (!kinds[k]) kinds[k] = [];
+  const VH = V3.home && V3.home.voidG != null ? V3.home : null;
+  const kindAt = (tx, ty) => {
+    // seit 14.79: Kristallabgrund – draußen der Abgrund wie drinnen, nicht Wasser
+    if (VH && homeOut3(VH, tx, ty) > 0) return LIQUID3_GROUND[VH.voidG] || (VH.voidG === GROUND.ABGRUND && LIQUID3.abyss ? 'abyss' : 'water');
+    // seit 14.79: Meer nur auf einer Seite (kartenrand.js, RAND3_SEITE)
+    if (!VH && V3.home && V3.home.side3 && homeOut3(V3.home, tx, ty) > 0 && rand3Void(V3.home, tx, ty) != null) return 'water';
+    const gg = w.ground[Math.max(0, Math.min(MAP_H - 1, ty)) * MAP_W + Math.max(0, Math.min(MAP_W - 1, tx))];
+    return gg === GROUND.LAVA ? 'lava' : gg === GROUND.BOG ? 'bog' : gg === GROUND.WATER ? 'water' : gg === GROUND.ABGRUND && LIQUID3.abyss ? 'abyss' : LIQUID3_GROUND[gg] || null;
+  };
+  for (let j = 0; j < n - 1; j++) {
+    for (let i = 0; i < n - 1; i++) {
+      const v = j * n + i;
+      const lo = Math.min(pos[v * 3 + 1], pos[(v + 1) * 3 + 1], pos[(v + n) * 3 + 1], pos[(v + n + 1) * 3 + 1]);
+      if (lo > -0.1) continue;
+      // Art der Flüssigkeit: nächste flüssige Kachel
+      const tx = Math.floor(x0 + (i + 0.5) / S);
+      const ty = Math.floor(y0 + (j + 0.5) / S);
+      // seit 14.70 auch schräg daneben (sonst wird eine Randzelle an Schlucht oder Wolkenmeer zu Wasser)
+      const k = kindAt(tx, ty) || kindAt(tx + 1, ty) || kindAt(tx - 1, ty) || kindAt(tx, ty + 1) || kindAt(tx, ty - 1) ||
+        kindAt(tx + 1, ty + 1) || kindAt(tx - 1, ty - 1) || kindAt(tx + 1, ty - 1) || kindAt(tx - 1, ty + 1);
+      kinds[k || 'water'].push(v);
+    }
+  }
+  for (const kind in kinds) {
+    const cells = kinds[kind];
+    if (!cells.length) continue;
+    // seit 14.70: eigene Höhe der Oberfläche je Art (Wolkenmeer und Schlucht liegen tiefer)
+    const LEVEL = LIQUID3[kind] && LIQUID3[kind].level != null ? LIQUID3[kind].level : -0.14;
+    const wp = new Float32Array(cells.length * 4 * 3);
+    const wd = new Float32Array(cells.length * 4);
+    const wi = new Uint16Array(cells.length * 6);
+    cells.forEach((v, c0) => {
+      const us = [v, v + 1, v + n, v + n + 1];
+      for (let c = 0; c < 4; c++) {
+        const u = us[c];
+        wp[(c0 * 4 + c) * 3] = pos[u * 3];
+        wp[(c0 * 4 + c) * 3 + 1] = LEVEL;
+        wp[(c0 * 4 + c) * 3 + 2] = pos[u * 3 + 2];
+        wd[c0 * 4 + c] = Math.max(0, LEVEL - pos[u * 3 + 1]);
+      }
+      const b = c0 * 4;
+      wi.set([b, b + 2, b + 1, b + 1, b + 2, b + 3], c0 * 6);
+    });
+    const wg = new THREE.BufferGeometry();
+    wg.setAttribute('position', new THREE.BufferAttribute(wp, 3).onUpload(freeArray));
+    wg.setAttribute('depth', new THREE.BufferAttribute(wd, 1).onUpload(freeArray));
+    wg.setIndex(new THREE.BufferAttribute(wi, 1).onUpload(freeArray));
+    wg.computeBoundingSphere();
+    const wm = new THREE.Mesh(wg, liquidMat(kind));
+    wm.renderOrder = 1;
+    group.add(wm);
+  }
+  for (const k in g.attributes) g.attributes[k].onUpload(freeArray);
+  g.index.onUpload(freeArray);
+  return group;
+}
+
+// --- Blöcke laden und verwerfen -------------------------------------------------------------------
+// Gebaut wird in Zeitscheiben: jedes Bild nur wenige Millisekunden, der Rest im nächsten Bild.
+
+const chunks3 = new Map();
+let chunkJob = null;
+
+// --- Die ganze Karte bleibt geladen (seit 15.26) ------------------------------------------------------------------
+// Vorher wurde nur gebaut, was die Kamera sieht (plus Rand), und alles dahinter wieder verworfen: beim schnellen
+// Reiten oder Fliegen sah man, wie die Welt am Bildrand nachlädt. Jetzt wird beim Betreten einer Karte die ganze Karte
+// gebaut (hinter einem Ladebild, kartenladen.js) und bleibt im Speicher. In der Szene hängen weiterhin nur die Blöcke
+// um die Sichtfläche (chunkKept3) – der Rest liegt fertig bereit und kostet beim Zeichnen nichts.
+// Speicher: eine Karte braucht je nach Grafikstufe 60–250 MB Geometrie. Am PC passt das; am Handy gilt ein Budget
+// (FULL3.budget) – ist es voll, bleiben die Blöcke, die der Figur am nächsten sind (immer noch ein Vielfaches des
+// Bildschirms), und im Hintergrund wird weit außerhalb der Sicht getauscht.
+// Dungeon: die Karte wird beiseitegelegt (stash) und ist beim Verlassen sofort wieder da.
+const FULL3 = { bytes: 0, budget: 0, loading: null, stash: null, done: false, full: false, wait: 0, gap: 0 };
+// seit 15.36: Das Ladebild deckt auf, sobald alles im Umkreis von FULL3_NAH Kacheln steht (mehr sieht auch die ganz
+// herausgezoomte Kamera nicht); der Rest der Karte wird danach unsichtbar im Hintergrund fertig gebaut. Vorher wartete
+// das Ladebild auf die ganze Karte (360 × 220 Kacheln) – am PC zwei, drei Sekunden, auf schwächeren Geräten zwanzig.
+const FULL3_NAH = 84;
+function full3Budget() {
+  if (IS_PC) return 360e6;
+  const dm = navigator.deviceMemory || 0;
+  return dm && dm <= 3 ? 48e6 : dm && dm <= 4 ? 70e6 : dm >= 8 ? 130e6 : 95e6;
+}
+function chunkBytes3(obj) {
+  let b = 0;
+  obj.traverse((o) => {
+    const g = o.geometry;
+    if (!g || g.shared) return;
+    for (const k in g.attributes) b += g.attributes[k].array.byteLength;
+    if (g.index) b += g.index.array.byteLength;
+  });
+  return b;
+}
+// Block in die Szene hängen oder herausnehmen (er bleibt gebaut)
+function full3Attach(ch, on) {
+  if (ch.on === on) return;
+  ch.on = on;
+  if (on) {
+    V3.terrain.add(ch.terrain);
+    if (ch.objects) V3.objects.add(ch.objects);
+    // Zähler für gpWorldShadows (grafik-plus.js): neue Blöcke bekommen ihre Schattenmarken
+    V3.chunkGen = (V3.chunkGen || 0) + 1;
+  } else {
+    V3.terrain.remove(ch.terrain);
+    if (ch.objects) V3.objects.remove(ch.objects);
+  }
+}
+function full3Evict(ch) {
+  disposeTree(ch.terrain);
+  if (ch.objects) disposeTree(ch.objects);
+  FULL3.bytes -= ch.bytes;
+  chunks3.delete(ch.x + ':' + ch.y);
+  FULL3.done = false;
+}
+// der fernste geladene Block, der nicht zur Sichtfläche gehört
+function full3Far(px, pz) {
+  let far = null;
+  let fd = -1;
+  for (const ch of chunks3.values()) {
+    if (ch.on || chunkKept3(ch.x, ch.y)) continue;
+    const d = chunkGap3(ch.x, ch.y, px, pz);
+    if (d > fd) { fd = d; far = ch; }
+  }
+  return far ? { ch: far, d: fd } : null;
+}
+// nächster Block der Karte, der noch fehlt (Hintergrund); null: alles da oder Speicher voll
+function full3Next(minX, minY, maxX, maxY, px, pz) {
+  if (FULL3.done) return null;
+  if (FULL3.wait > 0) { FULL3.wait--; return null; }
+  let best = null;
+  let bd = 1e9;
+  for (let y = minY; y <= maxY; y++) {
+    for (let x = minX; x <= maxX; x++) {
+      const ch = chunks3.get(x + ':' + y);
+      if (ch && ch.objects) continue;
+      const d = chunkGap3(x, y, px, pz);
+      if (d < bd) { bd = d; best = [x, y, ch]; }
+    }
+  }
+  // Abstand des nächsten fehlenden Blocks (für das Ladebild)
+  FULL3.gap = best ? bd : Infinity;
+  if (!best) { FULL3.done = true; return null; }
+  if (FULL3.bytes >= FULL3.budget) {
+    // Speicher voll: nur tauschen, wenn der fehlende Block deutlich näher liegt als der fernste geladene
+    const far = full3Far(px, pz);
+    if (!far || far.d < bd + CHUNK3 * 3) { FULL3.wait = 40; FULL3.full = true; return null; }
+    full3Evict(far.ch);
+  }
+  FULL3.full = false;
+  const [x, y, ch] = best;
+  const key = x + ':' + y;
+  return ch ? { key, x, y, part: 'objects', gen: objectJob(x, y), rest: true } : { key, x, y, part: 'terrain', gen: terrainJob(x, y), rest: true };
+}
+// Wechsel der Karte (v3UpdateHome): in den Dungeon → Karte beiseitelegen; zurück auf dieselbe Karte → wieder holen;
+// sonst alles verwerfen und die neue Karte hinter dem Ladebild bauen
+function full3Switch(old, now) {
+  const S = FULL3.stash;
+  chunkJob = null;
+  FULL3.done = false;
+  FULL3.full = false;
+  FULL3.wait = 0;
+  FULL3.budget = full3Budget();
+  if (now && S && S.key === now.key && S.gfx === opts.graphics) {
+    v3ClearChunks(true);
+    for (const ch of S.list) chunks3.set(ch.x + ':' + ch.y, ch);
+    FULL3.bytes = S.bytes;
+    FULL3.stash = null;
+    FULL3.loading = null;
+    return;
+  }
+  if (old && !old.dungeon && now && now.dungeon && chunks3.size) {
+    if (S) for (const ch of S.list) { disposeTree(ch.terrain); if (ch.objects) disposeTree(ch.objects); }
+    const list = [...chunks3.values()];
+    for (const ch of list) full3Attach(ch, false);
+    FULL3.stash = { key: old.key, list, bytes: FULL3.bytes, gfx: opts.graphics };
+    chunks3.clear();
+    FULL3.bytes = 0;
+    return;
+  }
+  if (now && now.dungeon) {
+    v3ClearChunks(true);
+    return;
+  }
+  v3ClearChunks();
+  if (now) FULL3.loading = { t0: performance.now(), key: now.key, shown: false };
+  FULL3.gap = 0;
+}
+
+// Grundfläche folgt der Kamera und nimmt die Bodenfarbe unter der Figur an (Dungeon: dunkler Boden)
+const _under = {};
+const _underC = new THREE.Color();
+function v3UpdateUnder(fx, fy, dt) {
+  const u = V3.under;
+  if (!u) return;
+  u.position.x = fx * U3;
+  u.position.z = fy * U3;
+  tileSample(Math.floor(fx / TILE), Math.floor(fy / TILE), _under);
+  if (_under.h > 0.2 || !isFinite(_under.r)) return;
+  _underC.setRGB(_under.r * 0.86, _under.g * 0.86, _under.b * 0.86);
+  u.material.color.lerp(_underC, Math.min(1, dt * 2 + (V3.underInit ? 0 : 1)));
+  V3.underInit = true;
+}
+
+// seit 14.44: Bereich, der geladen bleibt (v3UpdateChunks setzt ihn jedes Bild); ein Block Spielraum, damit am Rand
+// nichts ständig gebaut und wieder verworfen wird
+const KEEP3 = { shoulder: false, x0: 0, z0: 0, x1: 0, z1: 0, cx: 0, cz: 0, r: 0 };
+// Abstand von (px, pz) zum Block (x, y) in Einheiten (0 = darin)
+function chunkGap3(x, y, px, pz) {
+  const dx = Math.max(x * CHUNK3 - px, 0, px - (x + 1) * CHUNK3);
+  const dz = Math.max(y * CHUNK3 - pz, 0, pz - (y + 1) * CHUNK3);
+  return hyp(dx, dz);
+}
+function chunkKept3(x, y) {
+  const K = KEEP3;
+  if (K.shoulder) return chunkGap3(x, y, K.cx, K.cz) <= K.r + CHUNK3;
+  return (x + 1) * CHUNK3 > K.x0 - CHUNK3 && x * CHUNK3 < K.x1 + CHUNK3 && (y + 1) * CHUNK3 > K.z0 - CHUNK3 && y * CHUNK3 < K.z1 + CHUNK3;
+}
+
+function v3UpdateChunks(fx, fy, msBudget, ax = 0, ay = 0) {
+  const ccx = Math.floor(fx * U3 / CHUNK3);
+  const ccy = Math.floor(fy * U3 / CHUNK3);
+  // Auf einer Map nur Blöcke bis zum Horizont hinter ihrem Rand, dafür auch jenseits der Weltgrenze (seit 8.4)
+  const H = V3.home && !V3.home.dungeon ? V3.home : null;
+  const minX = H ? Math.floor((H.x0 - KUL3_FAR) / CHUNK3) : 0;
+  const minY = H ? Math.floor((H.y0 - KUL3_FAR) / CHUNK3) : 0;
+  const maxX = H ? Math.floor((H.x1 - 1 + KUL3_FAR) / CHUNK3) : Math.ceil(MAP_W / CHUNK3) - 1;
+  const maxY = H ? Math.floor((H.y1 - 1 + KUL3_FAR) / CHUNK3) : Math.ceil(MAP_H / CHUNK3) - 1;
+  // seit 14.44: Vorladen nach der Fläche, die die Kamera wirklich sieht (VIEW3, jedes Bild in v3FitSun bestimmt),
+  // plus Rand ringsum. Vorher waren es feste Ringe (2–3 Blöcke nach Norden, 1–2 zur Seite) unabhängig von Zoom und
+  // Bildbreite: herausgezoomt am breiten Bildschirm lag der Bildrand außerhalb, Boden, Gras und Schmuck wurden erst
+  // gebaut, wenn sie schon im Bild waren. Im Schulterblick lud nur ein Kreis vor der Figur – nach einer schnellen
+  // Drehung fehlte die Welt hinter ihr. Jetzt: feste Kamera = Rechteck um die Sichtfläche plus Rand (in Laufrichtung
+  // weiter), Schulterblick = Kreis um die Figur, so groß wie die Sicht in jeder Blickrichtung (Drehen lädt nichts nach).
+  const F = VIEW3;
+  const shoulder = v3Shoulder();
+  const K = KEEP3;
+  const pad = (IS_PC || V3.ultra ? 10 : 6) + ((typeof FOG_MODES !== 'undefined' && FOG_MODES[opts.fog] && FOG_MODES[opts.fog].ring) || 0) * 4;
+  K.shoulder = shoulder;
+  if (shoulder) {
+    K.cx = V3.focus.x * U3;
+    K.cz = V3.focus.y * U3;
+    let r = 0;
+    for (const x of [F.x0, F.x1]) for (const z of [F.z0, F.z1]) r = Math.max(r, hyp(x - K.cx, z - K.cz));
+    K.r = Math.min(96, r) + pad;
+    K.x0 = K.cx - K.r; K.x1 = K.cx + K.r; K.z0 = K.cz - K.r; K.z1 = K.cz + K.r;
+  } else {
+    K.x0 = F.x0 - pad; K.x1 = F.x1 + pad; K.z0 = F.z0 - pad; K.z1 = F.z1 + pad;
+    // in Laufrichtung (Pferd, Sprints) gut eine Sekunde weiter
+    const vx = ax * U3 * 1.4;
+    const vz = ay * U3 * 1.4;
+    if (vx < 0) K.x0 += vx; else K.x1 += vx;
+    if (vz < 0) K.z0 += vz; else K.z1 += vz;
+  }
+  // Abstand Block ↔ Fläche (0 = berührt sie); im Schulterblick zum Kreis
+  const want = [];
+  const vcx = fx * U3;
+  const vcz = fy * U3;
+  for (let y = Math.max(minY, Math.floor(K.z0 / CHUNK3)); y <= Math.min(maxY, Math.floor(K.z1 / CHUNK3)); y++) {
+    for (let x = Math.max(minX, Math.floor(K.x0 / CHUNK3)); x <= Math.min(maxX, Math.floor(K.x1 / CHUNK3)); x++) {
+      if (shoulder && chunkGap3(x, y, K.cx, K.cz) > K.r) continue;
+      // was jetzt im Bild ist zuerst (nächste zur Bildmitte vorn), danach der Rand ringsum
+      const inView = x * CHUNK3 < F.x1 && (x + 1) * CHUNK3 > F.x0 && y * CHUNK3 < F.z1 && (y + 1) * CHUNK3 > F.z0;
+      const d = hyp((x + 0.5) * CHUNK3 - vcx, (y + 0.5) * CHUNK3 - vcz) / CHUNK3;
+      want.push([x, y, (inView ? 0 : 100) + d, !inView]);
+    }
+  }
+  want.sort((a, b) => a[2] - b[2]);
+  // Nach einem Sprung (Teleport, Wiederbeleben, Dungeon) fehlt der Boden unter der Kamera:
+  // dann einmal kräftig bauen statt sekundenlang Himmel zu zeigen
+  // nur Blöcke, die hier überhaupt gebaut werden (sonst bliebe die Notbremse am Kartenrand dauerhaft an)
+  const need3 = (x, y) => x >= minX && y >= minY && x <= maxX && y <= maxY && !chunks3.has(x + ':' + y);
+  if (need3(ccx, ccy) || need3(ccx, ccy - 1)) msBudget = Math.max(msBudget, 120);
+  // seit 11.3: fehlt im Bild noch Boden (Rand des Sichtfelds), deutlich schneller nachbauen als die 5 ms im
+  // Normalbetrieb – sonst sah man nach einem Sprung sekundenlang hellen Himmel (weißer Bildschirm)
+  // seit 14.38 nur noch für Blöcke nahe der Bildmitte 35 ms; fehlt nur am Rand des Sichtfelds etwas (weit weg, im
+  // Dunst), genügen 16 ms – so bleibt das Bild beim Reiten flüssig, auch wenn die Vorausschau einmal nicht nachkommt
+  else if (want.some(([x, y, , ahead]) => !ahead && !chunks3.has(x + ':' + y) && Math.abs(x - ccx) <= 1 && y - ccy >= -2 && y - ccy <= 1)) msBudget = Math.max(msBudget, 35);
+  else if (want.some(([x, y, , ahead]) => !ahead && !chunks3.has(x + ':' + y))) msBudget = Math.max(msBudget, 16);
+  // Rand ringsum (seit 14.44, vorher nur die Vorausschau) in etwas größeren Scheiben, damit er fertig ist, bevor er ins Bild kommt
+  else if (want.some(([x, y, , ahead]) => ahead && !(chunks3.get(x + ':' + y) || {}).objects)) msBudget = Math.max(msBudget, 9);
+  // angefangene Arbeit für Blöcke, die gar nicht mehr gebraucht werden, verwerfen
+  // (seit 15.26: Hintergrundarbeit weicht, sobald an der Sichtfläche etwas fehlt)
+  const wantOpen = want.some(([x, y]) => !(chunks3.get(x + ':' + y) || {}).objects);
+  if (chunkJob && (chunkJob.rest ? wantOpen : !chunkKept3(chunkJob.x, chunkJob.y))) chunkJob = null;
+  // Hintergrund (seit 15.26): der Rest der Karte, sobald die Sichtfläche fertig ist – hinter dem Ladebild in großen
+  // Scheiben, danach in kleinen; unter Last (viele Monster) fast nichts
+  const L = FULL3.loading;
+  // nach dem Aufdecken, solange die Karte noch nicht ganz steht, mit etwas mehr Zeit je Bild weiterbauen
+  const rest = !FULL3.done && !FULL3.full;
+  const bg = !H ? 0 : L ? 80 : typeof LOAD !== 'undefined' && LOAD.level ? 1.5 : IS_PC ? (rest ? 9 : 6) : rest ? 5 : 3.5;
+  let lim = msBudget;
+  const t0 = performance.now();
+  // seit 14.44: in der großen Scheibe nach einem Sprung nur das Sichtbare, den Rand ringsum danach in kleinen Scheiben
+  let big = msBudget > 100;
+  if (big && !want.some(([x, y, , ring]) => !ring && !(chunks3.get(x + ':' + y) || {}).objects)) {
+    big = false;
+    msBudget = 9;
+  }
+  while (performance.now() - t0 < lim) {
+    if (!chunkJob) {
+      for (const [x, y, , ring] of want) {
+        if (big && ring) break;
+        const key = x + ':' + y;
+        const ch = chunks3.get(key);
+        if (!ch) chunkJob = { key, x, y, part: 'terrain', gen: terrainJob(x, y) };
+        else if (!ch.objects) chunkJob = { key, x, y, part: 'objects', gen: objectJob(x, y) };
+        if (chunkJob) break;
+      }
+      if (!chunkJob && bg && !big) {
+        chunkJob = full3Next(minX, minY, maxX, maxY, vcx, vcz);
+        if (chunkJob) lim = Math.max(lim, bg);
+      }
+      if (!chunkJob) break;
+    }
+    const r = chunkJob.gen.next();
+    if (!r.done) continue;
+    const { key, x, y, part } = chunkJob;
+    chunkJob = null;
+    const kept = chunkKept3(x, y);
+    if (part === 'terrain') {
+      const old = chunks3.get(key);
+      if (old) full3Evict(old);
+      const ch = { terrain: r.value, objects: null, x, y, on: false, bytes: chunkBytes3(r.value) };
+      chunks3.set(key, ch);
+      FULL3.bytes += ch.bytes;
+      if (kept) full3Attach(ch, true);
+    } else {
+      const ch = chunks3.get(key);
+      if (!ch || ch.objects) {
+        disposeTree(r.value);
+        continue;
+      }
+      ch.objects = r.value;
+      const b = chunkBytes3(r.value);
+      ch.bytes += b;
+      FULL3.bytes += b;
+      if (ch.on) {
+        V3.objects.add(r.value);
+        // seit 14.44: Zähler für gpWorldShadows (grafik-plus.js) – die Anzahl der Blöcke allein bemerkt keinen Tausch
+        V3.chunkGen = (V3.chunkGen || 0) + 1;
+      }
+    }
+  }
+  // seit 15.26: Blöcke außerhalb der Sichtfläche bleiben gebaut, hängen aber nicht in der Szene; verworfen wird nur,
+  // wenn der Speicher über dem Budget liegt (die fernsten zuerst)
+  for (const ch of chunks3.values()) full3Attach(ch, chunkKept3(ch.x, ch.y));
+  while (FULL3.bytes > FULL3.budget * 1.1) {
+    const far = full3Far(vcx, vcz);
+    if (!far) break;
+    full3Evict(far.ch);
+  }
+  // Ladebild: bis die Karte steht (oder der Speicher voll ist)
+  if (L) {
+    if (!L.shown) {
+      L.shown = true;
+      if (typeof mapLoadShow === 'function') mapLoadShow(L.key);
+    }
+    if (typeof qualityPause === 'function') qualityPause(1500);
+    let have = 0;
+    for (const ch of chunks3.values()) if (ch.objects) have++;
+    const total = Math.max(1, (maxX - minX + 1) * (maxY - minY + 1));
+    // Umkreis, den die Kamera ganz herausgezoomt zeigen kann: die jetzige Sichtfläche (VIEW3), hochgerechnet auf den
+    // größten Zoom und die Kamera „Weit“, dazu ein Rand – am Handy deutlich weniger als am breiten PC-Bildschirm
+    let brauch = FULL3_NAH;
+    if (VIEW3.ok) {
+      const ex = Math.max(Math.abs(VIEW3.x0 - vcx), Math.abs(VIEW3.x1 - vcx), Math.abs(VIEW3.z0 - vcz), Math.abs(VIEW3.z1 - vcz));
+      const k = (v3ZoomMax() / (V3.zoomMul || 1)) * (v3Shoulder() ? 1 : CAM3.weit / (CAM3[opts.camera] || 1));
+      brauch = Math.max(40, Math.min(FULL3_NAH, ex * k + 14));
+    }
+    const nah = FULL3.gap >= brauch;
+    if (typeof mapLoadProgress === 'function') mapLoadProgress(Math.min(1, Math.max(have / total, FULL3.bytes / FULL3.budget, Math.min(1, FULL3.gap / brauch) ** 2)));
+    // seit 15.34: erst aufdecken, wenn auch die Monsterarten der Umgebung gebaut sind (v3PrewarmMap, drei-figuren.js);
+    // seit 15.36 höchstens anderthalb Sekunden lang und jede Art nur ein Versuch
+    const fertig = !H || FULL3.done || FULL3.full || nah;
+    let tiere = true;
+    if (fertig && typeof v3PrewarmMap === 'function' && (L.pw || 0) < 1500) {
+      const t0 = performance.now();
+      tiere = v3PrewarmMap(40, L.tried || (L.tried = new Set()));
+      L.pw = (L.pw || 0) + performance.now() - t0;
+    }
+    if ((fertig && tiere) || performance.now() - L.t0 > 15000) {
+      // seit Wärme 2: auf „Niedrig“ noch hinter dem Ladebild alle Programme der Karte für beide Lichtlagen übersetzen
+      v3WarmLights();
+      FULL3.loading = null;
+      if (typeof mapLoadHide === 'function') mapLoadHide();
+    }
+  }
+}
+
+// Nach einem Wechsel der Grafikstufe alles neu bauen
+function v3ClearChunks(keepStash) {
+  for (const ch of chunks3.values()) {
+    disposeTree(ch.terrain);
+    if (ch.objects) disposeTree(ch.objects);
+  }
+  chunks3.clear();
+  chunkJob = null;
+  FULL3.bytes = 0;
+  FULL3.done = false;
+  FULL3.wait = 0;
+  if (!FULL3.budget) FULL3.budget = full3Budget();
+  // die beiseitegelegte Karte (Dungeon) gilt nur für diese Grafikstufe und diesen Grafikkontext
+  if (!keepStash && FULL3.stash) {
+    for (const ch of FULL3.stash.list) {
+      disposeTree(ch.terrain);
+      if (ch.objects) disposeTree(ch.objects);
+    }
+    FULL3.stash = null;
+  }
+}
+
+function disposeTree(obj) {
+  if (obj.parent) obj.parent.remove(obj);
+  obj.traverse((o) => {
+    if (o.geometry && !o.geometry.shared) o.geometry.dispose();
+  });
+}
+
+// --- Leuchtende Punkte (Laternen, Feuer, Portale): die vier nächsten bekommen echtes Licht -----
+
+const lightSpots3 = [];
+// Seit 11.0 ohne hartes Umspringen: Leuchtet ein fünftes Licht fast so nah wie das vierte, wird das vierte
+// weich schwächer (und das fünfte übernimmt bei null), Lichter am Rand des Umkreises blenden aus. Vorher
+// sprang ein Licht von einer Laterne zur nächsten – der Boden wurde schlagartig hell oder dunkel (Flackern).
+// Feuerbecken flackern ruhiger (zwei langsame Wellen statt einer schnellen) und waschen den Boden nicht weiß.
+const LIGHT_REACH3 = 18;
+const _near3 = [];
+// seit Wärme 2: Lichtpunkte in der Nähe (|dx|, |dz| < LIGHT_REACH3 + 12 Einheiten), neu gesammelt alle 0,5 s, nach
+// mehr als 2 Einheiten Weg oder wenn sich die Liste der Lichtpunkte ändert – vorher je Bild alle ~2.350 der Welt mit
+// Wurzel. Die Paare [Abstand, Licht] werden wiederverwendet statt je Bild neu angelegt.
+const LIGHTS3_NEAR = { list: [], at: -1e9, x: 0, z: 0, len: -1, pairs: [] };
+function v3UpdateLights(fx, fy) {
+  const px = fx * U3;
+  const pz = fy * U3;
+  const N = LIGHTS3_NEAR;
+  const now = performance.now();
+  // auf „Niedrig“ (v3LowLight): hat sich ein Effekt das Licht im letzten Bild geliehen? Dann steht dort eine andere
+  // Stärke als die, die hier zuletzt gesetzt wurde
+  const lent = V3.points.length === 1 && LOWLIGHT3.set >= 0 && V3.points[0].intensity !== LOWLIGHT3.set;
+  if (N.len !== lightSpots3.length || now - N.at > 500 || now < N.at || Math.abs(px - N.x) > 2 || Math.abs(pz - N.z) > 2) {
+    N.len = lightSpots3.length;
+    N.at = now;
+    N.x = px;
+    N.z = pz;
+    const R = LIGHT_REACH3 + 12;
+    const L = N.list;
+    let k = 0;
+    for (const s of lightSpots3) if (Math.abs(s.x - px) < R && Math.abs(s.z - pz) < R) L[k++] = s;
+    L.length = k;
+  }
+  const near = _near3;
+  let n0 = 0;
+  for (const s of N.list) {
+    const d = hyp(s.x - px, s.z - pz);
+    if (d >= LIGHT_REACH3) continue;
+    const e = N.pairs[n0] || (N.pairs[n0] = [0, null]);
+    e[0] = d;
+    e[1] = s;
+    near[n0++] = e;
+  }
+  near.length = n0;
+  near.sort((a, b) => a[0] - b[0]);
+  const n = V3.points.length;
+  // auf „Niedrig“ (ein aktives Licht) eigene Wahl der Lampe, siehe v3LowPick
+  if (n === 1) {
+    v3LowPick(near, n0, now);
+    v3LowLight(n0 > 0 || lent, now);
+    return;
+  }
+  const edge = near[n] ? near[n][0] : LIGHT_REACH3;
+  for (let i = 0; i < n; i++) {
+    const l = V3.points[i];
+    const e = near[i];
+    if (!e) {
+      l.intensity = 0;
+      continue;
+    }
+    const d = e[0];
+    const s = e[1];
+    const fade = Math.max(0, Math.min(1, (edge - d) / 2.5, (LIGHT_REACH3 - d) / 4));
+    const f = s.flicker || 0;
+    const wave = f ? 0.94 + 0.04 * Math.sin(V3.time * Math.min(f, 4) + s.x) + 0.02 * Math.sin(V3.time * Math.min(f, 4) * 2.3 + s.z) : 1;
+    l.position.set(s.x, s.y, s.z);
+    l.color.set(s.color);
+    l.distance = s.range || 7;
+    l.intensity = Math.min(1.4, s.power || 1) * fade * wave;
+  }
+}
+
+// --- Punktlichter auf „Niedrig“ (seit Wärme 2, 3D-Szene Niedrig) ------------------------------------------------------
+// three.js übersetzt jeden beleuchteten Shader (Boden, Welt, Figuren) mit der Zahl der sichtbaren Punktlichter und
+// rechnet sie für jedes Fragment – auch mit Stärke 0 (im Feld am Tag standen alle vier auf 0: 71 Mio. Auswertungen je
+// Sekunde). Auf „Niedrig“ ist nur noch das erste aktiv (V3.points = [es]); die anderen drei sind unsichtbar. Liegt keine
+// Lampe in Reichweite (LIGHT_REACH3), wird auch das eine nach 2 s unsichtbar – dann rechnen die Shader ganz ohne
+// Punktlicht. Leiht sich ein Effekt das Licht (Feuerfeld, Sturmgericht: FX3_HOOKS setzen nach v3UpdateLights die Stärke
+// des schwächsten Lichts aus V3.points), ist es im nächsten Bild wieder an. Beide Lagen sind vorab übersetzt
+// (gl.compile in v3MakeRenderer, v3WarmLights); der Wechsel tauscht nur das Programm. Mittel und höher: alle vier wie bisher.
+const LOWLIGHT3 = { on: true, until: 0, set: -1, spot: null, k: 0, t: 0 };
+// Welche Lampe das eine Licht bekommt: Mit vier Lichtern blendet das vierte weich aus, wenn ein fünftes fast so nah ist
+// (edge). Mit nur einem wäre das Licht überall dort fast aus, wo zwei Lampen ähnlich weit weg stehen (gemessen in
+// Kazehana: 0,01 statt 0,59) – gerade beim Stehen in der Stadt. Darum bleibt es bei seiner Lampe, bis eine andere
+// 1,5 Einheiten näher ist, blendet dann in 1/3 s aus und an der neuen Lampe wieder ein (kein Springen, kein Flackern).
+function v3LowPick(near, n0, now) {
+  const L = LOWLIGHT3;
+  const l = V3.points[0];
+  const dt = Math.min(0.1, Math.max(0, (now - L.t) / 1000));
+  L.t = now;
+  let cur = null;
+  let dc = 0;
+  for (let i = 0; i < n0; i++) if (near[i][1] === L.spot) { cur = L.spot; dc = near[i][0]; break; }
+  const best = n0 ? near[0] : null;
+  if (!cur) {
+    // die bisherige Lampe ist außer Reichweite (dort schon ausgeblendet) oder es gab keine: gleich die nächste
+    L.spot = best ? best[1] : null;
+    L.k = 0;
+    cur = L.spot;
+    dc = best ? best[0] : 0;
+  } else if (best[1] !== cur && best[0] < dc - 1.5) {
+    L.k -= dt * 3;
+    if (L.k <= 0) {
+      L.spot = cur = best[1];
+      dc = best[0];
+      L.k = 0;
+    }
+  } else L.k = Math.min(1, L.k + dt * 3);
+  if (!cur) {
+    l.intensity = 0;
+    return;
+  }
+  const s = cur;
+  const fade = Math.max(0, Math.min(1, (LIGHT_REACH3 - dc) / 4)) * Math.max(0, L.k);
+  const f = s.flicker || 0;
+  const wave = f ? 0.94 + 0.04 * Math.sin(V3.time * Math.min(f, 4) + s.x) + 0.02 * Math.sin(V3.time * Math.min(f, 4) * 2.3 + s.z) : 1;
+  l.position.set(s.x, s.y, s.z);
+  l.color.set(s.color);
+  l.distance = s.range || 7;
+  l.intensity = Math.min(1.4, s.power || 1) * fade * wave;
+}
+function v3PointTier() {
+  const all = V3.pointsAll;
+  if (!all) return;
+  const low = sparOptik3();
+  V3.points = low ? all.slice(0, 1) : all;
+  for (let i = 0; i < all.length; i++) all[i].visible = !low || (i === 0 && LOWLIGHT3.on);
+  LOWLIGHT3.set = -1;
+}
+// want: eine Lampe in Reichweite oder das Licht war geliehen; aus erst 2 s nach dem letzten Bedarf (kein Hin und Her
+// am Rand der Reichweite – die Stärke ist dort ohnehin schon 0)
+function v3LowLight(want, now) {
+  const L = LOWLIGHT3;
+  const l = V3.points[0];
+  if (want) L.until = now + 2000;
+  const on = now < L.until;
+  if (on !== L.on) {
+    L.on = on;
+    l.visible = on;
+  }
+  // Stärke, die v3UpdateLights gesetzt hat (ein Effekt-Haken ändert sie danach im selben Bild)
+  L.set = l.intensity;
+}
+// Programme für beide Lichtlagen übersetzen (auf „Niedrig“, hinter dem Ladebild einer Karte bzw. im Bild eines Sprungs):
+// gl.compile übersetzt dank v3MakeRenderer beide Lagen für alles, was gerade in der Szene hängt.
+function v3WarmLights() {
+  if (!V3.gl || !V3.scene || !V3.pointsAll || V3.points.length !== 1) return;
+  try {
+    V3.gl.compile(V3.scene, V3.camera);
+  } catch (err) {
+    console.warn('3D: Lichter vorwärmen', err);
+  }
+}
+
+// Dunkle Überblendung nach einem Sprung: sofort dunkel, dann in einer halben Sekunde aufziehen
+// seit Wärme 2: danach ganz ausgeblendet (hidden). Unsichtbar mit Deckkraft 0 blieb sie bis zum Neuladen eine eigene
+// bildschirmgroße Ebene über der Welt, die der Compositor in jedem Bild mit zusammensetzte (gemessen am iPhone)
+function warpFade() {
+  let el = document.getElementById('warpFade');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'warpFade';
+    // direkt hinter die Spielfläche: dunkelt die Welt ab, nicht die Knöpfe und Fenster darüber
+    const cv = document.getElementById('welt');
+    if (cv) cv.after(el);
+    else document.body.append(el);
+    el.addEventListener('transitionend', () => warpFadeDone(el));
+  }
+  const n = (el.warpN = (el.warpN || 0) + 1);
+  el.hidden = false;
+  el.style.transition = 'none';
+  el.style.opacity = '0.9';
+  void el.offsetWidth;
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    el.style.transition = 'opacity 0.55s ease-out';
+    el.style.opacity = '0';
+    // falls transitionend ausbleibt (Seite verdeckt, Übergang abgebrochen); nur die jüngste Überblendung
+    setTimeout(() => { if (el.warpN === n) warpFadeDone(el); }, 650);
+  }));
+}
+// erst ausblenden, wenn das Aufziehen wirklich fertig ist (eine neue Überblendung hat die Deckkraft wieder gesetzt)
+function warpFadeDone(el) {
+  if (el.style.opacity === '0' && getComputedStyle(el).opacity === '0') el.hidden = true;
+}
+
+// --- Ein Bild zeichnen ---------------------------------------------------------------------------
+
+let v3Last = 0;
+// seit 14.38: Welt zeichnen, Schattenmodelle der Figuren nur in der Schattenkarte. Jede Figur hat ein grobes, im Bild
+// unsichtbares Schattenmodell (figShadowProxy, drei-figuren.js). three.js zeichnete es trotzdem in jedem Bild auch ins
+// Hauptbild (ein voller Zeichenaufruf mit Skelett je Figur, ohne dass ein Bildpunkt entsteht – bei 80 Monstern 80 von
+// ~480 Aufrufen der Figuren, auch auf Stufen ohne Schatten). Die Schattenmodelle liegen jetzt auf einer eigenen Ebene
+// (SHADOW_LAYER3). three.js sammelt zuerst, was ins Hauptbild kommt (die Kamera sieht die Ebene da nicht), und
+// zeichnet danach die Schattenkarte; unmittelbar davor ruft es updateMatrices des Sonnenschattens – dort bekommt die
+// Kamera die Ebene dazu, nach dem Bild wieder weg.
+const SHADOW_LAYER3 = 9;
+// Nacht- und Gebietsfärbung in der 3D-Szene (seit Wärme 2, nur mit der Sparoptik, Grafik „Niedrig“): Nachts und in der
+// Dämmerung (etwa die Hälfte der Spielzeit) füllte drawZoneTint jedes Bild das ganze 2D-Overlay halbdurchsichtig – am
+// iPhone 1,3 Millionen Bildpunkte je Bild auf dem Prozessor gemalt, und die sonst fast leere Ebene war voll bemalt
+// (hochladen, zusammensetzen, nie unverändert). Jetzt liegt dieselbe Farbe (umgebung.js zoneTintRGBA) als Fläche direkt
+// vor der Kamera in der Szene: ohne Tiefentest und Nebel, als Letztes gezeichnet, gemischt wie im Overlay
+// (Quelle über Ziel, keine Farbumrechnung, ohne Tonwertanpassung). Die Grafikkarte mischt sie beim Zeichnen mit, das
+// Overlay bleibt leer. Namen und Zahlen liegen nun über der Färbung (vorher leicht mitgefärbt). Sichtbar ab a > 0,005.
+// Grafik „Mittel“ und höher sowie 2D: Färbung wie bisher im Overlay.
+const _tintRGB = new THREE.Color();
+function v3SyncTint() {
+  let m = V3.tintMesh;
+  const c = typeof sparOptik === 'function' && sparOptik() && typeof zoneTintRGBA === 'function' ? zoneTintRGBA() : null;
+  if (!c || !(c[3] > 0.005)) {
+    if (m) m.visible = false;
+    return;
+  }
+  const cam = V3.camera;
+  if (!m) {
+    const mat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0, depthTest: false, depthWrite: false, fog: false, toneMapped: false });
+    m = V3.tintMesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), mat);
+    m.frustumCulled = false;
+    m.renderOrder = 1e9;
+    m.castShadow = false;
+    m.receiveShadow = false;
+    m.name = 'faerbung';
+    V3.scene.add(m);
+  }
+  // nach einem Neuaufbau der Szene (Grafik-Neustart) wieder einhängen
+  if (m.parent !== V3.scene) V3.scene.add(m);
+  m.visible = true;
+  m.material.color.copy(_tintRGB.setRGB(c[0] / 255, c[1] / 255, c[2] / 255));
+  m.material.opacity = c[3];
+  // knapp hinter der vorderen Schnittebene, etwas größer als das Bild
+  const dist = cam.near * 2;
+  const hh = dist * Math.tan((cam.getEffectiveFOV() * Math.PI) / 360) * 1.1;
+  m.position.copy(cam.position);
+  m.quaternion.copy(cam.quaternion);
+  m.translateZ(-dist);
+  m.scale.set(hh * cam.aspect, hh, 1);
+}
+
+function v3RenderScene() {
+  // seit 15.26: hinter dem deckenden Ladebild (kartenladen.js) nur jedes vierte Bild zeichnen – die Zeit gehört dem
+  // Bauen der Karte; ganz aussetzen darf das Zeichnen nicht, sonst kämen Shader und Hochladen erst danach
+  if (FULL3.loading && typeof MAPLOAD !== 'undefined' && MAPLOAD.on && performance.now() - MAPLOAD.since > 400) {
+    V3.loadSkip = (V3.loadSkip || 0) + 1;
+    if (V3.loadSkip % 4) return;
+  }
+  const cam = V3.camera;
+  const sh = V3.sun && V3.sun.shadow;
+  if (sh && !sh.updateMatricesOrig) {
+    sh.updateMatricesOrig = sh.updateMatrices;
+    sh.updateMatrices = function (light, vp) {
+      V3.camera.layers.enable(SHADOW_LAYER3);
+      return this.updateMatricesOrig(light, vp);
+    };
+  }
+  cam.layers.disable(SHADOW_LAYER3);
+  // Leistung „Akku schonen“ (waermeschutz.js): Schattenkarte nur jedes zweite Bild neu zeichnen (Schatten werfen nur
+  // Figuren; die Karte bleibt mit ihrer eigenen Lage gültig). Fehlt sie (neue Größe), sofort.
+  const se = typeof leistungShadowEvery === 'function' ? leistungShadowEvery() : 1;
+  const smap = V3.gl.shadowMap;
+  if (se > 1) {
+    smap.autoUpdate = false;
+    V3.shadowN = (V3.shadowN || 0) + 1;
+    smap.needsUpdate = V3.shadowN % se === 0 || !(sh && sh.map);
+  } else smap.autoUpdate = true;
+  try {
+    V3.gl.render(V3.scene, cam);
+  } finally {
+    cam.layers.disable(SHADOW_LAYER3);
+  }
+}
+// Das 3D-Bild ist gescheitert (seit 14.69): meist Modelldaten, die nicht mehr auf der Grafikkarte liegen und im
+// Arbeitsspeicher schon freigegeben sind (freeArray). Vorher brach damit die ganze Spielschleife ab (Standbild). Jetzt:
+// je Fehlermeldung einmal melden, alle Figuren neu bauen (höchstens alle 3 s); scheitert es kurz danach wieder, auch
+// die Welt neu laden.
+const V3FAIL = { at: -1e9, said: new Set() };
+function v3RenderFailed(err) {
+  try { V3.gl.setRenderTarget(null); } catch (e) { /* Kontext weg */ }
+  const msg = String(err && err.message);
+  if (!V3FAIL.said.has(msg)) {
+    V3FAIL.said.add(msg);
+    console.error('3D-Bild gescheitert, baue Figuren neu:', err);
+    // weiter als ungefangener Fehler sichtbar (Fehlerberichte, Tests), ohne die Spielschleife anzuhalten
+    setTimeout(() => { throw err; });
+  }
+  const now = performance.now();
+  if (now - V3FAIL.at < 3000) return;
+  if (now - V3FAIL.at < 15000) v3ClearChunks();
+  V3FAIL.at = now;
+  if (typeof v3ResetFigures === 'function') v3ResetFigures();
+}
+function renderDrei() {
+  const r = renderer;
+  const ctx = r.ctx;
+  const now = performance.now();
+  // seit 14.66 nie negativ (Aufnahme-Uhren, Sprünge der Uhr): ein negativer Schritt warf die weich folgende Kamera
+  // im Schulterblick für ein Bild Milliarden Einheiten weit weg (nur Himmel)
+  const dt = Math.max(0, Math.min(0.1, (now - (v3Last || now)) / 1000));
+  v3Last = now;
+  V3.time += dt;
+  V3.frame = (V3.frame || 0) + 1;
+  if (!game.world) return;
+  let fx;
+  let fy;
+  if (game.player && game.running) {
+    fx = game.player.x;
+    fy = game.player.y;
+  } else {
+    const t = performance.now() / 1000;
+    fx = CENTER_X * TILE + Math.cos(t * 0.05) * 300;
+    fy = CENTER_Y * TILE + Math.sin(t * 0.05) * 220;
+  }
+  // Für die übrige Logik (Teilchen am Bildrand usw.) wie im 2D-Spiel
+  r.camX = fx - r.w / 2 / r.zoom;
+  r.camY = fy - r.h / 2 / r.zoom;
+  let cx = fx;
+  let cy = fy;
+  if (v3Shoulder() && game.player && game.running) {
+    // Schulterblick (seit 9.0): Die nahe Kamera folgt weich statt starr (sonst überträgt sich jedes ungleiche
+    // Bild und jeder Ruck aufs ganze Bild), nach einem Sprung über 6 Kacheln (Teleport) sofort.
+    // Wackeln bei Treffern als kurzes, gedämpftes Schwingen statt zufälliger Sprünge in jedem Bild.
+    const cf = V3.camF || (V3.camF = { x: fx, y: fy });
+    if (Math.abs(fx - cf.x) + Math.abs(fy - cf.y) > 6 * TILE) {
+      cf.x = fx;
+      cf.y = fy;
+    } else {
+      const k = 1 - Math.exp(-dt * 11);
+      cf.x += (fx - cf.x) * k;
+      cf.y += (fy - cf.y) * k;
+    }
+    const a = game.shake * 0.35;
+    cx = cf.x + Math.sin(V3.time * 43) * a;
+    cy = cf.y + Math.cos(V3.time * 37) * a * 0.6;
+  } else {
+    V3.camF = null;
+    if (game.shake) {
+      cx += (Math.random() - 0.5) * 2 * game.shake;
+      cy += (Math.random() - 0.5) * 2 * game.shake;
+    }
+  }
+  v3PlaceCamera(cx, cy, dt);
+  v3UpdateMood(dt, fx, fy);
+  v3CollectLights();
+  // Beim Start (noch kein Boden) großzügig bauen, danach nur kleine Zeitscheiben
+  // Nachladen um die Mitte des Sichtbaren (im Schulterblick ein Stück vor der Figur)
+  v3ViewCenter(_vc);
+  v3UpdateHome(fx, fy);
+  // Sprung erkannt (Weltentor, Reise, Dungeon, Wiederbeleben; seit 11.3): alles Sichtbare in diesem einen Bild
+  // bauen – einmal kurz warten, dafür kein heller Himmel – und dunkel überblenden statt hell aufzublitzen
+  const jumped = V3.lastFocus && hyp(fx - V3.lastFocus.x, fy - V3.lastFocus.y) > 12 * TILE;
+  V3.lastFocus = { x: fx, y: fy };
+  if (jumped) {
+    warpFade();
+    // seit 13.74: nach dem Sprung baut die neue Gegend auf – diese langen Bilder nicht als Ruckeln werten (zeichnen.js)
+    if (typeof qualityPause === 'function') qualityPause(4000);
+  }
+  // Vorausschau (seit 11.6): Blöcke dort bauen, wo die Figur in einer knappen Sekunde ist (Pferd, Sprints)
+  const vel = V3.vel || (V3.vel = { x: 0, y: 0, px: fx, py: fy });
+  if (jumped || dt <= 0) { vel.x = 0; vel.y = 0; }
+  else {
+    const kv = Math.min(1, dt * 4);
+    vel.x += ((fx - vel.px) / dt - vel.x) * kv;
+    vel.y += ((fy - vel.py) / dt - vel.y) * kv;
+  }
+  vel.px = fx;
+  vel.py = fy;
+  v3UpdateUnder(fx, fy, dt);
+  v3UpdateChunks(_vc.x, _vc.y, chunks3.size < 4 || jumped ? 1500 : 5, vel.x * 0.9, vel.y * 0.9);
+  // seit Wärme 2: nach einem Sprung (Dungeon, Reise; ohne Ladebild) auf „Niedrig“ beide Lichtlagen vorwärmen – dieses
+  // Bild wartet ohnehin auf den Bau und wird dunkel überblendet
+  if (jumped) v3WarmLights();
+  v3UpdateLights(fx, fy);
+  for (const k of LIQUID3_FRAME) {
+    const lm = MAT3['liquid' + k];
+    if (!lm) continue;
+    lm.uniforms.uTime.value = V3.time;
+    // Nachts (seit 13.43): Himmel im Wasser ist der Nachthimmel, Wasser und Moor dunkeln wie der Boden ab, Glitzern
+    // und Schaum werden schwach (vorher blitzten sie hell und weiß aus der dunklen Nacht); Lava glüht weiter
+    const nk = V3.nightK || 0;
+    lm.uniforms.uSky.value.copy(V3.scene.background);
+    lm.uniforms.uNight.value = nk;
+    const lk = k === 'lava' || k === 'lavaL' || k === 'abyss' ? nk * 0.25 : nk;
+    lm.uniforms.uLight.value.setRGB(1 - 0.58 * lk, 1 - 0.52 * lk, 1 - 0.32 * lk);
+  }
+  if (MAT3.worldGrass) MAT3.worldGrass.userData.uTime.value = V3.time;
+  v3SyncActors(dt);
+  v3SyncFx();
+  // Effekt-Shader einmal kurz nach dem Start vorab übersetzen (seit 13.60, drei-fx.js)
+  if (!V3.fxWarm && game.running && game.player) {
+    const now = performance.now();
+    if (!V3.warmAt) V3.warmAt = now + 1200;
+    else if (now >= V3.warmAt) v3WarmFx();
+  }
+  v3SyncBounds();
+  // Durchsicht um die eigene Figur
+  const p = game.player;
+  if (p && game.running && !p.dead) {
+    const s = v3Project(p.x, feetY(p), 0.8, _fadeA);
+    const top = v3Project(p.x, feetY(p), 1.9, _fadeB);
+    const d = r.dpr * V3.gl.getPixelRatio() / r.dpr;
+    V3.fadeScreen[0] = s.x * d;
+    V3.fadeScreen[1] = (r.h - s.y) * d;
+    let fr = Math.max(30, (s.y - top.y) * 1.25);
+    // seit 14.32 im Schulterblick mindestens so groß wie 1,3 Kacheln seitlich der Figur: steil von oben (über ein
+    // Hindernis gehoben, v3ShoulderPitch) ist die Figur im Bild kurz, und der Kreis war zu klein für ein Dach darüber
+    if (v3Shoulder()) {
+      const yaw = V3.yaw || 0;
+      const side = v3Project(p.x + Math.cos(yaw) * 1.3 * TILE, feetY(p) - Math.sin(yaw) * 1.3 * TILE, 0.8, _fadeC);
+      fr = Math.max(fr, hyp(side.x - s.x, side.y - s.y));
+    }
+    V3.fadeScreen[2] = fr * d;
+    V3.fadeScreen[3] = s.z * 0.5 + 0.5;
+  } else {
+    V3.fadeScreen[2] = 0;
+  }
+  // seit 13.91: Dach und Vorderwand des Hauses, in dem man steht, ausblenden (drei-welt.js)
+  v3SyncHouses();
+  // seit 14.32: im Dungeon die Felswände zwischen Kamera und Figur absenken (groundMat)
+  v3SyncCut(dt);
+  // Nacht- und Gebietsfärbung mit der Sparoptik als Fläche in der Szene (seit Wärme 2, v3SyncTint)
+  v3SyncTint();
+  // Grafik Plus (seit 14.11, grafik-plus.js) zeichnet über Zwischenbilder mit Leuchten und Farbstimmung
+  try {
+    if (!(typeof gpRender === 'function' && gpRender())) v3RenderScene();
+  } catch (err) {
+    v3RenderFailed(err);
+  }
+  // gebündelte Leuchtflecken der Effekte wieder einblenden (seit 14.26, drei-fx.js)
+  if (typeof fx3BatchDone === 'function') fx3BatchDone();
+  drawOverlay3(ctx);
+  r.miniTimer -= 1;
+  if (r.miniTimer <= 0) {
+    renderMinimap();
+    r.miniTimer = 10;
+  }
+  tickBigMap();
+}
+
+// Alles, was das 2D-Canvas über die 3D-Szene malt
+// Listen je Bild wiederverwenden (weniger Müll für die Speicherbereinigung)
+const _ovPlayers = [];
+const _ovList = [];
+const byY = (a, b) => a.y - b.y;
+// Overlay nur bei Änderung neu malen (seit Wärme 2, nur mit der Sparoptik, Grafik „Niedrig“): In der Stadt, beim
+// Reden, Handeln oder Stehen zeigt die Fläche oft viele Bilder lang dasselbe (Namen, Zeichen, Balken). Jedes Bild
+// wurde sie trotzdem ganz geleert, neu bemalt und als neue Ebene hochgeladen und zusammengesetzt. Jetzt werden die
+// Schilder zuerst gesammelt (Lage je Schild in ganzen Geräte-Pixeln, Bilder, Balken in Hundertsteln, zeichnen.js OVL),
+// dazu die Kameramatrix (gerundet) und die Kennwerte des Wegweisers (er steht mit der Sparoptik still, karte.js). Sind
+// weder Effekte am Boden oder im Overlay, Geschosse, Teilchen, Zahlen, Duell, Treffer-Rand, Bildschirmblitz noch
+// bewegte Auren aktiv (auch im letzten Bild nicht) und ist alles gleich wie im letzten Bild, entfallen Leeren und
+// Malen – die Fläche behält ihr Bild. Ein Größenwechsel (leert die Fläche) zeichnet immer, außerdem spätestens alle
+// 2 s ein Bild (falls das System die Fläche verworfen hat). Grafik „Mittel“ und höher: jedes Bild wie bisher.
+const OV3 = { ops: [], prev: [], cam: new Float64Array(18), pcam: new Float64Array(18), w: -1, h: -1, key: '', live: true, blank: true, at: 0, drawn: 0, kept: 0 };
+const _ovXf = { a: 1, x: 0, y: 0 };
+// Bewegt sich gerade etwas im Overlay, das nicht in der Schrittliste steht?
+function ov3Live(players, skip, spar) {
+  if (game.particles.length || game.texts.length || game.projectiles.length || game.duel) return true;
+  if (game.hurtFlash > 0 || game.screenFlash > 0) return true;
+  // der Wegweiser wippt und pulsiert – mit der Sparoptik steht er still und steht in der Schrittliste (guideOps)
+  if (!spar && typeof guideAktiv === 'function' && guideAktiv()) return true;
+  for (const e of game.effects) if (!skip(e)) return true;
+  // Auren der Spieler (drawPlayerExtras3): Seelenfunken des Nekromanten, Schein am Zepter des Magiers, Knochenschild.
+  // Seit Wärme 2 (3D-Szene Niedrig) mit der Sparoptik still gemalt; ihre Lage steht in der Schrittliste (ov3AuraOps)
+  const flat = typeof FX3_KA === 'undefined';
+  if (flat && players.length) return true;
+  if (!spar) for (const pl of players) if (pl.classId === 'nekromant' || pl.classId === 'magier' || pl.shield > 0) return true;
+  return false;
+}
+// Lage der stillen Auren (Sparoptik, seit Wärme 2): je Spieler mit Seelenfunken, Zepterschein oder Knochenschild ein
+// Schritt 9 (malt nichts; ovReplay überspringt neun Felder) mit Fußpunkt und Maßstab, Lage des Zepterfunkens in ganzen
+// Geräte-Pixeln, Schild und Tarnung. ovSame bemerkt so, wenn sich etwas davon bewegt.
+const _ovAura = { a: 1, x: 0, y: 0 };
+const _mgP = { x: 0, y: 0, k: 1 };
+function ov3AuraOps(ops, players) {
+  const d = renderer.dpr;
+  for (const pl of players) {
+    const mage = pl.classId === 'magier';
+    if (!(mage || pl.classId === 'nekromant' || pl.shield > 0)) continue;
+    v3AnchorAt(pl.x, feetY(pl), 0, _ovAura);
+    const sp = mage && mageSparkAt3(pl, _mgP);
+    const inv = (pl === game.player && game.stats && game.stats.invisible) || (pl.remote && pl.invisible) ? 1 : 0;
+    ops.push(9, 'aura', pl.classId, Math.round(_ovAura.a * 1024) / 1024, Math.round(_ovAura.x), Math.round(_ovAura.y),
+      sp ? Math.round(_mgP.x * d) : -1, sp ? Math.round(_mgP.y * d) : -1, (pl.shield > 0 ? 2 : 0) + inv);
+  }
+}
+// Kürzester Abstand zwischen zwei Neuzeichnungen, wenn sich bei stehender Kamera nur Schilder oder stille Auren bewegen
+// (laufende Bewohner, Zepterfunke): 15 je Sekunde
+const OV3_STEP = 66;
+// Kameramatrix und Bildwinkel, gerundet (Vergleich mit dem letzten Bild)
+function ov3CamSig(out) {
+  const cam = V3.camera;
+  const m = cam.matrixWorldInverse.elements;
+  for (let i = 0; i < 16; i++) out[i] = Math.round(m[i] * 1e4);
+  const pm = cam.projectionMatrix.elements;
+  out[16] = Math.round(pm[0] * 1e4);
+  out[17] = Math.round(pm[5] * 1e4);
+}
+function drawOverlay3(ctx) {
+  const r = renderer;
+  const cv = r.canvas;
+  const O = OV3;
+  const spar = typeof sparOptik === 'function' && sparOptik();
+  // Größenwechsel der Flächen (resizeRenderer, v3Resize) leert sie: dann immer malen
+  const sized = cv.width !== O.w || cv.height !== O.h || V3.sizeKey !== O.key;
+  O.w = cv.width;
+  O.h = cv.height;
+  O.key = V3.sizeKey;
+  if (!game.running && !game.player) {
+    if (!spar || sized || !O.blank) {
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, cv.width, cv.height);
+    }
+    O.blank = true;
+    O.live = true;
+    return;
+  }
+  const inView = (x, y) => v3InView(x, y, 120);
+  const ground = (e) => e.ground || e.type === 'runes' || e.type === 'decal' || e.type === 'warn';
+  // Ringe, Säulen, Blitze, Schnitte usw. stehen als 3D-Körper in der Szene (drei-fx.js)
+  const skip = (e) => e.type === 'corpse' || e.type === 'afterimage' || FX3_TYPES.has(e.type);
+  // Schein der Effekte mit Rang (Bodenspuren, Geisterklingen, Magier-Siegel): einmal je Durchgang darunter
+  // (effekte.js, rankHaloPass – vorher ein Schatten je Strich, siehe dort)
+  const anchor = (c, e) => {
+    const o = effectOrigin(e);
+    return inView(o.x, o.y) && v3Anchor(c, o.x, o.y);
+  };
+  // Spieler (Auren und Ringe) und Schilder
+  const players = _ovPlayers;
+  players.length = 0;
+  if (game.player && game.running && !game.player.dead) players.push(game.player);
+  for (const rp of net.players.values()) if (!rp.dead && !remoteHidden(rp) && inView(rp.x, rp.y)) players.push(rp);
+  const list = _ovList;
+  list.length = 0;
+  for (const m of v3Monsters()) if (!m.dead && inView(m.x, m.y) && !m.__wait3) list.push(m);
+  for (const a of game.allies) list.push(a);
+  // seit Wärme 2 nur die NPCs in der Nähe (npcsNear, zeichnen.js) statt aller ~580 der Welt
+  for (const n of npcsNear()) if (inView(n.x, n.y)) list.push(n);
+  for (const pl of players) {
+    list.push(pl);
+    // Diener der Mitspieler (seit 8.5): nur der Name
+    if (pl.allies) for (const al of pl.allies) if (inView(al.x, al.y)) list.push(al);
+  }
+  list.sort(byY);
+  // Schulterblick: Namen ferner Monster weglassen (sonst stapeln sie sich am Horizont übereinander)
+  const far2 = v3Shoulder() && game.player ? (13 * TILE * (V3.zoomMul || 1)) ** 2 : 0;
+  // Lastschutz (seit 15.12): im Gedränge und am Handy Namen und Balken gewöhnlicher Monster nur in der Nähe
+  const lr2 = LOAD.labelR && game.player ? (LOAD.labelR * TILE * (V3.zoomMul || 1)) ** 2 : 0;
+  // 1. Sammeln: Namen, Lebensbalken, Zeichen über den Köpfen als Schrittliste (zeichnen.js OVL, ovReplay)
+  const ops = O.ops;
+  ops.length = 0;
+  OVL.rec = ops;
+  OVL.live = false;
+  OVL.spar = spar;
+  try {
+    for (const e of list) {
+      if (lr2 && e.type && !e.isStone && e !== game.target && !(e.type.boss) && (e.x - game.player.x) ** 2 + (e.y - game.player.y) ** 2 > lr2) continue;
+      if (far2 && e.type && !e.isStone && e !== game.target && !(e.type.boss) && (e.x - game.player.x) ** 2 + (e.y - game.player.y) ** 2 > far2) continue;
+      const fy = feetY(e);
+      if (!v3AnchorAt(e.x, fy, v3HeadHeight(e), _ovXf)) continue;
+      // Lage des Schildes: Ankerpunkt in Geräte-Pixeln und Maßstab, mit der Sparoptik auf ganze Pixel gerundet
+      if (spar) ops.push(1, Math.round(_ovXf.a * 1024) / 1024, Math.round(_ovXf.x), Math.round(_ovXf.y), e.x, fy - figureHeight(e));
+      else ops.push(1, _ovXf.a, _ovXf.x, _ovXf.y, e.x, fy - figureHeight(e));
+      if (e.type && !e.isStone && !e.until && monsterStatusLive(e)) {
+        ops.push(7, e);
+        OVL.live = true;
+      }
+      if (!e.type && !e.isStone && !e.remote && e !== game.player && !e.until && !e.remoteAlly) drawNpcMarks(ctx, e);
+      drawLabel(ctx, e);
+    }
+    if (spar && typeof guideOps === 'function') guideOps(ops);
+    if (spar) ov3AuraOps(ops, players);
+  } finally {
+    OVL.rec = null;
+  }
+  // gleich wie im letzten Bild und nichts Bewegtes: Fläche behält ihr Bild
+  const live = OVL.live || ov3Live(players, skip, spar);
+  const now = performance.now();
+  if (spar) ov3CamSig(O.cam);
+  // Verglichen wird mit dem zuletzt wirklich gemalten Bild (O.prev, O.pcam). Seit Wärme 2 (3D-Szene Niedrig): Steht die
+  // Kamera und bewegen sich nur Schilder bzw. stille Auren, höchstens alle OV3_STEP ms neu malen (bis dahin bleibt das
+  // alte Bild; die Liste des gemalten Bildes bleibt Vergleich, damit die Änderung im nächsten Takt sicher gemalt wird).
+  // Bewegte Kamera, Treffer, Zahlen, Teilchen, Effekte: weiter jedes Bild.
+  const calm = spar && !sized && !live && !O.live && !O.blank && ovSame(O.cam, O.pcam);
+  const same = calm && now - O.at < 2000 && ovSame(ops, O.prev);
+  const wait = calm && !same && now - O.at < OV3_STEP;
+  if (same || wait) {
+    O.kept++;
+    if (same) {
+      O.ops = O.prev;
+      O.prev = ops;
+    }
+    return;
+  }
+  O.ops = O.prev;
+  O.prev = ops;
+  const pc = O.pcam;
+  O.pcam = O.cam;
+  O.cam = pc;
+  O.live = live || !spar;
+  O.blank = false;
+  O.at = now;
+  O.drawn++;
+  // 2. Malen (Reihenfolge wie bisher)
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  rankHaloPass(ctx, (e) => ground(e) && !skip(e), anchor);
+  for (const e of game.effects) {
+    if (!ground(e) || skip(e)) continue;
+    const o = effectOrigin(e);
+    if (!inView(o.x, o.y)) continue;
+    if (!v3Anchor(ctx, o.x, o.y)) continue; // seit 14.66: nicht neben/hinter der Kamera (riesig verzerrt)
+    drawEffect(ctx, e);
+  }
+  if (game.duel) {
+    if (v3Anchor(ctx, game.duel.cx, game.duel.cy)) drawDuelArena(ctx, true);
+  }
+  for (const pr of game.projectiles) {
+    if (!inView(pr.x, pr.y)) continue;
+    if (!v3Anchor(ctx, pr.x, pr.y)) continue;
+    drawProjectile(ctx, pr);
+  }
+  rankHaloPass(ctx, (e) => !ground(e) && !skip(e), anchor);
+  for (const e of game.effects) {
+    if (ground(e) || skip(e)) continue;
+    const o = effectOrigin(e);
+    if (!inView(o.x, o.y)) continue;
+    if (!v3Anchor(ctx, o.x, o.y)) continue; // seit 14.66: nicht neben/hinter der Kamera (riesig verzerrt)
+    drawEffect(ctx, e);
+  }
+  rankHaloPass(ctx, (e) => !ground(e) && !skip(e), anchor, true);
+  // Auren und Ringe der Spieler
+  for (const pl of players) drawPlayerExtras3(ctx, pl, spar);
+  drawParticles(ctx);
+  // Namen, Lebensbalken, Zeichen über den Köpfen (gesammelt oben)
+  ovReplay(ctx, ops);
+  drawTexts(ctx);
+  drawGuide(ctx);
+  ctx.setTransform(r.dpr, 0, 0, r.dpr, 0, 0);
+  // Nacht- und Gebietsfärbung: mit der Sparoptik als Fläche in der 3D-Szene (v3SyncTint), sonst hier
+  if (!spar) drawZoneTint(ctx, r.w, r.h);
+  drawHurtVignette(ctx, r.w, r.h);
+  drawScreenFlash(ctx, r.w, r.h);
+}
+
+// Schein um den Elementfunken am Zepter (Magier, seit 8.6): Lage aus dem Drehknochen des Funkens (spinBones3),
+// nach dem Zeichnen der Szene sind seine Weltmatrizen aktuell. Nicht aufsteigend wie beim Nekromanten.
+const _mgS = new THREE.Vector3();
+const _mgA = {};
+const _mgB = {};
+// Lage des Funkens im Bild (CSS-Pixel, out.x/out.y) und Maßstab out.k; false, wenn er nicht zu sehen ist
+// (seit Wärme 2 eigene Funktion: ov3AuraOps braucht dieselbe Lage für den Vergleich)
+function mageSparkAt3(p, out) {
+  const a = p.__k3 && actors3.get(p.__k3);
+  if (!a || !a.group.visible || !(a.model.sparkBone >= 0) || typeof mageEl !== 'function') return false;
+  const o = a.model.sparkOff;
+  _mgS.set(o[0], o[1], o[2]).applyMatrix4(a.bones[a.model.sparkBone].matrixWorld).project(V3.camera);
+  if (_mgS.z > 1) return false;
+  const r = renderer;
+  const fy = feetY(p);
+  out.k = Math.max(0.05, (v3Project(p.x + 32, fy, 0, _mgB).x - v3Project(p.x, fy, 0, _mgA).x) / 32);
+  out.x = (_mgS.x + 1) * 0.5 * r.w;
+  out.y = (1 - _mgS.y) * 0.5 * r.h;
+  return true;
+}
+function drawMageSpark3(ctx, p, invisible, spar) {
+  if (!mageSparkAt3(p, _mgP)) return;
+  const r = renderer;
+  const k = _mgP.k;
+  const x = _mgP.x;
+  const y = _mgP.y;
+  // mit der Sparoptik (seit Wärme 2) ohne Pulsieren: das Overlay muss dann nicht jedes Bild neu gemalt werden
+  const pulse = spar ? 0.9 : 0.8 + 0.2 * Math.sin(game.time * 9 + p.x * 0.1);
+  ctx.save();
+  ctx.setTransform(r.dpr, 0, 0, r.dpr, 0, 0);
+  ctx.globalCompositeOperation = 'lighter';
+  const al = invisible ? 0.35 : 1;
+  glow(ctx, x, y, 7 * k * pulse, mageEl(p).hi, 0.75 * al);
+  glow(ctx, x, y, 2.4 * k, '#ffffff', 0.8 * al);
+  ctx.restore();
+}
+
+// Auren der Spieler (Buff-Ringe, Knochenpanzer, Seelenfunken), an den Füßen ausgerichtet. spar (Sparoptik, seit Wärme 2):
+// Seelenfunken, Knochen und Zepterschein stehen still (feste Lage statt Zeit) – ov3AuraOps vergleicht nur ihre Lage
+function drawPlayerExtras3(ctx, p, spar) {
+  const fy = feetY(p);
+  v3Anchor(ctx, p.x, fy);
+  const invisible = (p === game.player && game.stats && game.stats.invisible) || (p.remote && p.invisible);
+  ctx.save();
+  if (invisible) ctx.globalAlpha = 0.35;
+  // seit 13.83 zeigt die Körperaura (koerperaura.js) die Buffs räumlich an der Figur; die flachen 2D-Bilder
+  // (gestrichelte Ringe am Boden, gezeichnete Blitze und Schalen) liegen in 3D nicht mehr darüber
+  const flatBuffs = typeof FX3_KA === 'undefined';
+  if (flatBuffs) {
+    drawBuffLooks(ctx, p, fy, 'back');
+    drawBuffLooks(ctx, p, fy, 'front');
+  }
+  if (flatBuffs) for (const b of p.buffs) {
+    const fx = SKILL_FX[b.id];
+    if (!fx || !fx.ring) continue;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.strokeStyle = fx.ring;
+    ctx.globalAlpha *= 0.45 + 0.2 * Math.sin(game.time * 5);
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 5]);
+    ctx.lineDashOffset = -game.time * 30;
+    ctx.beginPath();
+    ctx.ellipse(p.x, fy, 22, 11, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+  // stille Zeit für die Sparoptik: Funken auf festen Höhen, Knochen in fester Lage
+  const gt = spar ? 0 : game.time;
+  if (p.classId === 'nekromant') {
+    for (let k = 0; k < 3; k++) {
+      const t = spar ? k / 3 + 1 / 6 : (gt * 0.6 + k / 3) % 1;
+      ctx.globalAlpha = (invisible ? 0.35 : 1) * (1 - t) * 0.8;
+      ctx.fillStyle = '#a7e37f';
+      circle(ctx, p.x + Math.sin(gt * 2 + k * 2.1) * 10, fy - 10 - t * 40, 1.6);
+    }
+    ctx.globalAlpha = invisible ? 0.35 : 1;
+  }
+  // Magier (seit 8.6): der Funke kreist gebacken um den Zepterkristall, hier kommt sein weicher Schein dazu
+  if (p.classId === 'magier') drawMageSpark3(ctx, p, invisible, spar);
+  if (p.shield > 0) {
+    for (let k = 0; k < 6; k++) {
+      const a = gt * 2.4 + k * Math.PI / 3;
+      ctx.save();
+      ctx.translate(p.x + Math.cos(a) * 22, fy - 22 + Math.sin(a) * 9);
+      ctx.rotate(a * 2);
+      ctx.fillStyle = '#ddd5bb';
+      ctx.strokeStyle = '#4a4434';
+      ctx.lineWidth = 1;
+      ctx.fillRect(-4, -1.2, 8, 2.4);
+      ctx.strokeRect(-4, -1.2, 8, 2.4);
+      ctx.restore();
+    }
+    ctx.strokeStyle = 'rgba(220,230,200,0.6)';
+    ctx.fillStyle = 'rgba(220,230,200,0.1)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.ellipse(p.x, fy - 22, 20, 27, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+  }
+  ctx.restore();
+}
