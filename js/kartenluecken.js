@@ -928,10 +928,14 @@ if (typeof drawShore === 'function') {
 }
 
 // --- Kristallabgrund: schwebende Kristalle ---------------------------------------------------------------------
-// Über dem Abgrund treiben Kristallsplitter: je Stelle ein größerer Splitter mit kleinen Begleitern, hellblau und
-// violett, die langsam auf und ab schweben. Nur über dem Abgrund, mit Abstand zu den Plattformen, ohne Kollision.
-// klKristallAt entscheidet je Kachel (dieselbe Regel für 3D und 2D): eine Stelle je Feld von 4 × 4 Kacheln, in
-// vier von fünf Feldern.
+// Über dem Abgrund treiben Kristalle, die langsam auf und ab schweben. Nur über dem Abgrund, mit Abstand zu den
+// Plattformen, ohne Kollision. klKristallAt entscheidet je Kachel (dieselbe Regel für 3D und 2D): eine Stelle je Feld
+// von 4 × 4 Kacheln, in vier von fünf Feldern.
+// Seit 15.80 schöner (Wunsch des Spielers: „zu eckig und so kegelförmig“): zwei von drei Stellen sind eine schwebende
+// Kristalldruse – um einen kleinen dunklen Kern wachsen facettierte Kristalle nach allen Seiten (einer groß nach oben,
+// ein Kranz schräg nach außen, zwei nach unten, kleine Splitter dazwischen), lose Splitter treiben daneben; die übrigen
+// ein einzelner doppelendiger Kristall mit Begleitern. Kristalle mit Farbverlauf, Glanzkanten und Licht von innen
+// (wzCrystal, kristall3).
 function klKristallAt(x, y) {
   const w = game.world;
   const i = y * MAP_W + x;
@@ -943,9 +947,21 @@ function klKristallAt(x, y) {
   if ((hc >> 8) % 5 > 3 || x !== cx * G + (hc % G) || y !== cy * G + ((hc >> 4) % G)) return 0;
   return klLandDist(x, y, 1) > 1 ? hc || 1 : 0;
 }
+// Bauform einer Stelle: 0/1 Kristalldruse, 2 einzelner Kristall
+const klKristallForm = (h) => (h >>> 20) % 3;
 if (typeof WZ_MAPS !== 'undefined' && WZ_MAPS[10] && typeof wzCrystal === 'function') {
   const base10 = WZ_MAPS[10];
-  const FARBE = ['#a8d4ff', '#c4b4ff', '#8a7ae8', '#b4e6ff'];
+  const FARBE = ['#a8d4ff', '#c4b4ff', '#9a88f0', '#b4e6ff'];
+  const FELS = ['#3a3268', '#463c78', '#30285a'];
+  const _q = new THREE.Quaternion();
+  const _e = new THREE.Euler();
+  const _o = new THREE.Vector3();
+  // Kristall mit dem Fuß bei root, geneigt um tilt (Euler), Körperlänge len: Mitte für wzCrystal ausrechnen
+  const gemAt = (b, col, root, tilt, r, len, o = {}) => {
+    _q.setFromEuler(_e.set(tilt[0], tilt[1], tilt[2]));
+    _o.set(0, len / 2, 0).applyQuaternion(_q);
+    wzCrystal(b, col, Object.assign({ p: [root[0] + _o.x, root[1] + _o.y, root[2] + _o.z], q: _q.clone(), r, len, flat: true }, o));
+  };
   WZ_MAPS[10] = (wm, T) => {
     base10(wm, T);
     const [rx, ry, rw, rh] = wm.region;
@@ -970,21 +986,69 @@ if (typeof WZ_MAPS !== 'undefined' && WZ_MAPS[10] && typeof wzCrystal === 'funct
         const ox = x + 0.5 - cx;
         const oz = y + 0.5 - cz;
         const yy = 0.7 + f(3, 16) * 2.4;
-        const r = 0.28 + f(7, 8) * 0.34;
-        const len = 1.5 + f(11, 8) * 2.1;
         const col = FARBE[h % 4];
-        wzCrystal(b, col, { p: [ox, yy, oz], r, len, tilt: [(f(5, 9) - 0.5) * 0.9, f(2, 63) * 6.3, (f(9, 9) - 0.5) * 0.9], top: '#f0eeff' });
-        const m = T.tier ? 2 + (h % 3) : 1;
-        for (let j = 0; j < m; j++) {
-          const hj = townTileHash(h + j * 37, j * 5 + 3);
-          const an = j * 2.2 + (hj % 10) * 0.2;
-          const dd = 0.5 + ((hj >> 4) % 8) * 0.12;
-          wzCrystal(b, FARBE[(h + j + 1) % 4], {
-            p: [ox + Math.cos(an) * (dd + 0.2), yy + (((hj >> 8) % 9) - 4) * 0.22, oz + Math.sin(an) * (dd + 0.2)], r: 0.1 + ((hj >> 12) % 5) * 0.03, len: 0.5 + ((hj >> 16) % 6) * 0.13,
-            tilt: [(((hj >> 3) % 9) - 4) * 0.2, an, (((hj >> 7) % 9) - 4) * 0.2], mat: j === 0 ? 'glow' : 'lit'
-          });
+        const col2 = FARBE[(h + 1 + (h >> 6) % 3) % 4];
+        const yaw = f(2, 63) * 6.3;
+        if (klKristallForm(h) < 2) {
+          // Kristalldruse: um einen kleinen dunklen Kern wachsen Kristalle nach allen Seiten – ein großer nach oben,
+          // ein Kranz schräg nach außen, zwei nach unten, dazu kleine Splitter
+          // Kern ungeleuchtet dunkel, aber im selben Mesh wie die Kristalle ('glow'): ein Zeichenaufruf je Gruppe
+          const core = 0.2 + f(7, 8) * 0.08;
+          b.add(rockGeo(h % 6, 0), FELS[h % 3], { p: [ox, yy, oz], r: [f(5, 9) * 3, yaw, 0.4], s: [core, core * 0.9, core], shade: 0.45, top: '#5a4c8a', topK: 0.6, mat: 'glow' });
+          const big = 0.25 + f(11, 8) * 0.15;
+          const C = [ox, yy, oz];
+          // nur der große Kristall in der vollen Form (Grafik ab „Hoch“), alle anderen einfach (lod 1) – im Bild sind sie klein
+          const lodM = T.tier > 1 ? 0 : 1;
+          gemAt(b, col, C, [(f(5, 9) - 0.5) * 0.3, yaw, (f(9, 9) - 0.5) * 0.3], big, big * (3.4 + f(13, 6) * 1.6), { tipK: 0.9, lod: lodM });
+          const m = T.tier ? 4 + (h % 2) : 3;
+          for (let j = 0; j < m; j++) {
+            const an = yaw + 0.6 + j * (6.28 / m) + f(15 + j, 5) * 0.4;
+            const tl = 0.75 + f(17 + j, 6) * 0.45;
+            const rr = big * (0.55 + f(19 + j, 5) * 0.2);
+            gemAt(b, j % 2 ? col : col2, C, [Math.sin(an) * tl, an, -Math.cos(an) * tl], rr, rr * (2.6 + f(21 + j, 5) * 1.4), { lod: 1 });
+          }
+          // nach unten (die Druse schwebt frei)
+          for (let j = 0; j < (T.tier ? 2 : 1); j++) {
+            const an = yaw + 2 + j * 3.1;
+            const tl = 2.3 + j * 0.25;
+            const rr = big * (0.5 + j * 0.08);
+            gemAt(b, col2, C, [Math.sin(an) * tl, an, -Math.cos(an) * tl], rr, rr * 2.4, { lod: 1 });
+          }
+          // kleine Splitter zwischen den großen
+          if (T.tier > 1) {
+            for (let j = 0; j < 3; j++) {
+              const an = yaw + 0.2 + j * 2.1;
+              gemAt(b, j % 2 ? col2 : col, C, [Math.sin(an) * 1.25, an, -Math.cos(an) * 1.25], 0.07, 0.24 + j * 0.05, { lod: 1 });
+            }
+          }
+          // lose Splitter schweben daneben
+          const loose = T.tier ? 1 + (T.tier > 1 ? h % 2 : 0) : 0;
+          for (let j = 0; j < loose; j++) {
+            const hj = townTileHash(h + j * 37, j * 5 + 3);
+            const an = yaw + 2.4 + j * 2.5 + (hj % 10) * 0.1;
+            const dd = 0.95 + ((hj >> 4) % 6) * 0.1;
+            wzCrystal(b, j ? col : col2, {
+              p: [ox + Math.cos(an) * dd, yy + 0.2 + (((hj >> 8) % 7) - 3) * 0.18, oz + Math.sin(an) * dd], r: 0.08 + ((hj >> 12) % 4) * 0.025, len: 0.32 + ((hj >> 16) % 5) * 0.1,
+              tilt: [(((hj >> 3) % 9) - 4) * 0.2, an, (((hj >> 7) % 9) - 4) * 0.2]
+            });
+          }
+        } else {
+          // einzelner Kristall, doppelendig, mit zwei, drei Begleitern
+          const r = 0.26 + f(7, 8) * 0.24;
+          const len = r * (3.4 + f(11, 8) * 2);
+          wzCrystal(b, col, { p: [ox, yy, oz], r, len, tilt: [(f(5, 9) - 0.5) * 0.9, yaw, (f(9, 9) - 0.5) * 0.9], lod: T.tier > 1 ? 0 : 1 });
+          const m = T.tier ? 2 + (h % 2) : 1;
+          for (let j = 0; j < m; j++) {
+            const hj = townTileHash(h + j * 37, j * 5 + 3);
+            const an = j * 2.2 + (hj % 10) * 0.2;
+            const dd = 0.55 + ((hj >> 4) % 8) * 0.1;
+            wzCrystal(b, j ? col : col2, {
+              p: [ox + Math.cos(an) * (dd + 0.2), yy + (((hj >> 8) % 9) - 4) * 0.2, oz + Math.sin(an) * (dd + 0.2)], r: 0.1 + ((hj >> 12) % 5) * 0.03, len: 0.45 + ((hj >> 16) % 6) * 0.12,
+              tilt: [(((hj >> 3) % 9) - 4) * 0.2, an, (((hj >> 7) % 9) - 4) * 0.2]
+            });
+          }
         }
-        if (n % 3 === 1) wzGlow(b, ox, yy, oz, 2.4, '#8a70ff', 0.32);
+        if (n % 3 === 1) wzGlow(b, ox, yy + 0.4, oz, 2.4, '#8a70ff', 0.32);
       }
       if (!n) continue;
       const site = wzSite(cx, cz, 78);
@@ -999,36 +1063,9 @@ if (typeof WZ_MAPS !== 'undefined' && WZ_MAPS[10] && typeof wzCrystal === 'funct
 }
 if (typeof drawShore === 'function') {
   const baseShore6 = drawShore;
-  const FARBE2 = ['#a8d4ff', '#c4b4ff', '#8a7ae8', '#b4e6ff'];
-  const raute = (ctx, cx, cy, w, h, rot, col) => {
-    ctx.save();
-    ctx.translate(cx, cy);
-    ctx.rotate(rot);
-    ctx.fillStyle = col;
-    ctx.beginPath();
-    ctx.moveTo(0, -h);
-    ctx.lineTo(w, 0);
-    ctx.lineTo(0, h);
-    ctx.lineTo(-w, 0);
-    ctx.closePath();
-    ctx.fill();
-    // helle Kante links oben, dunkle rechts unten
-    ctx.fillStyle = 'rgba(255,255,255,0.45)';
-    ctx.beginPath();
-    ctx.moveTo(0, -h);
-    ctx.lineTo(-w, 0);
-    ctx.lineTo(0, 0);
-    ctx.closePath();
-    ctx.fill();
-    ctx.fillStyle = 'rgba(30,20,90,0.3)';
-    ctx.beginPath();
-    ctx.moveTo(0, h);
-    ctx.lineTo(w, 0);
-    ctx.lineTo(0, 0);
-    ctx.closePath();
-    ctx.fill();
-    ctx.restore();
-  };
+  const FARBE2 = ['#a8d4ff', '#c4b4ff', '#9a88f0', '#b4e6ff'];
+  // seit 15.80 wie in 3D: zwei von drei Stellen eine schwebende Kristalldruse, sonst ein doppelendiger Kristall mit
+  // Begleitern; gemalt mit kristall2d (Facetten, Verlauf, Glanzkante; umgebung.js)
   drawShore = function (ctx, x, y, px, py, g = GROUND.WATER) {
     baseShore6(ctx, x, y, px, py, g);
     if (g !== GROUND.ABGRUND) return;
@@ -1036,24 +1073,45 @@ if (typeof drawShore === 'function') {
     if (!h) return;
     const f = (s, m) => ((h >>> s) % m) / m;
     const cx = px + TILE / 2;
-    const cy = py + TILE / 2 - 2;
-    // Schein und Schatten tief darunter: der Splitter schwebt
-    const gr = ctx.createRadialGradient(cx, cy, 1, cx, cy, 15);
-    gr.addColorStop(0, 'rgba(160,130,255,0.55)');
+    const P = kristallPal2(FARBE2[h % 4]);
+    const P2 = kristallPal2(FARBE2[(h + 1 + (h >> 6) % 3) % 4]);
+    // Schein und Schatten tief darunter: das Stück schwebt
+    const gr = ctx.createRadialGradient(cx, py + 18, 1, cx, py + 18, 16);
+    gr.addColorStop(0, 'rgba(160,130,255,0.5)');
     gr.addColorStop(1, 'rgba(150,120,255,0)');
     ctx.fillStyle = gr;
-    ctx.fillRect(px, py, TILE, TILE);
-    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.fillRect(px, py + 2, TILE, TILE - 2);
+    ctx.fillStyle = 'rgba(0,0,0,0.32)';
     ctx.beginPath();
-    ctx.ellipse(cx + 2, cy + 11, 6, 2.2, 0, 0, 6.3);
+    ctx.ellipse(cx + 3, py + 30, 7, 2.2, 0, 0, 6.3);
     ctx.fill();
-    const len = 9 + f(11, 8) * 5;
-    raute(ctx, cx, cy, 4 + f(7, 8) * 2.5, len, (f(5, 9) - 0.5) * 0.9, FARBE2[h % 4]);
-    const m = 2 + (h % 2);
-    for (let j = 0; j < m; j++) {
-      const hj = townTileHash(h + j * 37, j * 5 + 3);
-      const an = j * 2.2 + (hj % 10) * 0.2;
-      raute(ctx, cx + Math.cos(an) * (8 + (hj >> 4) % 4), cy + Math.sin(an) * (6 + (hj >> 8) % 4), 2.2, 4 + (hj >> 12) % 3, an, FARBE2[(h + j + 1) % 4]);
+    if (klKristallForm(h) < 2) {
+      // Kristalldruse: um einen dunklen Kern Kristalle nach allen Seiten (unten zuerst, der große nach oben zuletzt)
+      // in der oberen Reihe eines Bodenblocks kleiner (sonst oben abgeschnitten)
+      const cy = py + 22;
+      const H = y % CHUNK === 0 ? 16 : 19 + f(11, 8) * 7;
+      kristall2d(ctx, cx - 1, cy + 1, 7, 3.4, Math.PI - 0.45, P2);
+      kristall2d(ctx, cx + 1, cy + 1, 6, 3, Math.PI + 0.5, P);
+      ctx.fillStyle = '#1e1838';
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, 4.2, 3, 0, 0, 6.3);
+      ctx.fill();
+      kristall2d(ctx, cx - 2, cy, H * 0.55, 3.6, -1.15, P);
+      kristall2d(ctx, cx + 2, cy, H * 0.5, 3.4, 1.2, P2);
+      kristall2d(ctx, cx - 1.5, cy - 0.5, H * 0.7, 4, -0.55, P2);
+      kristall2d(ctx, cx + 1.5, cy - 0.5, H * 0.62, 3.8, 0.6, P);
+      kristall2d(ctx, cx + (f(5, 9) - 0.5) * 2, cy - 1, H, 5, (f(9, 9) - 0.5) * 0.3, P);
+    } else {
+      // doppelendiger Kristall, schräg, mit Begleitern
+      const len = 15 + f(11, 8) * 6;
+      const t = (f(5, 9) - 0.5) * 0.9;
+      kristall2d(ctx, cx - Math.sin(t) * 2, py + 24 + len * 0.1, len, 5 + f(7, 8) * 2, t, P, true);
+      const m = 2 + (h % 2);
+      for (let j = 0; j < m; j++) {
+        const hj = townTileHash(h + j * 37, j * 5 + 3);
+        const an = j * 2.2 + (hj % 10) * 0.2;
+        kristall2d(ctx, cx + Math.cos(an) * (8 + ((hj >> 4) % 3)), py + 21 + Math.sin(an) * 4, 6 + ((hj >> 12) % 3), 2.6, an * 0.3 - 0.4, j % 2 ? P : P2, true);
+      }
     }
   };
 }

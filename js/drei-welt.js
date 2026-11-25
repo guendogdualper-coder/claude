@@ -298,14 +298,18 @@ const WORLD3 = {
     b.add(wbox(1.06, 0.5, 0.7, 0.06), '#8a8a92', { parent: M, p: [0, 0.25, 0], shade: 0.3, top: '#a2a2aa', topK: 0.4 });
     b.add(wbox(1.08, 0.1, 0.74, 0.05), '#f4f8fc', { parent: M, p: [0, 0.53, 0] });
   },
-  // Kristallwand: dunkler Sockel, darauf drei Kristallblöcke mit hellem Saum
+  // Kristallwand: dunkler Sockel, darauf drei Kristalle. Seit 15.80 facettierte Kristalle (kristall3: Glanzkanten,
+  // Farbverlauf, Spitze in zwei Stufen) mit silbernem Saum am Sockel – vorher drei abgerundete Blöcke mit einem hellen
+  // Strich (sah aus wie ein Lattenzaun)
   kristall(b) {
     const M = placeAt(0, 0);
     b.add(wbox(1.06, 0.3, 0.62, 0.06), '#2e2850', { parent: M, p: [0, 0.15, 0], shade: 0.3 });
+    b.add(tinyBox(1.07, 0.035, 0.63), '#8a82c8', { parent: M, p: [0, 0.3, 0] });
+    const pal = [kristallPal3('#9a84f4', '#1a1050'), kristallPal3('#a898f8', '#1a1050'), kristallPal3('#86b0f0', '#101a50')];
     for (let k = 0; k < 3; k++) {
-      const h = 1.05 + (k % 2) * 0.18;
-      b.add(wbox(0.32, h, 0.36, 0.05), k % 2 ? '#6a5ac8' : '#7a6ad8', { parent: M, p: [-0.34 + k * 0.34, 0.3 + h / 2, 0], shade: 0.2, top: '#c8bfff', topK: 0.7 });
-      b.add(tinyBox(0.04, h * 0.85, 0.37), '#d8d0ff', { parent: M, p: [-0.34 + k * 0.34, 0.3 + h * 0.48, 0], mat: 'glow' });
+      const h = 0.62 + (k % 2) * 0.2;
+      const T = atM3(M, [-0.34 + k * 0.34, 0.29, (k - 1) * 0.02], [0, k * 0.9 + 0.3, (k - 1) * -0.05], 1);
+      kristall3(b, T, 0.175, h, pal[k], { v: k, tip: 1.3 });
     }
   }
 };
@@ -422,8 +426,8 @@ const tplBridgePost = (st, big) => bakeTemplate(`bpost:${st}:${big ? 1 : 0}`, (b
     return;
   }
   if (st === 'licht') {
-    b.add(crystalGeo('body'), C.post, { p: [0, 0.04, 0], s: [0.06, big ? 0.48 : 0.38, 0.06], mat: 'glow' });
-    if (big) b.add(crystalGeo('tip'), '#e8e4ff', { p: [0, 0.52, 0], s: [0.06, 0.3, 0.06], mat: 'glow' });
+    // seit 15.80 facettiert mit Farbverlauf (kristall3, einfache Form), am Ende des Geländers mit langer Spitze
+    kristall3(b, new THREE.Matrix4().makeTranslation(0, 0.04, 0), 0.068, big ? 0.44 : 0.36, kristallPal3('#c0b8ff', '#1e1650'), { lod: 1, v: big ? 1 : 2, tip: big ? 3.2 : 1.1 });
     return;
   }
   if (st === 'eis') {
@@ -757,6 +761,86 @@ function house3Closed(b, h) {
     for (let y = 0.4; y < ah; y += 0.24) b.add(tinyBox(aw - 0.25, 0.022, 0.03), '#5a3a22', { parent: M, p: [ax, y, D / 2 - 0.54] });
     b.add(wbox(aw + 0.2, 0.09, D - 0.3, 0.03), h.roof, { parent: M, p: [ax + sx * 0.05, 0.22 + ah + 0.18, 0], r: [0, 0, -sx * 0.3], shade: 0.15, top: lighter(h.roof, 0.15), topK: 0.5 });
     for (const [x, y] of [[-0.2, 0.12], [0.1, 0.12], [-0.05, 0.3]]) b.add(cyl3(0.09, 0.09, 0.55, 7), '#7a5434', { parent: M, p: [ax + x, y, D / 2 - 0.2], r: [Math.PI / 2, 0, 0], shade: 0.15 });
+  }
+}
+// Blumenkästen unter den Fenstern geschlossener Häuser (seit 15.80, STADT_KLEIN in umgebung.js): gleiche Lage wie die
+// Fenster in house3Closed, der Kasten hängt an der Wand (keine Kollision). Blüten, Kräuter, Tannenzweige, leuchtende
+// Pilze oder kleine Kristalle je Stadt; Blüten und Blätter ohne Umriss ('detail'). Grafik „Niedrig“: keine.
+const _klHouse3Closed = house3Closed;
+house3Closed = function (b, h) {
+  _klHouse3Closed(b, h);
+  if (opts.graphics === 'niedrig' || typeof STADT_KLEIN === 'undefined') return;
+  const T = STADT_KLEIN[stadtKarte(h.x, h.y)];
+  if (!T) return;
+  const L = h.look || {};
+  const W = h.w;
+  const D = h.h;
+  const M = placeAt(h.x + W / 2, h.y + D / 2, 0, 1, L.stilts ? 0.32 : 0);
+  if (L.lean) M.multiply(new THREE.Matrix4().makeRotationZ(L.lean));
+  const aw = L.annex ? 1.5 : 0;
+  const x0 = -W / 2 + (L.annex === 'w' ? aw : 0);
+  const x1 = W / 2 - (L.annex === 'e' ? aw : 0);
+  const mx = (x0 + x1) / 2;
+  const wallW = x1 - x0 - 0.5;
+  const fz = (D - 0.7) / 2;
+  const wh = 1.55 * (L.tall || 1);
+  const doorX = L.door != null ? L.door - W / 2 : mx;
+  const n = Math.max(2, Math.round(wallW / 1.05));
+  const hh = L.wall === 'stein' || L.wall === 'lehm' ? 0.38 : 0.45;
+  for (let k = 0; k < n; k++) {
+    const x = mx - wallW / 2 + (wallW * (k + 0.5)) / n;
+    if (Math.abs(x - doorX) < (L.tor ? 1.15 : 0.62)) continue;
+    const ww = Math.min(0.62, wallW / n - 0.3);
+    const wd = L.wall === 'lehm' ? Math.min(ww, 0.36) : ww;
+    blumenkasten3(b, M, T, x, 0.3 + wh * 0.62 - hh / 2 - 0.05, fz + 0.12, wd + 0.14, k);
+  }
+};
+// begehbare Häuser: Kästen an den Fenstern der Vorderwand (gleiche Lage wie in house3Open), in der Hülle S – sie
+// verschwindet mit der Vorderwand, wenn man im Haus steht
+const _klHouse3Open = house3Open;
+house3Open = function (b, S, h) {
+  _klHouse3Open(b, S, h);
+  if (opts.graphics === 'niedrig' || typeof STADT_KLEIN === 'undefined') return;
+  const T = STADT_KLEIN[stadtKarte(h.x, h.y)];
+  if (!T) return;
+  const L = h.look || {};
+  const W = h.w;
+  const M = placeAt(h.x + W / 2, h.y + h.h / 2);
+  const wh = 1.75 * (L.tall || 1);
+  const fz = h.h / 2 - 0.5 + 0.25;
+  const d0 = h.enter.door - W / 2;
+  const hh = L.wall === 'stein' || L.wall === 'lehm' ? 0.38 : 0.45;
+  for (const [a, c] of [[-W / 2 + 0.25, d0], [d0 + 2, W / 2 - 0.25]]) {
+    if (c - a < 0.1) continue;
+    const n = Math.round((c - a) / 1.1);
+    for (let k = 0; k < n; k++) blumenkasten3(S, M, T, a + ((c - a) * (k + 0.5)) / n, 0.3 + wh * 0.58 - hh / 2 - 0.05, fz + 0.12, (L.wall === 'lehm' ? 0.36 : 0.5) + 0.14, k);
+  }
+};
+// Kasten mit Oberkante bei y, Mitte (x, z), Breite bw
+function blumenkasten3(b, M, T, x, y, z, bw, k) {
+  b.add(tinyBox(bw, 0.12, 0.16), T.kasten, { parent: M, p: [x, y - 0.06, z] });
+  b.add(tinyBox(bw + 0.03, 0.03, 0.18), lighter(T.kasten, 0.18), { parent: M, p: [x, y - 0.005, z] });
+  const n = Math.max(2, Math.round(bw / 0.15));
+  for (let i = 0; i < n; i++) {
+    const px = x - bw / 2 + (bw * (i + 0.5)) / n;
+    const pz = z + (((i + k) % 2) - 0.5) * 0.05;
+    if (T.kristall) {
+      kristall3(b, M.clone().multiply(new THREE.Matrix4().makeTranslation(px, y, pz)).multiply(new THREE.Matrix4().makeRotationZ((i % 2 ? 1 : -1) * 0.2)), 0.025, 0.06 + (i % 2) * 0.04, kristallPal3(T.kristall[i % 2]), { lod: 1, tip: 1.6 });
+      continue;
+    }
+    if (T.tanne) {
+      b.add(horn3(0.16, 0.06, 5), '#2a4a40', { parent: M, p: [px, y - 0.02, pz], mat: 'detail' });
+      b.add(sphere3(0.035, 5, 4), '#f4f8fc', { parent: M, p: [px, y + 0.09, pz], s: [1.2, 0.6, 1.2], mat: 'detail' });
+      continue;
+    }
+    b.add(sphere3(0.05, 5, 4), T.kraut || '#3d7a33', { parent: M, p: [px, y + 0.02, pz], s: [1.2, 0.8, 1], mat: 'detail' });
+    if (T.pilz) {
+      b.add(tinyBox(0.02, 0.07, 0.02), '#efe6cc', { parent: M, p: [px, y + 0.05, pz + 0.02], mat: 'detail' });
+      b.add(sphere3(0.04, 5, 4), T.pilz, { parent: M, p: [px, y + 0.09, pz + 0.02], s: [1, 0.55, 1], mat: 'glow' });
+      continue;
+    }
+    if (!T.blumen || (T.kraut && i % 2)) continue;
+    b.add(sphere3(0.036, 5, 4), T.blumen[(i + k) % T.blumen.length], { parent: M, p: [px, y + 0.075 + ((i + k) % 2) * 0.025, pz + 0.02], mat: 'detail' });
   }
 }
 // Begehbares Haus: Mauern auf den Randkacheln (0,5 dick, Außenseite wie bei den übrigen Häusern 0,25 eingerückt),
@@ -1315,13 +1399,18 @@ const PROP3 = {
     b.add(lathe3('holzdach', [[0.95, 0], [0.9, 0.08], [0, 0.85]], 4), '#8a3a22', { parent: M, p: [0, 2.5, 0], r: [0, Math.PI / 4, 0], shade: 0.2 });
     for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.add(cyl3(0.04, 0.04, 0.4, 5), '#5a3a22', { parent: M, p: [sx * 0.5, 2.3, sz * 0.5] });
   },
-  // Kristallpfeiler an der Kristallwand: Steinsockel, darauf ein hoher Kristall
+  // Kristallpfeiler an der Kristallwand: Steinsockel, darauf ein hoher Kristall. Seit 15.80 facettiert (kristall3):
+  // Sockel mit Gesims und silbernem Band, ein hoher Kristall mit zwei Begleitern und kleinen Splittern am Fuß
   kristallturm(b, M) {
     b.add(wbox(0.95, 0.4, 0.95, 0.08), '#2e2850', { parent: M, p: [0, 0.2, 0], shade: 0.3 });
-    b.add(wbox(0.7, 0.22, 0.7, 0.05), '#4a4278', { parent: M, p: [0, 0.51, 0] });
-    b.add(crystalGeo('body'), '#8a7aff', { parent: M, p: [0, 0.6, 0], s: [0.26, 1.45, 0.26], shade: 0.2, top: '#d8d0ff', topK: 0.7 });
-    b.add(crystalGeo('tip'), '#b8a8ff', { parent: M, p: [0, 2.05, 0], s: [0.26, 1.1, 0.26], mat: 'glow' });
-    for (const [x, z, s] of [[0.28, 0.18, 0.6], [-0.26, -0.2, 0.5]]) b.add(crystalGeo('body'), '#7a6ad8', { parent: M, p: [x, 0.55, z], s: [0.12 * s, 0.8 * s, 0.12 * s], mat: 'glow' });
+    b.add(wbox(1.02, 0.08, 1.02, 0.03), '#5a5290', { parent: M, p: [0, 0.4, 0] });
+    b.add(wbox(0.7, 0.22, 0.7, 0.05), '#4a4278', { parent: M, p: [0, 0.51, 0], top: '#6a62a0', topK: 0.5 });
+    b.add(tinyBox(0.72, 0.035, 0.72), '#d8d4f0', { parent: M, p: [0, 0.6, 0] });
+    const at = (p, tilt, yaw) => (M ? M.clone() : new THREE.Matrix4()).multiply(new THREE.Matrix4().compose(new THREE.Vector3(...p), new THREE.Quaternion().setFromEuler(_e.set(0, yaw, -tilt, 'YXZ')), _stOne));
+    kristall3(b, at([0, 0.6, 0], 0.04, 0.3), 0.27, 1.5, kristallPal3('#b8a8ff', '#1e1250'), { v: 1, tip: 1.6 });
+    kristall3(b, at([0.2, 0.6, 0.12], 0.42, 0.5), 0.14, 0.62, kristallPal3('#9fd8ff', '#0e1a50'), { v: 2 });
+    kristall3(b, at([-0.2, 0.6, -0.1], 0.5, 3.4), 0.12, 0.5, kristallPal3('#c8b8ff', '#1e1250'), { v: 3 });
+    for (let k = 0; k < 3; k++) kristall3(b, at([Math.cos(k * 2.1 + 1) * 0.28, 0.61, Math.sin(k * 2.1 + 1) * 0.28], 1.1, k * 2.1 + 1), 0.05, 0.12, kristallPal3(k % 2 ? '#9fd8ff' : '#c8b8ff'), { lod: 1 });
   },
   // Holztor über breiten Toren der Palisade: zwei hohe Pfosten, Querbalken mit Schädeln
   holztor(b, M) {
@@ -1965,6 +2054,209 @@ function crystalGeo(part, sides = 6) {
   });
 }
 
+// --- Facettierter Kristall (seit 15.80) ------------------------------------------------------------------------
+// Wunsch des Spielers: „Die Kristalle sehen nicht wirklich schön aus – viel zu eckig und so kegelförmig.“ Bis 15.79 war
+// jeder Kristall ein glattes Sechseckprisma mit einer Pyramide obendrauf, in einer Farbe; von oben sah das aus wie
+// Bleistifte und Kegel. Jetzt:
+//   - Querschnitt: sechs breite Flächen und sechs schmale, abgeschrägte Kanten, je Variante leicht unregelmäßig;
+//   - die Spitze in zwei Stufen: erst eine flach geneigte Schulter, dann der Gipfel, etwas außer der Mitte;
+//   - die Farben stecken als Eckenfarben in der Form (einmal gebacken, kostet beim Zeichnen nichts): unten tief und
+//     satt, nach oben heller, jede Fläche nach einem festen Licht von vorn links heller oder dunkler (Facetten), die
+//     schmalen Kanten hell wie Glanzkanten, in der Mitte jeder breiten Fläche ein heller Streifen (Licht von innen),
+//     die Spitze fast weiß.
+// Maße: Radius 1; der Körper reicht von y = 0 bis 1 (wird auf die Länge gestreckt), die Spitze ist eine eigene Form in
+// Radien (bleibt bei langen Kristallen gleich kräftig, sitzt mit kristall3 auf dem Körper). lod 1: sechs Flächen ohne
+// Kanten und Schulter (kleine Splitter, Grafik „Niedrig“), gleiche Farben – 18 statt 78 Dreiecke.
+const KRIST3_LICHT = new THREE.Vector3(-0.55, 0.5, 0.67).normalize();
+const KRIST3_PAL = new Map();
+// Farben eines Kristalls aus seiner Farbe (die helle Seite): tief (Fuß, satt und dunkel), Grund (satt), hell, Glanz
+// (Kanten, Spitze, fast weiß); deep färbt den Fuß zusätzlich
+function kristallPal3(col, deep) {
+  if (typeof col !== 'string') col = '#' + col.getHexString();
+  const key = col + (deep || '');
+  let p = KRIST3_PAL.get(key);
+  if (!p) {
+    const hsl = {};
+    new THREE.Color(col).getHSL(hsl);
+    const tone = (dl, ds) => new THREE.Color().setHSL(hsl.h, Math.max(0, Math.min(1, hsl.s + ds)), Math.max(0.04, Math.min(0.97, hsl.l + dl)));
+    p = {
+      key,
+      deep: tone(-0.44, 0.15).lerp(new THREE.Color(deep || '#170e38'), 0.3),
+      base: tone(-0.2, 0.12),
+      light: tone(0.03, 0.04),
+      glint: tone(0.2, -0.12)
+    };
+    KRIST3_PAL.set(key, p);
+  }
+  return p;
+}
+// Querschnitt je Variante: Winkel und Abstand der sechs Ecken, Versatz des Gipfels
+const KRIST3_QUER = [];
+function kristallQuer3(v) {
+  if (!KRIST3_QUER[v]) {
+    const rnd = mulberry32(401 + v * 37);
+    const A = [];
+    const R = [];
+    for (let k = 0; k < 6; k++) {
+      A.push((k / 6) * Math.PI * 2 + (rnd() - 0.5) * 0.18);
+      R.push(0.9 + rnd() * 0.2);
+    }
+    KRIST3_QUER[v] = { A, R, ax: (rnd() - 0.5) * 0.26, az: (rnd() - 0.5) * 0.26 };
+  }
+  return KRIST3_QUER[v];
+}
+const _kcA = new THREE.Color();
+const _kcB = new THREE.Color();
+// part 'k' Körper, 's' Spitze; taper: Radius oben am Körper (= unten an der Spitze)
+function kristallGeo3(part, pal, v = 0, lod = 0, taper = 0.88) {
+  return geo3(`krist${part}${lod}:${v & 3}:${taper}:${pal.key}`, () => {
+    const Q = kristallQuer3(v & 3);
+    const pos = [];
+    const col = [];
+    const mix = (a, b, t) => _kcA.copy(a).lerp(b, Math.max(0, Math.min(1, t))).clone();
+    // Dreieck nach außen gedreht (ref: Punkt im Inneren)
+    const tri = (a, b, c, ca, cb, cc, ref) => {
+      const ux = b[0] - a[0], uy = b[1] - a[1], uz = b[2] - a[2];
+      const wx = c[0] - a[0], wy = c[1] - a[1], wz = c[2] - a[2];
+      const nx = uy * wz - uz * wy, ny = uz * wx - ux * wz, nz = ux * wy - uy * wx;
+      const ox = (a[0] + b[0] + c[0]) / 3 - ref[0], oy = (a[1] + b[1] + c[1]) / 3 - ref[1], oz = (a[2] + b[2] + c[2]) / 3 - ref[2];
+      if (nx * ox + ny * oy + nz * oz < 0) {
+        [b, c] = [c, b];
+        [cb, cc] = [cc, cb];
+      }
+      pos.push(a[0], a[1], a[2], b[0], b[1], b[2], c[0], c[1], c[2]);
+      col.push(ca.r, ca.g, ca.b, cb.r, cb.g, cb.b, cc.r, cc.g, cc.b);
+    };
+    // Lichtwert einer Fläche (0 … 1) nach ihrer Normalen (nach außen: am Körper waagrecht von der Achse weg, an der
+    // Spitze von einem Punkt unter ihr weg)
+    const lit = (a, b, c) => {
+      _v1.set(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
+      _v2.set(c[0] - a[0], c[1] - a[1], c[2] - a[2]);
+      _v1.cross(_v2).normalize();
+      const mx = (a[0] + b[0] + c[0]) / 3, my = (a[1] + b[1] + c[1]) / 3, mz = (a[2] + b[2] + c[2]) / 3;
+      if (_v1.x * mx + _v1.z * mz + (part === 'k' ? 0 : _v1.y * (my + 1)) < 0) _v1.negate();
+      const t = Math.max(0, Math.min(1, 0.5 + 0.7 * _v1.dot(KRIST3_LICHT)));
+      return t * t * (3 - 2 * t);
+    };
+    // Ring der Punkte in Höhe y mit Maß s: je Ecke zwei Punkte (abgeschrägte Kante), je breite Fläche die Mitte
+    const bv = lod ? 0 : 0.17;
+    const ring = (y, s) => {
+      const out = [];
+      for (let k = 0; k < 6; k++) {
+        const p0 = [Math.cos(Q.A[k]) * Q.R[k], Math.sin(Q.A[k]) * Q.R[k]];
+        const k1 = (k + 1) % 6;
+        const p1 = [Math.cos(Q.A[k1]) * Q.R[k1], Math.sin(Q.A[k1]) * Q.R[k1]];
+        const at = (t) => [(p0[0] + (p1[0] - p0[0]) * t) * s, y, (p0[1] + (p1[1] - p0[1]) * t) * s];
+        // breite Fläche k: von at(bv) bis at(1 − bv), Mitte at(0.5); Kante danach bis zum Anfang der nächsten
+        out.push({ a: at(bv), m: at(0.5), z: at(1 - bv) });
+      }
+      return out;
+    };
+    const L = KRIST3_LICHT;
+    if (part === 'k') {
+      const r0 = ring(0, 1);
+      const r1 = ring(1, taper);
+      for (let k = 0; k < 6; k++) {
+        const ref = [0, 0.5, 0];
+        const B = r0[k];
+        const T = r1[k];
+        const lf = lit(B.a, B.z, T.a);
+        const cB = mix(pal.deep, pal.base, 0.12 + 0.5 * lf);
+        const cT = mix(pal.base, pal.light, 0.2 + 0.62 * lf);
+        if (lod) {
+          tri(B.a, B.z, T.z, cB, cB, cT, ref);
+          tri(B.a, T.z, T.a, cB, cT, cT, ref);
+          continue;
+        }
+        // breite Fläche in zwei Hälften: Mitte heller (Licht von innen)
+        const cBm = mix(pal.base, pal.light, 0.06 + 0.42 * lf);
+        const cTm = mix(pal.light, pal.glint, 0.12 + 0.55 * lf);
+        tri(B.a, B.m, T.m, cB, cBm, cTm, ref);
+        tri(B.a, T.m, T.a, cB, cTm, cT, ref);
+        tri(B.m, B.z, T.z, cBm, cB, cT, ref);
+        tri(B.m, T.z, T.m, cBm, cT, cTm, ref);
+        // schmale Kante zur nächsten Fläche: hell wie eine Glanzkante
+        const B2 = r0[(k + 1) % 6];
+        const T2 = r1[(k + 1) % 6];
+        const lk = lit(B.z, B2.a, T.z);
+        const cKB = mix(pal.base, pal.light, 0.32 + 0.42 * lk);
+        const cKT = mix(pal.light, pal.glint, 0.45 + 0.55 * lk);
+        tri(B.z, B2.a, T2.a, cKB, cKB, cKT, ref);
+        tri(B.z, T2.a, T.z, cKB, cKT, cKT, ref);
+      }
+    } else {
+      // Spitze: unten der Ring des Körpers (Maß taper), Schulter und Gipfel
+      const r0 = ring(0, taper);
+      const ref = [0, -1, 0];
+      const apex = [Q.ax * taper, 1.0, Q.az * taper];
+      const cApex = pal.glint;
+      if (lod) {
+        for (let k = 0; k < 6; k++) {
+          const B = r0[k];
+          const lf = lit(B.a, B.z, apex);
+          const cB = mix(pal.base, pal.light, 0.25 + 0.6 * lf);
+          tri(B.a, B.z, apex, cB, cB, cApex, ref);
+        }
+      } else {
+        const sh = 0.36;
+        const r1 = ring(sh, taper * 0.56).map((p) => ({
+          a: [p.a[0] + Q.ax * taper * 0.4, sh, p.a[2] + Q.az * taper * 0.4],
+          m: [p.m[0] + Q.ax * taper * 0.4, sh, p.m[2] + Q.az * taper * 0.4],
+          z: [p.z[0] + Q.ax * taper * 0.4, sh, p.z[2] + Q.az * taper * 0.4]
+        }));
+        for (let k = 0; k < 6; k++) {
+          const B = r0[k];
+          const S = r1[k];
+          const k2 = (k + 1) % 6;
+          // Farben am Fuß wie oben am Körper (gleiche Fläche, gleicher Lichtwert) – die Schulter setzt sich ab
+          _v1.set(Math.cos((Q.A[k] + Q.A[k2] + (k2 ? 0 : Math.PI * 2)) / 2), 0, Math.sin((Q.A[k] + Q.A[k2] + (k2 ? 0 : Math.PI * 2)) / 2));
+          const lb = Math.max(0, Math.min(1, 0.5 + 0.62 * _v1.dot(L)));
+          const cB = mix(pal.base, pal.light, 0.2 + 0.62 * lb);
+          const cBm = mix(pal.light, pal.glint, 0.12 + 0.55 * lb);
+          const lf = lit(B.a, B.z, S.a);
+          const cS = mix(pal.light, pal.glint, 0.28 + 0.6 * lf);
+          tri(B.a, B.m, S.a, cB, cBm, cS, ref);
+          tri(B.m, S.z, S.a, cBm, cS, cS, ref);
+          tri(B.m, B.z, S.z, cBm, cB, cS, ref);
+          const B2 = r0[k2];
+          const S2 = r1[k2];
+          const lk = lit(B.z, B2.a, S.z);
+          const cK = mix(pal.light, pal.glint, 0.45 + 0.55 * lk);
+          const cKS = mix(pal.light, pal.glint, 0.62 + 0.38 * lk);
+          tri(B.z, B2.a, S2.a, cK, cK, cKS, ref);
+          tri(B.z, S2.a, S.z, cK, cKS, cKS, ref);
+          // Gipfel: breite Facette und schmale Kantenfacette laufen in der Spitze zusammen
+          const lg = lit(S.a, S.z, apex);
+          tri(S.a, S.z, apex, mix(pal.light, pal.glint, 0.4 + 0.6 * lg), mix(pal.light, pal.glint, 0.4 + 0.6 * lg), cApex, ref);
+          tri(S.z, S2.a, apex, cKS, cKS, cApex, ref);
+        }
+      }
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    g.computeVertexNormals();
+    return g;
+  });
+}
+const _kM = new THREE.Matrix4();
+// Kristall in eine Bake3: Fuß an der Matrix M (wächst entlang +y), Radius r, Körperlänge h, Farben pal (kristallPal3).
+// o: v (Variante 0–3), lod (1 = einfach), mat ('glow' leuchtet von selbst, 'lit' mit Licht und Umriss), tip (Höhe der
+// Spitze in Radien), both (doppelendig: auch unten eine Spitze, der Körper ist dann gerade), taper (Radius oben)
+function kristall3(b, M, r, h, pal, o = {}) {
+  const v = o.v || 0;
+  const lod = o.lod || 0;
+  const both = !!o.both;
+  const tp = both ? 1 : o.taper || 0.88;
+  const tk = o.tip || 1;
+  // ohne Angabe leuchtend; mat: undefined lässt die Bake3 (oder ihren Vorsatz, z. B. die Randkulisse) entscheiden
+  const mat = 'mat' in o ? o.mat : 'glow';
+  const base = M || _kM.identity();
+  b.add(kristallGeo3('k', pal, v, lod, tp), null, { m: atM3(base, [0, 0, 0], null, [r, h, r]), mat });
+  b.add(kristallGeo3('s', pal, v, lod, tp), null, { m: atM3(base, [0, h, 0], null, [r, r * tk, r]), mat });
+  if (both) b.add(kristallGeo3('s', pal, v, lod, tp), null, { m: atM3(base, [0, 0, 0], null, [r, -r * tk * (o.tipLow || 0.8), r]), mat });
+}
+
 // Schneewehe (seit 8.4): Hügel auf einem Kreisgitter, auf der Windseite lang auslaufend, auf der anderen steil
 // abgebrochen; der Rand liegt knapp unter dem Boden, damit die Wehe aus dem Schnee herauswächst. Eckenfarben:
 // am Fuß bläulicher Schatten, oben auf dem Kamm reines Weiß (so hebt sie sich ohne Umriss vom Schnee ab).
@@ -2090,14 +2382,15 @@ const DECO_BASE3 = {
 const DECO_COLORS = {
   wald: { bush: '#2f5a2a', bushTop: '#5a9a46', berry: '#3a3a6a', tuft: '#2e5a2a', moss: '#4a7a30' },
   nagadschungel: { wood: '#5a3f2a', bush: '#2f6a3a', bushTop: '#5aa858', blossom: '#e0703a', cap: '#e0a03a', capDot: '#fff0c0', tuft: '#3d7633', moss: '#3d7a33' },
-  frost: { wood: '#5a4a3e', cut: '#c8b090', ring: '#8a6a4a', crystal: '#58b0ec', crystalBase: '#5a6a7c', snowy: true, tuft: '#8a9a78' },
+  frost: { wood: '#5a4a3e', cut: '#c8b090', ring: '#8a6a4a', crystal: '#58b0ec', crystal2: '#8ad0f4', crystalDeep: '#123a6a', crystalBase: '#5a6a7c', snowy: true, tuft: '#8a9a78' },
   moor: { wood: '#3a3428', moss: '#5a6a2a', cap: '#7ad86a', capGlow: true, bone: '#cfc8a8', tuft: '#4a5a34' },
   orktal: { wood: '#a08a6a', cut: '#d8c8a8', bone: '#efe6cc', tuft: '#a89a5a', thorn: true },
   sandwueste: { wood: '#a08a6a', cut: '#d8c8a8', bone: '#efe6cc', tuft: '#a89a5a', thorn: true },
-  oedland: { wood: '#6e5e54', bone: '#d8d4c8', crystal: '#e0404a', crystalBase: '#2a2024', glow: true, ember: '#e0404a', tuft: '#6a645a' },
-  vulkan: { wood: '#2a1a14', bone: '#d8ccb4', crystal: '#ff7a2a', crystalBase: '#2a1a1a', glow: true, ember: '#ff7a2a', char: '#3a2a20', tuft: null },
-  titanenkamm: { wood: '#2a1a14', bone: '#d8ccb4', crystal: '#ffb04a', crystalBase: '#2e2628', glow: true, ember: '#ffb04a', char: '#3a2a20', tuft: null },
-  donnerklamm: { wood: '#4a4440', crystal: '#9fd0ff', crystalBase: '#3a3640', glow: true, tuft: '#8a8a5a' }
+  // seit 15.80: crystal2 (Nebenkristalle) und crystalDeep (Farbe am Fuß der Kristalle, kristallPal3)
+  oedland: { wood: '#6e5e54', bone: '#d8d4c8', crystal: '#e0404a', crystal2: '#ff7a6a', crystalDeep: '#2a0810', crystalBase: '#2a2024', glow: true, ember: '#e0404a', tuft: '#6a645a' },
+  vulkan: { wood: '#2a1a14', bone: '#d8ccb4', crystal: '#ff7a2a', crystal2: '#ffb04a', crystalDeep: '#2a0a04', crystalBase: '#2a1a1a', glow: true, ember: '#ff7a2a', char: '#3a2a20', tuft: null },
+  titanenkamm: { wood: '#2a1a14', bone: '#d8ccb4', crystal: '#ffb04a', crystal2: '#ff8a3a', crystalDeep: '#2a1004', crystalBase: '#2e2628', glow: true, ember: '#ffb04a', char: '#3a2a20', tuft: null },
+  donnerklamm: { wood: '#4a4440', crystal: '#9fd0ff', crystal2: '#c8b8ff', crystalBase: '#3a3640', glow: true, tuft: '#8a8a5a' }
 };
 // Bodenfarbe des Gebiets für Hügel am Fuß (Sand unter dem Schädel, Schnee unter der Wehe)
 function decoSoil(style) {
@@ -2332,40 +2625,57 @@ const tplDeco = (d, style, v, low) => bakeTemplate(`deco:${d}:${style}:${v}${low
       tuft(-0.22, -0.16, 0.7);
     }
   } else if (d === DECO.CRYSTAL) {
-    // Kristallgruppe: ein großer, drei schräge, zwei liegende Splitter auf einem Felsfuß, facettiert mit hellen
-    // Spitzen. Im Frost kräftig eisblau mit Umriss (durchscheinendes Eis verschwand auf dem Schnee und kostete zwei
-    // Zeichenaufrufe je Block), in Glut- und Zaubergebieten unten dunkler Obsidian, oben leuchtend, mit Schein am Boden
-    const glow = c.glow;
-    const tipCol = lighter(c.crystal, 0.45);
-    const gem = (p, tilt, yaw, r, h) => {
-      const M = new THREE.Matrix4().compose(new THREE.Vector3(...p), new THREE.Quaternion().setFromEuler(_e.set(0, yaw, -tilt, 'YXZ')), _stOne);
-      if (glow) {
-        W(crystalGeo('body'), c.crystalBase, { m: atM3(M, [0, 0, 0], null, [r, h * 0.45, r]), top: lighter(c.crystalBase, 0.2), topK: 0.6 });
-        W(crystalGeo('body'), c.crystal, { m: atM3(M, [0, h * 0.45, 0], null, [r * 0.98, h * 0.55, r * 0.98]), mat: 'glow', top: lighter(c.crystal, 0.3), topK: 0.9, ao: 0.4 });
-        W(crystalGeo('tip'), tipCol, { m: atM3(M, [0, h, 0], null, [r * 0.98, r * 1.6, r * 0.98]), mat: 'glow' });
-      } else {
-        W(crystalGeo('body'), c.crystal, { m: atM3(M, [0, 0, 0], null, [r, h, r]), shade: 0.3, top: lighter(c.crystal, 0.3), topK: 0.6 });
-        W(crystalGeo('tip'), tipCol, { m: atM3(M, [0, h, 0], null, [r, r * 1.6, r]) });
-      }
+    // Kristallgruppe (seit 15.80 neu, kristall3): Felssockel mit Steinchen, darauf facettierte Kristalle mit
+    // Farbverlauf und Glanzkanten – ein großer, schräge Nebenkristalle und am Fuß kleine Begleiter, fast liegend.
+    // Drei Bauformen: v0 ein großer mit Kranz, v1 Zwilling (zwei große auseinander geneigt), v2 Fächer aus fünf
+    // mittleren. In Glut- und Zaubergebieten leuchtend (Eckenfarben, kein Licht nötig), im Frost und auf Wiesen mit
+    // Licht und Umriss (hebt sich vom Schnee ab). Kein Schein am Boden mehr (bis 15.79 ein runder Lichtfleck).
+    // Volle Form (Kanten, Schulter) für die großen Kristalle, die kleinen einfach (lod 1). Grafik „Niedrig“: alle
+    // einfach, ohne die kleinsten Begleiter.
+    const mat = c.glow ? 'glow' : 'lit';
+    const pal = kristallPal3(c.crystal, c.crystalDeep);
+    const pal2 = kristallPal3(c.crystal2 || lighter(c.crystal, 0.22), c.crystalDeep);
+    // crystalScale: Gebiete, in denen Kristalle das Bild prägen (Kristallabgrund), haben größere Gruppen
+    const GS = c.crystalScale || 1;
+    const gem = (p, tilt, yaw, r, h, P = pal, small = false) => {
+      const M = new THREE.Matrix4().compose(new THREE.Vector3(p[0] * Math.sqrt(GS), p[1], p[2] * Math.sqrt(GS)), new THREE.Quaternion().setFromEuler(_e.set(0, yaw, -tilt, 'YXZ')), _stOne);
+      kristall3(b, M, r * GS, h * GS, P, { v: Math.round(Math.abs(yaw) * 5 + h * 40), lod: low || small ? 1 : 0, mat });
     };
     const rot = v * 1.3;
-    gem([0, 0.02, 0], 0.12, rot, 0.09, 0.52 - v * 0.05);
-    for (let k = 0; k < 3; k++) {
-      const a = rot + k * 2.1 + 0.4;
-      gem([Math.cos(a) * 0.09, 0.02, Math.sin(a) * 0.09], 0.5 + (k % 2) * 0.22, -a, 0.065 - k * 0.007, 0.34 - k * 0.05);
+    if (v === 1) {
+      // Zwilling: zwei große, auseinander geneigt, dazwischen ein kleiner
+      gem([-0.045, 0.03, 0.02], 0.3, rot + Math.PI, 0.095, 0.46);
+      gem([0.055, 0.03, -0.02], 0.38, rot, 0.085, 0.38, pal2);
+      gem([0.0, 0.03, 0.07], 0.12, rot + 1.6, 0.05, 0.22, pal, true);
+    } else if (v === 2) {
+      // Fächer: fünf mittlere Kristalle, nach außen geneigt
+      for (let k = 0; k < 5; k++) {
+        const a = rot + (k - 2) * 0.62;
+        gem([Math.cos(a) * 0.05, 0.03, Math.sin(a) * 0.05], 0.16 + Math.abs(k - 2) * 0.2, -a, 0.068 - Math.abs(k - 2) * 0.007, 0.38 - Math.abs(k - 2) * 0.07, k % 2 ? pal2 : pal, k !== 2);
+      }
+    } else {
+      // ein großer, leicht schräg, mit drei Nebenkristallen
+      gem([0.01, 0.03, 0], 0.1, rot, 0.108, 0.5);
+      for (let k = 0; k < 3; k++) {
+        const a = rot + k * 2.1 + 0.4;
+        gem([Math.cos(a) * 0.085, 0.03, Math.sin(a) * 0.085], 0.46 + (k % 2) * 0.24, -a, 0.07 - k * 0.007, 0.32 - k * 0.045, k === 1 ? pal2 : pal, k > 0);
+      }
     }
-    for (let k = 0; k < 2; k++) {
-      const a = rot + k * 3 + 1.5;
-      gem([Math.cos(a) * 0.21, 0.015, Math.sin(a) * 0.21], 1.3, -a, 0.035, 0.12);
+    // kleine Begleiter am Fuß, fast liegend
+    if (!low) {
+      for (let k = 0; k < 4; k++) {
+        const a = rot + k * 1.57 + 0.8 + v;
+        const dd = 0.17 + ((k * 7 + v * 3) % 5) * 0.018;
+        gem([Math.cos(a) * dd, 0.012, Math.sin(a) * dd * 0.9], 0.95 + (k % 2) * 0.35, -a, 0.026 + (k % 2) * 0.006, 0.05 + (k % 3) * 0.025, k % 2 ? pal2 : pal, true);
+      }
     }
-    b.add(rockGeo(v), c.crystalBase, { s: [0.2, 0.09, 0.18], p: [0, 0.01, 0], top: lighter(c.crystalBase, 0.2), topK: 0.5, shade: 0.3 });
+    b.add(rockGeo(v), c.crystalBase, { s: [0.17, 0.08, 0.15], p: [0, 0.01, 0], top: lighter(c.crystalBase, 0.22), topK: 0.5, shade: 0.3 });
     for (let k = 0; k < 3; k++) {
       const a = k * 2.3 + v;
-      b.add(rockGeo((v + k) % 3, 0), c.crystalBase, { s: [0.06, 0.045, 0.05], p: [Math.cos(a) * 0.25, 0.015, Math.sin(a) * 0.22], r: [0, a, 0], top: lighter(c.crystalBase, 0.25), topK: 0.5 });
+      b.add(rockGeo((v + k) % 3, 0), c.crystalBase, { s: [0.055, 0.04, 0.05], p: [Math.cos(a) * 0.23, 0.012, Math.sin(a) * 0.2], r: [0, a, 0], top: lighter(c.crystalBase, 0.25), topK: 0.5 });
     }
-    if (glow) b.add(haloGeo(c.crystal), null, { p: [0, 0.012, 0], s: [0.45, 1, 0.45], mat: 'aura' });
-    else if (c.snowy) mound(0, 0, 0.3, 0.05, 0.26, c.snow);
-    else tuft(0.22, 0.14, 0.7);
+    if (c.snowy) mound(0, 0, 0.3, 0.05, 0.26, c.snow);
+    else if (!c.glow) tuft(0.22, 0.14, 0.7);
   } else if (d === DECO.DEADTREE) {
     const thorn = c.thorn && v === 2;
     if (thorn) {
@@ -2871,6 +3181,15 @@ function* objectJob(cx, cy) {
         // seit 8.4 richtig modelliert und je Art auf Spielgröße gebracht (DECO_SIZE3) statt pauschal vergrößert
         b.addTemplate(tplDeco(d, style, h % 3, lowGfx), placeAt(x + 0.5 + jx * 3, y + 0.5 + jz * 3, rot, sc * DECO_SIZE3[d]));
         continue;
+      }
+      // zusätzlicher Schmuck je Karte (seit 15.80, DECO_MEHR in umgebung.js – dieselbe Regel wie in 2D; Grafik
+      // „Niedrig“: ohne)
+      if (!lowGfx && typeof DECO_MEHR !== 'undefined' && DECO_MEHR.length && DECO_MEHR_FREI(d)) {
+        const e = decoMehr(x, y, i);
+        if (e && DECO_SIZE3[e]) {
+          b.addTemplate(tplDeco(e, style, (h >>> 7) % 3, lowGfx), placeAt(x + 0.5 + jx * 3, y + 0.5 + jz * 3, rot + 1.3, sc * DECO_SIZE3[e]));
+          continue;
+        }
       }
       if (lowGfx) continue;
       if (FLOWER3[d]) {

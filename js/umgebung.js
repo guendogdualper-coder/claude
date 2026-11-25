@@ -129,6 +129,11 @@ function renderGroundChunk(cx, cy) {
       const d = w.deco[i];
       if (d === DECO.BRIDGE) drawBridge2(ctx, x * TILE, y * TILE, bridgeHoriz(x, y), typeof bridgeStyleAt === 'function' ? bridgeStyleAt(i, g) : null, bridgeEdges2(x, y));
       else if (d) drawDeco(ctx, d, g, x * TILE, y * TILE, tileHash(x, y));
+      // zusätzlicher Schmuck je Karte (seit 15.80, DECO_MEHR)
+      if (DECO_MEHR.length && DECO_MEHR_FREI(d) && !w.obj[i]) {
+        const e = decoMehr(x, y, i);
+        if (e) drawDeco(ctx, e, g, x * TILE, y * TILE, tileHash(x + 7, y + 3));
+      }
     }
   }
   return c;
@@ -371,6 +376,32 @@ function drawGrassFringe(ctx, x, y, px, py, h) {
   });
 }
 
+// Zusätzlicher Schmuck (seit 15.80): Regeln je Karte, die auf freien Kacheln eine Schmuckart dazulegen (z. B. mehr
+// Kristallgruppen im Kristallabgrund). Nur Bild – ohne Kollision und ohne Änderung der Welt (w.deco bleibt), in 2D
+// (renderGroundChunk, beim Backen der Bodenblöcke) und 3D (objectJob in drei-welt.js) nach derselben Regel. Eine Regel
+// ist (x, y, i) → DECO-Art oder 0; frei heißt: kein Schmuck auf der Kachel außer Gras, Kieseln oder Rissen.
+const DECO_MEHR = [];
+const DECO_MEHR_FREI = (d) => !d || d === DECO.TUFT || d === DECO.PEBBLE || d === DECO.CRACK;
+function decoMehr(x, y, i) {
+  for (const f of DECO_MEHR) {
+    const d = f(x, y, i);
+    if (d) return d;
+  }
+  return 0;
+}
+// Moore: im Totenmoor und im Schwarzmoor wachsen zusätzlich leuchtende Pilzgruppen auf dem freien Moorboden (vorher
+// große leere Flächen), nicht auf Wegen und mit einer Kachel Abstand zu ihnen; feste Auswahl je Kachel
+const DECO_MEHR_MOOR = { moor: 0.022, schwarzmoor: 0.018 };
+DECO_MEHR.push((x, y, i) => {
+  const w = game.world;
+  const z = ZONES[w.zoneIdx[i]];
+  const p = z && !z.safe ? DECO_MEHR_MOOR[z.id] : 0;
+  if (!p || w.ground[i] !== GROUND.SWAMP) return 0;
+  if ((townTileHash(x * 7 + 1, y * 13 + 5) % 1000) / 1000 >= p) return 0;
+  for (const j of [i - 1, i + 1, i - MAP_W, i + MAP_W]) if (w.ground[j] === GROUND.PATH || w.deco[j] === DECO.BRIDGE) return 0;
+  return DECO.MUSHROOM;
+});
+
 function drawDeco(ctx, d, g, px, py, h) {
   const ox = (h >> 4) % 20 + 5;
   const oy = (h >> 9) % 18 + 8;
@@ -415,81 +446,36 @@ function drawDeco(ctx, d, g, px, py, h) {
       }
       break;
     }
+    // seit 15.80 gemalte Bilder in den Farben des Gebiets (deco2*, unten) statt einfarbiger Flächen und Striche
     case DECO.PEBBLE:
-      ctx.fillStyle = 'rgba(80,66,46,0.4)';
-      ctx.beginPath();
-      ctx.ellipse(px + ox, py + oy, 2.2, 1.5, 0, 0, Math.PI * 2);
-      ctx.ellipse(px + ox + 9, py + oy - 5, 1.5, 1.1, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = 'rgba(255,255,255,0.15)';
-      ctx.fillRect(px + ox - 1, py + oy - 1, 1.5, 1);
+      deco2Kiesel(ctx, px + ox, py + Math.max(oy, 12), h, g);
       break;
     case DECO.STUMP:
-      ctx.fillStyle = '#5a3f2a';
-      ctx.beginPath();
-      ctx.ellipse(px + ox, py + oy, 6, 3.5, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#c8a070';
-      ctx.beginPath();
-      ctx.ellipse(px + ox, py + oy - 2, 5, 2.6, 0, 0, Math.PI * 2);
-      ctx.fill();
+      deco2Stumpf(ctx, px + 16 + ((h >> 4) % 9) - 4, py + 22 + ((h >> 9) % 6), decoFarben2(px, py), h);
       break;
     case DECO.LOG:
-      ctx.fillStyle = '#5a3f2a';
-      ctx.fillRect(px + ox - 10, py + oy - 3, 20, 6);
-      ctx.fillStyle = '#c8a070';
-      ctx.beginPath();
-      ctx.ellipse(px + ox + 10, py + oy, 2, 3, 0, 0, Math.PI * 2);
-      ctx.fill();
+      deco2Stamm(ctx, px + 16 + ((h >> 4) % 5) - 2, py + 22 + ((h >> 9) % 6), decoFarben2(px, py), h);
       break;
     case DECO.MUSHROOM:
-      for (const [fx, fy] of [[0, 0], [6, 3], [-5, 4]]) {
-        ctx.fillStyle = '#efe6cc';
-        ctx.fillRect(px + ox + fx - 0.8, py + oy + fy - 3, 1.6, 4);
-        ctx.fillStyle = g === GROUND.SWAMP ? '#7ad86a' : '#c84a3a';
-        ctx.beginPath();
-        ctx.arc(px + ox + fx, py + oy + fy - 3, 2.6, Math.PI, 0);
-        ctx.fill();
-      }
+      deco2Pilze(ctx, px + 16 + ((h >> 4) % 9) - 4, py + 22 + ((h >> 9) % 6), decoFarben2(px, py), g, h);
       break;
     case DECO.BONES:
-      ctx.strokeStyle = '#e0d8c0';
-      ctx.lineWidth = 1.6;
-      ctx.beginPath();
-      ctx.moveTo(px + ox - 6, py + oy); ctx.lineTo(px + ox + 4, py + oy + 2);
-      ctx.moveTo(px + ox - 3, py + oy + 4); ctx.lineTo(px + ox + 6, py + oy - 2);
-      ctx.stroke();
-      ctx.fillStyle = '#e8e0c8';
-      ctx.beginPath();
-      ctx.arc(px + ox + 8, py + oy - 4, 3, 0, Math.PI * 2);
-      ctx.fill();
+      deco2Knochen(ctx, px + 16 + ((h >> 4) % 9) - 4, py + 20 + ((h >> 9) % 7), decoFarben2(px, py), h);
       break;
     case DECO.SHRUB:
-      ctx.fillStyle = '#3f7a32';
-      for (const [fx, fy, r] of [[0, 0, 5], [5, 1, 4], [-4, 2, 4], [1, -3, 4]]) {
-        ctx.beginPath();
-        ctx.arc(px + ox + fx, py + oy + fy, r, 0, Math.PI * 2);
-        ctx.fill();
-      }
+      deco2Busch(ctx, px + 16 + ((h >> 4) % 9) - 4, py + 24 + ((h >> 9) % 5), decoFarben2(px, py), h);
       break;
-    case DECO.CRYSTAL:
-      ctx.fillStyle = g === GROUND.SNOW || g === GROUND.ICE ? '#bfe8ff' : g === GROUND.BASALT ? '#ff7a2a' : '#9fd0ff';
-      for (const [fx, h2] of [[0, 9], [4, 6], [-4, 5]]) {
-        ctx.beginPath();
-        ctx.moveTo(px + ox + fx - 2, py + oy);
-        ctx.lineTo(px + ox + fx, py + oy - h2);
-        ctx.lineTo(px + ox + fx + 2, py + oy);
-        ctx.fill();
-      }
+    case DECO.CRYSTAL: {
+      // seit 15.80 eine gemalte Kristallgruppe in den Farben des Gebiets (wie in 3D) statt dreier kleiner Dreiecke
+      const c = kristallFarbe2d(px, py, g);
+      // Fuß weit unten in der Kachel und in der oberen Reihe eines Bodenblocks kleiner: die Gruppe darf nicht über den
+      // Block hinausragen (dort wäre sie abgeschnitten)
+      const s = Math.floor(py / TILE) % CHUNK === 0 ? Math.min(c.s, 1.05) : c.s * 1.12;
+      kristallGruppe2d(ctx, px + 16 + ((h >> 4) % 9) - 4, py + 25 + ((h >> 9) % 5), s, c.col, c.col2, h % 3, c.base, c.snow);
       break;
+    }
     case DECO.DEADTREE:
-      ctx.strokeStyle = '#3a2a20';
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.moveTo(px + ox, py + oy); ctx.lineTo(px + ox, py + oy - 14);
-      ctx.moveTo(px + ox, py + oy - 8); ctx.lineTo(px + ox + 6, py + oy - 13);
-      ctx.moveTo(px + ox, py + oy - 5); ctx.lineTo(px + ox - 5, py + oy - 9);
-      ctx.stroke();
+      deco2Totholz(ctx, px + 16 + ((h >> 4) % 9) - 4, py + 26 + ((h >> 9) % 4), decoFarben2(px, py), g, h);
       break;
     case DECO.DRIFT:
       // Schneewehe (seit 8.4): heller Hügel mit bläulichem Schatten, ein Stein und zwei trockene Halme
@@ -527,6 +513,486 @@ function drawDeco(ctx, d, g, px, py, h) {
 }
 
 // Brücke (seit 13.2 je nach Wegrichtung): Bretter quer zum Weg, Geländer an beiden Seiten
+// --- Kristalle in 2D (seit 15.80) --------------------------------------------------------------------------------
+// Wunsch des Spielers: die Kristalle schöner, „nicht so eckig und kegelförmig“. Bis 15.79 waren die Kristalle am Boden
+// drei winzige Dreiecke in einer Farbe. Jetzt gemalt wie die 3D-Form (kristall3 in drei-welt.js): drei sichtbare
+// Flächen (links hell, die mittlere mit Verlauf und einem hellen Streifen von innen, rechts dunkel), eine Spitze aus
+// drei Facetten, dunkler Umriss, Glanzkante links und ein Funkelpunkt. Wird beim Backen der Bodenblöcke gemalt
+// (kostet beim Spielen nichts); auch für die schwebenden Kristalle, Kristallbäume, Felsen und Pfeiler genutzt.
+const KRIST2_PAL = new Map();
+// Farbton einer Farbe heller/dunkler (dl) und satter (ds), über Farbton–Sättigung–Helligkeit (wie kristallPal3 in 3D)
+function kristallTon2(col, dl, ds) {
+  const n = parseInt(col.slice(1, 7), 16);
+  const r = ((n >> 16) & 255) / 255;
+  const g = ((n >> 8) & 255) / 255;
+  const b = (n & 255) / 255;
+  const mx = Math.max(r, g, b);
+  const mn = Math.min(r, g, b);
+  let h = 0;
+  let s = 0;
+  let l = (mx + mn) / 2;
+  if (mx !== mn) {
+    const d = mx - mn;
+    s = l > 0.5 ? d / (2 - mx - mn) : d / (mx + mn);
+    h = mx === r ? (g - b) / d + (g < b ? 6 : 0) : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+    h /= 6;
+  }
+  l = Math.max(0.03, Math.min(0.97, l + dl));
+  s = Math.max(0, Math.min(1, s + ds));
+  const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+  const p = 2 * l - q;
+  const f = (t) => {
+    t = (t + 1) % 1;
+    const v = t < 1 / 6 ? p + (q - p) * 6 * t : t < 0.5 ? q : t < 2 / 3 ? p + (q - p) * (2 / 3 - t) * 6 : p;
+    return Math.round(v * 255);
+  };
+  return '#' + ((1 << 24) | (f(h + 1 / 3) << 16) | (f(h) << 8) | f(h - 1 / 3)).toString(16).slice(1);
+}
+function kristallPal2(col) {
+  let p = KRIST2_PAL.get(col);
+  if (!p) {
+    const t = (dl, ds) => kristallTon2(col, dl, ds);
+    p = {
+      out: mixColor(t(-0.58, -0.4), '#120a24', 0.3),
+      deep: t(-0.44, -0.32),
+      dark: t(-0.32, -0.25),
+      mid: t(-0.17, -0.15),
+      light: t(0.04, 0),
+      tipL: t(0.19, -0.04),
+      tipM: t(0.1, -0.02),
+      tipR: t(-0.06, -0.08),
+      glint: t(0.26, -0.2)
+    };
+    KRIST2_PAL.set(col, p);
+  }
+  return p;
+}
+// Ein Kristall: Fuß bei (x, y), Höhe h mit Spitze, Breite w, um den Fuß geneigt um tilt; both: auch unten eine Spitze
+// (schwebend, dann liegt der untere Gipfel bei y); flat: Flächen ohne Verlauf (für Bilder, die jedes Bild neu gemalt
+// werden, z. B. die Wahrzeichen in wahrzeichen2d.js – spart die Verläufe)
+function kristall2d(ctx, x, y, h, w, tilt, P, both, flat) {
+  ctx.save();
+  ctx.translate(x, y);
+  if (tilt) ctx.rotate(tilt);
+  const hw = w / 2;
+  const iw = w * 0.2;
+  const d = w * 0.13;
+  const tipH = Math.min(h * 0.36, w * 1.1);
+  const yt = -h + tipH;
+  const yb = both ? -Math.min(h * 0.28, w * 0.9) : 0;
+  const ax = w * 0.07;
+  const fill = (pts, c) => {
+    ctx.fillStyle = c;
+    ctx.beginPath();
+    pts.forEach(([px, py], i) => (i ? ctx.lineTo(px, py) : ctx.moveTo(px, py)));
+    ctx.closePath();
+    ctx.fill();
+  };
+  const grad = (c0, c1) => {
+    if (flat) return c1;
+    const g = ctx.createLinearGradient(0, yb, 0, yt);
+    g.addColorStop(0, c0);
+    g.addColorStop(1, c1);
+    return g;
+  };
+  // Umriss als dunkle, etwas größere Fläche (gibt die Pixelkante)
+  const o = Math.max(0.9, w * 0.1);
+  fill([[-hw - o, yb + (both ? 0 : o * 0.5)], [-hw - o, yt], [ax, -h - o * 1.2], [hw + o, yt], [hw + o, yb + (both ? 0 : o * 0.5)], [iw, yb + d + o], [-iw, yb + d + o]], P.out);
+  if (both) fill([[-hw - o, yb], [-ax, o * 1.2], [hw + o, yb]], P.out);
+  // untere Spitze (schwebend): dunkler, Licht von oben
+  if (both) {
+    fill([[-hw, yb], [-iw, yb + d], [-ax, 0]], P.dark);
+    fill([[-iw, yb + d], [iw, yb + d], [-ax, 0]], P.deep);
+    fill([[iw, yb + d], [hw, yb], [-ax, 0]], P.out);
+  }
+  // Körper: links hell, Mitte mit Verlauf, rechts dunkel
+  fill([[-hw, yb], [-iw, yb + d], [-iw, yt + d], [-hw, yt]], grad(P.mid, P.light));
+  fill([[-iw, yb + d], [iw, yb + d], [iw, yt + d], [-iw, yt + d]], grad(P.dark, P.mid));
+  fill([[iw, yb + d], [hw, yb], [hw, yt], [iw, yt + d]], grad(P.deep, P.dark));
+  // heller Streifen in der Mitte (Licht von innen)
+  ctx.globalAlpha = 0.55;
+  fill([[-iw * 0.35, yb + d - (yb - yt) * 0.15], [iw * 0.35, yb + d - (yb - yt) * 0.15], [iw * 0.35, yt + d], [-iw * 0.35, yt + d]], grad(P.mid, P.tipM));
+  ctx.globalAlpha = 1;
+  // Spitze aus drei Facetten
+  fill([[-hw, yt], [-iw, yt + d], [ax, -h]], P.tipL);
+  fill([[-iw, yt + d], [iw, yt + d], [ax, -h]], P.tipM);
+  fill([[iw, yt + d], [hw, yt], [ax, -h]], P.tipR);
+  // Glanzkante links an der Mittelfläche und am Grat der Spitze, Funkelpunkt
+  ctx.strokeStyle = P.glint;
+  ctx.lineWidth = Math.max(0.7, w * 0.09);
+  ctx.beginPath();
+  ctx.moveTo(-iw, yb + d - (yb - yt) * 0.2);
+  ctx.lineTo(-iw, yt + d);
+  ctx.lineTo(ax, -h + 0.6);
+  ctx.stroke();
+  if (h > 9) {
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(-iw - 0.2, yt + d - 1.6, 1.2, 1.2);
+  }
+  ctx.restore();
+}
+// Farben der Kristalle am Ort (wie die 3D-Kristallgruppen, DECO_COLORS in drei-welt.js): Farbe, zweite Farbe, Felsfarbe,
+// Größe, Schnee am Fuß
+function kristallFarbe2d(px, py, g) {
+  const w = game.world;
+  const i = Math.floor(py / TILE) * MAP_W + Math.floor(px / TILE);
+  const z = w && w.zoneIdx ? ZONES[w.zoneIdx[i]] : null;
+  const st = z ? z.id : '';
+  const D = typeof DECO_COLORS !== 'undefined' ? DECO_COLORS[st] : null;
+  const snow = g === GROUND.SNOW || g === GROUND.ICE || g === GROUND.NACHTSCHNEE;
+  const col = (D && D.crystal) || (snow ? '#7ac8f4' : g === GROUND.BASALT ? '#ff7a2a' : '#9fd0ff');
+  return { col, col2: (D && D.crystal2) || lighter(col, 0.2), base: (D && D.crystalBase) || (snow ? '#6a7a8c' : '#4a4652'), s: (D && D.crystalScale) || 1, snow };
+}
+// Kristallgruppe am Boden: Felssockel mit Steinchen, ein großer Kristall mit Nebenkristallen, kleine Splitter am Fuß.
+// Fuß bei (x, y), Größe s (1 = gut eine halbe Kachel hoch), Bauform v (0 Kranz, 1 Zwilling, 2 Fächer)
+function kristallGruppe2d(ctx, x, y, s, col, col2, v, base, snow) {
+  const P = kristallPal2(col);
+  const P2 = kristallPal2(col2 || col);
+  ctx.fillStyle = 'rgba(12,8,22,0.3)';
+  ctx.beginPath();
+  ctx.ellipse(x + 1.5 * s, y + 1, 10.5 * s, 3.4 * s, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // Felssockel: flacher Brocken, oben heller
+  const rock = (rx, ry, rw, rh, c) => {
+    ctx.fillStyle = darker(c, 0.35);
+    ctx.beginPath();
+    ctx.moveTo(rx - rw, ry);
+    ctx.lineTo(rx - rw * 0.8, ry - rh * 0.7);
+    ctx.lineTo(rx - rw * 0.2, ry - rh);
+    ctx.lineTo(rx + rw * 0.6, ry - rh * 0.85);
+    ctx.lineTo(rx + rw, ry - rh * 0.2);
+    ctx.lineTo(rx + rw * 0.7, ry + rh * 0.25);
+    ctx.lineTo(rx - rw * 0.6, ry + rh * 0.25);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = c;
+    ctx.beginPath();
+    ctx.moveTo(rx - rw * 0.8, ry - rh * 0.55);
+    ctx.lineTo(rx - rw * 0.2, ry - rh * 0.9);
+    ctx.lineTo(rx + rw * 0.55, ry - rh * 0.75);
+    ctx.lineTo(rx + rw * 0.2, ry - rh * 0.3);
+    ctx.lineTo(rx - rw * 0.5, ry - rh * 0.25);
+    ctx.closePath();
+    ctx.fill();
+  };
+  rock(x, y, 8 * s, 5 * s, base);
+  // Kristalle von hinten nach vorn
+  const k = (dx, dy, h, w, t, p) => kristall2d(ctx, x + dx * s, y + dy * s, h * s, w * s, t, p);
+  if (v === 1) {
+    k(4, -3, 15, 5.5, 0.38, P2);
+    k(-3, -2.5, 19, 6.5, -0.32, P);
+    k(1, -1.5, 8, 3.6, 0.05, P2);
+  } else if (v === 2) {
+    k(-6, -2.5, 11, 4.4, -0.62, P2);
+    k(6, -2.5, 11, 4.4, 0.62, P);
+    k(-3, -3, 14, 5, -0.3, P);
+    k(3, -3, 14, 5, 0.3, P2);
+    k(0, -3.2, 17, 5.6, 0.02, P);
+  } else {
+    k(-4.5, -3, 12, 4.6, -0.5, P2);
+    k(4.5, -2.8, 10, 4.2, 0.55, P);
+    k(0, -3.4, 20, 6.8, 0.06, P);
+    k(-2, -1.5, 7, 3.4, -0.2, P2);
+  }
+  // kleine Splitter am Fuß, fast liegend
+  k(-9, 0.5, 5, 2.6, -1.1, P2);
+  k(8.5, 0.8, 4.5, 2.4, 1.15, P);
+  if (snow) {
+    ctx.fillStyle = '#f4f8fc';
+    ctx.beginPath();
+    ctx.ellipse(x - 4 * s, y + 0.5, 4.5 * s, 1.8 * s, 0, 0, Math.PI * 2);
+    ctx.ellipse(x + 5 * s, y + 0.8, 3.5 * s, 1.5 * s, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+// --- Schmuck am Boden in 2D (seit 15.80) ------------------------------------------------------------------------
+// Bis 15.79 waren Baumstümpfe, Stämme, Pilze, Knochen, Büsche, tote Bäumchen und Kiesel in 2D nur ein paar Flächen in
+// einer Farbe (zwei Ellipsen, ein Rechteck, drei Striche) – auf allen Karten fiel das als „primitiv“ auf. Jetzt kleine
+// gemalte Bilder wie die 3D-Formen: dunkler Umriss, Licht von oben links, Schatten am Boden, Farben des Gebiets
+// (DECO_BASE3/DECO_COLORS aus drei-welt.js, dieselben wie in 3D). Gemalt beim Backen der Bodenblöcke – kostet beim
+// Spielen nichts. Alles bleibt in der eigenen Kachel (sonst am Rand eines Bodenblocks abgeschnitten).
+const DECO2_FARBEN = new Map();
+function decoFarben2(px, py) {
+  const w = game.world;
+  const i = Math.floor(py / TILE) * MAP_W + Math.floor(px / TILE);
+  const z = w && w.zoneIdx ? ZONES[w.zoneIdx[i]] : null;
+  const id = z ? z.id : '';
+  let c = DECO2_FARBEN.get(id);
+  if (!c) {
+    const base = typeof DECO_BASE3 !== 'undefined' ? DECO_BASE3 : { wood: '#6b4a2e', cut: '#d8b080', ring: '#a07850', bush: '#356e2c', bushTop: '#7ab84a', berry: '#d8343a', moss: '#4f7a32', cap: '#c84a3a', capDot: '#f4f0e8', stem: '#efe6cc', bone: '#e8e0c8' };
+    c = Object.assign({}, base, (typeof DECO_COLORS !== 'undefined' && DECO_COLORS[id]) || {});
+    DECO2_FARBEN.set(id, c);
+  }
+  return c;
+}
+const DECO2_OUT = 'rgba(22,14,10,0.78)';
+// Fläche füllen und dunkel umranden (pts: Punkte oder Funktion, die den Pfad legt)
+function deco2Flaeche(ctx, pts, fill, out = DECO2_OUT, lw = 1.2) {
+  ctx.beginPath();
+  if (typeof pts === 'function') pts();
+  else {
+    pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+    ctx.closePath();
+  }
+  ctx.fillStyle = fill;
+  ctx.fill();
+  if (out) {
+    ctx.strokeStyle = out;
+    ctx.lineWidth = lw;
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+  }
+}
+function deco2Schatten(ctx, x, y, rx, ry, a = 0.26) {
+  ctx.fillStyle = `rgba(10,8,6,${a})`;
+  ctx.beginPath();
+  ctx.ellipse(x + 1.5, y + 0.6, rx, ry, 0, 0, Math.PI * 2);
+  ctx.fill();
+}
+// Kiesel: zwei, drei Steinchen in einem dunkleren Ton des Bodens mit heller Oberseite (zurückhaltend – Kiesel liegen
+// auf manchen Karten zu Hunderten)
+function deco2Kiesel(ctx, x, y, h, g) {
+  const pal = GROUND_PALETTE[g] || GROUND_PALETTE[GROUND.PATH];
+  const stein = mixColor(pal[1], '#6a6258', 0.4);
+  const n = 2 + (h % 2);
+  for (let k = 0; k < n; k++) {
+    const sx = x + [0, 7, -5][k];
+    const sy = y + [0, -4, 3][k];
+    const r = [2.2, 1.6, 1.4][k];
+    deco2Schatten(ctx, sx, sy + 0.6, r + 0.4, r * 0.45, 0.14);
+    deco2Flaeche(ctx, () => ctx.ellipse(sx, sy, r, r * 0.72, 0, 0, Math.PI * 2), stein, 'rgba(30,24,18,0.3)', 0.8);
+    ctx.fillStyle = 'rgba(255,250,235,0.3)';
+    ctx.beginPath();
+    ctx.ellipse(sx - r * 0.3, sy - r * 0.3, r * 0.45, r * 0.28, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+// Baumstumpf: Rinde mit Furchen, Wurzeln, Schnittfläche mit Jahresringen, Moos
+function deco2Stumpf(ctx, x, y, c, h) {
+  const bark = c.wood;
+  deco2Schatten(ctx, x, y, 10, 3);
+  for (const [dx, l] of [[-7, -1], [6.5, 1], [-1, 0]]) deco2Flaeche(ctx, [[x + dx - 1.6, y - 2.5], [x + dx + 1.6, y - 2.5], [x + dx + l * 3 + 1.2, y + 1.2], [x + dx + l * 3 - 1.2, y + 1.6]], darker(bark, 0.1), DECO2_OUT, 0.9);
+  deco2Flaeche(ctx, () => {
+    ctx.moveTo(x - 6, y - 8);
+    ctx.lineTo(x - 6.2, y - 0.5);
+    ctx.quadraticCurveTo(x, y + 2.4, x + 6.2, y - 0.5);
+    ctx.lineTo(x + 6, y - 8);
+    ctx.closePath();
+  }, bark);
+  ctx.strokeStyle = darker(bark, 0.35);
+  ctx.lineWidth = 0.9;
+  ctx.beginPath();
+  for (const fx of [-3, 0.5, 3.5]) {
+    ctx.moveTo(x + fx, y - 6.5);
+    ctx.lineTo(x + fx + 0.4, y);
+  }
+  ctx.stroke();
+  ctx.fillStyle = lighter(bark, 0.18);
+  ctx.fillRect(x - 5.4, y - 7.5, 1.4, 6.5);
+  deco2Flaeche(ctx, () => ctx.ellipse(x, y - 8, 6, 2.6, 0, 0, Math.PI * 2), c.cut || '#d8b080', DECO2_OUT, 1);
+  ctx.strokeStyle = c.ring || '#a07850';
+  ctx.lineWidth = 0.7;
+  ctx.beginPath();
+  ctx.ellipse(x, y - 8, 3.8, 1.6, 0, 0, Math.PI * 2);
+  ctx.moveTo(x + 1.6, y - 8);
+  ctx.ellipse(x, y - 8, 1.6, 0.7, 0, 0, Math.PI * 2);
+  ctx.stroke();
+  if (c.moss && !c.snowy && (h >> 3) % 2) {
+    ctx.fillStyle = c.moss;
+    ctx.beginPath();
+    ctx.ellipse(x + 3.5, y - 3, 2.6, 2, 0.3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  if (c.snowy) deco2Flaeche(ctx, () => ctx.ellipse(x - 0.5, y - 8.5, 5.2, 2, 0, 0, Math.PI * 2), '#f4f8fc', 'rgba(120,140,170,0.5)', 0.8);
+}
+// liegender Stamm: Rinde mit Längsfurchen, Schnittfläche vorn, Aststummel, Moos (im Aschewald glühende Risse)
+function deco2Stamm(ctx, x, y, c, h) {
+  const bark = c.wood;
+  const t = (((h >> 5) % 5) - 2) * 0.05;
+  ctx.save();
+  ctx.translate(x, y - 3);
+  ctx.rotate(t);
+  deco2Schatten(ctx, 0, 3.5, 13, 2.6);
+  deco2Flaeche(ctx, () => ctx.roundRect(-12, -4, 21, 7.5, 3.5), bark);
+  ctx.fillStyle = darker(bark, 0.28);
+  ctx.fillRect(-11, 0.8, 19, 2);
+  ctx.fillStyle = lighter(bark, 0.16);
+  ctx.fillRect(-10.5, -3.2, 18, 1.2);
+  ctx.strokeStyle = darker(bark, 0.4);
+  ctx.lineWidth = 0.8;
+  ctx.beginPath();
+  ctx.moveTo(-9, -1);
+  ctx.lineTo(-2, -1.2);
+  ctx.moveTo(0, 0.2);
+  ctx.lineTo(6, 0);
+  ctx.stroke();
+  deco2Flaeche(ctx, [[-4, -3.5], [-2.4, -3.5], [-1.6, -7.5], [-3.4, -7.8]], bark, DECO2_OUT, 0.9);
+  deco2Flaeche(ctx, () => ctx.ellipse(9, -0.3, 2.6, 3.9, 0, 0, Math.PI * 2), c.cut || '#d8b080', DECO2_OUT, 1);
+  ctx.strokeStyle = c.ring || '#a07850';
+  ctx.lineWidth = 0.7;
+  ctx.beginPath();
+  ctx.ellipse(9, -0.3, 1.3, 2.1, 0, 0, Math.PI * 2);
+  ctx.stroke();
+  if (c.moss && !c.snowy) {
+    ctx.fillStyle = c.moss;
+    ctx.beginPath();
+    ctx.ellipse(-6, -3.6, 3.4, 1.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  if (c.ember) {
+    ctx.strokeStyle = c.ember;
+    ctx.lineWidth = 0.9;
+    ctx.beginPath();
+    ctx.moveTo(-8, 0.5);
+    ctx.lineTo(-3, 0);
+    ctx.lineTo(2, 0.8);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+// Pilzgruppe: drei Pilze mit gepunkteten Hüten (im Moor und auf der Schattenseite leuchtende Farben, ohne Schein am
+// Boden)
+function deco2Pilze(ctx, x, y, c, g, h) {
+  const cap = g === GROUND.SWAMP && !c.capGlow ? '#7ad86a' : c.cap || '#c84a3a';
+  deco2Schatten(ctx, x, y, 9, 2.4);
+  const pilz = (dx, dy, s) => {
+    const qx = x + dx;
+    const qy = y + dy;
+    deco2Flaeche(ctx, () => ctx.roundRect(qx - 1.3 * s, qy - 5 * s, 2.6 * s, 5 * s, 1.1 * s), c.stem || '#efe6cc', DECO2_OUT, 0.9);
+    deco2Flaeche(ctx, () => {
+      ctx.moveTo(qx - 4.4 * s, qy - 4.6 * s);
+      ctx.quadraticCurveTo(qx - 4 * s, qy - 9.6 * s, qx, qy - 9.8 * s);
+      ctx.quadraticCurveTo(qx + 4 * s, qy - 9.6 * s, qx + 4.4 * s, qy - 4.6 * s);
+      ctx.closePath();
+    }, cap);
+    ctx.fillStyle = darker(cap, 0.3);
+    ctx.fillRect(qx - 3.8 * s, qy - 5.4 * s, 7.6 * s, 0.9 * s);
+    ctx.fillStyle = c.capDot || '#f4f0e8';
+    for (const [ex, ey, r] of [[-1.8, -7.6, 0.9], [1.4, -8.4, 0.7], [2.4, -6.2, 0.6]]) {
+      ctx.beginPath();
+      ctx.arc(qx + ex * s, qy + ey * s, r * s, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  };
+  pilz(5, -1.5, 0.7);
+  pilz(-1, 0, 1);
+  pilz(-6.5, 1, 0.62);
+}
+// Knochen: zwei gekreuzte Röhrenknochen mit Gelenkköpfen, daneben ein kleiner Schädel
+function deco2Knochen(ctx, x, y, c, h) {
+  const bone = c.bone || '#e8e0c8';
+  const flip = (h >> 6) % 2 ? -1 : 1;
+  deco2Schatten(ctx, x, y + 1, 10, 2.6, 0.22);
+  const knochen = (x0, y0, x1, y1) => {
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = DECO2_OUT;
+    ctx.lineWidth = 3.4;
+    ctx.beginPath();
+    ctx.moveTo(x0, y0);
+    ctx.lineTo(x1, y1);
+    ctx.stroke();
+    ctx.fillStyle = DECO2_OUT;
+    for (const [qx, qy] of [[x0, y0], [x1, y1]]) {
+      ctx.beginPath();
+      ctx.arc(qx, qy, 2.4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.strokeStyle = bone;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(x0, y0);
+    ctx.lineTo(x1, y1);
+    ctx.stroke();
+    ctx.fillStyle = bone;
+    for (const [qx, qy] of [[x0, y0], [x1, y1]]) {
+      ctx.beginPath();
+      ctx.arc(qx - 0.7, qy - 0.4, 1.3, 0, Math.PI * 2);
+      ctx.arc(qx + 0.7, qy + 0.5, 1.3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.lineCap = 'butt';
+  };
+  knochen(x - 8 * flip, y - 1, x + 3 * flip, y + 1.5);
+  knochen(x - 5 * flip, y + 2.5, x + 2 * flip, y - 3.5);
+  // Schädel
+  const sx = x + 6 * flip;
+  const sy = y - 3;
+  deco2Flaeche(ctx, () => ctx.roundRect(sx - 2.4, sy + 1.2, 4.8, 2.6, 1), darker(bone, 0.08), DECO2_OUT, 0.9);
+  deco2Flaeche(ctx, () => ctx.ellipse(sx, sy, 3.6, 3.1, 0, 0, Math.PI * 2), bone, DECO2_OUT, 1);
+  ctx.fillStyle = '#2a2018';
+  ctx.beginPath();
+  ctx.ellipse(sx - 1.3, sy + 0.3, 1, 1.1, 0, 0, Math.PI * 2);
+  ctx.ellipse(sx + 1.3, sy + 0.3, 1, 1.1, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.45)';
+  ctx.fillRect(sx - 2, sy - 2.2, 2, 1);
+}
+// Busch: Bausche von dunkel (unten) bis hell (oben), Beeren oder Blüten
+function deco2Busch(ctx, x, y, c, h) {
+  const B = [[-5, -3.5, 4.6], [5, -3, 4.4], [0, -4.5, 5.4], [-2.5, -8.5, 4.2], [3, -8, 4]];
+  deco2Schatten(ctx, x, y, 11, 3);
+  ctx.fillStyle = DECO2_OUT;
+  ctx.beginPath();
+  for (const [bx, by, r] of B) {
+    ctx.moveTo(x + bx + r + 1, y + by);
+    ctx.arc(x + bx, y + by, r + 1, 0, Math.PI * 2);
+  }
+  ctx.fill();
+  const bush = c.bush || '#356e2c';
+  const top = c.bushTop || '#7ab84a';
+  B.forEach(([bx, by, r], k) => {
+    ctx.fillStyle = k < 3 ? bush : mixColor(bush, top, 0.5);
+    ctx.beginPath();
+    ctx.arc(x + bx, y + by, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = top;
+    ctx.beginPath();
+    ctx.arc(x + bx - r * 0.3, y + by - r * 0.35, r * 0.5, 0, Math.PI * 2);
+    ctx.fill();
+  });
+  const berry = c.berry || '#d8343a';
+  for (const [bx, by] of [[-4, -5], [3.5, -3.5], [0.5, -10], [5.5, -8]].slice(0, 2 + (h % 3))) {
+    ctx.fillStyle = berry;
+    ctx.beginPath();
+    ctx.arc(x + bx, y + by, 1.1, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    ctx.fillRect(x + bx - 0.6, y + by - 0.8, 0.6, 0.6);
+  }
+}
+// totes Bäumchen: Stamm mit Wurzelfuß, abgebrochene Spitze, kahle Äste mit Gabeln (am Feuerberg glühende Risse)
+function deco2Totholz(ctx, x, y, c, g, h) {
+  const bark = c.char || c.wood || '#4a3527';
+  const m = (h >> 7) % 2 ? -1 : 1;
+  deco2Schatten(ctx, x, y, 8, 2.4);
+  const ast = (x0, y0, x1, y1, w0, w1) => {
+    const a = Math.atan2(y1 - y0, x1 - x0) + Math.PI / 2;
+    const ca = Math.cos(a);
+    const sa = Math.sin(a);
+    deco2Flaeche(ctx, [[x0 + ca * w0, y0 + sa * w0], [x1 + ca * w1, y1 + sa * w1], [x1 - ca * w1, y1 - sa * w1], [x0 - ca * w0, y0 - sa * w0]], bark, DECO2_OUT, 1);
+  };
+  deco2Flaeche(ctx, [[x - 6, y + 0.5], [x - 2.5, y - 3], [x + 2.5, y - 3], [x + 6, y + 0.5]], darker(bark, 0.15), DECO2_OUT, 1);
+  ast(x + 2 * m, y - 12, x + 7 * m, y - 17, 1.4, 0.6);
+  ast(x - 1 * m, y - 9, x - 6 * m, y - 13, 1.3, 0.5);
+  ast(x, y, x + 0.6 * m, y - 20, 2.6, 1.4);
+  ast(x + 5 * m, y - 15.5, x + 5.5 * m, y - 19, 0.6, 0.3);
+  // Bruchkante mit Splittern
+  deco2Flaeche(ctx, [[x - 1, y - 19.5], [x + 0.2 * m, y - 22.5], [x + 0.9 * m, y - 20.2], [x + 2 * m, y - 21.8], [x + 2.2 * m, y - 19.3]], lighter(bark, 0.2), DECO2_OUT, 0.8);
+  ctx.fillStyle = lighter(bark, 0.2);
+  ctx.fillRect(x - 1.7, y - 17, 1, 14);
+  if (c.ember) {
+    ctx.strokeStyle = c.ember;
+    ctx.lineWidth = 0.9;
+    ctx.beginPath();
+    ctx.moveTo(x + 0.4, y - 3);
+    ctx.lineTo(x - 0.4, y - 8);
+    ctx.lineTo(x + 0.6, y - 12);
+    ctx.stroke();
+  }
+  if (c.snowy) deco2Flaeche(ctx, () => ctx.ellipse(x + 5 * m, y - 16.4, 2.4, 0.9, 0, 0, Math.PI * 2), '#f4f8fc', null);
+}
+
 function bridgeHoriz(x, y) {
   // seit 14.16: Brücken und Stege in den Städten wissen ihre Richtung (welt.js BRIDGE_DIR)
   const fix = typeof bridgeDirAt === 'function' ? bridgeDirAt(x, y) : undefined;
@@ -771,20 +1237,17 @@ const WALL2 = {
     for (const y of [-47, -31]) ctx.fillRect(-4, y, 5, 3);
     for (const y of [-40, -24]) ctx.fillRect(1, y, 4, 2.5);
   },
+  // seit 15.80 facettierte Kristalle (kristall2d) wie in 3D statt Blöcken mit einem hellen Strich
   kristall(ctx, dir) {
-    const c = '#6a5ac8';
     if (dir === 'h') {
       box(ctx, -16.5, -8, 33, 8, 1, '#2e2850');
-      for (let k = 0; k < 3; k++) {
-        const x = -16 + k * 11;
-        poly(ctx, [[x, -8], [x + 1, -30 - (k % 2) * 4], [x + 5.5, -34 - (k % 2) * 4], [x + 10, -30 - (k % 2) * 4], [x + 11, -8]], k % 2 ? c : lighter(c, 0.1));
-        stroke(ctx, '#d8d0ff', 1, [[x + 5.5, -31 - (k % 2) * 4], [x + 5.5, -10]]);
-      }
+      box(ctx, -16.5, -9, 33, 1.6, 0.6, '#8a82c8');
+      const cols = ['#9a84f4', '#a898f8', '#86b0f0'];
+      for (let k = 0; k < 3; k++) kristall2d(ctx, -11 + k * 11, -8.5, 27 + (k % 2) * 6, 10, (k - 1) * 0.04, kristallPal2(cols[k]));
       return;
     }
     box(ctx, -7, -12, 14, 12, 1, '#2e2850');
-    poly(ctx, [[-6, -12], [-5, -40], [0, -44], [5, -40], [6, -12]], c);
-    stroke(ctx, '#d8d0ff', 1, [[0, -40], [0, -14]]);
+    kristall2d(ctx, 0, -12, 34, 12, 0, kristallPal2('#a890ff'));
   }
 };
 function wallSprite(dir, style) {
@@ -1198,6 +1661,132 @@ function houseFrontSprite(h) {
   const H = h.h * TILE;
   return getSprite(`hf:${h.x}:${h.y}`, { x: -2, y: H - TILE - 14, w: W + 4, h: TILE + 18 }, (ctx) => houseFrontArt(ctx, h));
 }
+// --- Kleinigkeiten in den Städten (seit 15.80) ---------------------------------------------------------------------
+// Wunsch des Spielers: „in der Stadt ein paar Kleinigkeiten noch hinzufügen“. Je Stadt (Karte) passend zum Ort:
+//   - Blumenkästen unter den Fenstern der Häuser (2D hier, 3D in drei-welt.js): Blüten in den Farben der Stadt, sonst
+//     Kräuter (kraut), Tannenzweige mit Schnee (tanne), leuchtende Pilze (pilz) oder kleine Kristalle (kristall);
+//   - ein Vogelschwarm, der hoch über der Stadt kreist (3D wahrzeichen.js, 2D wahrzeichen2d.js): Tauben, Spatzen,
+//     Raben, Möwen, über Lichtwacht und den Mondstädten leuchtende Lichtschwalben (leucht).
+// Alles hängt an Häusern oder fliegt hoch über Kopfhöhe – nichts verdeckt Wege, Tore, Leute, Teleportsteine oder
+// Stände, nichts hat eine Kollision.
+const STADT_KLEIN = {
+  1: { blumen: ['#e0644f', '#f2d24e', '#f6f2ea', '#e88ab0'], kasten: '#7a5434', vogel: ['#eceae4', '#9a96a0'] },
+  4: { blumen: ['#f2d24e', '#f6f2ea', '#c85a9a'], kasten: '#5a3f2a', vogel: ['#7a5a3a', '#c8a878'] },
+  5: { blumen: ['#e0a03a', '#d8643a', '#f2d24e'], kasten: '#8a6a44', vogel: ['#3a2a24', '#6a5040'] },
+  6: { kraut: '#8a8a62', kasten: '#5a4a3e', vogel: ['#2a2628', '#5a5458'] },
+  2: { blumen: ['#e86a8a', '#f2d24e', '#ffffff'], kasten: '#b08a5a', vogel: ['#eceae4', '#b8ae9c'] },
+  7: { tanne: true, kasten: '#5a4a3e', vogel: ['#f4f8fc', '#9ab0cc'] },
+  8: { pilz: '#7ad86a', kasten: '#3a3428', vogel: ['#1e2420', '#3e4a40'] },
+  3: { blumen: ['#9fd0ff', '#f6f2ea', '#e8c84a'], kasten: '#6a5a4a', vogel: ['#4a4a52', '#8a8a96'] },
+  9: { blumen: ['#ff7a2a', '#ffb04a', '#ff4a2a'], kasten: '#3a2a24', vogel: ['#1e1614', '#4a2a20'] },
+  10: { kristall: ['#a890ff', '#8fd0ff'], kasten: '#2e2850', vogel: ['#e0d8ff', '#a898f0'], leucht: true },
+  11: { blumen: ['#c8b8ff', '#9fc8ff', '#f0f0ff'], kasten: '#3a3048', vogel: ['#dcdcff', '#8a90c8'], leucht: true },
+  12: { blumen: ['#ff8a4a', '#ffd070'], kasten: '#2a201c', vogel: ['#1e1816', '#3a2e28'] },
+  13: { kraut: '#a8a08a', kasten: '#a89a78', vogel: ['#2a2628', '#5a5250'] },
+  14: { blumen: ['#e8324a', '#ff8a8a', '#f2d24e'], kasten: '#3a1a18', vogel: ['#1e1214', '#4a2224'] },
+  15: { tanne: true, kasten: '#3a3a4e', vogel: ['#e4ecff', '#8a9ac8'] },
+  16: { blumen: ['#5ae0c0', '#c8f0ff'], kasten: '#3a3440', vogel: ['#e8ecf0', '#8a92a0'] },
+  17: { blumen: ['#dcecff', '#9fc8ff', '#c8b8ff'], kasten: '#3a4458', vogel: ['#dce8ff', '#9ab0d8'], leucht: true },
+  18: { kraut: '#8aa890', blumen: ['#f6f2ea', '#e8c84a'], kasten: '#8a7a64', vogel: ['#f4f4f0', '#9aa0a8'] },
+  19: { blumen: ['#9a7ae0', '#f2d24e', '#f6f2ea'], kasten: '#b4a888', vogel: ['#f6f2ea', '#c8b8a0'] }
+};
+// Karte, in der eine Kachel liegt (WORLD_MAPS.region)
+function stadtKarte(x, y) {
+  for (const m of WORLD_MAPS) {
+    const r = m.region;
+    if (r && x >= r[0] && x < r[0] + r[2] && y >= r[1] && y < r[1] + r[3]) return m.id;
+  }
+  return 0;
+}
+// Blumenkasten in 2D unter einem Fenster: Mitte x, Oberkante y, Breite w (Weltpixel)
+function blumenkasten2(ctx, x, y, w, T, k) {
+  const bw = w + 3;
+  ctx.fillStyle = 'rgba(20,14,10,0.8)';
+  ctx.fillRect(x - bw / 2 - 0.8, y - 0.8, bw + 1.6, 4.8);
+  ctx.fillStyle = T.kasten;
+  ctx.fillRect(x - bw / 2, y, bw, 3.2);
+  ctx.fillStyle = lighter(T.kasten, 0.2);
+  ctx.fillRect(x - bw / 2, y, bw, 1);
+  const n = Math.max(2, Math.round(bw / 4.5));
+  for (let i = 0; i < n; i++) {
+    const px = x - bw / 2 + (bw * (i + 0.5)) / n;
+    const py = y - 1.2 - ((i + k) % 2) * 0.8;
+    if (T.kristall) {
+      ctx.fillStyle = T.kristall[i % 2];
+      ctx.beginPath();
+      ctx.moveTo(px - 1.2, y + 0.5);
+      ctx.lineTo(px - 0.6, py - 2.4);
+      ctx.lineTo(px + 0.3, py - 3.6);
+      ctx.lineTo(px + 1.2, y + 0.5);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.7)';
+      ctx.fillRect(px - 0.6, py - 2.4, 0.6, 2);
+      continue;
+    }
+    if (T.tanne) {
+      ctx.fillStyle = '#2a4a40';
+      ctx.beginPath();
+      ctx.moveTo(px - 2, y + 0.4);
+      ctx.lineTo(px, py - 2.8);
+      ctx.lineTo(px + 2, y + 0.4);
+      ctx.fill();
+      ctx.fillStyle = '#f4f8fc';
+      ctx.fillRect(px - 1, py - 1.4, 2, 0.9);
+      continue;
+    }
+    // Blätter, darüber Blüten (Pilze: leuchtende Hüte; Kräuter: nur Grün)
+    ctx.fillStyle = T.kraut || '#3d7a33';
+    ctx.beginPath();
+    ctx.arc(px, y - 0.4, 1.8, 0, Math.PI * 2);
+    ctx.fill();
+    if (T.pilz) {
+      ctx.fillStyle = '#efe6cc';
+      ctx.fillRect(px - 0.4, py - 1.5, 0.8, 2);
+      ctx.fillStyle = T.pilz;
+      ctx.beginPath();
+      ctx.arc(px, py - 1.4, 1.5, Math.PI, 0);
+      ctx.fill();
+      continue;
+    }
+    if (!T.blumen || (T.kraut && i % 2)) continue;
+    ctx.fillStyle = T.blumen[(i + k) % T.blumen.length];
+    ctx.beginPath();
+    ctx.arc(px, py - 0.6, 1.25, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#f7d36a';
+    ctx.fillRect(px - 0.3, py - 0.9, 0.6, 0.6);
+  }
+}
+// Blumenkästen gehören zur Stadt: eigenes Hausbild je Stadt (sonst wie houseSprite), Stadtthema für houseWindow2
+let HAUS2_THEMA = null;
+let HAUS2_FENSTER = 0;
+const _klHouseSprite = houseSprite;
+houseSprite = function (h) {
+  const id = stadtKarte(h.x, h.y);
+  const T = STADT_KLEIN[id];
+  if (!T) return _klHouseSprite(h);
+  const W = h.w * TILE;
+  const H = h.h * TILE;
+  const L = h.look || {};
+  const key = `h:${h.w}:${h.h}:${h.roof}:${L.roof || ''}:${L.wall || ''}:${L.chimney ?? ''}:${L.annex || ''}:${L.tall || ''}:${L.door ?? ''}:${L.tor ? 1 : ''}:${h.enter ? h.enter.door : ''}:k${id}`;
+  h.__sk = key;
+  houseArtKey = key;
+  HAUS2_THEMA = T;
+  HAUS2_FENSTER = 0;
+  try {
+    return getSprite(key, { x: -W / 2 - 28, y: -H - 64, w: W + 56, h: H + 74 }, (ctx) => houseArt(ctx, h));
+  } finally {
+    houseArtKey = null;
+    HAUS2_THEMA = null;
+  }
+};
+const _klHouseWindow2 = houseWindow2;
+houseWindow2 = function (ctx, L, C, x, top, w, roof) {
+  _klHouseWindow2(ctx, L, C, x, top, w, roof);
+  if (!HAUS2_THEMA) return;
+  const k = L.wall || 'fachwerk';
+  blumenkasten2(ctx, x, top + (k === 'fachwerk' ? 24.6 : 23.6), k === 'lehm' ? 10 : k === 'fachwerk' ? w : 13, HAUS2_THEMA, HAUS2_FENSTER++);
+};
 // Möbel (Ursprung: Mitte der Fußlinie)
 const FURN2 = {
   kamin(ctx) {
@@ -1734,11 +2323,17 @@ Object.assign(PROP_ART, {
     poly(ctx, [[-22, -76], [0, -98], [22, -76]], '#8a3a22');
     stroke(ctx, darker('#8a3a22', 0.4), 1, [[-22, -76], [22, -76]]);
   },
+  // seit 15.80 facettiert (kristall2d): Sockel mit Gesims und silbernem Band, ein hoher Kristall mit zwei Begleitern
   kristallturm(ctx) {
     box(ctx, -12, -14, 24, 14, 2, '#2e2850');
-    box(ctx, -9, -20, 18, 7, 1.5, '#4a4278');
-    poly(ctx, [[-7, -20], [-6, -62], [0, -78], [6, -62], [7, -20]], '#8a7aff');
-    poly(ctx, [[-2, -22], [-1.5, -60], [0, -70], [1.5, -60], [2, -22]], '#e8e4ff');
+    box(ctx, -13.5, -16, 27, 3.2, 1, '#5a5290');
+    box(ctx, -9, -21, 18, 7, 1.5, '#4a4278');
+    box(ctx, -9, -21.6, 18, 1.6, 0.6, '#d8d4f0');
+    kristall2d(ctx, 5, -21, 22, 5.6, 0.42, kristallPal2('#9fd8ff'));
+    kristall2d(ctx, -5, -21, 19, 5, -0.48, kristallPal2('#c8b8ff'));
+    kristall2d(ctx, 0, -21.5, 58, 12, 0.02, kristallPal2('#b8a8ff'));
+    kristall2d(ctx, -8, -20.5, 6, 2.6, -1.0, kristallPal2('#9fd8ff'));
+    kristall2d(ctx, 8.5, -20.5, 5, 2.4, 1.05, kristallPal2('#c8b8ff'));
   },
   holztor(ctx) {
     for (const x of [-60, 60]) {

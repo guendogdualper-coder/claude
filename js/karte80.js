@@ -71,22 +71,24 @@ if (typeof ROCK_STYLES !== 'undefined') {
   ROCK_STYLES.leerenschlund = ['#2e2a4c', '#4a4278', null];
 }
 if (typeof DECO_COLORS !== 'undefined') {
-  const k = { wood: '#2a2440', bone: '#d8d4e8', crystal: '#a890ff', crystalBase: '#2a2444', glow: true, tuft: null };
-  DECO_COLORS.lichtwacht = { ...k, crystal: '#9fd8ff' };
-  DECO_COLORS.kristallhang = { ...k, crystal: '#9fc8ff' };
+  // seit 15.80 zweifarbig: Hauptkristalle und Nebenkristalle (crystal2) in Eisblau und Violett, Fuß tief nachtblau
+  const k = { wood: '#2a2440', bone: '#d8d4e8', crystal: '#a890ff', crystal2: '#8fd0ff', crystalDeep: '#120a3a', crystalBase: '#2a2444', glow: true, tuft: null, crystalScale: 1.4 };
+  DECO_COLORS.lichtwacht = { ...k, crystal: '#9fd8ff', crystal2: '#b8a0ff' };
+  DECO_COLORS.kristallhang = { ...k, crystal: '#9fc8ff', crystal2: '#c0a8ff' };
   DECO_COLORS.leerenschlund = k;
 }
 
-// Kristall: Prisma mit Spitze (wie die Kristallgruppen), geneigt um tilt, gedreht um yaw
+// Kristall: geneigt um tilt, gedreht um yaw. Seit 15.80 facettiert mit Farbverlauf und Glanzkanten (kristall3 in
+// drei-welt.js; vorher ein glattes Prisma mit Kegelspitze); die Farbe kommt aus der hellen Farbe top (sonst col), alle
+// Kristalle des Abgrunds leuchten von selbst. glow: dieser Kristall etwas heller (Spitze länger)
 const _k80q = new THREE.Quaternion();
 const _k80e = new THREE.Euler();
 const _k80p = new THREE.Vector3();
 function k80Gem(b, M, p, tilt, yaw, r, h, col, tip, top, glow) {
   const G = new THREE.Matrix4().compose(_k80p.set(p[0], p[1], p[2]), _k80q.setFromEuler(_k80e.set(0, yaw, -tilt, 'YXZ')), _stOne);
   const base = M ? M.clone().multiply(G) : G;
-  const mat = glow ? { mat: 'glow' } : {};
-  b.add(crystalGeo('body'), col, { m: atM3(base, [0, 0, 0], null, [r, h, r]), top, topK: 0.75, shade: 0.3, shine: 1, ...mat });
-  b.add(crystalGeo('tip'), tip, { m: atM3(base, [0, h, 0], null, [r, r * 1.6, r]), shine: 1, ...mat });
+  const c = top || col;
+  kristall3(b, base, r * 1.12, h, kristallPal3(glow ? lighter(typeof c === 'string' ? c : '#' + c.getHexString(), 0.12) : c, '#120a3a'), { v: Math.round(Math.abs(yaw) * 3 + h * 10), tip: glow ? 1.25 : 1 });
 }
 
 if (typeof WORLD3 !== 'undefined') {
@@ -111,15 +113,98 @@ if (typeof WORLD3 !== 'undefined') {
     k80Gem(b, M, [0.05, 1.0, 0.02], 0.55 * m, 1 + v, 0.07, 0.42, c0, t0, p0, true);
     k80Gem(b, M, [-0.04, 1.0, -0.03], -0.5 * m, 2.4 + v, 0.065, 0.36, cols[(v + 1) % 2][0], cols[(v + 1) % 2][1], cols[(v + 1) % 2][2], false);
   };
-  // Felsen: violetter Stein (ROCK_STYLES), auf manchen ein kleiner Kristall
+  // Felsen: violetter Stein (ROCK_STYLES), darauf eine Kristallgruppe (seit 15.80 auf allen drei Formen und größer –
+  // vorher zwei kleine Splitter auf zwei der drei Formen, die von oben wie helle Punkte aussahen)
   const baseRock = WORLD3.rock;
   WORLD3.rock = function (b, M, v, style) {
     baseRock.call(this, b, M, v, style);
-    if (!K80_STYLES.has(style) || v === 1) return;
+    if (!K80_STYLES.has(style)) return;
     const s = [1, 0.85, 1.15][v];
-    k80Gem(b, M, [0.12 * s, 0.32 * s, 0.05], 0.35, v * 2, 0.06 * s, 0.32 * s, '#8a78e0', '#e0dcff', '#b8a8ff', v === 2);
-    k80Gem(b, M, [-0.05 * s, 0.34 * s, -0.1], -0.25, v + 1, 0.045 * s, 0.22 * s, '#6aa0f0', '#e0f0ff', '#9fc8ff', false);
+    k80Gem(b, M, [0.08 * s, 0.26 * s, 0.02], 0.26, v * 2, 0.12 * s, 0.62 * s, '#8a78e0', '#e0dcff', '#b8a8ff', true);
+    k80Gem(b, M, [-0.14 * s, 0.24 * s, -0.08], -0.48, v + 1, 0.095 * s, 0.45 * s, '#6aa0f0', '#e0f0ff', '#9fc8ff', false);
+    k80Gem(b, M, [0.05 * s, 0.25 * s, 0.17], 0.66, v + 3.1, 0.075 * s, 0.34 * s, '#a890ff', '#e8e0ff', '#c8b8ff', false);
   };
+}
+
+// --- 2D (seit 15.80): Kristallbäume und Felsen mit Kristallen wie in 3D --------------------------------------------
+// Bis 15.79 standen in 2D an Stelle der Kristallbäume die braunen toten Bäume der anderen Karten, die Felsen waren nur
+// violett. Jetzt: dunkler Steinstamm mit kurzen Ästen, an den Enden und oben facettierte Kristalle (kristall2d,
+// umgebung.js); auf den Felsen wachsen Kristallgruppen.
+if (typeof TREE_ART !== 'undefined' && typeof kristall2d === 'function') {
+  const baseDead2 = TREE_ART.dead;
+  const P1 = () => kristallPal2('#a890ff');
+  const P2 = () => kristallPal2('#8fd0ff');
+  TREE_ART.dead = function (ctx, v, style) {
+    if (!K80_STYLES.has(style)) return baseDead2(ctx, v, style);
+    const m = v === 1 ? -1 : 1;
+    const limb = (x0, y0, x1, y1, w0, w1, c) => {
+      const a = Math.atan2(y1 - y0, x1 - x0) + Math.PI / 2;
+      const ca = Math.cos(a);
+      const sa = Math.sin(a);
+      poly(ctx, [[x0 + ca * w0, y0 + sa * w0], [x1 + ca * w1, y1 + sa * w1], [x1 - ca * w1, y1 - sa * w1], [x0 - ca * w0, y0 - sa * w0]], c);
+    };
+    // Wurzelfuß und Stamm, links eine helle Kante
+    poly(ctx, [[-8, 1.5], [-4, -4], [4, -4], [8, 1.5]], '#1e1a30');
+    limb(0, 1, 0.8 * m, -30, 5, 2.4, '#2a2440');
+    stroke(ctx, '#4a4070', 1, [[-2.5, -2], [-1.6 + 0.8 * m, -27]]);
+    // Äste mit Kristallen an den Enden
+    const arms = [[-14, 12 * m, -24], [-21, -11 * m, -31], [-26, 6 * m, -38]];
+    if (v === 2) arms.push([-8, -10, -14]);
+    arms.forEach(([y0, ex, ey], k) => {
+      limb(0.4 * m, y0, ex, ey, 2, 1, '#2a2440');
+      const ang = Math.atan2(ey - y0, ex - 0.4 * m) + Math.PI / 2;
+      kristall2d(ctx, ex, ey + 1, 10 - k, 4 - k * 0.3, ang * 0.8, k % 2 ? P2() : P1());
+    });
+    // Krone: ein großer Kristall und zwei schräge
+    kristall2d(ctx, -3 * m + 0.8 * m, -28, 12, 4.4, -0.55 * m, (v % 2 ? P1 : P2)());
+    kristall2d(ctx, 3 * m + 0.8 * m, -28, 11, 4.2, 0.6 * m, (v % 2 ? P2 : P1)());
+    kristall2d(ctx, 0.8 * m, -28, 21, 6.6, 0.06 * m, (v % 2 ? P2 : P1)());
+  };
+}
+if (typeof objectSprite === 'function' && typeof kristall2d === 'function') {
+  const baseObj2 = objectSprite;
+  objectSprite = function (kind, v, style) {
+    if (kind !== 'rock' || !K80_STYLES.has(style)) return baseObj2(kind, v, style);
+    // größerer Rahmen: die Kristalle ragen über den Felsen hinaus
+    return getSprite(`o:rock:${style}:${v}:k80`, { x: -26, y: -50, w: 54, h: 56 }, (ctx) => {
+      ctx.save();
+      rockArt(ctx, style, v);
+      ctx.restore();
+      const s = [1, 0.85, 1.15][v];
+      kristall2d(ctx, -6 * s, -14 * s, 13 * s, 4.6 * s, -0.5, kristallPal2('#8fd0ff'));
+      kristall2d(ctx, 1 * s, -17 * s, 22 * s, 6.4 * s, 0.12, kristallPal2('#a890ff'));
+      kristall2d(ctx, 7 * s, -13 * s, 11 * s, 4 * s, 0.62, kristallPal2('#c0a8ff'));
+    });
+  };
+}
+
+// --- Kristallfelder (seit 15.80) ------------------------------------------------------------------------------------
+// Wunsch des Spielers: schönere Kristalle „auf der ganzen Map verteilt“. Bis 15.79 gab es auf dem violetten Fels nur
+// wenige, kleine Kristallgruppen. Jetzt wachsen zusätzlich Gruppen (DECO_MEHR, umgebung.js) – in vier von zehn Feldern
+// von 5 × 5 Kacheln eine, in einem Drittel davon eine zweite daneben. Nur Schmuck ohne Kollision, nicht in der Stadt,
+// mit einer Kachel Abstand zu Wegen, Plätzen, Brücken, Mauern und Häusern; in 2D und 3D an denselben Stellen.
+if (typeof DECO_MEHR !== 'undefined') {
+  DECO_MEHR.push((x, y, i) => {
+    const w = game.world;
+    if (w.ground[i] !== GROUND.KRISTALL) return 0;
+    const z = ZONES[w.zoneIdx[i]];
+    if (!z || z.safe || !K80_STYLES.has(z.id)) return 0;
+    const G = 5;
+    const cx = Math.floor(x / G);
+    const cy = Math.floor(y / G);
+    const hc = townTileHash(cx * 31 + 7, cy * 19 + 5);
+    if ((hc >> 10) % 10 >= 4) return 0;
+    const fx = cx * G + 1 + (hc % 3);
+    const fy = cy * G + 1 + ((hc >> 3) % 3);
+    const zwei = (hc >> 14) % 3 === 0;
+    if (!((x === fx && y === fy) || (zwei && x === fx + 1 + ((hc >> 16) & 1) && y === fy + ((hc >> 17) & 1)))) return 0;
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      const j = i + dy * MAP_W + dx;
+      const g = w.ground[j];
+      if (g === GROUND.PATH || g === GROUND.PLAZA || w.deco[j] === DECO.BRIDGE || w.obj[j] === OBJ.WALL || w.obj[j] === OBJ.HOUSE) return 0;
+    }
+    return DECO.CRYSTAL;
+  });
 }
 
 // Randkulisse: Felsklippen aus dunklem violettem Gestein, darauf große Kristallsäulen (KUL3_FORM in drei-welt.js)

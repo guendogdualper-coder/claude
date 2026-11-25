@@ -354,13 +354,19 @@ function wzStrip(pts, widths, side) {
   g.computeVertexNormals();
   return g;
 }
-// Kristall: Prisma mit Spitze oben und unten (Länge len, Radius r)
+// Kristall mit Spitze oben und unten (Länge len, Radius r, Mitte bei p); flat: nur oben eine Spitze (sitzt auf etwas).
+// Seit 15.80 facettiert (kristall3 in drei-welt.js: abgeschrägte Kanten, Spitze in zwei Stufen, Farbverlauf von satt
+// unten nach fast weiß oben, Glanzkanten, Licht von innen) statt glattem Prisma mit Kegelspitzen in einer Farbe. Die
+// Farben sind gebacken, darum leuchten die Kristalle von selbst ('glow'; 'pulse' bleibt). Kleine Splitter (r < 0,2)
+// nehmen die einfache Form (lod 1).
 function wzCrystal(b, color, o) {
-  const { p, r = 1, len = 3, tilt = [0, 0, 0], mat = 'lit', tipK = 0.8, sides = 6 } = o;
+  const { p, r = 1, len = 3, tilt = [0, 0, 0], tipK = 0.8 } = o;
   const M = new THREE.Matrix4().compose(new THREE.Vector3(...p), o.q || new THREE.Quaternion().setFromEuler(new THREE.Euler(tilt[0], tilt[1], tilt[2])), new THREE.Vector3(1, 1, 1));
-  b.add(crystalGeo('body', sides), color, { parent: M, p: [0, -len / 2, 0], s: [r, len, r], mat, top: o.top, topK: 0.4 });
-  b.add(crystalGeo('tip', sides), color, { parent: M, p: [0, len / 2, 0], s: [r, r * tipK * 2.2, r], mat });
-  if (!o.flat) b.add(crystalGeo('tip', sides), color, { parent: M, p: [0, -len / 2, 0], s: [r, -r * tipK * 2.2, r], mat });
+  M.multiply(new THREE.Matrix4().makeTranslation(0, -len / 2, 0));
+  const v = Math.floor(Math.abs(p[0] * 7.3 + p[1] * 3.1 + p[2] * 5.7 + r * 13)) & 3;
+  kristall3(b, M, r, len, kristallPal3(color, o.deep), {
+    v, both: !o.flat, tip: tipK * 1.1, tipLow: 0.85, mat: o.mat === 'pulse' ? 'pulse' : 'glow', lod: o.lod != null ? o.lod : r < 0.2 ? 1 : 0
+  });
 }
 // Banner: Tuch an einer Stange (am Mast fest, frei wehend); dir: Richtung des Tuchs (Einheitsvektor in xz)
 function wzBanners(list) {
@@ -1031,25 +1037,70 @@ WZ_MAPS[10] = (wm, T) => {
       wzMeshIn(site, wzCurtainGeo(path, 1.5, 9.5), wzAuroraMat('licht', '#9fe0ff', '#b48aff', 0.55), { order: 4 });
     }
   }
-  // Lichtwacht: die zerbrochene Krone über der Zitadelle
+  // Lichtwacht: die zerbrochene Krone über der Zitadelle. Seit 15.80 detailreicher (Wunsch des Spielers: „über der
+  // Stadt viel schöner, detailreicher“): ein facettiertes Band in Silberviolett mit goldenen Rändern statt eines glatten
+  // weißen Reifs; zehn Kristallgruppen (je ein großer Kristall mit zwei kleinen) sitzen in goldenen Fassungen mit
+  // Krallen; darunter hängen Zapfen aus Kristall; in der Mitte schwebt ein Herzkristall, um den drei Splitter kreisen;
+  // neben der Lücke treiben abgebrochene Stücke des Bandes und Kristalle.
   const site = wzSite(town.cx + 0, town.cy - 12.5, 100);
   const b = new Bake3();
   const RC = 4.2;
   const arc = Math.PI * 2 * 0.8;
-  b.add(geo3('wzcrownring', () => new THREE.TorusGeometry(RC, 0.26, 6, 40, arc).rotateX(Math.PI / 2)), '#d4c4ff', { top: '#fff4ff', shine: 0.6 });
+  const BAND = '#a89ce8';
+  const GOLD = '#f0cf78';
+  // Band: im Querschnitt eine flache Raute (vier Flächen fangen das Licht), oben und unten ein goldener Rand
+  b.add(geo3('wzcrownband', () => new THREE.TorusGeometry(RC, 0.34, 4, 48, arc).rotateX(Math.PI / 2)), BAND, { s: [1, 0.62, 1], top: '#ece6ff', topK: 0.7, shade: 0.35 });
+  for (const y of [0.2, -0.2]) b.add(geo3('wzcrowntrim', () => new THREE.TorusGeometry(RC, 0.06, 4, 48, arc).rotateX(Math.PI / 2)), GOLD, { p: [0, y, 0] });
   const up = new THREE.Vector3(0, 1, 0);
+  const zAx = new THREE.Vector3(0, 0, 1);
   for (let k = 0; k < 10; k++) {
     const a = (k / 9.5) * arc;
-    const q = new THREE.Quaternion().setFromAxisAngle(up, -a).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), -0.32));
+    const cx = Math.cos(a) * RC;
+    const cz = Math.sin(a) * RC;
     const big = k % 3 === 1;
-    const len = big ? 3.2 + rnd() : 1.8 + rnd() * 1.2;
-    wzCrystal(b, k % 2 ? '#c8b8ff' : '#a8d8ff', { p: [Math.cos(a) * RC, len * 0.42, Math.sin(a) * RC], q, r: big ? 0.48 : 0.34, len, top: '#ffffff', flat: true });
+    const col = k % 2 ? '#c8b8ff' : '#a8d8ff';
+    const col2 = k % 2 ? '#a8d8ff' : '#c8b8ff';
+    // Fassung: goldener Ring auf dem Band, drei Krallen greifen den Kristall
+    b.add(cyl3(big ? 0.5 : 0.38, big ? 0.42 : 0.32, 0.16, 8), GOLD, { p: [cx, 0.24, cz] });
+    for (let j = 0; j < 3; j++) {
+      const aj = a + j * 2.09;
+      coneAlong((g, c, o) => b.add(g, c, o), horn3(1, 1, 5), [cx + Math.cos(aj) * (big ? 0.44 : 0.33), 0.28, cz + Math.sin(aj) * (big ? 0.44 : 0.33)], [Math.cos(aj) * -0.35, 1, Math.sin(aj) * -0.35], big ? 0.55 : 0.42, 0.07, GOLD);
+    }
+    const q = new THREE.Quaternion().setFromAxisAngle(up, -a).multiply(new THREE.Quaternion().setFromAxisAngle(zAx, -0.3));
+    const len = big ? 2.6 + rnd() * 0.8 : 1.5 + rnd() * 0.8;
+    const r = big ? 0.46 : 0.32;
+    const off = new THREE.Vector3(0, len / 2, 0).applyQuaternion(q);
+    wzCrystal(b, col, { p: [cx + off.x, 0.22 + off.y, cz + off.z], q, r, len, flat: true, tipK: 0.95 });
+    // zwei kleine Kristalle am Fuß, zur Seite geneigt
+    for (const s of [-1, 1]) {
+      const q2 = new THREE.Quaternion().setFromAxisAngle(up, -a + s * 0.5).multiply(new THREE.Quaternion().setFromAxisAngle(zAx, -0.75));
+      const l2 = len * 0.38;
+      const o2 = new THREE.Vector3(0, l2 / 2, 0).applyQuaternion(q2);
+      wzCrystal(b, col2, { p: [cx + Math.cos(a + s * 0.09) * 0.12 + o2.x, 0.26 + o2.y, cz + Math.sin(a + s * 0.09) * 0.12 + o2.z], q: q2, r: r * 0.45, len: l2, flat: true });
+    }
+    // Zapfen darunter (zwischen den Gruppen): kleiner Kristall mit der Spitze nach unten
+    const ah = ((k + 0.5) / 9.5) * arc;
+    if (k < 9) wzCrystal(b, col2, { p: [Math.cos(ah) * RC, -0.55 - (k % 2) * 0.2, Math.sin(ah) * RC], r: 0.16, len: 0.5 + (k % 2) * 0.25, tilt: [Math.PI, 0, 0], flat: true, lod: 0 });
   }
   wzGlow(b, 0, 0.6, 0, 7, '#9a88ff', 0.6);
   wzAnim(site, b, (o, t) => { o.rotation.y = t * 0.05; o.position.y = 8.2 + Math.sin(t * 0.6) * 0.25; }, 0, 8.2, 0);
-  // abgebrochene Stücke treiben neben der Lücke
+  // Herzkristall in der Mitte, dreht sich langsam gegen das Band, drei Splitter kreisen um ihn
+  const hb = new Bake3();
+  wzCrystal(hb, '#d8ccff', { p: [0, 0, 0], r: 0.62, len: 1.5, tipK: 1.25, deep: '#2a1a6a' });
+  for (let j = 0; j < 3; j++) {
+    const aj = (j / 3) * Math.PI * 2;
+    wzCrystal(hb, j % 2 ? '#a8e0ff' : '#e0d4ff', { p: [Math.cos(aj) * 1.45, (j - 1) * 0.35, Math.sin(aj) * 1.45], r: 0.14, len: 0.45, tilt: [0.5, aj, 0.4] });
+  }
+  wzGlow(hb, 0, 0, 0, 3.4, '#c8b8ff', 0.7);
+  wzAnim(site, hb, (o, t) => { o.rotation.y = -t * 0.32; o.position.y = 9.4 + Math.sin(t * 0.9) * 0.3; }, 0, 9.4, 0);
+  // abgebrochene Stücke treiben neben der Lücke: zwei Stücke des Bandes, drei Kristalle
   const fb = new Bake3();
   for (let k = 0; k < 3; k++) wzCrystal(fb, '#c8b8ff', { p: [RC * 0.9 + k * 0.9, k * 0.7 - 0.4, -RC * 0.55 - k * 0.6], r: 0.3, len: 1.4 + k * 0.4, tilt: [0.6 * k, k, 0.9 - k * 0.4] });
+  // Stück des Bandes, um seine eigene Mitte gebaut (dreht sich nicht um die Mitte der Krone)
+  const bit = geo3('wzcrownbit', () => new THREE.TorusGeometry(RC, 0.34, 4, 4, 0.22).rotateX(Math.PI / 2).translate(-RC * Math.cos(0.11), 0, -RC * Math.sin(0.11)));
+  for (let k = 0; k < 2; k++) {
+    fb.add(bit, BAND, { p: [3.1 - k * 0.5, -0.7 + k * 0.75, -3.0 + k * 0.55], r: [0.35 + k * 0.5, 0.9 + k * 0.6, 0.25 - k * 0.4], s: [1, 0.62, 1], top: '#ece6ff', topK: 0.7, shade: 0.35 });
+  }
   wzAnim(site, fb, (o, t) => { o.rotation.y = t * 0.05 + 0.2; o.position.y = 8.2 + Math.sin(t * 0.8 + 1) * 0.5; }, 0, 8.2, 0);
   wzBeam(site, 0, 0, 0, 4.4, 3.6, 8.2, '#c8b8ff', 0.22);
   // Lichtvorhänge aus den Abgrundspalten der Stadt und schwebende Splitter darüber
@@ -2420,3 +2471,65 @@ if (typeof mapFormCleanup === 'function') {
     wzDecorateMaps(maps, ground, obj, deco);
   };
 }
+
+// --- Vogelschwarm über jeder Stadt (seit 15.80, STADT_KLEIN.vogel in umgebung.js) ---------------------------------
+// Wunsch des Spielers: Kleinigkeiten in den Städten. Zwei, drei kleine Schwärme kreisen hoch über den Dächern, mal mit
+// Flügelschlag, mal im Gleitflug; Tauben, Spatzen, Raben, Möwen je Stadt, über Lichtwacht und den Mondstädten leuchtende
+// Lichtschwalben. Fliegt weit über Kopfhöhe (verdeckt nichts), keine Kollision, kein eigenes Licht, ein Mesh je Schwarm.
+// Grafik „Niedrig“: ein Schwarm.
+function wzVoegel(wm, tier) {
+  const T = typeof STADT_KLEIN !== 'undefined' ? STADT_KLEIN[wm.id] : null;
+  if (!T || !T.vogel) return;
+  const cx = wm.id === 1 ? CENTER_X : wm.cx;
+  const cy = wm.id === 1 ? CENTER_Y : wm.cy;
+  if (typeof cx !== 'number' || typeof cy !== 'number') return;
+  const site = wzSite(cx + 0.5, cy + 0.5, 150);
+  const [c1, c2] = T.vogel;
+  const mat = T.leucht ? 'glow' : 'lit';
+  const flocks = tier > 1 ? 3 : tier ? 2 : 1;
+  for (let f = 0; f < flocks; f++) {
+    const b = new Bake3();
+    const n = tier > 1 ? 4 : 3;
+    const R = 6.5 + f * 2.6;
+    const dir = f % 2 ? 1 : -1; // Flugrichtung: Drehung positiv → der Vogel bei x = R fliegt nach −z
+    for (let k = 0; k < n; k++) {
+      const ox = R + (((k * 37) % 5) - 2) * 0.4;
+      const oy = ((k * 13) % 3) * 0.35;
+      const oz = k * 0.75 * dir;
+      const fw = -dir; // vorn
+      const g = 0.72; // Größe (die Vögel fliegen nah unter der Kamera, darum kleiner als in Spielmaß)
+      b.add(sphere3(0.1 * g, 6, 4), c1, { p: [ox, oy, oz], s: [0.75, 0.65, 1.7], mat });
+      b.add(sphere3(0.065 * g, 5, 4), c1, { p: [ox, oy + 0.03 * g, oz + 0.18 * g * fw], mat });
+      b.add(tinyBox(0.04 * g, 0.03 * g, 0.06 * g), '#e8b040', { p: [ox, oy + 0.02 * g, oz + 0.26 * g * fw], mat });
+      b.add(tinyBox(0.13 * g, 0.015, 0.16 * g), c2, { p: [ox, oy, oz - 0.22 * g * fw], mat });
+      for (const sd of [-1, 1]) b.add(tinyBox(0.36 * g, 0.02, 0.14 * g), c2, { p: [ox + sd * 0.21 * g, oy + 0.05 * g, oz + 0.02 * g * fw], r: [0, 0, sd * 0.34], mat });
+      if (T.leucht) wzGlow(b, ox, oy, oz, 0.6, c1, 0.45);
+    }
+    const ph = f * 2.1 + wm.id * 0.7;
+    const sp = (0.2 + f * 0.05) * dir;
+    const hgt = 6.6 + f * 0.8;
+    wzAnim(site, b, (o, t) => {
+      o.rotation.y = t * sp + ph;
+      o.position.y = hgt + Math.sin(t * 0.7 + ph) * 0.45;
+      // Flügelschlag in Schüben, dazwischen Gleiten (das V der Flügel wird tiefer und flacher)
+      const fl = Math.max(0, Math.sin(t * 0.8 + ph));
+      o.scale.y = 1 + Math.sin(t * 12 + ph) * 0.85 * fl;
+    }, 0, hgt, 0);
+  }
+}
+// Karten ohne eigenes Wahrzeichen bekommen einen leeren Eintrag (sonst baut wzBuild dort nichts), danach die Vögel
+const _vgWzBuild = wzBuild;
+wzBuild = function (key, tier) {
+  const id = key && key[0] === 'm' ? +key.slice(1) : 0;
+  if (id && !WZ_MAPS[id] && WORLD_MAPS.some((m) => m.id === id)) WZ_MAPS[id] = () => {};
+  _vgWzBuild(key, tier);
+  if (!id || !WZ.root) return;
+  try {
+    const wm = WORLD_MAPS.find((m) => m.id === id);
+    if (wm) wzVoegel(wm, tier);
+    for (const g of WZ.tmp) g.dispose();
+    WZ.tmp.length = 0;
+  } catch (e) {
+    console.error('Vögel Map ' + id, e);
+  }
+};

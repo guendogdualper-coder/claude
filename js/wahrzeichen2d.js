@@ -624,48 +624,22 @@ function wz2dBrazier(ctx, x, y, s, t, seed) {
   for (let i = -1; i <= 1; i++) ctx.fillRect(x + i * 4.5 * s - 0.8, y - 6 * s, 1.6, 6 * s);
   wz2dFire(ctx, x, y - 8 * s, s, t, seed);
 }
-// Kristall: sechskantige Säule mit Spitze, links hell, rechts dunkler, weiße Kante; Fuß bei (0, 0), Länge L, Breite w
+// Kristall der Wahrzeichen (Fuß bei x, y, Breite w, Länge L, gedreht um ang). Seit 15.80 facettiert wie die Kristalle
+// am Boden (kristall2d in umgebung.js: drei Flächen mit Verlauf, Spitze aus drei Facetten, Glanzkante, Umriss), Farben
+// aus col; colD, colL und colO bleiben für alte Aufrufe stehen. Einmal als Bild gebacken (je Farbe und Maß), jedes Bild
+// nur noch gedreht hingesetzt – die Wahrzeichen werden in jedem Bild neu gemalt.
+function wz2dKristallBild(col, w, Lu, Ld) {
+  const wr = Math.round(w * 2) / 2;
+  const u = Math.round(Lu);
+  const d = Math.round(Ld);
+  return getSprite(`wzk:${col}:${wr}:${u}:${d}`, { x: -wr / 2 - 3, y: -u - 4, w: wr + 6, h: u + d + 8 }, (c) => kristall2d(c, 0, d, u + d, wr, 0, kristallPal2(col), d > 0));
+}
 function wz2dCrystal(ctx, x, y, w, L, ang, col, colD, colL = '#ffffff', colO = null) {
+  const sp = wz2dKristallBild(col, w, L, 0);
   ctx.save();
   ctx.translate(x, y);
-  ctx.rotate(ang);
-  if (colO) {
-    // Umriss (vor hellem Grund wie Schnee)
-    ctx.fillStyle = colO;
-    ctx.beginPath();
-    ctx.moveTo(0, 1.5);
-    ctx.lineTo(w / 2 + 1.4, -w * 0.1);
-    ctx.lineTo(w / 2 + 1.4, -L * 0.74);
-    ctx.lineTo(0, -L - 2);
-    ctx.lineTo(-w / 2 - 1.4, -L * 0.74);
-    ctx.lineTo(-w / 2 - 1.4, -w * 0.1);
-    ctx.closePath();
-    ctx.fill();
-  }
-  ctx.fillStyle = colD;
-  ctx.beginPath();
-  ctx.moveTo(0, 0);
-  ctx.lineTo(w / 2, -w * 0.1);
-  ctx.lineTo(w / 2, -L * 0.74);
-  ctx.lineTo(0, -L);
-  ctx.closePath();
-  ctx.fill();
-  ctx.fillStyle = col;
-  ctx.beginPath();
-  ctx.moveTo(0, 0);
-  ctx.lineTo(-w / 2, -w * 0.1);
-  ctx.lineTo(-w / 2, -L * 0.74);
-  ctx.lineTo(0, -L);
-  ctx.closePath();
-  ctx.fill();
-  ctx.strokeStyle = colL;
-  ctx.lineWidth = 1.2;
-  ctx.beginPath();
-  ctx.moveTo(0, -1);
-  ctx.lineTo(0, -L);
-  ctx.moveTo(-w / 2, -L * 0.74);
-  ctx.lineTo(0, -L);
-  ctx.stroke();
+  if (ang) ctx.rotate(ang);
+  ctx.drawImage(sp.img, sp.bounds.x, sp.bounds.y, sp.bounds.w, sp.bounds.h);
   ctx.restore();
 }
 const wz2dGlow = (ctx, x, y, r, rgb, a) => {
@@ -1983,42 +1957,39 @@ WZ2D_MAPS[10] = (wm) => {
   const F = wzField(wm, 'liq', true);
   const mono = wzPickMany(F, 4, { cx: town.cx, cy: town.cy, R: 999, min: 5.5, cap: 7, distK: 0.01, sep: 46, town: { cx: town.cx, cy: town.cy, H: town.H + 6 } });
   mono.forEach((m, k) => out.push({ x: m.x * TILE, y: m.y * TILE, k, reach: 120, h: 400, ground: wz2dMonolithGround, draw: wz2dMonolith }));
+  // seit 15.80 wie in 3D: über den beiden Abgrundspalten der Stadt schweben je drei Kristalle
+  if (typeof wzTownLiquids === 'function') {
+    for (const cp of wzTownLiquids(town)) {
+      if (cp.n < 6) continue;
+      const vert = cp.h >= cp.w;
+      const L = (vert ? cp.h : cp.w) * TILE;
+      out.push({
+        x: cp.cx * TILE, y: cp.cy * TILE + (vert ? L * 0.35 : 0), reach: L * 0.6 + 40, h: 160,
+        draw: (ctx, o, t) => {
+          for (let k = 0; k < 3; k++) {
+            const d = (k - 1) * L * 0.3;
+            const x = vert ? 0 : d;
+            const y = (vert ? d - L * 0.35 : 0) - 64 - k * 14 + Math.sin(t * 0.9 + k * 1.7 + cp.cx) * 4;
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(Math.sin(t * 0.2 + k + cp.cx) * 0.3 + 0.2);
+            wz2dCrystal2(ctx, 9, 16 + k * 3, 11 + k * 2, k % 2 ? '#a8d8ff' : '#c8b8ff');
+            ctx.restore();
+          }
+        }
+      });
+    }
+  }
   return out;
 };
 function wz2dMonolithGround(ctx, o, t) {
   wz2dGlow(ctx, 0, 0, 90, '138,112,255', 0.22 + 0.05 * Math.sin(t * 0.7 + o.k));
 }
-// doppelendiger Kristall, Mitte bei (0, 0): oben Spitze Lu, unten Ld, Breite w; links Licht, rechts Schatten
+// doppelendiger Kristall, Mitte bei (0, 0): oben Spitze Lu, unten Ld, Breite w. Seit 15.80 facettiert (kristall2d,
+// gebacken wie wz2dCrystal)
 function wz2dCrystal2(ctx, w, Lu, Ld, col, colM, colD) {
-  const h = w / 2;
-  ctx.fillStyle = '#2a1e5a';
-  ctx.beginPath();
-  ctx.moveTo(0, -Lu - 2);
-  ctx.lineTo(h + 2, -Lu * 0.6);
-  ctx.lineTo(h + 2, Ld * 0.55);
-  ctx.lineTo(0, Ld + 2);
-  ctx.lineTo(-h - 2, Ld * 0.55);
-  ctx.lineTo(-h - 2, -Lu * 0.6);
-  ctx.closePath();
-  ctx.fill();
-  const face = (pts, c) => {
-    ctx.fillStyle = c;
-    ctx.beginPath();
-    pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
-    ctx.closePath();
-    ctx.fill();
-  };
-  face([[0, -Lu], [h, -Lu * 0.6], [h, Ld * 0.55], [0, Ld], [-h, Ld * 0.55], [-h, -Lu * 0.6]], colM);
-  face([[0, -Lu], [-h, -Lu * 0.6], [-h, Ld * 0.55], [0, Ld], [-w * 0.1, Ld * 0.5], [-w * 0.1, -Lu * 0.55]], col);
-  face([[0, -Lu], [h, -Lu * 0.6], [h, Ld * 0.55], [0, Ld], [w * 0.2, Ld * 0.5], [w * 0.2, -Lu * 0.55]], colD);
-  ctx.strokeStyle = '#ffffff';
-  ctx.lineWidth = 1.4;
-  ctx.beginPath();
-  ctx.moveTo(-w * 0.1, Ld * 0.5);
-  ctx.lineTo(-w * 0.1, -Lu * 0.55);
-  ctx.lineTo(0, -Lu);
-  ctx.lineTo(-h, -Lu * 0.6);
-  ctx.stroke();
+  const sp = wz2dKristallBild(col, w, Lu, Ld);
+  ctx.drawImage(sp.img, sp.bounds.x, sp.bounds.y, sp.bounds.w, sp.bounds.h);
 }
 function wz2dMonolith(ctx, o, t) {
   const k = o.k;
@@ -2149,10 +2120,29 @@ function wz2dKrone(ctx, o, t) {
   band(false, 9, '#5e4cae', 0);
   band(false, 2, '#a898e8', -3);
   for (const p of ring) if (!p.front) crystal(p);
+  // seit 15.80 wie in 3D: in der Mitte schwebt ein Herzkristall, um den drei Splitter kreisen
+  const hy = cy - 34 + Math.sin(t * 0.9) * 4;
+  wz2dGlow(ctx, 0, hy, 46, '200,184,255', 0.4);
+  for (let j = 0; j < 3; j++) {
+    const aj = -t * 0.32 + (j / 3) * Math.PI * 2;
+    if (Math.sin(aj) < 0) wz2dCrystal(ctx, Math.cos(aj) * 34, hy + Math.sin(aj) * 9 + 6, 6, 13, Math.cos(aj) * 0.5, j % 2 ? '#a8e0ff' : '#e0d4ff');
+  }
+  ctx.save();
+  ctx.translate(0, hy);
+  ctx.rotate(Math.sin(t * 0.32) * 0.08);
+  wz2dCrystal2(ctx, 20, 30, 22, '#d8ccff');
+  ctx.restore();
+  for (let j = 0; j < 3; j++) {
+    const aj = -t * 0.32 + (j / 3) * Math.PI * 2;
+    if (Math.sin(aj) >= 0) wz2dCrystal(ctx, Math.cos(aj) * 34, hy + Math.sin(aj) * 9 + 6, 6, 13, Math.cos(aj) * 0.5, j % 2 ? '#a8e0ff' : '#e0d4ff');
+  }
   for (const p of ring) if (p.front) shard(p);
   band(true, 11, '#9686e6', 0);
   band(true, 3, '#f4f0ff', -3.5);
   band(true, 2, '#4a3a9a', 4.5);
+  // goldene Ränder oben und unten (wie das Band in 3D)
+  band(true, 1.6, '#f0cf78', -5.2);
+  band(true, 1.4, '#f0cf78', 6);
   ctx.lineCap = 'butt';
   for (const p of ring) if (p.front) crystal(p);
   // abgebrochene Stücke treiben in der Lücke
@@ -2164,3 +2154,80 @@ function wz2dKrone(ctx, o, t) {
     wz2dCrystal(ctx, fx, fy, 8, 18 + k * 5, 0.6 * k - 0.4 + Math.sin(t * 0.5 + k) * 0.2, '#c8b8ff', '#7a64d8', '#ffffff', '#3a2a78');
   }
 }
+
+// --- Vogelschwarm über jeder Stadt in 2D (seit 15.80, wie in 3D wzVoegel; STADT_KLEIN in umgebung.js) ---------------
+// Kleine Vögel kreisen hoch über der Stadt, mal mit Flügelschlag, mal gleitend; ihr Schatten zieht über den Boden. Als
+// Weltobjekt am Südrand der Stadt einsortiert (über den Dächern gezeichnet), ohne Kollision.
+function wz2dVoegelListe(wm) {
+  const T = typeof STADT_KLEIN !== 'undefined' ? STADT_KLEIN[wm.id] : null;
+  if (!T || !T.vogel) return null;
+  const cx = wm.id === 1 ? CENTER_X : wm.cx;
+  const cy = wm.id === 1 ? CENTER_Y : wm.cy;
+  if (typeof cx !== 'number' || typeof cy !== 'number') return null;
+  const H = typeof townLayoutHalf === 'function' ? townLayoutHalf(wm.id) || 13 : 13;
+  const n = opts.graphics === 'niedrig' ? 4 : 8;
+  const birds = [];
+  for (let k = 0; k < n; k++) birds.push({ R: (6.5 + (k % 3) * 2.4) * TILE, ph: k * 0.83 + wm.id, sp: (k % 3 === 1 ? -1 : 1) * (0.2 + (k % 3) * 0.04), hoch: 150 + (k % 4) * 14, off: (k >> 1) * 0.16 });
+  const pos = (b, t) => {
+    const a = t * b.sp + b.ph + b.off;
+    return [Math.cos(a) * b.R, Math.sin(a) * b.R * 0.8 - H * TILE];
+  };
+  return {
+    x: (cx + 0.5) * TILE, y: (cy + H) * TILE, reach: (H + 12) * TILE, h: 420,
+    ground: (ctx, o, t) => {
+      ctx.fillStyle = 'rgba(10,8,20,0.16)';
+      for (const b of birds) {
+        const [x, y] = pos(b, t);
+        ctx.beginPath();
+        ctx.ellipse(x + 30, y + 18, 4, 1.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    },
+    draw: (ctx, o, t) => {
+      const [c1, c2] = T.vogel;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      for (const b of birds) {
+        const [x, y0] = pos(b, t);
+        const y = y0 - b.hoch;
+        const fl = Math.max(0, Math.sin(t * 0.8 + b.ph));
+        const up = Math.sin(t * 12 + b.ph) * (0.25 + 0.75 * fl);
+        const dir = b.sp > 0 ? 1 : -1;
+        const path = () => {
+          ctx.beginPath();
+          ctx.moveTo(x - 6, y - 2.5 * up);
+          ctx.quadraticCurveTo(x - 3, y - 2.6 - 2 * up, x, y);
+          ctx.quadraticCurveTo(x + 3, y - 2.6 - 2 * up, x + 6, y - 2.5 * up);
+        };
+        if (T.leucht) glow(ctx, x, y - 1, 8, '#dcd2ff', 0.35);
+        ctx.strokeStyle = 'rgba(20,14,24,0.75)';
+        ctx.lineWidth = 3;
+        path();
+        ctx.stroke();
+        ctx.strokeStyle = c1;
+        ctx.lineWidth = 1.6;
+        path();
+        ctx.stroke();
+        ctx.fillStyle = c2;
+        ctx.fillRect(x - 1 + dir * 0.5, y - 1.2, 2, 2);
+      }
+      ctx.lineCap = 'butt';
+    }
+  };
+}
+const _vgWz2dList = wz2dList;
+wz2dList = function () {
+  const neu = !(WZ2D.list && WZ2D.world === game.world);
+  const list = _vgWz2dList();
+  if (neu && game.world) {
+    for (const wm of WORLD_MAPS) {
+      try {
+        const o = wz2dVoegelListe(wm);
+        if (o) list.push(o);
+      } catch (e) {
+        console.error('Vögel 2D Map ' + wm.id, e);
+      }
+    }
+  }
+  return list;
+};

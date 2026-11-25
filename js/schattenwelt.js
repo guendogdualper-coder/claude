@@ -102,9 +102,9 @@ if (typeof DECO_COLORS !== 'undefined') {
     daemmerwiesen: { bush: '#2a3e5a', bushTop: '#4a6a8a', berry: '#c8b8ff', tuft: '#2e5a5e', moss: '#4a3a6a', cap: '#9a8aff', capDot: '#e0dcff', capGlow: true },
     aschewald: { wood: '#1e1816', cut: '#4a3a30', ring: '#2a201c', bone: '#c8c0b0', ember: '#ff7a2a', char: '#2a201a', glow: true, tuft: '#3a3230' },
     knochenwueste: { wood: '#c8c0ac', cut: '#e8e0cc', bone: '#f4ecd8', tuft: '#a8a090', thorn: true },
-    blutsteppe: { wood: '#3a1a18', bone: '#e0d0c0', crystal: '#c82a3a', crystalBase: '#2a1012', glow: true, ember: '#ff3a4a', tuft: '#7a3430' },
-    nachtfrost: { wood: '#3a3a4e', cut: '#a8b0c8', ring: '#5a6078', crystal: '#7a8aff', crystalBase: '#2e3658', snowy: true, tuft: '#5a6a8a' },
-    schattenklippen: { wood: '#3a3440', bone: '#d8d4e0', crystal: '#9a8aff', crystalBase: '#24242e', glow: true, tuft: '#5a5a6a' },
+    blutsteppe: { wood: '#3a1a18', bone: '#e0d0c0', crystal: '#c82a3a', crystal2: '#ff6a5a', crystalDeep: '#2a0408', crystalBase: '#2a1012', glow: true, ember: '#ff3a4a', tuft: '#7a3430' },
+    nachtfrost: { wood: '#3a3a4e', cut: '#a8b0c8', ring: '#5a6078', crystal: '#7a8aff', crystal2: '#a8d0ff', crystalDeep: '#141a4a', crystalBase: '#2e3658', snowy: true, tuft: '#5a6a8a' },
+    schattenklippen: { wood: '#3a3440', bone: '#d8d4e0', crystal: '#9a8aff', crystal2: '#7fd8e8', crystalDeep: '#140e34', crystalBase: '#24242e', glow: true, tuft: '#5a5a6a' },
     schwarzmoor: { wood: '#2a2a22', moss: '#2e5a44', cap: '#7ae0a8', capGlow: true, bone: '#c8c8b0', tuft: '#2e4a3a', bush: '#1e3a2e', bushTop: '#3a6a52' }
   });
 }

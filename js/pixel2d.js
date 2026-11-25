@@ -149,6 +149,11 @@ const PIX_GROUND_KIND = {};
   set('sand', G.SAND, G.ASH, G.KNOCHENSAND);
   set('schnee', G.SNOW, G.NACHTSCHNEE);
   set('stein', G.BASALT, G.CAVE, G.KRISTALL);
+  // seit 15.80 auch die Böden der Karten 18 und 19 (vorher ganz ohne Muster, flache Farbflächen): Strandsand wie Sand,
+  // Dünen- und Goldgras wie Gras (eigene Art, damit dort keine Felder entstehen), heller Terrassenfels wie Stein
+  set('sand', G.STRANDSAND);
+  set('gras2', G.DUENENGRAS, G.GOLDGRAS);
+  set('stein', G.HELLSTEIN);
   set('pflaster', G.PLAZA, G.FLAGSTONE);
   set('wasser', G.WATER);
 })();
@@ -210,7 +215,7 @@ function pixPatternCanvas(kind) {
     for (let x = 0; x < N; x++) {
       const n = pixHash(x, y, 1);
       const f = cell(x, y, 3);
-      if (kind === 'gras' || kind === 'moos') {
+      if (kind === 'gras' || kind === 'gras2' || kind === 'moos') {
         if (f > 0.72) dot(x, y, 'rgba(255,255,190,0.05)');
         else if (f < 0.22) dot(x, y, 'rgba(0,30,0,0.07)');
         if (n < 0.055) {
@@ -719,7 +724,7 @@ const TILT_WALL = {
   terrasse: [[7, 0, 15, '#8a8a92'], [7.6, 15, 18, '#f4f8fc']],
   sonnenstein: [[7, 0, 16, '#e2dccc'], [7.6, 16, 19, '#ece6d6']],
   palisade: [[3.2, 0, 38, '#7a5434']],
-  kristall: [[7, 0, 12, '#2e2850'], [5.5, 12, 40, '#6a5ac8']]
+  kristall: [[7, 0, 12, '#2e2850'], [5.5, 12, 36, '#7a66d8']]
 };
 // Umrissfarbe je Mauerart (Sonnenstein mit goldener Kante wie die Bilder) und Schmuck der Wand: [Abstand, Farbe, Breite]
 const TILT_WALL_OUT = { sonnenstein: '#b8902e' };
@@ -837,6 +842,31 @@ function tiltWall(p, e, pu, U) {
     pt(q2, bx - nx * hw, by - ny * hw, h1);
     pt(q3, ax - nx * hw, ay - ny * hw, h1);
     quad(pixGradeHex(lighter(col, 0.12)));
+  }
+  // seit 15.80: auf der Kristallwand facettierte Spitzen (wie die Kristalle der Bilder und in 3D), links hell, rechts
+  // dunkler, je Kristall eine Glanzkante
+  if (e.style === 'kristall') {
+    const h1 = prof[prof.length - 1][2];
+    const P2 = typeof kristallPal2 === 'function' ? kristallPal2('#9a84f4') : null;
+    for (let t = 5.5; t < dl; t += 11) {
+      const x = ax + dx * t;
+      const y = ay + dy * t;
+      const hk = h1 + 7 + (Math.floor(t / 11 + x * 0.05) % 2) * 3;
+      const tri = (xa, ya, ha, xb, yb, hb, col) => {
+        pt(q0, xa, ya, ha);
+        pt(q1, xb, yb, hb);
+        pt(q2, x, y, hk);
+        p.fillStyle = pixGradeHex(col);
+        p.beginPath();
+        p.moveTo(q0.x, q0.y);
+        p.lineTo(q1.x, q1.y);
+        p.lineTo(q2.x, q2.y);
+        p.closePath();
+        p.fill();
+      };
+      tri(x - dx * 4.5, y - dy * 4.5, h1 - 0.5, x, y, h1 - 0.5, P2 ? P2.tipL : '#d8d0ff');
+      tri(x, y, h1 - 0.5, x + dx * 4.5, y + dy * 4.5, h1 - 0.5, P2 ? P2.tipR : '#9a88f0');
+    }
   }
   // Pixel-Umriss wie bei den Bildern: Traufkanten des obersten breiten Teils (Dach) und Fußlinie der sichtbaren Seite;
   // auf dem Dach Ziegelreihen alle 8 Einheiten (wie das flache Bild)
