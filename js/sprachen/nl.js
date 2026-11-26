@@ -6269,4 +6269,6 @@
 "Erreiche Kochstufe {0}": "Bereik kookniveau {0}",
 "Am Lagerfeuer": "Bij het kampvuur",
 "Entzünde {0} Lagerfeuer": "Steek {0} kampvuren aan",
+// Verfolgen von Tages- und Wochenaufträgen (15.86)
+"automatisch aktiv, kein Annehmen nötig": "automatisch actief, accepteren is niet nodig",
 };

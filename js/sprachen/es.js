@@ -6276,4 +6276,6 @@
 "Erreiche Kochstufe {0}": "Alcanza el nivel de cocina {0}",
 "Am Lagerfeuer": "Junto a la fogata",
 "Entzünde {0} Lagerfeuer": "Enciende {0} fogatas",
+// Verfolgen von Tages- und Wochenaufträgen (15.86)
+"automatisch aktiv, kein Annehmen nötig": "activo automáticamente, no hace falta aceptarlo",
 };

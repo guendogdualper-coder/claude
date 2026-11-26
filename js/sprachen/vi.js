@@ -5866,4 +5866,6 @@
 "Erreiche Kochstufe {0}": "Đạt cấp nấu ăn {0}",
 "Am Lagerfeuer": "Bên lửa trại",
 "Entzünde {0} Lagerfeuer": "Nhóm {0} lửa trại",
+// Verfolgen von Tages- und Wochenaufträgen (15.86)
+"automatisch aktiv, kein Annehmen nötig": "tự động kích hoạt, không cần nhận",
 };

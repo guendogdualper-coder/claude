@@ -6280,4 +6280,6 @@
 "Erreiche Kochstufe {0}": "Alcance o nível de culinária {0}",
 "Am Lagerfeuer": "Na fogueira",
 "Entzünde {0} Lagerfeuer": "Acenda {0} fogueiras",
+// Verfolgen von Tages- und Wochenaufträgen (15.86)
+"automatisch aktiv, kein Annehmen nötig": "ativo automaticamente, não precisa aceitar",
 };

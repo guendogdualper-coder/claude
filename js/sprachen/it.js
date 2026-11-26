@@ -6273,4 +6273,6 @@
 "Erreiche Kochstufe {0}": "Raggiungi il livello di cucina {0}",
 "Am Lagerfeuer": "Accanto al fuoco",
 "Entzünde {0} Lagerfeuer": "Accendi {0} fuochi",
+// Verfolgen von Tages- und Wochenaufträgen (15.86)
+"automatisch aktiv, kein Annehmen nötig": "attivo automaticamente, non serve accettarlo",
 };

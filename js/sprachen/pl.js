@@ -6278,4 +6278,6 @@
 "Erreiche Kochstufe {0}": "Osiągnij poziom gotowania {0}",
 "Am Lagerfeuer": "Przy ognisku",
 "Entzünde {0} Lagerfeuer": "Rozpal {0} ognisk",
+// Verfolgen von Tages- und Wochenaufträgen (15.86)
+"automatisch aktiv, kein Annehmen nötig": "aktywne automatycznie, nie trzeba przyjmować",
 };

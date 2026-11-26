@@ -5867,4 +5867,6 @@
 "Erreiche Kochstufe {0}": "料理レベル{0}に到達",
 "Am Lagerfeuer": "焚き火のそばで",
 "Entzünde {0} Lagerfeuer": "焚き火を{0}回おこす",
+// Verfolgen von Tages- und Wochenaufträgen (15.86)
+"automatisch aktiv, kein Annehmen nötig": "自動で有効、受注は不要",
 };

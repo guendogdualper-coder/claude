@@ -210,24 +210,94 @@ function aufgQuestList() {
   const lohn = (r) => `${r.gold.toLocaleString('de-DE')} Gold, ${r.splinters} Seelensplitter`;
   for (const e of a.d) {
     const def = aufgDef(AUFG_TAG, e.id);
-    out.push({ key: 'aufg:' + e.id, title: 'Tagesauftrag', sub: `Täglich · ${a.d.filter((x) => x.n >= x.need).length} von 3 erledigt · Belohnung sofort: ${lohn(AUFG_LOHN.tag)}`,
+    out.push({ key: 'aufg:' + e.id, title: 'Tagesauftrag', sub: `Täglich · automatisch aktiv, kein Annehmen nötig · ${a.d.filter((x) => x.n >= x.need).length} von 3 erledigt · Belohnung sofort: ${lohn(AUFG_LOHN.tag)}`,
       goal: def.text(e.need), have: Math.min(e.n, e.need), need: e.need, where: def.where, active: true, xp: Math.round(xpToNext(MAX_LEVEL) * AUFG_LOHN.tag.ep) });
   }
   for (const e of a.w) {
     const def = aufgDef(AUFG_WOCHE, e.id);
-    out.push({ key: 'woche:' + e.id, title: 'Wochenauftrag', sub: `Wöchentlich · bis Sonntag · Belohnung sofort: ${lohn(AUFG_LOHN.woche)}, ${AUFG_LOHN.woche.kerne} Ätherkerne`,
+    out.push({ key: 'woche:' + e.id, title: 'Wochenauftrag', sub: `Wöchentlich · automatisch aktiv, kein Annehmen nötig · bis Sonntag · Belohnung sofort: ${lohn(AUFG_LOHN.woche)}, ${AUFG_LOHN.woche.kerne} Ätherkerne`,
       goal: def.text(e.need), have: Math.min(e.n, e.need), need: e.need, where: def.where, active: true, xp: Math.round(xpToNext(MAX_LEVEL) * AUFG_LOHN.woche.ep) });
   }
   return out;
 }
 if (typeof SIDE_QUEST_SOURCES !== 'undefined') SIDE_QUEST_SOURCES.push(aufgQuestList);
 // Auftragsliste rechts: eine Zeile für den Tag (nächster offener Auftrag), solange noch etwas offen ist
+// (seit 15.86: der verfolgte Tagesauftrag statt des nächsten offenen, dazu ein verfolgter Wochenauftrag)
 function aufgTrackRows() {
   const a = aufgState(game.player);
   if (!a) return [];
+  const rows = [];
+  const t = aufgPicked();
   const open = a.d.filter((e) => e.n < e.need);
-  if (!open.length) return [];
-  const e = open[0];
-  const def = aufgDef(AUFG_TAG, e.id);
-  return [{ key: 'aufg:' + e.id, title: `Tagesaufträge ${3 - open.length}/3`, goal: def.text(e.need), have: Math.min(e.n, e.need), need: e.need, where: def.where, giver: '' }];
+  const e = t && t.art === 'aufg' ? t.e : open[0];
+  if (e) {
+    const def = aufgDef(AUFG_TAG, e.id);
+    rows.push({ key: 'aufg:' + e.id, title: `Tagesaufträge ${3 - open.length}/3`, goal: def.text(e.need), have: Math.min(e.n, e.need), need: e.need, where: def.where, giver: '' });
+  }
+  if (t && t.art === 'woche') {
+    rows.push({ key: t.key, title: 'Wochenauftrag', goal: t.def.text(t.e.need), have: Math.min(t.e.n, t.e.need), need: t.e.need, where: t.def.where, giver: '' });
+  }
+  return rows;
+}
+
+// --- Verfolgen (seit 15.86) ----------------------------------------------------------------------------------------
+// „Verfolgen“ im Questfenster setzt guide.pick auf 'aufg:<id>' bzw. 'woche:<id>'. Bis 15.85 kannte der Wegweiser diese
+// Schlüssel nicht, der Knopf blieb ohne Wirkung. Jetzt kommt der gewählte Auftrag (nur dieser, damit kein Auftrag von
+// selbst verfolgt wird) in guideEntries. Ein Ziel bekommt er, wo eins auf der eigenen Karte ist: Monster ab Stufe 75,
+// Elite, Seelensteine ab 75, der laufende Weltboss oder der Eingang einer Lv-80-Instanz. Sonst bleibt er ohne Pfeil
+// verfolgt (Zeile in der Auftragsliste mit Ortsangabe).
+const AUFG_ZIEL = {
+  mobs: (m) => !m.isStone && m.level >= 75,
+  gold: (m) => !m.isStone && m.level >= 75,
+  elite: (m) => !m.isStone && !!m.elite80,
+  steine: (m) => m.isStone && m.level >= 75
+};
+function aufgPicked() {
+  const k = typeof guide !== 'undefined' && typeof guide.pick === 'string' ? guide.pick : '';
+  const i = k.indexOf(':');
+  const art = i > 0 ? k.slice(0, i) : '';
+  if (art !== 'aufg' && art !== 'woche') return null;
+  const a = aufgState(game.player);
+  if (!a) return null;
+  const e = (art === 'aufg' ? a.d : a.w).find((x) => x.id === k.slice(i + 1));
+  return e && e.n < e.need ? { key: k, art, e, def: aufgDef(art === 'aufg' ? AUFG_TAG : AUFG_WOCHE, e.id) } : null;
+}
+const aufgInstTor = (n) => {
+  const dg = n && n.id !== 'ausgang' && n.dungeon != null && game.world.dungeons ? game.world.dungeons[n.dungeon] : null;
+  return !!(dg && dg.def && dg.def.inst60 && instMobLevel(dg.def) >= 75);
+};
+function aufgGuideEntry() {
+  const t = aufgPicked();
+  const p = game.player;
+  if (!t || !p || !game.world) return null;
+  const out = { key: t.key, kind: 'side', title: t.def.text(t.e.need), aufgOhneZiel: true };
+  const area = mapAreaAt(p.x / TILE, p.y / TILE);
+  if (!area) return out;
+  const fit = AUFG_ZIEL[t.e.id];
+  if (fit) {
+    const m = nearestIn(game.monsters, area, p, (x) => !x.dead && fit(x));
+    if (m) return Object.assign(out, { aufgOhneZiel: false, monster: m.typeId, at: { x: m.x, y: m.y, name: m.name } });
+  } else if (t.e.id === 'weltboss') {
+    const w = typeof wbGuideEntry === 'function' ? wbGuideEntry() : null;
+    if (w) return Object.assign(out, { aufgOhneZiel: false, monster: w.monster, at: w.at });
+  } else if (t.e.id === 'instanz' || t.e.id === 'boss80') {
+    const n = nearestIn(game.world.npcs, area, p, aufgInstTor);
+    if (n) return Object.assign(out, { aufgOhneZiel: false, npc: n });
+  }
+  return out;
+}
+if (typeof guideEntries === 'function') {
+  const _aufgGuideEntries = guideEntries;
+  guideEntries = function () {
+    const out = _aufgGuideEntries();
+    const e = aufgGuideEntry();
+    if (e) out.push(e);
+    return out;
+  };
+}
+if (typeof guideTarget === 'function') {
+  const _aufgGuideTarget = guideTarget;
+  guideTarget = function (e, p) {
+    return e && e.aufgOhneZiel ? null : _aufgGuideTarget(e, p);
+  };
 }

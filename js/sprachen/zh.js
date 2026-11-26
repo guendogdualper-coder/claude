@@ -5867,4 +5867,6 @@
 "Erreiche Kochstufe {0}": "烹饪等级达到 {0}",
 "Am Lagerfeuer": "篝火旁",
 "Entzünde {0} Lagerfeuer": "点燃 {0} 堆篝火",
+// Verfolgen von Tages- und Wochenaufträgen (15.86)
+"automatisch aktiv, kein Annehmen nötig": "自动生效，无需接取",
 };

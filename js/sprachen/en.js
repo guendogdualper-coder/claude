@@ -7872,4 +7872,6 @@
 "Erreiche Kochstufe {0}": "Reach cooking level {0}",
 "Am Lagerfeuer": "By the Campfire",
 "Entzünde {0} Lagerfeuer": "Light {0} campfires",
+// Verfolgen von Tages- und Wochenaufträgen (15.86)
+"automatisch aktiv, kein Annehmen nötig": "active automatically, no need to accept",
 };

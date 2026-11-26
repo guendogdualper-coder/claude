@@ -6279,4 +6279,6 @@
 "Erreiche Kochstufe {0}": "Atteins le niveau de cuisine {0}",
 "Am Lagerfeuer": "Au coin du feu",
 "Entzünde {0} Lagerfeuer": "Allume {0} feux de camp",
+// Verfolgen von Tages- und Wochenaufträgen (15.86)
+"automatisch aktiv, kein Annehmen nötig": "actif automatiquement, pas besoin de l'accepter",
 };

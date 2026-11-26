@@ -5866,4 +5866,6 @@
 "Erreiche Kochstufe {0}": "Capai level memasak {0}",
 "Am Lagerfeuer": "Di Api Unggun",
 "Entzünde {0} Lagerfeuer": "Nyalakan {0} api unggun",
+// Verfolgen von Tages- und Wochenaufträgen (15.86)
+"automatisch aktiv, kein Annehmen nötig": "aktif otomatis, tidak perlu diterima",
 };

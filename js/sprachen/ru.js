@@ -5867,4 +5867,6 @@
 "Erreiche Kochstufe {0}": "Достигни уровня кулинарии {0}",
 "Am Lagerfeuer": "У костра",
 "Entzünde {0} Lagerfeuer": "Разведи {0} костров",
+// Verfolgen von Tages- und Wochenaufträgen (15.86)
+"automatisch aktiv, kein Annehmen nötig": "активно автоматически, принимать не нужно",
 };

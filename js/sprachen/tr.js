@@ -6275,4 +6275,6 @@
 "Erreiche Kochstufe {0}": "Aşçılık seviyesi {0} ol",
 "Am Lagerfeuer": "Kamp Ateşinde",
 "Entzünde {0} Lagerfeuer": "{0} kamp ateşi yak",
+// Verfolgen von Tages- und Wochenaufträgen (15.86)
+"automatisch aktiv, kein Annehmen nötig": "otomatik olarak etkin, kabul etmen gerekmez",
 };

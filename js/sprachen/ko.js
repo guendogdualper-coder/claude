@@ -5867,4 +5867,6 @@
 "Erreiche Kochstufe {0}": "요리 레벨 {0} 달성",
 "Am Lagerfeuer": "모닥불 곁에서",
 "Entzünde {0} Lagerfeuer": "모닥불 {0}번 피우기",
+// Verfolgen von Tages- und Wochenaufträgen (15.86)
+"automatisch aktiv, kein Annehmen nötig": "자동 활성, 수락할 필요 없음",
 };
