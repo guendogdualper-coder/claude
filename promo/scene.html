@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Wateroo promo scene</title>
+<style>
+  @font-face { font-family: Inter; font-weight: 400; src: url("../wateroo/assets/fonts/Inter-400.ttf"); }
+  @font-face { font-family: Inter; font-weight: 500; src: url("../wateroo/assets/fonts/Inter-500.ttf"); }
+  @font-face { font-family: Inter; font-weight: 600; src: url("../wateroo/assets/fonts/Inter-600.ttf"); }
+  @font-face { font-family: SpaceGrotesk; font-weight: 700; src: url("../wateroo/assets/fonts/SpaceGrotesk-700.ttf"); }
+  html, body { margin: 0; background: #000; }
+  canvas { display: block; }
+</style>
+</head>
+<body>
+<canvas id="c" width="1080" height="1920"></canvas>
+<script>
+// Wateroo 10-second promo. render(t) draws the frame at t seconds (0–10).
+// Storyboard:
+//   0.0–2.2  notification arrives, phone buzzes
+//   2.2–5.4  she drinks a glass of water
+//   5.4–8.2  circle wipe into the app: the glass fills, love note appears
+//   8.2–10   end card
+const W = 1080, H = 1920;
+const ctx = document.getElementById('c').getContext('2d');
+const C = {
+  wallTop: '#E3F2FB', wallBottom: '#D3EAF7', table: '#FFFFFF', tableEdge: '#C4DAE7',
+  tableFront: '#A9C4D4', floor: '#8FAEC0',
+  navy: '#0E2A47', navy2: '#17375A', splash: '#3CC8F0', blue: '#0B6FB0', bright: '#1F8FD1',
+  ice: '#DCEFFA', sparkle: '#FFD166', mist: '#F4FAFD', muted: '#4A5D70', subtle: '#5B6B7A',
+  skin: '#D9A07A', skinShade: '#C68B64', hair: '#2B1D17', sweater: '#F6A26B', sweaterShade: '#E4895A',
+  cheek: '#E8836E', leaf: '#3FA27A', leaf2: '#2F8A66', pot: '#E9EEF2', pink: '#FFF0F3', heart: '#E0446A',
+};
+
+// ---------- helpers ----------
+const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
+const lerp = (a, b, k) => a + (b - a) * k;
+const seg = (t, a, b) => clamp((t - a) / (b - a));
+const smooth = (k) => k * k * (3 - 2 * k);
+const easeOut = (k) => 1 - Math.pow(1 - k, 3);
+const easeOutBack = (k) => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(k - 1, 3) + c1 * Math.pow(k - 1, 2); };
+// Piecewise keyframes: [[t, value], ...] with smooth easing between keys.
+function keys(t, list) {
+  if (t <= list[0][0]) return list[0][1];
+  for (let i = 0; i < list.length - 1; i++) {
+    const [t0, v0] = list[i], [t1, v1] = list[i + 1];
+    if (t <= t1) {
+      const k = smooth(seg(t, t0, t1));
+      return Array.isArray(v0) ? v0.map((v, j) => lerp(v, v1[j], k)) : lerp(v0, v1, k);
+    }
+  }
+  return list[list.length - 1][1];
+}
+function rr(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); }
+function text(str, x, y, font, color, align = 'left') {
+  ctx.font = font; ctx.fillStyle = color; ctx.textAlign = align; ctx.textBaseline = 'alphabetic'; ctx.fillText(str, x, y);
+}
+
+// The Wateroo glass shape (same geometry as the app icon), origin at bottom center.
+function glassPath(s) {
+  const p = (x, y) => [(x - 50) * s, (y - 84) * s];
+  ctx.beginPath();
+  ctx.moveTo(...p(30, 22)); ctx.lineTo(...p(70, 22)); ctx.lineTo(...p(64, 80));
+  ctx.quadraticCurveTo(...p(63.6, 84), ...p(59.6, 84)); ctx.lineTo(...p(40.4, 84));
+  ctx.quadraticCurveTo(...p(36.4, 84), ...p(36, 80)); ctx.closePath();
+}
+// A real glass with water: the surface stays level when the glass tilts.
+function drawGlass(x, y, angle, level, s, opts = {}) {
+  const h = 62 * s;
+  ctx.save(); ctx.translate(x, y); ctx.rotate(angle);
+  glassPath(s); ctx.fillStyle = opts.body || 'rgba(255,255,255,0.55)'; ctx.fill();
+  ctx.save(); glassPath(s); ctx.clip();
+  if (level > 0.01) {
+    ctx.translate(0, -level * h); ctx.rotate(-angle);
+    ctx.fillStyle = opts.water || C.splash;
+    ctx.beginPath(); ctx.moveTo(-400, 0);
+    for (let i = -400; i <= 400; i += 20) ctx.lineTo(i, Math.sin(i / 22 + (opts.wave || 0)) * 3);
+    ctx.lineTo(400, 600); ctx.lineTo(-400, 600); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.fillRect(-400, -2, 800, 6);
+  }
+  ctx.restore();
+  glassPath(s); ctx.strokeStyle = opts.outline || '#8FB3C8'; ctx.lineWidth = opts.lw || 5; ctx.lineJoin = 'round'; ctx.stroke();
+  // shine
+  ctx.strokeStyle = 'rgba(255,255,255,0.8)'; ctx.lineWidth = opts.lw || 5; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(-14 * s, -52 * s); ctx.lineTo(-11 * s, -14 * s); ctx.stroke();
+  ctx.restore();
+}
+// The flat app-style glass (white outline on navy), origin top-left of a 100-box.
+function appGlass(x, y, size, fill, sparkle) {
+  const s = size / 100;
+  ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
+  const path = () => { ctx.beginPath(); ctx.moveTo(30, 22); ctx.lineTo(70, 22); ctx.lineTo(64, 80);
+    ctx.quadraticCurveTo(63.6, 84, 59.6, 84); ctx.lineTo(40.4, 84); ctx.quadraticCurveTo(36.4, 84, 36, 80); ctx.closePath(); };
+  if (fill > 0.01) {
+    const yy = 80 - Math.min(fill, 1) * 52;
+    const xl = 30 + 6 * (yy - 22) / 58 + 0.5, xr = 70 - 6 * (yy - 22) / 58 - 0.5;
+    ctx.save(); path(); ctx.clip();
+    ctx.beginPath(); ctx.moveTo(xl, yy); ctx.quadraticCurveTo((xl + 50) / 2, yy - 4, 50, yy);
+    ctx.quadraticCurveTo((50 + xr) / 2, yy + 4, xr, yy); ctx.lineTo(70, 90); ctx.lineTo(30, 90); ctx.closePath();
+    ctx.fillStyle = C.splash; ctx.fill(); ctx.restore();
+  }
+  path(); ctx.strokeStyle = '#FFFFFF'; ctx.lineWidth = 3.2; ctx.lineJoin = 'round'; ctx.stroke();
+  ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.lineWidth = 2.4; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(57, 31); ctx.lineTo(64, 31); ctx.moveTo(58, 40); ctx.lineTo(64, 40); ctx.stroke();
+  if (sparkle > 0) sparkles([[20, 18, 4], [80, 13, 3], [84, 33, 3]], sparkle, 2.5);
+  ctx.restore();
+}
+function sparkles(list, k, lw) {
+  ctx.save(); ctx.globalAlpha = clamp(k); ctx.strokeStyle = C.sparkle; ctx.lineWidth = lw; ctx.lineCap = 'round';
+  for (const [x, y, r0] of list) { const r = r0 * easeOutBack(clamp(k));
+    ctx.beginPath(); ctx.moveTo(x, y - r); ctx.lineTo(x, y + r); ctx.moveTo(x - r, y); ctx.lineTo(x + r, y); ctx.stroke(); }
+  ctx.restore();
+}
+function appIcon(x, y, size) {
+  ctx.save(); rr(x, y, size, size, size * 0.22); ctx.fillStyle = C.navy; ctx.fill(); ctx.clip();
+  appGlass(x, y, size, 0.6, 0); ctx.restore();
+}
+function heart(x, y, s, color) {
+  ctx.save(); ctx.translate(x, y); ctx.scale(s, s); ctx.fillStyle = color; ctx.beginPath();
+  ctx.moveTo(0, 6); ctx.bezierCurveTo(-14, -4, -8, -16, 0, -8); ctx.bezierCurveTo(8, -16, 14, -4, 0, 6); ctx.fill(); ctx.restore();
+}
+
+// ---------- scene 1: room with Seda ----------
+function room(t) {
+  const g = ctx.createLinearGradient(0, 0, 0, 1250);
+  g.addColorStop(0, C.wallTop); g.addColorStop(1, C.wallBottom);
+  ctx.fillStyle = g; ctx.fillRect(-200, -400, W + 400, H + 400);
+  // window
+  rr(700, 330, 270, 360, 26); ctx.fillStyle = '#FFFFFF'; ctx.fill();
+  rr(718, 348, 234, 324, 16); ctx.fillStyle = '#BFE5F8'; ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.9)';
+  for (const [cx, cy, r] of [[790, 450, 30], [828, 440, 38], [868, 452, 28]]) { ctx.beginPath(); ctx.arc(cx + Math.sin(t * 0.6) * 6, cy, r, 0, 7); ctx.fill(); }
+  ctx.fillStyle = '#FFFFFF'; ctx.fillRect(832, 348, 10, 324); ctx.fillRect(718, 505, 234, 10);
+  // wall clock (it's reminder time)
+  const cx = 230, cy = 470;
+  ctx.beginPath(); ctx.arc(cx, cy, 96, 0, 7); ctx.fillStyle = '#FFFFFF'; ctx.fill();
+  ctx.lineWidth = 10; ctx.strokeStyle = C.navy; ctx.stroke();
+  ctx.lineCap = 'round';
+  for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2; ctx.lineWidth = 5; ctx.strokeStyle = '#9FB7C7';
+    ctx.beginPath(); ctx.moveTo(cx + Math.cos(a) * 72, cy + Math.sin(a) * 72); ctx.lineTo(cx + Math.cos(a) * 82, cy + Math.sin(a) * 82); ctx.stroke(); }
+  const minute = (30 + t * 6) / 60 * Math.PI * 2 - Math.PI / 2, hour = (10.5 + t * 0.1) / 12 * Math.PI * 2 - Math.PI / 2;
+  ctx.strokeStyle = C.navy; ctx.lineWidth = 10; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(hour) * 44, cy + Math.sin(hour) * 44); ctx.stroke();
+  ctx.lineWidth = 7; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(minute) * 66, cy + Math.sin(minute) * 66); ctx.stroke();
+  ctx.fillStyle = C.bright; ctx.beginPath(); ctx.arc(cx, cy, 9, 0, 7); ctx.fill();
+}
+
+function person(t) {
+  // pose keys
+  const look = keys(t, [[0, 0], [1.05, 0], [1.35, 1], [2.2, 1], [2.6, 0], [10, 0]]);         // look at phone
+  const drink = keys(t, [[0, 0], [3.0, 0], [3.4, 1], [4.85, 1], [5.2, 0], [10, 0]]);          // drinking pose
+  const headTilt = -0.05 * look + 0.14 * drink;
+  const bob = Math.sin(t * 2.2) * 3;
+  // body
+  ctx.save(); ctx.translate(0, bob * 0.5);
+  // back hair
+  ctx.save(); ctx.translate(480, 880); ctx.rotate(-headTilt); ctx.translate(-480, -880);
+  ctx.fillStyle = C.hair; rr(340, 660, 280, 360, 120); ctx.fill();
+  ctx.restore();
+  // torso
+  ctx.fillStyle = C.sweater; ctx.beginPath();
+  ctx.moveTo(300, 1300); ctx.bezierCurveTo(290, 1060, 330, 975, 420, 960); ctx.lineTo(540, 960);
+  ctx.bezierCurveTo(630, 975, 670, 1060, 660, 1300); ctx.closePath(); ctx.fill();
+  // neck
+  ctx.fillStyle = C.skinShade; rr(450, 860, 60, 110, 24); ctx.fill();
+  // collar
+  ctx.fillStyle = C.sweaterShade; ctx.beginPath(); ctx.ellipse(480, 962, 62, 20, 0, 0, Math.PI); ctx.fill();
+  // head
+  ctx.save(); ctx.translate(480, 880); ctx.rotate(-headTilt); ctx.translate(-480, -880);
+  ctx.fillStyle = C.skin; ctx.beginPath(); ctx.ellipse(480, 770, 118, 132, 0, 0, 7); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(364, 785, 16, 24, 0, 0, 7); ctx.ellipse(596, 785, 16, 24, 0, 0, 7); ctx.fill();
+  // fringe
+  ctx.fillStyle = C.hair; ctx.beginPath();
+  ctx.moveTo(356, 760); ctx.bezierCurveTo(350, 640, 450, 610, 520, 628);
+  ctx.bezierCurveTo(600, 645, 620, 720, 604, 770); ctx.bezierCurveTo(560, 700, 470, 690, 420, 676);
+  ctx.bezierCurveTo(400, 700, 380, 730, 356, 760); ctx.closePath(); ctx.fill();
+  // face
+  const px = 10 * look, py = 8 * look;
+  const blink = (Math.abs(t - 0.4) < 0.07 || Math.abs(t - 5.75) < 0.07) ? 1 : 0;
+  const closed = drink > 0.5 || blink;
+  ctx.strokeStyle = C.hair; ctx.fillStyle = C.hair; ctx.lineCap = 'round'; ctx.lineWidth = 7;
+  for (const ex of [438, 522]) {
+    if (closed) { ctx.beginPath(); ctx.arc(ex + px, 778, 15, Math.PI * 1.1, Math.PI * 1.9); ctx.stroke(); }
+    else { ctx.beginPath(); ctx.ellipse(ex + px, 776 + py, 12, 15, 0, 0, 7); ctx.fill();
+      ctx.fillStyle = '#FFFFFF'; ctx.beginPath(); ctx.arc(ex + px + 4, 771 + py, 4, 0, 7); ctx.fill(); ctx.fillStyle = C.hair; }
+    ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(ex + px * 0.5, 748 - 4 * look, 20, Math.PI * 1.2, Math.PI * 1.8); ctx.stroke(); ctx.lineWidth = 7;
+  }
+  ctx.globalAlpha = 0.35; ctx.fillStyle = C.cheek;
+  ctx.beginPath(); ctx.ellipse(408, 818, 24, 15, 0, 0, 7); ctx.ellipse(552, 818, 24, 15, 0, 0, 7); ctx.fill(); ctx.globalAlpha = 1;
+  ctx.strokeStyle = C.skinShade; ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(482 + px * 0.6, 800, 10, 0.2, 1.4); ctx.stroke();
+  const smile = keys(t, [[0, 0.4], [1.3, 0.4], [1.7, 1], [10, 1]]);
+  const after = keys(t, [[0, 0], [5.15, 0], [5.4, 1], [10, 1]]);
+  ctx.strokeStyle = '#8E3B2E'; ctx.lineWidth = 7;
+  ctx.beginPath(); ctx.arc(480 + px * 0.6, 822 - 8 * smile, 18 + 10 * Math.max(smile, after), 0.25 * Math.PI, 0.75 * Math.PI); ctx.stroke();
+  ctx.restore();
+  ctx.restore();
+}
+
+function arms(t) {
+  // left arm resting on the table
+  limb([[330, 990], [262, 1170], [330, 1352]]);
+  // right arm: rest → grab glass → drink → put down
+  const hand = keys(t, [[0, [610, 1366]], [2.25, [610, 1366]], [2.7, [690, 1312]], [2.85, [690, 1312]],
+    [3.4, [566, 876]], [4.85, [566, 876]], [5.25, [690, 1312]], [5.4, [690, 1312]], [5.8, [610, 1366]], [10, [610, 1366]]]);
+  const elbow = keys(t, [[0, [720, 1180]], [2.25, [720, 1180]], [2.7, [770, 1160]], [3.4, [738, 1080]],
+    [4.85, [738, 1080]], [5.25, [770, 1160]], [5.8, [720, 1180]], [10, [720, 1180]]]);
+  return { hand, elbow };
+}
+function limb(pts) {
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.strokeStyle = C.sweaterShade; ctx.lineWidth = 64;
+  ctx.beginPath(); ctx.moveTo(...pts[0]); ctx.lineTo(...pts[1]); ctx.lineTo(...pts[2]); ctx.stroke();
+  ctx.strokeStyle = C.sweater; ctx.lineWidth = 54;
+  ctx.beginPath(); ctx.moveTo(...pts[0]); ctx.lineTo(...pts[1]); ctx.lineTo(...pts[2]); ctx.stroke();
+  ctx.fillStyle = C.skin; ctx.beginPath(); ctx.arc(pts[2][0], pts[2][1], 30, 0, 7); ctx.fill();
+}
+
+function table() {
+  ctx.fillStyle = C.floor; ctx.fillRect(-200, 1500, W + 400, H);
+  ctx.fillStyle = C.table; ctx.beginPath(); ctx.moveTo(-20, 1240); ctx.lineTo(W + 20, 1240); ctx.lineTo(W + 20, 1500); ctx.lineTo(-20, 1500); ctx.fill();
+  ctx.fillStyle = C.tableEdge; ctx.fillRect(-20, 1236, W + 40, 8);
+  ctx.fillStyle = C.tableFront; ctx.fillRect(-20, 1500, W + 40, 70);
+  ctx.fillStyle = 'rgba(14,42,71,0.08)'; ctx.fillRect(-20, 1570, W + 40, 14);
+  // plant
+  ctx.fillStyle = C.leaf2; for (const [a, l] of [[-2.2, 120], [-1.9, 150], [-1.4, 160], [-1.1, 130], [-0.8, 110]]) {
+    ctx.save(); ctx.translate(140, 1300); ctx.rotate(a + Math.PI / 2); ctx.beginPath(); ctx.ellipse(0, -l / 2, 22, l / 2, 0, 0, 7); ctx.fill(); ctx.restore(); }
+  ctx.fillStyle = C.leaf; for (const [a, l] of [[-2.0, 100], [-1.6, 135], [-1.2, 115]]) {
+    ctx.save(); ctx.translate(140, 1300); ctx.rotate(a + Math.PI / 2); ctx.beginPath(); ctx.ellipse(0, -l / 2, 18, l / 2, 0, 0, 7); ctx.fill(); ctx.restore(); }
+  ctx.fillStyle = C.pot; ctx.beginPath(); ctx.moveTo(80, 1290); ctx.lineTo(200, 1290); ctx.lineTo(186, 1400); ctx.lineTo(94, 1400); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#D5DEE5'; ctx.fillRect(80, 1290, 120, 16);
+}
+
+function phoneOnTable(t) {
+  const buzz = (t > 0.6 && t < 1.05) ? Math.sin(t * 90) * 6 : 0;
+  const on = seg(t, 0.62, 0.75) * (1 - seg(t, 4.0, 4.4));
+  ctx.save(); ctx.translate(860 + buzz, 1395); ctx.rotate(-0.06);
+  ctx.fillStyle = 'rgba(14,42,71,0.15)'; rr(-118, -52, 240, 122, 26); ctx.fill();
+  ctx.fillStyle = '#16202B'; rr(-122, -62, 244, 118, 26); ctx.fill();
+  ctx.fillStyle = on > 0 ? `rgba(220,239,250,${0.15 + 0.85 * on})` : '#0B141D'; rr(-108, -50, 216, 94, 16); ctx.fill();
+  if (on > 0) {
+    ctx.globalAlpha = on; ctx.fillStyle = '#FFFFFF'; rr(-96, -40, 192, 40, 10); ctx.fill();
+    ctx.fillStyle = C.navy; rr(-90, -35, 30, 30, 7); ctx.fill();
+    ctx.fillStyle = '#9FB7C7'; rr(-52, -32, 120, 8, 4); ctx.fill(); rr(-52, -18, 90, 8, 4); ctx.fill();
+    ctx.globalAlpha = 1;
+    // glow
+    ctx.strokeStyle = `rgba(60,200,240,${0.6 * on * (0.5 + 0.5 * Math.sin(t * 12))})`; ctx.lineWidth = 6; rr(-130, -70, 260, 134, 30); ctx.stroke();
+  }
+  ctx.restore();
+  if (t > 0.6 && t < 1.2) { // buzz lines
+    const k = seg(t, 0.6, 1.2); ctx.save(); ctx.globalAlpha = 1 - k; ctx.strokeStyle = C.bright; ctx.lineWidth = 6; ctx.lineCap = 'round';
+    for (const s of [-1, 1]) { ctx.beginPath(); ctx.arc(860, 1390, 150 + 40 * k, s > 0 ? -0.5 : Math.PI - 0.5, s > 0 ? 0.3 : Math.PI + 0.3); ctx.stroke(); }
+    ctx.restore(); }
+}
+
+function notification(t) {
+  const inK = easeOutBack(seg(t, 0.7, 1.15)), outK = smooth(seg(t, 2.25, 2.6));
+  if (inK <= 0 || outK >= 1) return;
+  const y = lerp(-280, 90, inK) - 400 * outK;
+  ctx.save();
+  ctx.shadowColor = 'rgba(14,42,71,0.22)'; ctx.shadowBlur = 50; ctx.shadowOffsetY = 18;
+  rr(50, y, 980, 220, 48); ctx.fillStyle = 'rgba(255,255,255,0.97)'; ctx.fill();
+  ctx.restore();
+  appIcon(86, y + 50, 120);
+  text('WATEROO', 236, y + 80, '600 30px Inter', C.subtle);
+  text('now', 994, y + 80, '500 30px Inter', C.subtle, 'right');
+  text('Seda, time for a sip!', 236, y + 132, '600 44px Inter', C.navy);
+  text('Your glass is waiting.', 236, y + 182, '400 38px Inter', C.muted);
+}
+
+function sceneRoom(t) {
+  ctx.save();
+  ctx.translate(540, 1240); ctx.scale(1.16, 1.16); ctx.translate(-540, -1180);
+  room(t);
+  person(t);
+  table();
+  const { hand, elbow } = arms(t);
+  // glass: on the table until grabbed, then in the hand
+  const held = t > 2.78 && t < 5.32;
+  const tilt = keys(t, [[0, 0], [3.1, 0], [3.45, -0.95], [4.85, -1.05], [5.15, 0], [10, 0]]);
+  const level = keys(t, [[0, 0.85], [3.5, 0.85], [4.8, 0.08], [10, 0.08]]);
+  const s = 2.9, gh = 62 * s;
+  const wave = t * 4;
+  phoneOnTable(t);
+  if (!held) drawGlass(730, 1390, 0, level, s, { wave });
+  limb([[620, 990], elbow, hand]);
+  if (held) {
+    // The hand grips the glass on its left side, a bit below the middle:
+    // glass origin (bottom center) = hand + R(a) · (40, 0.45 · height).
+    const a = tilt, gx = 40, gy = 0.45 * gh;
+    drawGlass(hand[0] + gx * Math.cos(a) - gy * Math.sin(a), hand[1] + gx * Math.sin(a) + gy * Math.cos(a), a, level, s, { wave });
+    // fingers in front of the glass
+    ctx.fillStyle = C.skin; ctx.beginPath(); ctx.arc(hand[0], hand[1], 30, 0, 7); ctx.fill();
+    ctx.fillStyle = C.skinShade; ctx.beginPath(); ctx.ellipse(hand[0] + 20, hand[1] + 4, 12, 22, 0.3, 0, 7); ctx.fill();
+  }
+  // "refreshed" sparkles after the last sip
+  const fresh = seg(t, 5.0, 5.3) * (1 - seg(t, 5.9, 6.2));
+  if (fresh > 0) sparkles([[330, 660, 22], [640, 640, 26], [610, 560, 16]], fresh, 8);
+  ctx.restore();
+  notification(t);
+}
+
+// ---------- scene 2: the app ----------
+function scenePhone(t) {
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, '#E9F5FC'); g.addColorStop(1, '#CFE8F6');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  const cap = smooth(seg(t, 5.7, 6.0));
+  ctx.globalAlpha = cap;
+  text('Every sip fills', 540, 190 - 20 * (1 - cap), '700 84px SpaceGrotesk', C.navy, 'center');
+  text('your glass.', 540, 285 - 20 * (1 - cap), '700 84px SpaceGrotesk', C.bright, 'center');
+  ctx.globalAlpha = 1;
+  // phone
+  const px = 230, py = 380, pw = 620, ph = 1360;
+  ctx.save(); ctx.shadowColor = 'rgba(14,42,71,0.3)'; ctx.shadowBlur = 70; ctx.shadowOffsetY = 30;
+  rr(px, py, pw, ph, 90); ctx.fillStyle = '#0B1520'; ctx.fill(); ctx.restore();
+  const sx = px + 20, sy = py + 20, sw = pw - 40, sh = ph - 40;
+  ctx.save(); rr(sx, sy, sw, sh, 72); ctx.clip();
+  ctx.fillStyle = C.mist; ctx.fillRect(sx, sy, sw, sh);
+  const k = sw / 390; // app units → pixels
+  ctx.translate(sx, sy + 30); ctx.scale(k, k);
+  // app content (390-wide units)
+  text('Good morning, Seda', 24, 52, '500 14px Inter', C.subtle);
+  text('Today', 24, 88, '700 32px SpaceGrotesk', C.navy);
+  rr(278, 58, 88, 36, 18); ctx.fillStyle = C.navy; ctx.fill();
+  text('Level 4', 322, 82, '600 14px Inter', '#FFFFFF', 'center');
+  rr(24, 108, 118, 32, 16); ctx.fillStyle = '#FFFFFF'; ctx.fill(); text('6-day streak', 83, 129, '600 13px Inter', C.navy, 'center');
+  rr(150, 108, 170, 32, 16); ctx.fillStyle = '#FFFFFF'; ctx.fill(); text('Next reminder 11:30', 235, 129, '600 13px Inter', C.navy, 'center');
+  // glass card
+  const fill = keys(t, [[0, 0.75], [6.25, 0.75], [7.1, 1.0], [10, 1.0]]);
+  const full = seg(t, 7.05, 7.3);
+  rr(24, 156, 342, 330, 28); ctx.fillStyle = C.navy; ctx.fill();
+  appGlass(100, 166, 190, fill, full);
+  const ml = Math.round(fill * 2000 / 10) * 10;
+  text(ml.toLocaleString('en-US') + ' ml', 195, 396, '700 36px SpaceGrotesk', '#FFFFFF', 'center');
+  text(`of 2,000 ml · ${Math.round(fill * 100)}%`, 195, 426, '400 15px Inter', '#B9D7EA', 'center');
+  if (full > 0) { ctx.globalAlpha = full; text('Glass full! +50 XP', 195, 462, '600 16px Inter', C.sparkle, 'center'); ctx.globalAlpha = 1; }
+  // add buttons
+  text('Add a drink', 24, 520, '600 15px Inter', C.navy);
+  const labels = ['+150 ml', '+250 ml', '+500 ml'];
+  labels.forEach((l, i) => { const bx = 24 + i * 118; const primary = i === 2;
+    rr(bx, 536, 106, 56, 16); ctx.fillStyle = primary ? C.blue : C.ice; ctx.fill();
+    text(l, bx + 53, 570, '600 16px Inter', primary ? '#FFFFFF' : C.navy, 'center'); });
+  // finger tap on +500 ml
+  const tap = seg(t, 5.95, 6.35);
+  if (tap > 0 && tap < 1) { ctx.save(); ctx.globalAlpha = 0.5 * (1 - tap); ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath(); ctx.arc(318, 564, 10 + 60 * tap, 0, 7); ctx.fill(); ctx.restore(); }
+  const finger = keys(t, [[0, 0], [5.8, 0], [6.0, 1], [6.25, 1], [6.5, 0], [10, 0]]);
+  if (finger > 0) { ctx.save(); ctx.globalAlpha = finger; ctx.fillStyle = 'rgba(14,42,71,0.25)';
+    ctx.beginPath(); ctx.arc(322, 570 + 30 * (1 - finger), 26, 0, 7); ctx.fill(); ctx.restore(); }
+  // bottom navigation, like the real app
+  const navY = sh / k - 30 - 92;
+  ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0, navY, 390, 140);
+  ctx.fillStyle = '#DDE8EF'; ctx.fillRect(0, navY, 390, 1);
+  rr(32, navY + 12, 66, 32, 16); ctx.fillStyle = C.ice; ctx.fill();
+  [['Today', 65, true], ['Reminders', 195, false], ['Rewards', 325, false]].forEach(([l, x, on]) => {
+    ctx.strokeStyle = on ? C.navy : C.subtle; ctx.lineWidth = 2; ctx.lineJoin = 'round';
+    ctx.beginPath(); ctx.moveTo(x - 8, navY + 20); ctx.lineTo(x + 8, navY + 20); ctx.lineTo(x + 6, navY + 36); ctx.lineTo(x - 6, navY + 36); ctx.closePath(); ctx.stroke();
+    text(l, x, navY + 64, (on ? '600' : '500') + ' 12px Inter', on ? C.blue : C.subtle, 'center'); });
+  // love note slides up
+  const note = easeOutBack(seg(t, 7.4, 7.85));
+  if (note > 0) {
+    const ny = lerp(900, 616, note);
+    ctx.save(); ctx.shadowColor = 'rgba(14,42,71,0.15)'; ctx.shadowBlur = 20; ctx.shadowOffsetY = 6;
+    rr(24, ny, 342, 118, 20); ctx.fillStyle = C.pink; ctx.fill(); ctx.restore();
+    heart(52, ny + 40, 1.3, C.heart);
+    text('Note #1 for Seda', 76, ny + 38, '600 13px Inter', '#B0284F');
+    text('You did it, Seda! Glass full,', 76, ny + 66, '500 17px Inter', C.navy);
+    text('heart full. I’m proud of you.', 76, ny + 92, '500 17px Inter', C.navy);
+  }
+  ctx.restore();
+  // notch
+  rr(px + pw / 2 - 70, py + 38, 140, 34, 17); ctx.fillStyle = '#0B1520'; ctx.fill();
+}
+
+// ---------- scene 3: end card ----------
+function sceneEnd(t) {
+  ctx.fillStyle = C.mist; ctx.fillRect(0, 0, W, H);
+  const pop = easeOutBack(seg(t, 8.35, 8.8));
+  const size = 300 * pop;
+  if (size > 1) appIcon(540 - size / 2, 720 - size / 2, size);
+  sparkles([[340, 560, 26], [760, 540, 34], [800, 760, 20], [300, 820, 18]], seg(t, 8.7, 9.0), 9);
+  const a = smooth(seg(t, 8.7, 9.1));
+  ctx.globalAlpha = a;
+  ctx.font = '700 150px SpaceGrotesk'; ctx.textAlign = 'left';
+  const w1 = ctx.measureText('Water').width, w2 = ctx.measureText('oo').width, x0 = 540 - (w1 + w2) / 2;
+  text('Water', x0, 1060 + 20 * (1 - a), '700 150px SpaceGrotesk', C.navy);
+  text('oo', x0 + w1, 1060 + 20 * (1 - a), '700 150px SpaceGrotesk', C.bright);
+  ctx.globalAlpha = smooth(seg(t, 8.95, 9.3));
+  text('Your thirsty little buddy.', 540, 1150, '500 48px Inter', C.muted, 'center');
+  ctx.globalAlpha = smooth(seg(t, 9.2, 9.55));
+  ctx.font = '600 38px Inter';
+  const a1 = 'Made with', a2 = 'for Seda', gap = 64;
+  const w1a = ctx.measureText(a1).width, w2a = ctx.measureText(a2).width;
+  const lx = 540 - (w1a + gap + w2a) / 2;
+  text(a1, lx, 1560, '600 38px Inter', '#B0284F');
+  heart(lx + w1a + gap / 2, 1548, 1.6, C.heart);
+  text(a2, lx + w1a + gap, 1560, '600 38px Inter', '#B0284F');
+  ctx.globalAlpha = 1;
+}
+
+// ---------- timeline ----------
+window.render = function (t) {
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1; ctx.clearRect(0, 0, W, H);
+  if (t < 5.45) { sceneRoom(t); }
+  else if (t < 5.9) { // circle wipe from the phone on the table
+    sceneRoom(t); const r = easeOut(seg(t, 5.45, 5.9)) * 2300;
+    ctx.save(); ctx.beginPath(); ctx.arc(540 + (860 - 540) * 1.16, 1240 + (1395 - 1180) * 1.16, r, 0, 7); ctx.clip(); scenePhone(t); ctx.restore();
+  } else if (t < 8.2) { scenePhone(t); }
+  else if (t < 8.5) { scenePhone(t); ctx.globalAlpha = smooth(seg(t, 8.2, 8.5)); sceneEnd(t); ctx.globalAlpha = 1; }
+  else { sceneEnd(t); }
+};
+window.ready = (async () => {
+  await Promise.all(['400 20px Inter', '500 20px Inter', '600 20px Inter', '700 20px SpaceGrotesk'].map((f) => document.fonts.load(f)));
+  window.render(0);
+  return true;
+})();
+</script>
+</body>
+</html>
